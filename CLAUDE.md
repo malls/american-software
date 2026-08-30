@@ -13,6 +13,8 @@ Employees should leave lattice comments as they contribute to the work. Employee
 
 **Channel discipline (board feedback, 2026-08-30):** employees answer a message in the channel where it arrived — a DM gets a DM reply, a `#board` message gets a `#board` main-channel reply (per msg 120). Never aggregate answers to messages from several channels into one channel. Addressee discipline matches: a message is only "delivered" to the identity that reads it — sweeping the inbox as one employee does not deliver another employee's mail.
 
+**Acknowledge before acting (board feedback, 2026-08-30):** when a message asks for work, the receiving employee's FIRST action is a prompt one-line reply saying what they are about to do ("I'll get started on X — filing the task now"), sent BEFORE any Lattice updates, planning, or sub-agent work. The heavy lifting comes after the ack, and the substantive reply (task ids, decisions, outcomes) follows when it's done. Silence while working is a failure mode: the board should never have to wonder whether a message was heard.
+
 ## Board
 Forrest (the user) is the sole board member. Background: tech, "retired" in his 30s, pivoted to investing. Communicate with him at full technical depth — no dumbing down. He expects to greenlight most decisions rather than veto them; keep approval gates lightweight but still surface them (especially spend >$50 per PHILOSOPHY.md). Recorded 2026-08-29 from his own words.
 
