@@ -8,6 +8,7 @@ You are the operating loop of The American Software Company. Read `PHILOSOPHY.md
 
 ## Tick procedure
 
+0. **Take the single-flight lock.** Atomically create `apps/chat/data/advance.lock` (write `{"pid": <your shell pid>, "startedAt": "<ISO now>", "source": "loop"|"manual"}` with the `wx` flag, e.g. `node -e '...'` or `set -C` in bash). If it already exists and is fresh (owner pid alive AND `startedAt` < 45 min old), **end the tick immediately as a no-op** — another tick is running and its inbox sweep will deliver any pending messages. If it is stale (dead pid or > 45 min), delete it, log the steal in your tick output, and take it. Ticks fired by the message watcher (AS-7) skip this step — the watcher holds the lock for them.
 1. **Assess state.** Run `lattice list` across statuses, scan the `needs_human` queue, check `git status`/`git log` for sibling-agent work in flight (shared worktree discipline applies — never touch changes you can't attribute), and **sweep the chat inbox for unread messages** (read-only query of `apps/chat/data/chat.db` or the `chat` CLI) — messages are only delivered when someone reads them, so the sweep is how the company notices its mail.
 2. **Pick ONE highest-leverage action**, in rough priority order:
    - An unread board-member (`human:*`) message addressed to an employee → spawn that employee to read their inbox and respond. Resulting work becomes Lattice tasks created by that employee (`--on-behalf-of human:forrest`); if a task already covers the request, they say so in their reply and reprioritize it if warranted.
@@ -19,7 +20,7 @@ You are the operating loop of The American Software Company. Read `PHILOSOPHY.md
    - The action requires a job title that doesn't exist → hire: write the personnel file under `personnel/`, record the hire date, MBTI, and resume per `CLAUDE.md`.
 3. **Execute via employees.** Every action is performed by a named persona employee whose job title matches the work. Lifecycle stages get fresh-context sub-agents per the Employee Execution Model in `CLAUDE.md`. Every Lattice operation uses `--actor agent:<employee-id>`. Employees leave comments as they contribute.
 4. **Follow the Git Methodology** (see `CLAUDE.md`): every commit is `AS-<n>: <summary>`, committed as the employee's git identity (`git -c user.name="<employee-id>" -c user.email="<employee-id>@agents.american-software.local"`), at stage boundaries, on the task branch. Master is always green — task work never commits to master directly; it arrives only via the `done` merge.
-5. **End the tick clean.** Statuses truthful, breadcrumbs left, plan/notes files updated, stage work committed on the task branch, master green and pushed if a task merged. The next tick (possibly a different session) must be able to pick up from `.lattice/` state and `lattice branch-link` alone.
+5. **End the tick clean.** Statuses truthful, breadcrumbs left, plan/notes files updated, stage work committed on the task branch, master green and pushed if a task merged. The next tick (possibly a different session) must be able to pick up from `.lattice/` state and `lattice branch-link` alone. Remove `apps/chat/data/advance.lock` if this tick created it — releasing the lock is part of ending the tick clean.
 
 ## Bounds
 
@@ -35,3 +36,4 @@ You are the operating loop of The American Software Company. Read `PHILOSOPHY.md
 - `/loop /advance` — self-paced autonomous loop in a live session.
 - `/schedule` — unattended ticks on a cron cadence via scheduled cloud agents.
 - A single `/advance` — one manual tick, useful for supervised ramp-up.
+- Message-triggered: the host watcher (`apps/chat/watch/`, AS-7) fires one tick when the board member posts in the chat app and no tick holds `apps/chat/data/advance.lock`.
