@@ -317,6 +317,14 @@ test('api: AS-9 — url-state.js is served; query string never affects static ro
   }
 });
 
+test('api: AS-17 — scroll.js is served (app.js module graph must not 404)', async (t) => {
+  const { base } = await bootServer(t);
+  const mod = await fetch(base + '/scroll.js');
+  assert.equal(mod.status, 200);
+  assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  assert.match(await mod.text(), /renderPreservingScroll/);
+});
+
 test('api: AS-8 — roster joins personnel, lattice work status, and DM state', async (t) => {
   const { get, post } = await bootServer(t);
 
