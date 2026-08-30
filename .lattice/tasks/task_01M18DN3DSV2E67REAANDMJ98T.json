@@ -14,7 +14,7 @@
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Board request via DM (chat msg 59, human:forrest): \"I think we need query string to keep page context in here. also, the lattice events should link to the lattice site\" \u2014 this task is the first half (query-string page context); the dashboard-link half is tracked separately.\n\nProblem: apps/chat/public/app.js keeps all selection state (current channel/DM, open thread) in memory only. A refresh drops the user back to 'Select a conversation', and there is no way to share a link that opens a specific channel, DM, or thread.\n\nScope: encode page context in the URL query string (e.g. ?conv=...&thread=...) \u2014 update it on selection (history.replaceState/pushState, no full navigations), restore it on load after identities/conversations arrive, and reconcile with the existing location.hash msg-anchor behavior in openThread/closeThread (fold it in or keep it compatible; planner's call). Constraint: identity must NOT go in the URL \u2014 'me' stays in localStorage ('chat.me'); a shared link must never switch the viewer's identity. Unknown/stale params fail soft to the current default view. Key file: apps/chat/public/app.js (init, selectConversation, openThread, closeThread); no server changes expected.",
-  "done_at": null,
+  "done_at": "2026-08-30T05:08:43Z",
   "evidence_refs": [
     {
       "id": "ev_01M18H2G5H6PSHT3M8WZJ0692A",
@@ -23,17 +23,17 @@
     }
   ],
   "id": "task_01M18DN3DSV2E67REAANDMJ98T",
-  "last_event_id": "ev_01M18H2G5H6PSHT3M8WZJ0692A",
-  "last_status_changed_at": "2026-08-30T05:01:58Z",
+  "last_event_id": "ev_01M18H3TRVKCNK8TJ9TVK97NFP",
+  "last_status_changed_at": "2026-08-30T05:08:43Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-9",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "Chat: query-string URL state \u2014 current channel/DM/thread survives refresh, links shareable",
   "type": "task",
-  "updated_at": "2026-08-30T05:08:00Z",
+  "updated_at": "2026-08-30T05:08:43Z",
   "urgency": null
 }
