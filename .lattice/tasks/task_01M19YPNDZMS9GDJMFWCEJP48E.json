@@ -17,8 +17,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M19YPNDZMS9GDJMFWCEJP48E",
-  "last_event_id": "ev_01M19YST03HZ5TE58HP5B34N9R",
-  "last_status_changed_at": "2026-08-30T18:27:09Z",
+  "last_event_id": "ev_01M19YVZEAXDRDYC92890GYYKB",
+  "last_status_changed_at": "2026-08-30T18:28:21Z",
   "priority": "high",
   "relationships_out": [
     {
@@ -32,10 +32,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-20",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "advance-watcher: pass the parent-lock marker in the /advance prompt argument \u2014 headless permission layer denies env reads",
   "type": "bug",
-  "updated_at": "2026-08-30T18:27:09Z",
+  "updated_at": "2026-08-30T18:28:21Z",
   "urgency": null
 }
