@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ASC Chat</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <header id="brand">ASC Chat</header>
+      <section id="identity-box">
+        <label for="identity-picker">I am</label>
+        <select id="identity-picker"></select>
+        <button id="add-identity" title="Register a new identity">+ identity</button>
+      </section>
+      <section>
+        <h2>Channels <button id="new-channel" title="Create a channel">+</button></h2>
+        <ul id="channel-list"></ul>
+      </section>
+      <section>
+        <h2>Direct messages <button id="new-dm" title="Start a DM">+</button></h2>
+        <ul id="dm-list"></ul>
+      </section>
+    </aside>
+
+    <main id="main">
+      <header id="conv-header">
+        <div id="conv-title">Select a conversation</div>
+        <div id="conv-purpose"></div>
+      </header>
+      <div id="messages" aria-live="polite"></div>
+      <form id="composer">
+        <textarea id="composer-input" rows="2"
+          placeholder="Message… (Enter to send, Shift+Enter for newline)"></textarea>
+        <button type="submit">Send</button>
+      </form>
+    </main>
+
+    <aside id="thread-panel" hidden>
+      <header>
+        <span id="thread-title">Thread</span>
+        <button id="thread-close" title="Close thread">×</button>
+      </header>
+      <div id="thread-messages"></div>
+      <form id="thread-composer">
+        <textarea id="thread-input" rows="2" placeholder="Reply in thread…"></textarea>
+        <button type="submit">Reply</button>
+      </form>
+    </aside>
+
+    <div id="task-panel" hidden>
+      <header>
+        <span id="task-panel-code"></span>
+        <button id="task-panel-close" title="Close">×</button>
+      </header>
+      <div id="task-panel-body"></div>
+    </div>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
