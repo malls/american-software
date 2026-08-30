@@ -347,6 +347,69 @@ test('AS-6: hidden probes fail byte-identically to nonexistent ones (same templa
   assert.equal(dmErr.code, 'forbidden');
 });
 
+test('AS-11: cross-conversation threadRoot rejection is type-blind and non-attributing', (t) => {
+  // Pins the accepted-residual contract (AS-11): probing a visible channel
+  // with threadRoot = an invisible message id may reveal that the id is
+  // allocated (already public via sequential ids + the git export), but must
+  // never attribute it — byte-identical wording whether the root lives in a
+  // DM the prober is not in or in a private channel, echoing only the id the
+  // prober supplied.
+  const { store } = tempStore(t);
+  const N = withNonMember(store);
+  const eng = store.getChannelByName('engineering');
+
+  // Two invisible roots: one in #board (private channel), one in a foreign DM.
+  const board = store.getChannelByName('board');
+  const boardRoot = store.postMessage({ conversation: board.id, author: 'human:forrest', body: 'board root' });
+  const dm = store.openDm('human:forrest', 'agent:cto-owen');
+  const dmRoot = store.postMessage({ conversation: dm.id, author: 'human:forrest', body: 'dm root' });
+
+  const grab = (rootId) => {
+    try {
+      store.postMessage({ conversation: eng.id, author: N, body: 'probe', threadRoot: rootId });
+      assert.fail('expected a throw');
+    } catch (e) {
+      assert.ok(e instanceof StoreError);
+      return e;
+    }
+  };
+  const viaBoard = grab(boardRoot.id);
+  const viaDm = grab(dmRoot.id);
+
+  // Type-blind at the code level too: default 'bad_request' for both — never
+  // 'forbidden', which would type-mark the root's conversation (400 vs 403).
+  assert.equal(viaBoard.code, 'bad_request');
+  assert.equal(viaDm.code, 'bad_request');
+
+  // The exact wording is contract; it carries only the prober-supplied id.
+  assert.equal(
+    viaBoard.message,
+    `Message ${boardRoot.id} belongs to a different conversation; thread replies stay in their conversation.`
+  );
+  assert.equal(
+    viaDm.message,
+    `Message ${dmRoot.id} belongs to a different conversation; thread replies stay in their conversation.`
+  );
+
+  // Strict equality modulo that echoed id — and the residue attributes
+  // nothing: no other digits (conversation ids are numeric), no channel
+  // name, no dm_key.
+  const norm = (e, id) => e.message.replaceAll(`Message ${id} `, 'Message <id> ');
+  assert.equal(norm(viaBoard, boardRoot.id), norm(viaDm, dmRoot.id));
+  const residue = norm(viaBoard, boardRoot.id);
+  assert.ok(!/\d/.test(residue), 'no numeric id beyond the echoed one');
+  assert.ok(!residue.includes('board'), "no channel name");
+  assert.ok(!residue.includes(dm.dmKey), 'no dm_key');
+
+  // Nonexistent root: the OTHER wording. The split vs "belongs to a
+  // different conversation" is a documented, deliberate residual — pinned.
+  const missing = grab(999999);
+  assert.equal(missing.code, 'bad_request');
+  assert.equal(missing.message, "Unknown thread root message '999999'.");
+  // (The DM 403/'forbidden' for direct non-member probes is pinned in the
+  // AS-6 hidden-probes test above — deliberately not duplicated here.)
+});
+
 test('AS-6: name collision with a hidden channel is uninformative; visible collision unchanged', (t) => {
   const { store } = tempStore(t);
   const N = withNonMember(store);

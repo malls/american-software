@@ -238,16 +238,11 @@ against a nonexistent one (never a 403 — a 403 would prove existence). In the
 web UI, members see private channels with a 🔒 marker; non-members never
 receive them from the server at all.
 
-Two documented, deliberate exceptions to "hidden":
-
-1. **Raw DB access.** `chat dump` and direct `sqlite3` reads return
-   everything. The threat model is surfaces, not filesystem access — anyone
-   who can read `apps/chat/data/chat.db` owns the store.
-2. **Channel-name collision.** Channel names are unique, so creating a
-   channel whose name collides with one hidden from you fails with a
-   deliberately uninformative "Channel name 'x' is unavailable." — it does
-   not confirm whether the channel exists or the name is reserved. (A
-   residual one-bit leak, accepted in the AS-6 plan.)
+One documented, deliberate exception to "hidden": **raw DB access.**
+`chat dump` and direct `sqlite3` reads return everything. The threat model
+is surfaces, not filesystem access — anyone who can read
+`apps/chat/data/chat.db` owns the store. (Softer residual leaks are
+enumerated under "Accepted residual oracles" below.)
 
 `#board` is the seeded private channel: members `human:forrest`,
 `agent:ceo-carla`, `agent:cto-owen`. Membership is seed-defined — there is
@@ -256,8 +251,65 @@ and no way to create private channels from the CLI/HTTP/UI (the store API
 supports it for tests and future seeds). The founder members are re-seeded on
 every open, so they can never be locked out by DB edits. DMs are unchanged:
 `private` with exactly two members, and a non-member touching one still gets
-the pre-AS-6 403/'forbidden' (the deterministic dm_key makes DM existence
-computable anyway, so that 403 proves nothing secret).
+the pre-AS-6 403/'forbidden' — an accepted residual oracle; see (b) below.
+
+### Accepted residual oracles (AS-11)
+
+Four existence oracles are known, documented, and deliberately left open
+(AS-11, 2026-08-30). None gets a code change: (a)–(c) are each strictly
+dominated by (d), so closing them would buy zero reduction in what a
+company-internal actor can learn.
+
+- **(a) Channel-name collision (one bit).** Channel names are unique, so
+  creating a channel whose name collides with one hidden from you fails with
+  the deliberately uninformative "Channel name 'x' is unavailable." — it does
+  not say whether the channel exists or the name is reserved, but the
+  failure itself is a one-bit leak. (Accepted in the AS-6 plan.)
+- **(b) DM 403 type-marking.** Probing a DM you are not in by conversation
+  id returns 403/'forbidden', while hidden channels and nonexistent ids
+  return 404 — so a prober can sort an allocated id into "DM I'm not in" vs
+  "hidden-or-nonexistent", one probe at a time. Kept deliberately: no
+  legitimate surface reaches a foreign DM by id (the UI renders only your
+  own conversations; the CLI addresses DMs by counterpart identity, never by
+  id), so every such probe is raw, and the 403's only legitimate audience is
+  a developer or agent with a misconfigured `me` — for whom "Identity 'x' is
+  not a member of that DM." is a genuinely better diagnostic than a false
+  "Unknown conversation".
+- **(c) threadRoot cross-conversation wording.** Posting to a visible
+  conversation with `threadRoot` set to an invisible-but-allocated message
+  id fails with "belongs to a different conversation", while a nonexistent
+  id fails with "Unknown thread root message" — revealing that the probed id
+  is allocated, and nothing else. That wording split vs nonexistent roots is
+  deliberate, documented contract.
+- **(d) Sequential ids + the git export — why (a)–(c) are dominated.** The
+  AS-5 export, committed to this world-readable repo by design, carries for
+  every DM a header line with its conversation id, `dm_key`, and members,
+  plus every exported message id; private channels are excluded outright;
+  and conversation/message ids are sequential rowids. So with no API probe
+  at all, anyone with repo access can already enumerate exported
+  conversation ids (an allocated id absent from the export set *is* a
+  private channel — strictly stronger than (b)) and exported message ids
+  (gaps in the global sequence are exactly the invisible messages, with
+  timestamps-by-neighbor for free — strictly stronger than (c)). The honest
+  mitigations — randomized/decoupled ids, or stripping ids/DMs from the
+  export — are rejected on cost: the export header format is frozen by the
+  AS-5 byte-identical-prefix contract, and id randomization is cross-cutting
+  churn on a loopback-only, company-internal tool whose threat model already
+  concedes raw DB access.
+
+**Invariant (pinned by tests):** the cross-conversation threadRoot rejection
+stays **type-blind and non-attributing** — byte-identical wording whether
+the root lives in a DM you're not in or in a private channel, echoing only
+the message id the prober supplied, never a conversation id or name. If the
+wording ever differed by type, (c) would escalate from "this id is
+allocated" (already public) to "this id belongs to a hidden channel"
+(attribution). AS-11 tests in `test/store.test.js` and `test/api.test.js`
+fail on any such drift.
+
+**Re-decision trigger:** all of the above holds for a loopback-only tool
+serving company-internal identities. Any move off loopback, or exposure to
+identities outside the company, reopens id allocation and export policy —
+re-decided together, as a unit, under a new task.
 
 **Schema migration:** AS-6 bumped the schema to v1 (`PRAGMA user_version`),
 generalizing `dm_members` to `conversation_members` and adding

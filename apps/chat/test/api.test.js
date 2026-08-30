@@ -229,6 +229,55 @@ test('api: AS-6 — #board is hidden from non-members, byte-identically to nonex
   assert.equal((await post('/api/read', { me: 'human:forrest', conversation: board.id })).status, 200);
 });
 
+test('api: AS-11 — cross-conversation threadRoot rejection is type-blind over HTTP', async (t) => {
+  // Pins the accepted-residual contract at the wire level: same status (400,
+  // never 403) and byte-identical body whether the invisible root lives in
+  // #board or in a foreign DM; nonexistent roots keep their distinct,
+  // documented wording.
+  const { get, post } = await bootServer(t);
+  await post('/api/identities', {
+    id: 'agent:developer-marcus', displayName: 'Marcus Webb (Engineer)', kind: 'agent',
+  });
+  const N = 'agent:developer-marcus';
+
+  const convs = await get('/api/conversations?me=human:forrest');
+  const eng = convs.data.conversations.find((c) => c.name === 'engineering');
+  const board = convs.data.conversations.find((c) => c.name === 'board');
+  const boardRoot = await post('/api/messages', {
+    conversation: board.id, author: 'agent:ceo-carla', body: 'board root',
+  });
+  const dm = await post('/api/dms', { me: 'human:forrest', other: 'agent:ceo-carla' });
+  const dmRoot = await post('/api/messages', {
+    conversation: dm.data.conversation.id, author: 'human:forrest', body: 'dm root',
+  });
+
+  const probe = (rootId) =>
+    post('/api/messages', { conversation: eng.id, author: N, body: 'probe', threadRoot: rootId });
+  const viaBoard = await probe(boardRoot.data.message.id);
+  const viaDm = await probe(dmRoot.data.message.id);
+
+  // Identical status: 400 for both — a 403 here would type-mark the root.
+  assert.equal(viaBoard.status, 400);
+  assert.equal(viaDm.status, 400);
+
+  // Exact bodies pinned — byte-identical modulo the echoed prober-supplied id,
+  // carrying no conversation id or name of the root's conversation.
+  const expected = (id) => ({
+    error: `Message ${id} belongs to a different conversation; thread replies stay in their conversation.`,
+  });
+  assert.deepEqual(viaBoard.data, expected(boardRoot.data.message.id));
+  assert.deepEqual(viaDm.data, expected(dmRoot.data.message.id));
+  const norm = (r, id) => JSON.stringify(r.data).replaceAll(`Message ${id} `, 'Message <id> ');
+  assert.equal(norm(viaBoard, boardRoot.data.message.id), norm(viaDm, dmRoot.data.message.id));
+
+  // Nonexistent root: same 400, the OTHER wording — a documented, deliberate
+  // split (it reveals only that real ids are allocated, which sequential ids
+  // plus the git export already publish).
+  const missing = await probe(999999);
+  assert.equal(missing.status, 400);
+  assert.deepEqual(missing.data, { error: "Unknown thread root message '999999'." });
+});
+
 test('api: AS-9 — url-state.js is served; query string never affects static routing', async (t) => {
   const { base } = await bootServer(t);
   const mod = await fetch(base + '/url-state.js');
