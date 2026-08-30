@@ -22,8 +22,10 @@
 //     in Lattice claims and SQLite. Do not "fix" it into something load-bearing.
 //
 // The fire/skip decision is pure (decide/isLockStale below) and unit-tested in
-// apps/chat/test/watcher.test.js; all fs/spawn effects live in the thin shell
-// at the bottom, which only runs when this file is executed directly.
+// apps/chat/test/watcher.test.js; fs/spawn effects live in the thin shell at
+// the bottom, which only runs when this file is executed directly. The lock
+// ops are lifted into the exported makeLockOps factory (AS-13) so tests can
+// drive them against a real temp-dir lockfile without ever running main().
 
 import {
   existsSync,
@@ -160,6 +162,93 @@ function readJson(path) {
   }
 }
 
+/**
+ * Lock ops over the shared advance.lock (AS-13: lifted out of main() so the
+ * container suite can drive them against a real temp-dir lockfile). The shell
+ * passes real collaborators; tests may inject `pid`, `isPidAlive`, and
+ * `readFile`. The lock is etiquette, not a correctness invariant (see header)
+ * — nothing here claims mutual exclusion.
+ */
+export function makeLockOps({
+  lockPath,
+  staleMs,
+  log,
+  pid = process.pid,
+  isPidAlive = pidAlive,
+  readFile = readFileSync,
+}) {
+  function parseLock() {
+    try {
+      return JSON.parse(readFile(lockPath, 'utf8'));
+    } catch {
+      return null;
+    }
+  }
+
+  /** Parsed lockfile + pidAlive boolean, or null when free/unreadable. */
+  function readLock() {
+    const lock = parseLock();
+    if (!lock) return null;
+    return { ...lock, pidAlive: isPidAlive(lock.pid) };
+  }
+
+  /**
+   * O_EXCL acquire with one stale-steal retry, then verify-after-create:
+   * re-read the file and claim success only if it still holds our pid. Verify
+   * SHRINKS the stale-steal double-fire window (two actors interleaving
+   * unlink+create on the same stale lock), it does not eliminate it — A can
+   * create+verify before B's unlink+create and both still fire. Sanctioned
+   * residual per the etiquette stance: a lost race costs one duplicate tick's
+   * tokens, never correctness.
+   */
+  function acquireLock() {
+    const body = JSON.stringify({ pid, startedAt: new Date().toISOString(), source: 'watcher' });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        writeFileSync(lockPath, body, { flag: 'wx' });
+      } catch (err) {
+        if (err.code !== 'EEXIST') {
+          log(`ERROR lock write failed: ${err.message}`);
+          return false;
+        }
+        const held = readLock();
+        const staleness = held
+          ? isLockStale(held, Date.now(), staleMs)
+          : { stale: true, reason: 'unparsable' };
+        if (!staleness.stale) return false; // fresh — raced someone; skip
+        log(`STEAL stale lock (${staleness.reason}, pid ${held?.pid ?? '?'}) removed`);
+        try {
+          unlinkSync(lockPath);
+        } catch {
+          /* raced the owner's own cleanup */
+        }
+        continue;
+      }
+      // Verify: a racing stale-stealer may have unlinked the lock we just
+      // created (believing it stale) and re-created it as its own. If the
+      // file no longer shows our pid it is THEIRS — yield without unlinking.
+      const verify = parseLock();
+      if (verify && verify.pid === pid) return true;
+      log(`STEAL-LOST lock holds pid ${verify?.pid ?? '?'} after our create; yielding`);
+      return false;
+    }
+    return false;
+  }
+
+  function releaseLock() {
+    const held = parseLock();
+    if (held && held.pid === pid) {
+      try {
+        unlinkSync(lockPath);
+      } catch {
+        /* already gone */
+      }
+    }
+  }
+
+  return { acquireLock, releaseLock, readLock };
+}
+
 function main() {
   const config = loadConfig();
   const dataDir = join(config.repoRoot, 'apps', 'chat', 'data');
@@ -194,6 +283,9 @@ function main() {
 
   // Single instance: refuse to start beside a live watcher (launchd holds the
   // supervised one; this guards the "ran it manually too" case).
+  // Known + accepted (AS-13 #5): the read-then-write below races two manual
+  // watchers started in the same instant — launchd owns the supervised
+  // instance and the fire-time wx lock bounds the damage to log noise.
   const existingPid = readJson(paths.pid);
   if (existingPid && pidAlive(existingPid.pid) && existingPid.pid !== process.pid) {
     log(`FATAL another watcher is alive (pid ${existingPid.pid}); exiting`);
@@ -204,6 +296,7 @@ function main() {
   let debounceUntil = null;
   let child = null; // currently running tick, if any
   let lastBadSentinel = null; // log unparsable sentinel once per content change
+  let lastSkipKey = null; // dedupe SKIP logs per episode (AS-13 #4)
 
   function readSentinel() {
     if (!existsSync(paths.sentinel)) return null;
@@ -226,54 +319,12 @@ function main() {
     }
   }
 
-  function readLock() {
-    const lock = readJson(paths.lock);
-    if (!lock) return null;
-    return { ...lock, pidAlive: pidAlive(lock.pid) };
-  }
-
-  /** O_EXCL acquire with one stale-steal retry. Returns true iff acquired. */
-  function acquireLock() {
-    const body = JSON.stringify({
-      pid: process.pid,
-      startedAt: new Date().toISOString(),
-      source: 'watcher',
-    });
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        writeFileSync(paths.lock, body, { flag: 'wx' });
-        return true;
-      } catch (err) {
-        if (err.code !== 'EEXIST') {
-          log(`ERROR lock write failed: ${err.message}`);
-          return false;
-        }
-        const held = readLock();
-        const staleness = held
-          ? isLockStale(held, Date.now(), config.lockStaleMin * 60 * 1000)
-          : { stale: true, reason: 'unparsable' };
-        if (!staleness.stale) return false; // fresh — raced someone; skip
-        log(`STEAL stale lock (${staleness.reason}, pid ${held?.pid ?? '?'}) removed`);
-        try {
-          unlinkSync(paths.lock);
-        } catch {
-          /* raced the owner's own cleanup */
-        }
-      }
-    }
-    return false;
-  }
-
-  function releaseLock() {
-    const held = readJson(paths.lock);
-    if (held && held.pid === process.pid) {
-      try {
-        unlinkSync(paths.lock);
-      } catch {
-        /* already gone */
-      }
-    }
-  }
+  const { acquireLock, releaseLock, readLock } = makeLockOps({
+    lockPath: paths.lock,
+    staleMs: config.lockStaleMin * 60 * 1000,
+    log,
+    pid: process.pid,
+  });
 
   function pruneTickLogs() {
     const cutoff = Date.now() - config.tickLogRetentionDays * 24 * 60 * 60 * 1000;
@@ -308,7 +359,11 @@ function main() {
 
     // Minimal, explicit child env: launchd's default env is thin; the plist
     // sets PATH to include node + claude. Nothing else exotic on purpose.
-    child = spawn(
+    // AS-13 #3: timers and handlers close over this fire's own `proc`, never
+    // the mutable module-level `child` — a timed-out tick's stray SIGKILL
+    // timer must not be able to kill a successor tick. `child` remains only
+    // the poll()/shutdown() gate, nulled iff it still points at this proc.
+    const proc = spawn(
       config.claudeBin,
       ['-p', '/advance', '--permission-mode', config.permissionMode, '--output-format', 'text'],
       {
@@ -317,31 +372,36 @@ function main() {
         stdio: ['ignore', 'pipe', 'pipe'],
       }
     );
-    child.stdout.pipe(tickLog, { end: false });
-    child.stderr.pipe(tickLog, { end: false });
+    child = proc;
+    proc.stdout.pipe(tickLog, { end: false });
+    proc.stderr.pipe(tickLog, { end: false });
 
     let timedOut = false;
+    let killTimer = null;
     const termTimer = setTimeout(() => {
       timedOut = true;
       log(`TIMEOUT tick exceeded ${config.tickTimeoutMin}min; SIGTERM`);
-      child.kill('SIGTERM');
-      setTimeout(() => child && child.kill('SIGKILL'), 15 * 1000).unref();
+      proc.kill('SIGTERM');
+      killTimer = setTimeout(() => proc.kill('SIGKILL'), 15 * 1000);
+      killTimer.unref();
     }, config.tickTimeoutMin * 60 * 1000);
     termTimer.unref();
 
-    child.on('error', (err) => {
+    function settle() {
       clearTimeout(termTimer);
+      if (killTimer !== null) clearTimeout(killTimer);
+      if (child === proc) child = null;
+      releaseLock();
+    }
+    proc.on('error', (err) => {
       if (!tickLog.writableEnded) tickLog.end(`\n[watcher] spawn error: ${err.message}\n`);
       log(`ERROR tick spawn failed: ${err.message} (is '${config.claudeBin}' on PATH?)`);
-      child = null;
-      releaseLock();
+      settle();
     });
-    child.on('exit', (code, signal) => {
-      clearTimeout(termTimer);
+    proc.on('exit', (code, signal) => {
       if (!tickLog.writableEnded) tickLog.end();
       log(`EXIT tick ${timedOut ? 'TIMEOUT ' : ''}code=${code} signal=${signal ?? 'none'}`);
-      child = null;
-      releaseLock();
+      settle();
     });
   }
 
@@ -357,10 +417,18 @@ function main() {
       debounceUntil,
     });
     debounceUntil = result.debounceUntil;
+    // AS-13 #4: one SKIP line per episode, not one per 5s poll — a held
+    // foreign lock used to print ~360 identical lines per 30-min loop tick.
+    // Any non-skip action ends the episode, so the next skip logs again.
+    if (result.action !== 'skip-locked') lastSkipKey = null;
     if (result.action === 'debounce') {
       log(`DEBOUNCE armed for messageId ${sentinel.messageId} (${config.debounceS}s)`);
     } else if (result.action === 'skip-locked') {
-      log(`SKIP ${result.reason} (messageId ${sentinel.messageId})`);
+      const skipKey = `${result.reason}:${sentinel.messageId}`;
+      if (skipKey !== lastSkipKey) {
+        lastSkipKey = skipKey;
+        log(`SKIP ${result.reason} (messageId ${sentinel.messageId}) (suppressing repeats)`);
+      }
     } else if (result.action === 'fire') {
       if (result.reason.startsWith('lock-stale')) log(`NOTE firing over stale lock: ${result.reason}`);
       fire(sentinel);

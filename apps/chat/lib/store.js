@@ -3,7 +3,7 @@
 // through this module; no SQL lives anywhere else (portability seam per plan §8).
 
 import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
+import { mkdirSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 // Schema v1 (AS-6): conversations carry visibility; dm_members generalized to
@@ -426,8 +426,16 @@ export function openStore(dbPath) {
 
   function writeHumanSentinel(msg) {
     if (sentinelPath === null) return;
+    // AS-13: unique tmp suffix (pid + random) — the server and CLI containers
+    // share the bind-mounted data dir, and a fixed tmp name let two processes
+    // interleave write/rename (spurious ENOENT on the loser's rename). This
+    // fixes the tmp-file collision only: two processes can still rename in
+    // either order, so the sentinel briefly holding the lower messageId stays
+    // possible and stays fine (inbox sweep + sentinel > highwater re-trigger
+    // deliver the message regardless).
+    const tmp =
+      sentinelPath + '.' + process.pid + '.' + Math.random().toString(36).slice(2) + '.tmp';
     try {
-      const tmp = sentinelPath + '.tmp';
       writeFileSync(
         tmp,
         JSON.stringify({
@@ -440,6 +448,13 @@ export function openStore(dbPath) {
       renameSync(tmp, sentinelPath);
     } catch {
       // Non-fatal by design: chat keeps working if the data dir is unwritable.
+      // Best-effort orphan cleanup — a failed rename must not strand the
+      // uniquely named tmp file.
+      try {
+        unlinkSync(tmp);
+      } catch {
+        /* nothing to clean, or the dir itself is unwritable */
+      }
     }
   }
 
