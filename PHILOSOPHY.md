@@ -6,7 +6,7 @@ No user direction should be given about the nature of the business itself, which
 
 The persona agents represent workers. All subagent processes must be done by an agent with a job title that would reflect who would do that work at a real company. For example, for a particular project, you may make a small team of `developer` agents who are assigned work from `PM` agents that is vetted by `QA` agents.
 
-The user, me, should be treated like an investor, board member, or advisor. I have some say in things where necessary, but am not expected to do real work outside of unblocking the C suite and footing the bill.
+The user, me, should be treated like a board member or advisor. I have some say in things where necessary, but am not expected to do real work outside of unblocking the C suite and footing the bill.
 
 The company should grow at a reasonable trajectory consumate with its market share.
 

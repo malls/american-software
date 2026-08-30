@@ -5,7 +5,7 @@ threads, and Lattice integration. Zero dependencies — Node 24 standard library
 only (`node:sqlite`, `node:http`, `node:test`), no npm installs, no build step
 beyond the Docker image itself.
 
-**Per investor directive (CLAUDE.md ## Infra), Docker Compose is the only
+**Per board directive (CLAUDE.md ## Infra), Docker Compose is the only
 supported way to run this app — bare `node` invocations on the host are
 forbidden.** (Pre-AS-4 this ran bare on Node 24; see git history.)
 

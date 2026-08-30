@@ -5,20 +5,24 @@ GitHub remote: https://github.com/malls/american-software. `README.md` is the pu
 
 
 ## Persona Agents / Employees
-Agents reporesent employees of this company. They have job titles, backgrounds, personas, and biases informed by their experience, and their own self interest. They are "hired" when a piece of work requires work that would be done by a person at a company with a job title that does not exist yet. They are prefixed by type, and given unique first names. For example, `pm-bob` or `qa-automation-manager-alice` or `copywriter-al`. When hired, record the date, give them a Myers Briggs type, and a resume with their experience.
+Agents reporesent employees of this company. They have job titles, backgrounds, personas, and biases informed by their experience, and their own self interest. They are "hired" when a piece of work requires work that would be done by a person at a company with a job title that does not exist yet. They are prefixed by type, and given unique first names. For example, `pm-bob` or `qa-automation-manager-alice` or `copywriter-al`. When hired, record the date, give them a Myers Briggs type, a resume with their experience, and are assigned the minumum viable model for their tasks.
 
 Special attributes: `cofounders` are allowed to spend as many tokens as they like. `managers` can trigger subagents. `ics` do the actual work, and report to `managers`. `managers` report to `c level`. `cofounders` are `managers` and `c level` and `ics` by default.
 
-Employees should leave lattice comments as they contribute to the work. Employees talk to each other over a user-visible "Slack" type app that the user can also particulate in. 
+Employees should leave lattice comments as they contribute to the work. Employees talk to each other over a user-visible "Slack" type app that the user can also particulate in, found under `/apps/chat`. 
 
-## Investor / Board
-Forrest (the user) is the sole investor/board member. Background: tech, "retired" in his 30s, pivoted to investing. Communicate with him at full technical depth — no dumbing down. He expects to greenlight most decisions rather than veto them; keep approval gates lightweight but still surface them (especially spend >$50 per PHILOSOPHY.md). Recorded 2026-08-29 from his own words.
+## Board
+Forrest (the user) is the sole board member. Background: tech, "retired" in his 30s, pivoted to investing. Communicate with him at full technical depth — no dumbing down. He expects to greenlight most decisions rather than veto them; keep approval gates lightweight but still surface them (especially spend >$50 per PHILOSOPHY.md). Recorded 2026-08-29 from his own words.
+
+**Standing grant (2026-08-30, chat msg 53):** cofounders may hire without per-hire board approval ("feel free to hire if needed"). Hires still follow the personnel conventions above; spend gates are unaffected.
 
 ## Operating Modes: Chat vs. Loop
 
-**Chat is the investor channel (decided 2026-08-29).** Anything Forrest sends directly through Claude Code chat is an investor/board interaction — questions, decisions, unblocking, meta-work on the company's operating rules. **Do NOT create Lattice tasks for direct chat requests.** Handle them in-session, at investor altitude. The only exception is when Forrest explicitly asks to queue something for the company — then create a backlog task attributed `human:forrest` and let the loop pick it up rather than doing it in chat.
+**Claude Code chat is metawork only (decided 2026-08-29, tightened 2026-08-30).** Anything Forrest sends directly through Claude Code chat is board metawork — operating rules, this file, plumbing, advice, unblocking. **NEVER create Lattice tasks from Claude Code chat — no exceptions.** Forrest does metawork here, not company "work"; nothing he suggests in this channel enters the company's work tracking. If he describes something that sounds like company work, handle the meta-layer in-session and remind him to send the request through the chat app, where an employee will own it.
 
 **The loop is the company (target state).** The intended operating model is an autonomous agent loop where employees create, claim, and complete Lattice tasks on their own — not chat-triggered work. One tick of the company is the `/advance` command (`.claude/commands/advance.md`); run it continuously with `/loop /advance` in a live session, or unattended via scheduled agents. All Lattice discipline below applies to loop work; chat is exempt per the above.
+
+**Target interface: the chat app (decided 2026-08-30).** Forrest's primary interface with the company is the internal chat app, not Claude Code chat. A message he sends there triggers one `/advance` tick — but only when no loop or tick is already running (single-flight lock; an active loop reads the message via the normal inbox pull instead). Talking to the company sets it in motion. Claude Code chat is the meta/governance channel only: operating rules, this file, board-side plumbing. **Work enters the company through exactly two doors:** (1) requests made inside the chat app — company-internal communication that employees turn into Lattice tasks (the employee creates the task as `agent:<employee-id>`, with `--on-behalf-of human:forrest` when it came from the board member), and (2) employees' own initiative during loop ticks. There is no third door.
 
 ## Org Chart
 
@@ -53,7 +57,7 @@ All services will be hosted on Digital Ocean. This is a GitHub repository. All l
 
 Lattice is file-based, event-sourced task tracking built for minds that think in tokens and act in tool calls. The `.lattice/` directory is the coordination state — it lives alongside the code, not behind an API.
 
-**In-fiction framing (decided 2026-08-29):** Lattice is the company's chosen off-the-shelf engineering issue tracker — the equivalent of a real startup adopting Linear or Jira rather than building its own. It is also the investor's required audit trail: the human mandates it for governance and legibility, the way an investor demands clean books. Employees own everything built *on top* of it — dashboards, the "Slack" app, and org-chart tooling may freely read and write `.lattice/` files. Cofounders may propose replacing Lattice, but that is a real migration project requiring investor sign-off, not a whim.
+**In-fiction framing (decided 2026-08-29):** Lattice is the company's chosen off-the-shelf engineering issue tracker — the equivalent of a real startup adopting Linear or Jira rather than building its own. It is also the board's required audit trail: the human mandates it for governance and legibility, the way a board demands clean books. Employees own everything built *on top* of it — dashboards, the "Slack" app, and org-chart tooling may freely read and write `.lattice/` files. Cofounders may propose replacing Lattice, but that is a real migration project requiring board sign-off, not a whim.
 
 ### Scope: Software Development Only
 
@@ -262,14 +266,25 @@ Decided 2026-08-29. Git history and the Lattice board are two views of the same 
 
 ### Commits
 
-- **Every commit belongs to a task.** Message format: `AS-<n>: <imperative summary>`. The only commits without a task code are investor/chat-channel work (docs, operating-rule edits), which may go directly to master.
+- **Every commit belongs to a task.** Message format: `AS-<n>: <imperative summary>`. The only commits without a task code are board/chat-channel work (docs, operating-rule edits), which may go directly to master.
 - **Commit at stage boundaries, including `.lattice/` state.** The planning stage commits the plan file; the implementation stage commits code and tests; the review outcome lands with the merge. Board state in git history should match code state at every commit.
+- **Metawork rides along (decided 2026-08-29).** Unstaged metawork changes (CLAUDE.md, docs, operating-rule edits, and such) are always committed alongside whatever other work is being committed — never left dangling in the working tree. If metawork was already committed manually (by the board or anyone else), always keep that commit — never rewrite, squash away, or undo it.
 - **Commit as the employee.** Each stage commits under its persona's identity so `git blame` shows who at the company wrote what:
   ```
   git -c user.name="developer-marcus-webb" \
       -c user.email="developer-marcus-webb@agents.american-software.local" \
       commit -m "AS-7: ..."
   ```
+
+### Operational record commits
+
+Recurring operational exports (currently: chat history, per AS-5) belong to
+no single task. They commit directly to master with message format
+`records: chat export <YYYY-MM-DD>` — the second sanctioned exception to
+the `AS-<n>:` rule alongside investor/chat-channel work. Scope discipline:
+a records commit touches only `apps/chat/data/export/` (and future record
+paths); never mix it with code. Identity: committed by the employee running
+the tick, under their persona git identity.
 
 ### Branches
 

@@ -14,7 +14,7 @@ status: active
 - **Title:** Cofounder & Chief Executive Officer
 - **Hire date:** 2026-08-29
 - **Myers-Briggs type:** ENTJ
-- **Reports to:** The board (Forrest, investor)
+- **Reports to:** The board (Forrest, board member)
 - **Agent definition:** `.claude/agents/ceo-carla.md` (actor ID `agent:ceo-carla`)
 
 ## Resume
