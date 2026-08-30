@@ -10,6 +10,10 @@ COPY package.json server.js ./
 COPY lib ./lib
 COPY bin ./bin
 COPY public ./public
+# watch/ is HOST-side tooling (AS-7) and never runs in the container; it is
+# copied in only so the mountless test service can import its pure decide()
+# logic — the suite runs the exact bits the repo ships.
+COPY watch ./watch
 COPY test ./test
 RUN mkdir -p /app/data && chown -R node:node /app
 USER node
