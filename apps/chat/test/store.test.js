@@ -566,7 +566,7 @@ function buildV0Db(path) {
   raw.exec(V0_SCHEMA);
   raw.exec(`
     INSERT INTO identities (id, display_name, kind, created_at) VALUES
-      ('human:forrest', 'Forrest (Investor)', 'human', '2026-08-29T00:00:00.000Z'),
+      ('human:forrest', 'Forrest (Board)', 'human', '2026-08-29T00:00:00.000Z'),
       ('agent:ceo-carla', 'Carla Voss (CEO)', 'agent', '2026-08-29T00:00:00.000Z'),
       ('agent:cto-owen', 'Owen Kessler (CTO)', 'agent', '2026-08-29T00:00:00.000Z'),
       ('system:lattice', 'Lattice', 'system', '2026-08-29T00:00:00.000Z'),

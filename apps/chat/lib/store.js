@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS ingested_events (
 `;
 
 const SEED_IDENTITIES = [
-  { id: 'human:forrest', displayName: 'Forrest (Investor)', kind: 'human' },
+  { id: 'human:forrest', displayName: 'Forrest (Board)', kind: 'human' },
   { id: 'agent:ceo-carla', displayName: 'Carla Voss (CEO)', kind: 'agent' },
   { id: 'agent:cto-owen', displayName: 'Owen Kessler (CTO)', kind: 'agent' },
   { id: 'system:lattice', displayName: 'Lattice', kind: 'system' },

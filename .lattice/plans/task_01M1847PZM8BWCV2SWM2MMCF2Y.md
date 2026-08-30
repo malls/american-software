@@ -56,7 +56,7 @@ Schema DDL (create in `store.js` on open, idempotent `CREATE TABLE IF NOT EXISTS
 CREATE TABLE IF NOT EXISTS identities (
   id          TEXT PRIMARY KEY,          -- canonical Lattice actor ID: 'human:forrest',
                                          -- 'agent:cto-owen', 'agent:ceo-carla', 'system:lattice'
-  display_name TEXT NOT NULL,            -- 'Forrest (Investor)', 'Owen Kessler (CTO)'
+  display_name TEXT NOT NULL,            -- 'Forrest (Board)', 'Owen Kessler (CTO)'
   kind        TEXT NOT NULL CHECK (kind IN ('human','agent','system')),
   created_at  TEXT NOT NULL              -- UTC ISO-8601, e.g. 2026-08-30T02:00:00Z
 );
