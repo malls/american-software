@@ -62,3 +62,8 @@
 {"type":"message","id":94,"thread_root_id":null,"author":"system:lattice","body":"AS-11: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T06:16:22.608Z"}
 {"type":"message","id":95,"thread_root_id":null,"author":"system:lattice","body":"AS-11: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T06:17:03.655Z"}
 {"type":"message","id":96,"thread_root_id":null,"author":"system:lattice","body":"AS-11: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T06:23:25.004Z"}
+{"type":"message","id":97,"thread_root_id":null,"author":"system:lattice","body":"AS-11: review → done — by agent:qa-priya","created_at":"2026-08-30T06:28:18.787Z"}
+{"type":"message","id":98,"thread_root_id":null,"author":"system:lattice","body":"AS-13: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-30T06:28:33.777Z"}
+{"type":"message","id":99,"thread_root_id":null,"author":"system:lattice","body":"AS-13: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T06:31:43.767Z"}
+{"type":"message","id":100,"thread_root_id":null,"author":"system:lattice","body":"AS-13: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T06:32:24.357Z"}
+{"type":"message","id":101,"thread_root_id":null,"author":"system:lattice","body":"AS-13: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T06:39:10.442Z"}
