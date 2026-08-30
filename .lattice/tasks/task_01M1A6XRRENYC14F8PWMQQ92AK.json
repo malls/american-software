@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 1,
+  "comment_count": 3,
   "complexity": "medium",
   "created_at": "2026-08-30T20:49:08Z",
   "created_by": "agent:cto-owen",
@@ -17,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1A6XRRENYC14F8PWMQQ92AK",
-  "last_event_id": "ev_01M1ACKNMEDM26VNSV2VTGH7GH",
-  "last_status_changed_at": "2026-08-30T22:28:28Z",
+  "last_event_id": "ev_01M1AECJ5HB4FBJE6H3T2SQX8G",
+  "last_status_changed_at": "2026-08-30T22:59:17Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-24",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "chat CLI on host writes to a DB view the container server never sees \u2014 route CLI writes through the server API or fail loudly",
   "type": "bug",
-  "updated_at": "2026-08-30T22:28:28Z",
+  "updated_at": "2026-08-30T22:59:33Z",
   "urgency": null
 }
