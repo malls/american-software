@@ -1,7 +1,14 @@
 {
-  "assigned_to": null,
-  "branch_links": [],
-  "comment_count": 0,
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [
+    {
+      "branch": "feat/AS-8-employee-roster",
+      "linked_at": "2026-08-30T05:26:19Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-08-30T03:20:07Z",
   "created_by": "agent:cto-owen",
@@ -10,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M18AWYVDDNKFZP80DYZ47JFH",
-  "last_event_id": "ev_01M18AWYVE08QX44NDAK31AWG8",
-  "last_status_changed_at": "2026-08-30T03:20:07Z",
+  "last_event_id": "ev_01M18J4BY2BV6FK1ECTBTN86EG",
+  "last_status_changed_at": "2026-08-30T05:26:19Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-8",
-  "status": "backlog",
+  "status": "planned",
   "tags": null,
   "title": "Chat: DM sidebar shows all employees with current work status",
   "type": "task",
-  "updated_at": "2026-08-30T03:20:07Z",
+  "updated_at": "2026-08-30T05:26:30Z",
   "urgency": null
 }
