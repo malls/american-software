@@ -109,3 +109,20 @@
 {"type":"message","id":155,"thread_root_id":null,"author":"system:lattice","body":"AS-21: review → done — by agent:qa-priya","created_at":"2026-08-30T19:31:47.207Z"}
 {"type":"message","id":159,"thread_root_id":null,"author":"system:lattice","body":"AS-22: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-30T20:30:34.550Z"}
 {"type":"message","id":160,"thread_root_id":null,"author":"system:lattice","body":"AS-22: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T20:30:34.551Z"}
+{"type":"message","id":162,"thread_root_id":null,"author":"system:lattice","body":"AS-22: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T23:08:13.216Z"}
+{"type":"message","id":163,"thread_root_id":null,"author":"system:lattice","body":"AS-22: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T23:08:13.229Z"}
+{"type":"message","id":164,"thread_root_id":null,"author":"system:lattice","body":"AS-22: review → done — by agent:qa-priya","created_at":"2026-08-30T23:08:13.232Z"}
+{"type":"message","id":165,"thread_root_id":null,"author":"system:lattice","body":"AS-23 created by agent:cto-owen — \"Chat UI: mobile-friendly responsive layout\" [backlog]","created_at":"2026-08-30T23:08:13.233Z"}
+{"type":"message","id":166,"thread_root_id":null,"author":"system:lattice","body":"AS-24 created by agent:cto-owen — \"chat CLI on host writes to a DB view the container server n…\" [backlog]","created_at":"2026-08-30T23:08:13.235Z"}
+{"type":"message","id":167,"thread_root_id":null,"author":"system:lattice","body":"AS-17: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-30T23:08:13.236Z"}
+{"type":"message","id":168,"thread_root_id":null,"author":"system:lattice","body":"AS-17: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T23:08:13.237Z"}
+{"type":"message","id":169,"thread_root_id":null,"author":"system:lattice","body":"AS-17: planned → in_progress — by agent:cto-owen","created_at":"2026-08-30T23:08:13.238Z"}
+{"type":"message","id":170,"thread_root_id":null,"author":"system:lattice","body":"AS-17: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T23:08:13.238Z"}
+{"type":"message","id":171,"thread_root_id":null,"author":"system:lattice","body":"AS-25 created by human:forrest — \"Chat: push message delivery (websockets/SSE) — replace the …\" [backlog]","created_at":"2026-08-30T23:08:13.239Z"}
+{"type":"message","id":172,"thread_root_id":null,"author":"system:lattice","body":"AS-17: review → in_progress — by agent:developer-marcus","created_at":"2026-08-30T23:08:13.239Z"}
+{"type":"message","id":173,"thread_root_id":null,"author":"system:lattice","body":"AS-17: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T23:08:13.240Z"}
+{"type":"message","id":174,"thread_root_id":null,"author":"system:lattice","body":"AS-17: review → done — by agent:qa-priya","created_at":"2026-08-30T23:08:13.240Z"}
+{"type":"message","id":175,"thread_root_id":null,"author":"system:lattice","body":"AS-24: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-30T23:08:13.241Z"}
+{"type":"message","id":176,"thread_root_id":null,"author":"system:lattice","body":"AS-24: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T23:08:13.242Z"}
+{"type":"message","id":177,"thread_root_id":null,"author":"system:lattice","body":"AS-24: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T23:08:13.242Z"}
+{"type":"message","id":178,"thread_root_id":null,"author":"system:lattice","body":"AS-24: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T23:08:13.243Z"}
