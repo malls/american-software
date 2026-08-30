@@ -14,7 +14,7 @@
   "created_by": "agent:qa-priya",
   "custom_fields": {},
   "description": "Two non-blocking findings from the AS-2 QA review (qa-priya): (1) store.markRead accepts an upTo watermark beyond the current max message id \u2014 should clamp or reject; (2) CLI 'chat history @identity' and 'chat read @identity' get-or-create the DM conversation row on what should be a pure read. Neither violates any AS-2 acceptance criterion; both are small correctness/hygiene fixes in apps/chat/lib/store.js and apps/chat/bin/chat.js.",
-  "done_at": null,
+  "done_at": "2026-08-30T07:07:25Z",
   "evidence_refs": [
     {
       "id": "ev_01M18QW4BJS6T9KW7K6Z6EK0BH",
@@ -23,17 +23,17 @@
     }
   ],
   "id": "task_01M185QACGZFPZ50Z7TV6SBR3P",
-  "last_event_id": "ev_01M18QW4BJS6T9KW7K6Z6EK0BH",
-  "last_status_changed_at": "2026-08-30T07:01:37Z",
+  "last_event_id": "ev_01M18QX5R4YAXJT2KKV98SMT6C",
+  "last_status_changed_at": "2026-08-30T07:07:25Z",
   "priority": "low",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-3",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "Chat app: tighten markRead bounds + make CLI reads side-effect-free",
   "type": "chore",
-  "updated_at": "2026-08-30T07:06:51Z",
+  "updated_at": "2026-08-30T07:07:25Z",
   "urgency": null
 }
