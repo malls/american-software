@@ -200,6 +200,27 @@ test('markRead advances the watermark monotonically', (t) => {
   void m2;
 });
 
+test('AS-3: markRead rejects upTo beyond the conversation max; watermark untouched', (t) => {
+  const { store } = tempStore(t);
+  const eng = store.getChannelByName('engineering');
+  // Empty conversation: max is 0, so any positive upTo is out of bounds.
+  assert.throws(() => store.markRead('agent:cto-owen', eng.id, 1), StoreError);
+  const m1 = store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'one' });
+  const m2 = store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'two' });
+  store.markRead('agent:cto-owen', eng.id, m1.id);
+  assert.throws(
+    () => store.markRead('agent:cto-owen', eng.id, m2.id + 1),
+    (e) => e instanceof StoreError && /Invalid upTo/.test(e.message) && e.message.includes(`is ${m2.id}`),
+    'rejection names the current bound'
+  );
+  assert.equal(store.unreadCountFor('agent:cto-owen', eng.id), 1, 'rejected call left the watermark alone');
+  // Still-valid calls behave as before: exactly max, below watermark (no-op), null -> max.
+  assert.equal(store.markRead('agent:cto-owen', eng.id, m2.id).lastReadId, m2.id);
+  assert.equal(store.markRead('agent:cto-owen', eng.id, 0).lastReadId, 0);
+  assert.equal(store.unreadCountFor('agent:cto-owen', eng.id), 0, 'watermark never regresses');
+  assert.equal(store.markRead('agent:ceo-carla', eng.id).lastReadId, m2.id, 'null still means mark-to-max');
+});
+
 test('data survives close and reopen (restart durability)', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'chat-store-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));

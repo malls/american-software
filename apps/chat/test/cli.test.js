@@ -147,3 +147,68 @@ test('cli: members use #board normally (post, history, reply, read)', (t) => {
   assert.equal(read.status, 0, read.stderr);
   assert.match(read.stdout, /Marked #board read\./);
 });
+
+// --- AS-3: CLI read paths never create the DM conversation row --------------
+
+/** DM conversation id for N<->M via a fresh store handle, or null. */
+function dmRow(dbPath) {
+  const store = openStore(dbPath);
+  try {
+    return store.dmConversationFor(N, M);
+  } finally {
+    store.close();
+  }
+}
+
+test('cli: AS-3 — history/read/reply on a nonexistent DM never create a row', (t) => {
+  const dbPath = setupDb(t);
+  assert.equal(dmRow(dbPath), null, 'precondition: no DM between the pair');
+
+  const history = run(dbPath, ['history', `@${M}`, '--me', N]);
+  assert.equal(history.status, 0, history.stderr);
+  assert.match(history.stdout, /No DM with @human:forrest yet — 'chat dm human:forrest "…"' starts one\./);
+  assert.equal(dmRow(dbPath), null, 'history created no row');
+
+  const historyJson = run(dbPath, ['history', `@${M}`, '--me', N, '--json']);
+  assert.equal(historyJson.status, 0, historyJson.stderr);
+  assert.deepEqual(JSON.parse(historyJson.stdout), { conversation: null, messages: [], threads: {} });
+  assert.equal(dmRow(dbPath), null, 'history --json created no row');
+
+  const read = run(dbPath, ['read', `@${M}`, '--me', N]);
+  assert.equal(read.status, 0, read.stderr);
+  assert.match(read.stdout, /Nothing to mark read — no DM with @human:forrest yet\./);
+  const readJson = run(dbPath, ['read', `@${M}`, '--me', N, '--json']);
+  assert.deepEqual(JSON.parse(readJson.stdout), { conversation: null, lastReadId: null });
+  assert.equal(dmRow(dbPath), null, 'read created no row');
+
+  const reply = run(dbPath, ['reply', `@${M}#1`, 'into the void', '--me', N]);
+  assert.equal(reply.status, 1);
+  assert.match(reply.stderr, /No DM with @human:forrest yet — message @human:forrest#1 does not exist\./);
+  assert.equal(dmRow(dbPath), null, 'reply created no row');
+});
+
+test('cli: AS-3 — DM read-path error quality is preserved (typo, self-DM)', (t) => {
+  const dbPath = setupDb(t);
+  const typo = run(dbPath, ['history', '@agent:no-such-person', '--me', N]);
+  assert.equal(typo.status, 1);
+  assert.match(typo.stderr, /Unknown identity 'agent:no-such-person'/, 'typos are unknown_identity, not "no DM yet"');
+  const self = run(dbPath, ['read', `@${N}`, '--me', N]);
+  assert.equal(self.status, 1);
+  assert.match(self.stderr, /Cannot open a DM with yourself\./);
+  assert.equal(dmRow(dbPath), null);
+});
+
+test('cli: AS-3 — chat dm still creates the conversation and posts (regression guard)', (t) => {
+  const dbPath = setupDb(t);
+  const dm = run(dbPath, ['dm', M, 'hello from AS-3', '--me', N]);
+  assert.equal(dm.status, 0, dm.stderr);
+  assert.match(dm.stdout, /Sent DM to human:forrest as message \d+/);
+  assert.ok(dmRow(dbPath) != null, 'dm created the conversation row');
+  // The now-existing DM resolves normally on the read paths.
+  const history = run(dbPath, ['history', `@${M}`, '--me', N]);
+  assert.equal(history.status, 0, history.stderr);
+  assert.match(history.stdout, /hello from AS-3/);
+  const read = run(dbPath, ['read', `@${M}`, '--me', N]);
+  assert.equal(read.status, 0, read.stderr);
+  assert.match(read.stdout, /Marked @human:forrest read\./);
+});

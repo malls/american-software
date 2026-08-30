@@ -282,3 +282,42 @@ test('cli: AS-6 — chat export skips #board: no file, no counts, still byte-ide
   assert.equal(second.status, 0, second.stderr);
   assert.deepEqual(hashes(), h1, 're-run is byte-identical');
 });
+
+// --- AS-3: pure CLI reads must not churn the export --------------------------
+
+test('cli: AS-3 — history on a nonexistent DM adds no export file', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'chat-export-cli-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dbPath = join(dir, 'chat.db');
+  const outDir = join(dir, 'out');
+  const store = openStore(dbPath);
+  store.registerIdentity({ id: 'agent:developer-marcus', displayName: 'Marcus Webb', kind: 'agent' });
+  store.close();
+
+  const env = { ...process.env, CHAT_DB: dbPath };
+  const exportRun = () =>
+    spawnSync(process.execPath, [BIN, 'export', '--out', outDir], { env, encoding: 'utf8' });
+  const hashes = () =>
+    Object.fromEntries(
+      readdirSync(outDir)
+        .sort()
+        .map((f) => [f, createHash('sha256').update(readFileSync(join(outDir, f))).digest('hex')])
+    );
+
+  assert.equal(exportRun().status, 0);
+  const before = hashes();
+
+  // Before AS-3 this created the DM row, and the next export grew a phantom
+  // dm-*.jsonl (header line, zero messages) — a pure read producing a git diff.
+  const history = spawnSync(
+    process.execPath,
+    [BIN, 'history', '@human:forrest', '--me', 'agent:developer-marcus'],
+    { env, encoding: 'utf8' }
+  );
+  assert.equal(history.status, 0, history.stderr);
+  assert.match(history.stdout, /No DM with @human:forrest yet/);
+
+  assert.equal(exportRun().status, 0);
+  assert.deepEqual(hashes(), before, 'export dir is byte-identical after the pure read');
+  assert.ok(!readdirSync(outDir).some((f) => f.startsWith('dm-')), 'no phantom dm-*.jsonl');
+});

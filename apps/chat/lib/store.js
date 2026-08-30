@@ -558,18 +558,30 @@ export function openStore(dbPath) {
     requireIdentity(me);
     const conv = requireConversation(conversation);
     requireVisible(conv, me, conversation);
-    const target = upTo == null ? maxMessageId(conv.id) : Number(upTo);
-    if (!Number.isInteger(target) || target < 0) {
-      throw new StoreError(`Invalid upTo '${upTo}'.`);
-    }
-    tx(() => {
+    // AS-3: validation lives inside the tx so the bounds check and the upsert
+    // see the same max under BEGIN IMMEDIATE. Ids are insert-only and only
+    // grow, so an over-max upTo can never come from a legitimately observed
+    // message — it is always a caller bug. Reject rather than clamp: the
+    // monotonic MAX() upsert below would otherwise make a poisoned watermark
+    // irreversible through the public API.
+    return tx(() => {
+      const max = maxMessageId(conv.id);
+      const target = upTo == null ? max : Number(upTo);
+      if (!Number.isInteger(target) || target < 0) {
+        throw new StoreError(`Invalid upTo '${upTo}'.`);
+      }
+      if (target > max) {
+        throw new StoreError(
+          `Invalid upTo '${upTo}': last message id in conversation ${conv.id} is ${max}.`
+        );
+      }
       db.prepare(
         `INSERT INTO read_state (identity_id, conversation_id, last_read_id) VALUES (?, ?, ?)
          ON CONFLICT (identity_id, conversation_id)
          DO UPDATE SET last_read_id = MAX(last_read_id, excluded.last_read_id)`
       ).run(me, conv.id, target);
+      return { conversation: conv.id, lastReadId: target };
     });
-    return { conversation: conv.id, lastReadId: target };
   }
 
   function catchupAll(me) {

@@ -138,6 +138,29 @@ test('api: channels, messages, threads, refs, unread, read watermark', async (t)
   assert.equal(forbidden.status, 403);
 });
 
+test('api: AS-3 — POST /api/read with over-max upTo is 400 and moves nothing', async (t) => {
+  const { get, post } = await bootServer(t);
+  const ch = await post('/api/channels', { name: 'bounds', purpose: 'AS-3', actor: 'human:forrest' });
+  const convId = ch.data.conversation.id;
+  const m = await post('/api/messages', { conversation: convId, author: 'human:forrest', body: 'only message' });
+  const maxId = m.data.message.id;
+
+  const over = await post('/api/read', { me: 'agent:ceo-carla', conversation: convId, upTo: maxId + 999 });
+  assert.equal(over.status, 400);
+  assert.match(over.data.error, /Invalid upTo/);
+
+  const unread = await get('/api/unread?me=agent:ceo-carla');
+  const group = unread.data.unread.find((g) => g.conversationId === convId);
+  assert.equal(group.messages.length, 1, 'rejected upTo did not move the watermark');
+
+  // In-bounds still works and clears the unread.
+  const ok = await post('/api/read', { me: 'agent:ceo-carla', conversation: convId, upTo: maxId });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.data.read.lastReadId, maxId);
+  const after = await get('/api/unread?me=agent:ceo-carla');
+  assert.ok(!after.data.unread.some((g) => g.conversationId === convId));
+});
+
 test('api: task resolution endpoint and clear 4xx errors', async (t) => {
   const { get, post } = await bootServer(t);
   const hit = await get('/api/task/AS-7');
