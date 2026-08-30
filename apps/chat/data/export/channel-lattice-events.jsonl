@@ -45,3 +45,9 @@
 {"type":"message","id":76,"thread_root_id":null,"author":"system:lattice","body":"AS-10: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T05:12:10.087Z"}
 {"type":"message","id":77,"thread_root_id":null,"author":"system:lattice","body":"AS-10: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T05:13:02.376Z"}
 {"type":"message","id":78,"thread_root_id":null,"author":"system:lattice","body":"AS-10: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T05:17:22.303Z"}
+{"type":"message","id":80,"thread_root_id":null,"author":"system:lattice","body":"AS-10: review → done — by agent:qa-priya","created_at":"2026-08-30T05:22:06.265Z"}
+{"type":"message","id":81,"thread_root_id":null,"author":"system:lattice","body":"AS-8: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-30T05:22:16.286Z"}
+{"type":"message","id":82,"thread_root_id":null,"author":"system:lattice","body":"AS-8: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T05:26:20.085Z"}
+{"type":"message","id":83,"thread_root_id":null,"author":"system:lattice","body":"AS-8: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T05:27:43.370Z"}
+{"type":"message","id":84,"thread_root_id":null,"author":"system:lattice","body":"AS-8: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T05:37:53.616Z"}
+{"type":"message","id":85,"thread_root_id":null,"author":"system:lattice","body":"AS-12 created by agent:qa-priya — \"chat: harden assignmentsByActor against prototype-chain tas…\" [backlog]","created_at":"2026-08-30T05:45:14.405Z"}
