@@ -1,0 +1,27 @@
+{"type":"conversation","id":3,"conv_type":"channel","name":"lattice-events","purpose":"Automated feed of Lattice task events; read-only by convention","dm_key":null,"members":null,"created_by":"system:lattice","created_at":"2026-08-30T01:42:30.909Z"}
+{"type":"message","id":1,"thread_root_id":null,"author":"system:lattice","body":"AS-1 created by human:forrest — \"Create cofounder persona agents: CEO and CTO\" [backlog]","created_at":"2026-08-30T01:42:30.911Z"}
+{"type":"message","id":2,"thread_root_id":null,"author":"system:lattice","body":"AS-1: backlog → in_planning — by agent:claude-fable-orchestrator","created_at":"2026-08-30T01:42:30.911Z"}
+{"type":"message","id":3,"thread_root_id":null,"author":"system:lattice","body":"AS-1: in_planning → planned — by agent:executive-recruiter-planner","created_at":"2026-08-30T01:42:30.911Z"}
+{"type":"message","id":4,"thread_root_id":null,"author":"system:lattice","body":"AS-1: planned → in_progress — by agent:claude-fable-orchestrator","created_at":"2026-08-30T01:42:30.912Z"}
+{"type":"message","id":5,"thread_root_id":null,"author":"system:lattice","body":"AS-1: in_progress → review — by agent:executive-recruiter-impl","created_at":"2026-08-30T01:42:30.912Z"}
+{"type":"message","id":6,"thread_root_id":null,"author":"system:lattice","body":"AS-1: review → done — by agent:board-advisor-reviewer","created_at":"2026-08-30T01:42:30.912Z"}
+{"type":"message","id":7,"thread_root_id":null,"author":"system:lattice","body":"AS-2 created by human:forrest — \"Internal chat app (Slack-type) v1 — channels, DMs, threads,…\" [backlog]","created_at":"2026-08-30T01:42:30.912Z"}
+{"type":"message","id":8,"thread_root_id":null,"author":"system:lattice","body":"AS-2: backlog → in_planning — by agent:claude-fable-orchestrator","created_at":"2026-08-30T01:42:30.912Z"}
+{"type":"message","id":9,"thread_root_id":null,"author":"system:lattice","body":"AS-2: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T01:42:30.912Z"}
+{"type":"message","id":10,"thread_root_id":null,"author":"system:lattice","body":"AS-2: planned → in_progress — by agent:claude-fable-orchestrator","created_at":"2026-08-30T01:42:30.912Z"}
+{"type":"message","id":16,"thread_root_id":null,"author":"system:lattice","body":"AS-2: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T01:59:48.237Z"}
+{"type":"message","id":17,"thread_root_id":null,"author":"system:lattice","body":"AS-2: review → done — by agent:qa-priya","created_at":"2026-08-30T01:59:48.239Z"}
+{"type":"message","id":18,"thread_root_id":null,"author":"system:lattice","body":"AS-3 created by agent:qa-priya — \"Chat app: tighten markRead bounds + make CLI reads side-eff…\" [backlog]","created_at":"2026-08-30T01:59:48.240Z"}
+{"type":"message","id":19,"thread_root_id":null,"author":"system:lattice","body":"AS-4 created by human:forrest — \"Containerize chat app: docker compose is the only way code …\" [backlog]","created_at":"2026-08-30T01:59:48.241Z"}
+{"type":"message","id":20,"thread_root_id":null,"author":"system:lattice","body":"AS-4: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-30T01:59:48.241Z"}
+{"type":"message","id":21,"thread_root_id":null,"author":"system:lattice","body":"AS-4: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T01:59:48.242Z"}
+{"type":"message","id":22,"thread_root_id":null,"author":"system:lattice","body":"AS-4: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T01:59:48.243Z"}
+{"type":"message","id":27,"thread_root_id":null,"author":"system:lattice","body":"AS-4: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T02:05:04.212Z"}
+{"type":"message","id":36,"thread_root_id":27,"author":"agent:qa-priya","body":"QA note: reviewing AS-4 now.","created_at":"2026-08-30T02:09:02.653Z"}
+{"type":"message","id":38,"thread_root_id":null,"author":"system:lattice","body":"AS-4: review → done — by agent:qa-priya","created_at":"2026-08-30T02:11:03.897Z"}
+{"type":"message","id":41,"thread_root_id":null,"author":"system:lattice","body":"AS-5 created by human:forrest — \"Chat history durability: JSONL export committed to git\" [backlog]","created_at":"2026-08-30T02:38:04.030Z"}
+{"type":"message","id":42,"thread_root_id":null,"author":"system:lattice","body":"AS-5: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-30T02:41:19.750Z"}
+{"type":"message","id":45,"thread_root_id":null,"author":"system:lattice","body":"AS-6 created by agent:cto-owen — \"Chat: #board channel (restricted membership) + DM typeahead\" [backlog]","created_at":"2026-08-30T02:44:05.117Z"}
+{"type":"message","id":46,"thread_root_id":null,"author":"system:lattice","body":"AS-5: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T02:45:30.201Z"}
+{"type":"message","id":47,"thread_root_id":null,"author":"system:lattice","body":"AS-7 created by human:forrest — \"Message-triggered /advance: chat app becomes the investor's…\" [backlog]","created_at":"2026-08-30T02:52:22.057Z"}
+{"type":"message","id":51,"thread_root_id":null,"author":"system:lattice","body":"AS-8 created by agent:cto-owen — \"Chat: DM sidebar shows all employees with current work stat…\" [backlog]","created_at":"2026-08-30T03:20:15.128Z"}
