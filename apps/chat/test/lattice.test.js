@@ -2,7 +2,7 @@
 // Never touches the repo's real .lattice/ or real data/.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -128,6 +128,63 @@ test('assignmentsByActor: missing tasks dir yields an empty map', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'chat-lattice-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   assert.deepEqual(assignmentsByActor(dir), {});
+});
+
+// AS-12 hostile-fixture helpers: a throwaway repo root whose .lattice/tasks/
+// holds hand-crafted task JSON (the shapes the lattice CLI never writes).
+function hostileRepo(t, tasks) {
+  const root = mkdtempSync(join(tmpdir(), 'chat-lattice-hostile-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const dir = join(root, '.lattice', 'tasks');
+  mkdirSync(dir, { recursive: true });
+  for (const task of tasks) writeFileSync(join(dir, `${task.id}.json`), JSON.stringify(task));
+  return root;
+}
+
+test('assignmentsByActor: prototype-chain status "constructor" is not in-flight (AS-12)', (t) => {
+  const root = hostileRepo(t, [
+    // `"constructor" in IN_FLIGHT_RANK` is true via the prototype chain; the
+    // own-key filter must exclude it instead of rendering phantom work.
+    { id: 'task_EVIL1', short_id: 'AS-92', title: 'phantom', status: 'constructor',
+      assigned_to: 'agent:eng-ada', last_status_changed_at: '2026-08-30T00:00:02Z' },
+    { id: 'task_EVIL2', short_id: 'AS-93', title: 'phantom too', status: 'toString',
+      assigned_to: 'agent:eng-ada', last_status_changed_at: '2026-08-30T00:00:03Z' },
+    { id: 'task_OK1', short_id: 'AS-94', title: 'real work', status: 'in_progress',
+      assigned_to: 'agent:eng-ada', last_status_changed_at: '2026-08-30T00:00:01Z' },
+  ]);
+  const map = assignmentsByActor(root);
+  assert.deepEqual(Object.keys(map), ['agent:eng-ada']);
+  assert.deepEqual(
+    map['agent:eng-ada'].map((e) => [e.shortId, e.status]),
+    [['AS-94', 'in_progress']],
+    'hostile statuses yield no phantom entries'
+  );
+});
+
+test('assignmentsByActor: assigned_to "__proto__" is a safe own key, no throw (AS-12)', (t) => {
+  const root = hostileRepo(t, [
+    { id: 'task_EVIL3', short_id: 'AS-95', title: 'proto task', status: 'in_progress',
+      assigned_to: '__proto__', last_status_changed_at: '2026-08-30T00:00:02Z' },
+    { id: 'task_OK2', short_id: 'AS-96', title: 'real work', status: 'review',
+      assigned_to: 'agent:eng-ada', last_status_changed_at: '2026-08-30T00:00:01Z' },
+  ]);
+  // Plain-object accumulator regression: `byActor["__proto__"] ??= []` read
+  // Object.prototype and the .push threw, blanking the whole roster.
+  const map = assignmentsByActor(root);
+  assert.ok(Object.hasOwn(map, '__proto__'), '"__proto__" is an own key of the result');
+  assert.deepEqual(
+    map['__proto__'].map((e) => [e.shortId, e.status]),
+    [['AS-95', 'in_progress']]
+  );
+  assert.deepEqual(
+    map['agent:eng-ada'].map((e) => [e.shortId, e.status]),
+    [['AS-96', 'review']],
+    'other actors\' rosters are unaffected'
+  );
+  // No prototype pollution: the result's prototype and fresh objects are clean.
+  assert.equal(Object.getPrototypeOf(map), Object.prototype);
+  assert.equal({}.shortId, undefined);
+  assert.ok(!('AS-95' in {}));
 });
 
 test('ingestNewEvents is idempotent: five runs post each event exactly once (T6)', (t) => {
