@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, tickArgv } from '../watch/advance-watcher.mjs';
+import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, tickArgv, loadPermissionRules } from '../watch/advance-watcher.mjs';
 
 const T0 = Date.parse('2026-08-30T12:00:00.000Z');
 const CONFIG = { debounceS: 15, lockStaleMin: 45 };
@@ -357,6 +357,131 @@ test('tickArgv: pins the exact spawn argv — marker rides as the /advance promp
     '--output-format',
     'text',
   ]);
+});
+
+// --- AS-21: permission grants on the spawn argv -------------------------------
+
+test('tickArgv: injected rules append --allowedTools/--disallowedTools, each rule its own element, denies last', () => {
+  // Rules are always INJECTED here, never read from the repo's live settings
+  // file — the pin stays an exact-array assertion under test control.
+  const rules = {
+    allow: ['Bash(lattice *)', 'Bash(git *)'],
+    deny: ['Bash(git push --force*)'],
+  };
+  assert.deepEqual(tickArgv(4242, 'acceptEdits', rules), [
+    '-p',
+    '/advance watcher:4242',
+    '--permission-mode',
+    'acceptEdits',
+    '--output-format',
+    'text',
+    '--allowedTools',
+    'Bash(lattice *)',
+    'Bash(git *)',
+    '--disallowedTools',
+    'Bash(git push --force*)',
+  ]);
+  // The flags are variadic and we spawn without a shell: a rule with internal
+  // spaces must stay ONE argv element, never split or quoted.
+  assert.ok(tickArgv(1, 'plan', rules).includes('Bash(git push --force*)'));
+
+  // allow-only: no --disallowedTools flag at all (a bare variadic flag with
+  // zero args would eat whatever followed; nothing follows, but the flag is
+  // still omitted when its list is empty).
+  assert.deepEqual(tickArgv(4242, 'acceptEdits', { allow: ['Bash(node *)'], deny: [] }), [
+    '-p',
+    '/advance watcher:4242',
+    '--permission-mode',
+    'acceptEdits',
+    '--output-format',
+    'text',
+    '--allowedTools',
+    'Bash(node *)',
+  ]);
+  // deny-only: --disallowedTools group alone.
+  assert.deepEqual(tickArgv(4242, 'acceptEdits', { allow: [], deny: ['Bash(git push -f*)'] }), [
+    '-p',
+    '/advance watcher:4242',
+    '--permission-mode',
+    'acceptEdits',
+    '--output-format',
+    'text',
+    '--disallowedTools',
+    'Bash(git push -f*)',
+  ]);
+  // Both empty: byte-identical to the no-rules argv (back-compat).
+  assert.deepEqual(
+    tickArgv(4242, 'acceptEdits', { allow: [], deny: [] }),
+    tickArgv(4242, 'acceptEdits')
+  );
+});
+
+function settingsFixture(t, content) {
+  const dir = mkdtempSync(join(tmpdir(), 'watcher-settings-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'settings.json');
+  if (content !== undefined) writeFileSync(path, content);
+  return path;
+}
+
+test('loadPermissionRules: valid settings file yields exact {allow, deny} from one parse', (t) => {
+  const path = settingsFixture(
+    t,
+    JSON.stringify({
+      permissions: {
+        allow: ['Bash(lattice *)', 'Bash(node *)', 'Bash(git *)'],
+        deny: ['Bash(git push --force*)', 'Bash(git push -f*)', 'Bash(git push origin +*)'],
+      },
+    })
+  );
+  assert.deepEqual(loadPermissionRules(path), {
+    allow: ['Bash(lattice *)', 'Bash(node *)', 'Bash(git *)'],
+    deny: ['Bash(git push --force*)', 'Bash(git push -f*)', 'Bash(git push origin +*)'],
+  });
+});
+
+test('loadPermissionRules: missing file, malformed JSON, and non-object JSON all yield null', (t) => {
+  assert.equal(loadPermissionRules(settingsFixture(t)), null, 'missing file');
+  assert.equal(loadPermissionRules(settingsFixture(t, 'not json{')), null, 'malformed JSON');
+  assert.equal(loadPermissionRules(settingsFixture(t, '"just a string"')), null, 'non-object JSON');
+  assert.equal(loadPermissionRules(settingsFixture(t, 'null')), null, 'JSON null');
+});
+
+test('loadPermissionRules: absent/partial permissions default to empty lists; non-strings filtered', (t) => {
+  assert.deepEqual(loadPermissionRules(settingsFixture(t, '{}')), { allow: [], deny: [] });
+  assert.deepEqual(
+    loadPermissionRules(settingsFixture(t, JSON.stringify({ permissions: { allow: ['Bash(rtk *)'] } }))),
+    { allow: ['Bash(rtk *)'], deny: [] }
+  );
+  assert.deepEqual(
+    loadPermissionRules(
+      settingsFixture(t, JSON.stringify({ permissions: { allow: ['ok', 7, null, { x: 1 }], deny: 'not-an-array' } }))
+    ),
+    { allow: ['ok'], deny: [] }
+  );
+});
+
+test('loadPermissionRules -> tickArgv composition: force-push denies ride as trailing argv elements whenever allows do', (t) => {
+  // The methodology invariant (git push --force is always needs_human),
+  // pinned: allows and denies come from the SAME parse of the SAME file, so
+  // a tick can never fire with allows but without the force-push denies.
+  const path = settingsFixture(
+    t,
+    JSON.stringify({
+      permissions: {
+        allow: ['Bash(lattice *)', 'Bash(git *)'],
+        deny: ['Bash(git push --force*)', 'Bash(git push -f*)', 'Bash(git push origin +*)'],
+      },
+    })
+  );
+  const argv = tickArgv(4242, 'acceptEdits', loadPermissionRules(path));
+  assert.deepEqual(argv.slice(-4), [
+    '--disallowedTools',
+    'Bash(git push --force*)',
+    'Bash(git push -f*)',
+    'Bash(git push origin +*)',
+  ]);
+  assert.ok(argv.includes('--allowedTools'));
 });
 
 test('config: defaults match the plan; env overrides apply; junk env falls back', () => {

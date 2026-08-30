@@ -91,7 +91,21 @@ the settings allowlist / permission mode is **denied, not waited on**. A tick
 cannot hang on a prompt, but it can be quietly unable to commit, push, or run
 tests if the allowlist is too narrow — denials show up in the tick log.
 
-1. Start with the default `acceptEdits` + the repo's settings allowlists.
+1. ~~Start with the default `acceptEdits` + the repo's settings allowlists.~~
+   **Disproven for headless children (AS-21):** project-scope
+   `.claude/settings.json` allowlists never load for a headless `claude -p`
+   child — workspace trust is granted interactively and a headless child
+   never sees the dialog, so it logs "Ignoring N permissions.allow entries
+   from .claude/settings.json: this workspace has not been trusted" and
+   denies commands the file explicitly allows (evidence: tick log
+   `apps/chat/data/logs/tick-2026-08-30T19-14-54.450Z.log`, four allowed
+   commands all denied). The **operative rung**: the watcher re-reads
+   `.claude/settings.json` at every fire and passes its allow/deny lists
+   explicitly as `--allowedTools` / `--disallowedTools` on the spawn argv
+   (`loadPermissionRules` + `tickArgv`, AS-21). Settings edits take effect
+   on the next tick, no restart. If the file is missing or unparsable the
+   watcher logs a WARN and fires without grants — degraded, never a
+   hardcoded fallback list.
 2. The **first live fire is board-assisted** precisely to watch the tick log
    for permission denials and widen the allowlist.
 3. `ADVANCE_PERMISSION_MODE=bypassPermissions` is the full-autonomy option and
