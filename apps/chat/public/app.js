@@ -8,6 +8,7 @@ const $ = (sel) => document.querySelector(sel);
 const state = {
   me: null,
   conversations: [],
+  roster: [], // AS-8: active employees from /api/roster (empty on degradation)
   currentConv: null, // conversation object
   currentThreadRoot: null, // message id
   lastData: null, // last /api/messages payload for current conversation
@@ -162,10 +163,24 @@ async function loadIdentities() {
 
 async function refreshSidebar() {
   if (!state.me) return;
-  const { conversations } = await api(`/api/conversations?me=${encodeURIComponent(state.me)}`);
+  const meQ = encodeURIComponent(state.me);
+  const { conversations } = await api(`/api/conversations?me=${meQ}`);
   state.conversations = conversations;
+  // AS-8: roster rides the same refresh. Degradation contract: if the
+  // endpoint fails (old compose file, missing mount), the roster is empty
+  // and the sidebar falls back to DM-conversations-only — never a crash.
+  try {
+    state.roster = (await api(`/api/roster?me=${meQ}`)).roster;
+  } catch {
+    state.roster = [];
+  }
   const channels = conversations.filter((c) => c.type === 'channel');
-  const dms = conversations.filter((c) => c.type === 'dm');
+  // Non-roster DMs render below the roster: DMs whose other member has no
+  // active dossier (human:forrest, departed employees — history never disappears).
+  const rosterIds = new Set(state.roster.map((r) => r.actorId));
+  const dms = conversations
+    .filter((c) => c.type === 'dm')
+    .filter((c) => !rosterIds.has((c.members || []).find((m) => m !== state.me)));
   const li = (conv) => {
     const item = el('li');
     // Private channels get a lock marker (members are the only ones who ever
@@ -181,7 +196,95 @@ async function refreshSidebar() {
     return item;
   };
   $('#channel-list').replaceChildren(...channels.map(li));
+  $('#roster-list').replaceChildren(...state.roster.map(rosterRow));
   $('#dm-list').replaceChildren(...dms.map(li));
+}
+
+// --- roster rows (AS-8) -----------------------------------------------------
+// Every active employee, DM or not. All content via textContent (house rule).
+
+function rosterRow(emp) {
+  const item = el('li', 'roster-row');
+  const top = el('div', 'roster-top');
+  const name = el('span', 'roster-name', emp.self ? `${emp.name} (you)` : emp.name);
+  name.title = emp.title;
+  top.appendChild(name);
+  if (emp.unread > 0) top.appendChild(el('span', 'badge', String(emp.unread)));
+  const status = el('div', 'roster-status');
+  if (emp.work) {
+    // Same affordance as AS-n refs in message bodies (AS-10): plain click →
+    // in-app task panel, modified click / middle click → dashboard tab.
+    const a = el('a', 'ref-link', emp.work.shortId);
+    a.href = emp.work.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.title = `${emp.work.title} — ${emp.work.status}`;
+    a.addEventListener('click', (e) => {
+      e.stopPropagation(); // task link never opens the DM
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
+      e.preventDefault();
+      showTaskPanel(emp.work.shortId);
+    });
+    status.appendChild(a);
+    const more = emp.moreTasks > 0 ? ` (+${emp.moreTasks})` : '';
+    status.appendChild(
+      document.createTextNode(` · ${emp.work.status.replace('_', ' ')}${more}`)
+    );
+  } else {
+    status.textContent = 'idle';
+  }
+  item.append(top, status);
+  if (emp.self) {
+    item.classList.add('self'); // inert: no click-to-DM with yourself
+  } else {
+    if (
+      emp.dmConversationId != null &&
+      state.currentConv &&
+      state.currentConv.id === emp.dmConversationId
+    ) {
+      item.classList.add('active');
+    }
+    item.addEventListener('click', () => {
+      openRosterDm(emp).catch((err) => alert(err.message));
+    });
+  }
+  return item;
+}
+
+/** Click-to-DM: get-or-create, auto-registering the dossier identity first
+ *  when needed (mechanical bookkeeping — the dossier is the source of truth). */
+async function openRosterDm(emp) {
+  if (emp.dmConversationId != null) {
+    const existing = state.conversations.find((c) => c.id === emp.dmConversationId);
+    if (existing) return selectConversation(existing);
+  }
+  if (!emp.registered) {
+    try {
+      await post('/api/identities', {
+        id: emp.actorId,
+        displayName: emp.name,
+        kind: emp.actorId.split(':')[0],
+      });
+    } catch (err) {
+      // 409 race: already registered by a concurrent tab — proceed to the DM.
+      if (!/already exists/.test(err.message)) throw err;
+    }
+    // Merge into the local identity map (for display names) without
+    // rebuilding the picker — that could clobber the current selection.
+    if (state.identityMap && !state.identityMap[emp.actorId]) {
+      state.identityMap[emp.actorId] = {
+        id: emp.actorId,
+        displayName: emp.name,
+        kind: emp.actorId.split(':')[0],
+      };
+      const opt = el('option', null, emp.name);
+      opt.value = emp.actorId;
+      $('#identity-picker').appendChild(opt);
+    }
+  }
+  const { conversation } = await post('/api/dms', { me: state.me, other: emp.actorId });
+  await refreshSidebar();
+  await selectConversation(conversation);
 }
 
 // --- conversation view ----------------------------------------------------
