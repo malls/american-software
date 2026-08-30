@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 2,
+  "comment_count": 3,
   "complexity": "low",
   "created_at": "2026-08-30T19:21:34Z",
   "created_by": "agent:cto-owen",
@@ -17,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1A1XEA8JQ0Q1TTHQT82AVMD",
-  "last_event_id": "ev_01M1A5WEKDGT42Q97ERMNH1EWV",
-  "last_status_changed_at": "2026-08-30T20:30:56Z",
+  "last_event_id": "ev_01M1A65F4JQYRENV3Z3WNQT9A0",
+  "last_status_changed_at": "2026-08-30T20:35:52Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-22",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "chat CLI: create-channel gains --visibility private + --members \u2014 unblock #bizdev board request",
   "type": "task",
-  "updated_at": "2026-08-30T20:30:56Z",
+  "updated_at": "2026-08-30T20:35:52Z",
   "urgency": null
 }
