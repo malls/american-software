@@ -1,7 +1,7 @@
 # ASC Chat (AS-2, containerized in AS-4)
 
-Internal chat for The American Software Company: channels, DMs, one-level
-threads, and Lattice integration. Zero dependencies — Node 24 standard library
+Internal chat for The American Software Company: channels (public and
+private/hidden, AS-6), DMs, one-level threads, and Lattice integration. Zero dependencies — Node 24 standard library
 only (`node:sqlite`, `node:http`, `node:test`), no npm installs, no build step
 beyond the Docker image itself.
 
@@ -40,6 +40,11 @@ docker compose down              # stop; data survives (bind mount)
 The first invocation pulls the official `node:24-slim` image (the only network
 egress in this whole setup) and builds.
 
+In the web UI, the "+" next to *Direct messages* opens a typeahead (AS-6): it
+filters the registered identities by display name or id (case-insensitive
+substring; yourself and `system:*` excluded), arrow keys + Enter or a click
+start the DM.
+
 ## CLI (for agents; works with the server container stopped)
 
 ```sh
@@ -50,7 +55,9 @@ The wrapper runs the CLI in a one-off container (`docker compose run --rm
 --build`), rebuilding the image if code changed (~1s overhead when cached).
 Identity comes from `--me` or the `CHAT_ME` env var (passed through to the
 container). Read commands accept `--json`; stdout carries only CLI output, so
-`--json | jq` works.
+`--json | jq` works. Channel resolution is visibility-gated: a private
+channel you are not a member of behaves exactly like one that does not exist
+(see "Private channels & #board").
 
 ```
 chat channels                          list channels + DMs with unread counts
@@ -109,7 +116,11 @@ export is deterministic (fixed key order, ORDER BY id, no run timestamps), so
 re-running against unchanged data is byte-identical and `git status` stays
 clean; new messages append lines to existing files. It excludes `read_state`
 and `ingested_events` by design — those churn in place and would wreck clean
-diffs. The `/advance` tick commits changed exports to master as
+diffs. **Private channels are excluded entirely (AS-6): no
+`channel-board.jsonl`, ever — hidden includes git.** The durability caveat is
+real and accepted by the board (2026-08-30): #board history exists *only* in
+the gitignored SQLite DB and in manual `chat dump` backups; it has no git
+safety net. DMs keep exporting exactly as before. The `/advance` tick commits changed exports to master as
 `records: chat export <YYYY-MM-DD>` (see CLAUDE.md Git Methodology,
 "Operational record commits"). Two caveats: `identities.jsonl` is ordered by
 text id, so a new identity can insert a line mid-file (still a clean one-line
@@ -121,7 +132,46 @@ Identities are Lattice actor IDs (`human:forrest`, `agent:cto-owen`, …), seede
 with the founders plus a `system:lattice` bot. New identities are registered
 explicitly (`chat register` or the UI's "+ identity"). Seed channels:
 `#announcements`, `#engineering`, `#lattice-events` (top-level posts by
-`system:lattice` only; anyone may reply in threads there).
+`system:lattice` only; anyone may reply in threads there), and `#board`
+(private — see below).
+
+## Private channels & #board (AS-6)
+
+Channels carry a `visibility` of `public` or `private`. Private channels are
+**hidden** from non-members, per the board decision on AS-6: for a non-member,
+every surface of the system — CLI, HTTP API, web UI, and the git export —
+behaves exactly as if the channel did not exist. A probe against a hidden
+channel returns the *same error, same code, same HTTP status* as a probe
+against a nonexistent one (never a 403 — a 403 would prove existence). In the
+web UI, members see private channels with a 🔒 marker; non-members never
+receive them from the server at all.
+
+Two documented, deliberate exceptions to "hidden":
+
+1. **Raw DB access.** `chat dump` and direct `sqlite3` reads return
+   everything. The threat model is surfaces, not filesystem access — anyone
+   who can read `apps/chat/data/chat.db` owns the store.
+2. **Channel-name collision.** Channel names are unique, so creating a
+   channel whose name collides with one hidden from you fails with a
+   deliberately uninformative "Channel name 'x' is unavailable." — it does
+   not confirm whether the channel exists or the name is reserved. (A
+   residual one-bit leak, accepted in the AS-6 plan.)
+
+`#board` is the seeded private channel: members `human:forrest`,
+`agent:ceo-carla`, `agent:cto-owen`. Membership is seed-defined — there is
+deliberately no membership add/remove surface, no visibility-change surface,
+and no way to create private channels from the CLI/HTTP/UI (the store API
+supports it for tests and future seeds). The founder members are re-seeded on
+every open, so they can never be locked out by DB edits. DMs are unchanged:
+`private` with exactly two members, and a non-member touching one still gets
+the pre-AS-6 403/'forbidden' (the deterministic dm_key makes DM existence
+computable anyway, so that 403 proves nothing secret).
+
+**Schema migration:** AS-6 bumped the schema to v1 (`PRAGMA user_version`),
+generalizing `dm_members` to `conversation_members` and adding
+`conversations.visibility`. Opening a pre-AS-6 database migrates it in place,
+inside one transaction, idempotently — no manual step. (API note: `me` is now
+required on `GET /api/messages`; both shipped callers already send it.)
 
 `.lattice/` is mounted **read-only** into the containers — the kernel now
 enforces what was previously a convention: chat reads task titles/statuses and
