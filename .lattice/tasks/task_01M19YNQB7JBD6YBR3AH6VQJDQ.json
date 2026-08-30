@@ -1,5 +1,5 @@
 {
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [
     {
       "branch": "feat/AS-17-thread-scroll-default-identity",
@@ -17,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M19YNQB7JBD6YBR3AH6VQJDQ",
-  "last_event_id": "ev_01M1A76Z7HB4AYZ87RQKV2KDYZ",
-  "last_status_changed_at": "2026-08-30T20:54:09Z",
+  "last_event_id": "ev_01M1AAAT041WMAMNBR7CEFFCKG",
+  "last_status_changed_at": "2026-08-30T21:48:41Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-17",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat: thread view must keep scroll position across polls; default identity = human:forrest",
   "type": "bug",
-  "updated_at": "2026-08-30T20:54:09Z",
+  "updated_at": "2026-08-30T21:48:41Z",
   "urgency": null
 }

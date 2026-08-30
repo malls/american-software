@@ -2,8 +2,13 @@
 // Rendering rule: ALL user content goes through textContent (never innerHTML).
 
 import { parseChatUrl, serializeChatUrl, resolveConversation } from './url-state.js';
+import { renderPreservingScroll } from './scroll.js';
 
 const $ = (sel) => document.querySelector(sel);
+
+// AS-17: who the picker lands on when localStorage has no (valid) saved pick.
+// Seeded in lib/store.js; if ever absent, degrades to the first option.
+const DEFAULT_IDENTITY = 'human:forrest';
 
 const state = {
   me: null,
@@ -156,6 +161,9 @@ async function loadIdentities() {
   let saved = null;
   try { saved = localStorage.getItem('chat.me'); } catch {}
   if (saved && state.identityMap[saved]) picker.value = saved;
+  else if (state.identityMap[DEFAULT_IDENTITY]) picker.value = DEFAULT_IDENTITY;
+  // Deliberately NOT persisted: a default is not a choice. Only an explicit
+  // pick (the change handler in init()) writes localStorage['chat.me'].
   state.me = picker.value || null;
 }
 
@@ -289,7 +297,7 @@ async function openRosterDm(emp) {
 
 // --- conversation view ----------------------------------------------------
 
-async function selectConversation(conv, { keepThread = false, url = 'push' } = {}) {
+async function selectConversation(conv, { keepThread = false, url = 'push', scroll = 'bottom' } = {}) {
   if (url === 'push') state.anchorMsg = null; // user navigation drops the m= anchor
   state.currentConv = conv;
   if (!keepThread) closeThread({ url: 'none' });
@@ -302,13 +310,19 @@ async function selectConversation(conv, { keepThread = false, url = 'push' } = {
       : `DM with ${displayName((c.members || []).find((m) => m !== state.me) || '?')}`;
   $('#conv-purpose').textContent = c.purpose || '';
   const pane = $('#messages');
-  const atBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 40;
-  pane.replaceChildren(
-    ...(data.messages.length
-      ? data.messages.map((m) => messageNode(m))
-      : [el('div', 'empty-note', 'No messages yet.')])
+  // AS-17: navigation (scroll:'bottom') always lands at the newest message;
+  // poll/send re-renders (scroll:'preserve') are sticky-bottom — follow new
+  // messages only when the reader was already at the bottom.
+  renderPreservingScroll(
+    pane,
+    () =>
+      pane.replaceChildren(
+        ...(data.messages.length
+          ? data.messages.map((m) => messageNode(m))
+          : [el('div', 'empty-note', 'No messages yet.')])
+      ),
+    { forceBottom: scroll === 'bottom' }
   );
-  if (atBottom) pane.scrollTop = pane.scrollHeight;
   // m= anchor: one-shot scroll + highlight — the poll re-render never repeats it.
   if (state.anchorMsg != null && !state.anchorApplied) {
     state.anchorApplied = true;
@@ -333,7 +347,7 @@ function openThread(rootId, { url = 'push' } = {}) {
   if (url === 'push') state.anchorMsg = null; // navigation drops the m= anchor
   state.currentThreadRoot = rootId;
   $('#thread-panel').hidden = false;
-  renderThread();
+  renderThread({ forceBottom: true }); // a freshly opened thread starts at its newest reply
   syncUrl(url);
 }
 
@@ -344,7 +358,7 @@ function closeThread({ url = 'push' } = {}) {
   syncUrl(url);
 }
 
-function renderThread() {
+function renderThread({ forceBottom = false } = {}) {
   const rootId = state.currentThreadRoot;
   if (rootId == null || !state.lastData) return;
   const root = state.lastData.messages.find((m) => m.id === rootId);
@@ -352,11 +366,17 @@ function renderThread() {
   const label = state.currentConv.type === 'channel' ? state.currentConv.name : 'dm';
   $('#thread-title').textContent = `Thread ${label}#${rootId}`;
   const pane = $('#thread-messages');
-  pane.replaceChildren(
-    ...(root ? [messageNode(root, { inThread: true })] : []),
-    ...replies.map((m) => messageNode(m, { inThread: true }))
+  // AS-17: sticky-bottom — the 5s poll re-render must never yank a reader who
+  // has scrolled up (the reported bug was an unconditional scroll-to-bottom here).
+  renderPreservingScroll(
+    pane,
+    () =>
+      pane.replaceChildren(
+        ...(root ? [messageNode(root, { inThread: true })] : []),
+        ...replies.map((m) => messageNode(m, { inThread: true }))
+      ),
+    { forceBottom }
   );
-  pane.scrollTop = pane.scrollHeight;
 }
 
 // --- task panel -----------------------------------------------------------
@@ -487,8 +507,9 @@ async function sendMessage(text, threadRoot) {
     body: text,
     threadRoot: threadRoot ?? null,
   });
-  // Re-render, not navigation: never a history write.
-  await selectConversation(state.currentConv, { keepThread: true, url: 'none' });
+  // Re-render, not navigation: never a history write, never a scroll yank —
+  // your message lands below without moving a scrolled-up pane (AS-17).
+  await selectConversation(state.currentConv, { keepThread: true, url: 'none', scroll: 'preserve' });
 }
 
 function wireComposer(formSel, inputSel, getThreadRoot) {
@@ -633,7 +654,7 @@ async function init() {
   setInterval(() => {
     refreshSidebar().catch(() => {});
     if (state.currentConv)
-      selectConversation(state.currentConv, { keepThread: true, url: 'none' }).catch(() => {});
+      selectConversation(state.currentConv, { keepThread: true, url: 'none', scroll: 'preserve' }).catch(() => {});
   }, 5000);
 }
 
