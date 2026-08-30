@@ -775,3 +775,89 @@ test('AS-13 sentinel: two stores on one data dir interleave posts without tmp co
     'no tmp orphans after interleaved posts from two store instances'
   );
 });
+
+// --- AS-25: push delivery primitives (onMessage / visibleTo / messagesSince) --
+
+test('AS-25: onMessage fires post-commit for postMessage and ingestEvent; a subscriber throw never fails the write', (t) => {
+  const { store } = tempStore(t);
+  const eng = store.getChannelByName('engineering');
+  const seen = [];
+  store.onMessage((m) => seen.push(m));
+  // A broken subscriber registered FIRST must not stop delivery or the write.
+  const broken = [];
+  store.onMessage((m) => {
+    broken.push(m.id);
+    throw new Error('subscriber bug');
+  });
+
+  const posted = store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'push me' });
+  assert.equal(seen.length, 1);
+  // Full committed row, not a fragment: the row is re-readable at emit time.
+  assert.deepEqual(seen[0], store.getMessage(posted.id));
+  assert.deepEqual(seen[0], posted);
+
+  // ingestEvent (the only other message-creating path) emits too.
+  assert.equal(store.ingestEvent('ev_PUSH1', 'AS-1: something happened'), true);
+  assert.equal(seen.length, 2);
+  assert.equal(seen[1].authorId, 'system:lattice');
+  assert.equal(seen[1].body, 'AS-1: something happened');
+  const events = store.getChannelByName('lattice-events');
+  assert.equal(seen[1].conversationId, events.id);
+  // Idempotent re-ingest emits nothing.
+  assert.equal(store.ingestEvent('ev_PUSH1', 'AS-1: something happened'), false);
+  assert.equal(seen.length, 2);
+
+  // The throwing subscriber ran for both writes and neither write failed.
+  assert.deepEqual(broken, [seen[0].id, seen[1].id]);
+  assert.equal(store.getMessages(eng.id, 'human:forrest').messages.length, 1);
+});
+
+test('AS-25: visibleTo — public true, hidden channel members-only, DM members-only, unknown false', (t) => {
+  const { store } = tempStore(t);
+  const N = withNonMember(store);
+  const eng = store.getChannelByName('engineering');
+  const board = store.getChannelByName('board');
+  const dm = store.openDm('human:forrest', 'agent:ceo-carla');
+
+  assert.equal(store.visibleTo(eng.id, N), true, 'public channel visible to anyone');
+  assert.equal(store.visibleTo(board.id, 'human:forrest'), true, 'private member');
+  assert.equal(store.visibleTo(board.id, N), false, 'private non-member');
+  assert.equal(store.visibleTo(dm.id, 'agent:ceo-carla'), true, 'DM member');
+  assert.equal(store.visibleTo(dm.id, N), false, 'DM non-member');
+  assert.equal(store.visibleTo(99999, 'human:forrest'), false, 'unknown conversation is false, never a throw');
+});
+
+test('AS-25: messagesSince returns the flat id-ordered delta (replies included) behind the same gate as getMessages', (t) => {
+  const { store } = tempStore(t);
+  const N = withNonMember(store);
+  const eng = store.getChannelByName('engineering');
+  const m1 = store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'm1' });
+  const m2 = store.postMessage({ conversation: eng.id, author: 'agent:cto-owen', body: 'm2' });
+  const r1 = store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'r1', threadRoot: m1.id });
+  const m3 = store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'm3' });
+
+  const delta = store.messagesSince(eng.id, 'human:forrest', m1.id);
+  assert.deepEqual(delta.messages.map((m) => m.id), [m2.id, r1.id, m3.id], 'flat, id-ordered, replies included');
+  assert.equal(delta.messages[1].threadRootId, m1.id);
+  assert.ok(!('replyCount' in delta.messages[0]), 'no replyCount on delta rows (client counts replies)');
+  assert.equal(delta.conversation.id, eng.id);
+  // since = max -> empty delta; since=0 -> everything.
+  assert.deepEqual(store.messagesSince(eng.id, 'human:forrest', m3.id).messages, []);
+  assert.equal(store.messagesSince(eng.id, 'human:forrest', 0).messages.length, 4);
+
+  // Invalid since is rejected — but only AFTER the visibility gate.
+  assert.throws(() => store.messagesSince(eng.id, 'human:forrest', 'abc'), /Invalid since 'abc'/);
+  assert.throws(() => store.messagesSince(eng.id, 'human:forrest', -1), /Invalid since/);
+
+  // Hidden channel: byte-identical to nonexistent, even with a malformed since.
+  const board = store.getChannelByName('board');
+  const normalize = (msg, id) => msg.replaceAll(`'${id}'`, "'<id>'");
+  for (const since of [0, 'abc']) {
+    let hidden, missing;
+    try { store.messagesSince(board.id, N, since); assert.fail('expected throw'); } catch (e) { hidden = e; }
+    try { store.messagesSince(99999, N, since); assert.fail('expected throw'); } catch (e) { missing = e; }
+    assert.equal(hidden.code, 'unknown_conversation');
+    assert.equal(missing.code, 'unknown_conversation');
+    assert.equal(normalize(hidden.message, board.id), normalize(missing.message, 99999));
+  }
+});
