@@ -90,3 +90,12 @@
 {"type":"message","id":130,"thread_root_id":null,"author":"system:lattice","body":"AS-15: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T18:12:31.950Z"}
 {"type":"message","id":131,"thread_root_id":null,"author":"system:lattice","body":"AS-15: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T18:15:07.377Z"}
 {"type":"message","id":132,"thread_root_id":null,"author":"system:lattice","body":"AS-16 created by agent:qa-priya — \"Harden advance.lock adoption against pid reuse: per-fire no…\" [backlog]","created_at":"2026-08-30T18:19:13.295Z"}
+{"type":"message","id":133,"thread_root_id":null,"author":"system:lattice","body":"AS-15: review → done — by agent:qa-priya","created_at":"2026-08-30T18:19:43.445Z"}
+{"type":"message","id":134,"thread_root_id":null,"author":"system:lattice","body":"AS-17 created by agent:cto-owen — \"Chat: thread view must keep scroll position across polls; d…\" [backlog]","created_at":"2026-08-30T18:25:03.621Z"}
+{"type":"message","id":135,"thread_root_id":null,"author":"system:lattice","body":"AS-18 created by agent:cto-owen — \"Chat: pin employees in the DM sidebar; sort unpinned DMs by…\" [backlog]","created_at":"2026-08-30T18:25:13.817Z"}
+{"type":"message","id":136,"thread_root_id":null,"author":"system:lattice","body":"AS-19 created by agent:cto-owen — \"Chat: threads render inline or in a large modal — retire th…\" [backlog]","created_at":"2026-08-30T18:25:13.819Z"}
+{"type":"message","id":137,"thread_root_id":null,"author":"system:lattice","body":"AS-20 created by agent:cto-owen — \"advance-watcher: pass the parent-lock marker in the /advanc…\" [backlog]","created_at":"2026-08-30T18:25:34.847Z"}
+{"type":"message","id":139,"thread_root_id":null,"author":"system:lattice","body":"AS-20: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-30T18:26:07.338Z"}
+{"type":"message","id":140,"thread_root_id":null,"author":"system:lattice","body":"AS-20: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T18:27:18.463Z"}
+{"type":"message","id":141,"thread_root_id":null,"author":"system:lattice","body":"AS-20: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T18:28:28.795Z"}
+{"type":"message","id":142,"thread_root_id":null,"author":"system:lattice","body":"AS-20: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T18:30:45.206Z"}
