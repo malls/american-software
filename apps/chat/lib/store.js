@@ -89,6 +89,16 @@ export function dmKeyFor(a, b) {
   return [a, b].sort().join('|');
 }
 
+/**
+ * dm_key -> filesystem-safe export filename fragment (AS-5): ':' -> '~',
+ * '|' -> '~~'. The identity alphabet ([a-z0-9._-] plus kind prefixes)
+ * contains neither '~', ':' nor '|', and ':' is never adjacent to '|' in a
+ * valid dm_key, so the mapping is injective — distinct DMs never collide.
+ */
+function dmExportName(dmKey) {
+  return dmKey.replaceAll('|', '~~').replaceAll(':', '~');
+}
+
 export function openStore(dbPath) {
   if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true });
   const db = new DatabaseSync(dbPath);
@@ -497,6 +507,84 @@ export function openStore(dbPath) {
     return lines;
   }
 
+  // --- export (AS-5) ------------------------------------------------------
+
+  /**
+   * Append-only JSONL export of the insert-only tables (identities,
+   * conversations, messages) for committing to git. Returns
+   * [{ filename, lines: [string…] }, …] in deterministic order: identities
+   * first, then conversations by id. Pure data — no filesystem access.
+   *
+   * Determinism contract: hand-built objects with fixed key order, ORDER BY
+   * id everywhere, no export-run timestamps. Message ids are monotonic per
+   * conversation and rows are never mutated, so a re-run emits every prior
+   * file as a byte-identical prefix plus appended lines. (Exception:
+   * identities.jsonl is ordered by text id, so a new identity can insert a
+   * line mid-file — still deterministic, still a clean one-line diff.)
+   */
+  function exportFiles() {
+    const num = (v) => (typeof v === 'bigint' ? Number(v) : v);
+    const files = [];
+
+    const identities = db
+      .prepare('SELECT id, display_name, kind, created_at FROM identities ORDER BY id')
+      .all();
+    files.push({
+      filename: 'identities.jsonl',
+      lines: identities.map((r) =>
+        JSON.stringify({
+          type: 'identity',
+          id: r.id,
+          display_name: r.display_name,
+          kind: r.kind,
+          created_at: r.created_at,
+        })
+      ),
+    });
+
+    const convs = db
+      .prepare(
+        'SELECT id, type, name, purpose, dm_key, created_by, created_at FROM conversations ORDER BY id'
+      )
+      .all();
+    const selectMsgs = db.prepare(
+      `SELECT id, thread_root_id, author_id, body, created_at
+       FROM messages WHERE conversation_id = ? ORDER BY id`
+    );
+    for (const c of convs) {
+      const convId = num(c.id);
+      const filename =
+        c.type === 'channel' ? `channel-${c.name}.jsonl` : `dm-${dmExportName(c.dm_key)}.jsonl`;
+      const lines = [
+        JSON.stringify({
+          type: 'conversation',
+          id: convId,
+          conv_type: c.type,
+          name: c.name,
+          purpose: c.purpose,
+          dm_key: c.dm_key,
+          members: c.type === 'dm' ? dmMembers(convId) : null,
+          created_by: c.created_by,
+          created_at: c.created_at,
+        }),
+      ];
+      for (const m of selectMsgs.all(convId)) {
+        lines.push(
+          JSON.stringify({
+            type: 'message',
+            id: num(m.id),
+            thread_root_id: m.thread_root_id == null ? null : num(m.thread_root_id),
+            author: m.author_id,
+            body: m.body,
+            created_at: m.created_at,
+          })
+        );
+      }
+      files.push({ filename, lines });
+    }
+    return files;
+  }
+
   // --- seeding ------------------------------------------------------------
 
   tx(() => {
@@ -536,5 +624,6 @@ export function openStore(dbPath) {
     hasIngested,
     ingestEvent,
     dumpLines,
+    exportFiles,
   };
 }
