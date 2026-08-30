@@ -3,6 +3,7 @@
 // Thin wrapper over lib/store.js; talks to the DB directly (no server needed).
 
 import { resolve, dirname, join } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { openStore, StoreError, EVENTS_CHANNEL } from '../lib/store.js';
 import { ingestNewEvents, resolveRefs, resolveShortId, latticeRoot } from '../lib/lattice.js';
@@ -24,6 +25,9 @@ const USAGE = `usage: chat <command> [args] [--me <identity>] [--json]
   register <id> "<display name>" --kind agent|human|system
   sync                                run lattice event ingestion
   dump                                full store as JSONL on stdout
+  export [--out <dir>]                append-only JSONL export of identities,
+                                      conversations, messages (default dir:
+                                      <data>/export; deterministic, AS-5)
 
   --me <identity> (or CHAT_ME env var) identifies you; --json for machine output.
   DB: $CHAT_DB or apps/chat/data/chat.db`;
@@ -33,7 +37,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--json' || a === '--threads') args.flags[a.slice(2)] = true;
-    else if (a === '--me' || a === '--purpose' || a === '--kind' || a === '--limit') {
+    else if (a === '--me' || a === '--purpose' || a === '--kind' || a === '--limit' || a === '--out') {
       args.flags[a.slice(2)] = argv[++i];
     } else if (a.startsWith('--')) fail(`Unknown flag '${a}'.\n\n${USAGE}`);
     else args._.push(a);
@@ -263,6 +267,40 @@ function main() {
       case 'dump': {
         for (const line of store.dumpLines()) out(line);
         return;
+      }
+
+      case 'export': {
+        // Append-only JSONL export for git durability (AS-5). Deterministic:
+        // same DB state => byte-identical files => `git status` stays clean.
+        const outDir = args.flags.out || join(dirname(DB_PATH), 'export');
+        mkdirSync(outDir, { recursive: true });
+        const files = store.exportFiles();
+        let conversations = 0;
+        let messages = 0;
+        let identities = 0;
+        for (const f of files) {
+          writeFileSync(join(outDir, f.filename), f.lines.map((l) => l + '\n').join(''));
+          if (f.filename === 'identities.jsonl') {
+            identities = f.lines.length;
+          } else {
+            conversations += 1;
+            messages += f.lines.length - 1; // line 1 is the conversation header
+          }
+        }
+        if (json) {
+          return out(
+            JSON.stringify({
+              files: files.map((f) => f.filename),
+              conversations,
+              messages,
+              identities,
+              out: outDir,
+            })
+          );
+        }
+        return out(
+          `Exported ${conversations} conversations, ${messages} messages, ${identities} identities to ${outDir}`
+        );
       }
 
       case 'task': {

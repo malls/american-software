@@ -1,0 +1,39 @@
+{
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [
+    {
+      "branch": "feat/AS-5-chat-export",
+      "linked_at": "2026-08-30T02:45:09Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 4,
+  "complexity": "medium",
+  "created_at": "2026-08-30T02:37:54Z",
+  "created_by": "human:forrest",
+  "custom_fields": {},
+  "description": "Chat messages live only in apps/chat/data/chat.db (gitignored, WAL mode, single machine, no backup). Decision (Forrest + investor chat, 2026-08-30): make chat history durable by committing append-only JSONL exports to the repo. Design already decided: (1) add a 'chat export' subcommand to apps/chat/bin/chat.js that dumps per-conversation append-only JSONL to a tracked directory (e.g. apps/chat/data/export/ \u2014 un-ignore that path), deterministic ordering so re-runs diff cleanly; (2) wire an export+commit step into the /advance tick procedure (.claude/commands/advance.md) at the point where master is pushed after a merged task \u2014 NOT a git pre-push hook (hooks that mutate create commits that miss the in-flight push) and NOT PR-open (our flow has no PRs, local --no-ff merges only); (3) add the export path to .gitattributes merge=union alongside Lattice events; (4) add a carve-out to CLAUDE.md Git Methodology for operational record commits (suggested format: 'records: chat export <date>') since these recurring commits belong to no single task. Acceptance: chat export is idempotent, export files round-trip the messages table faithfully (authors, threads, timestamps), /advance documents the step, methodology updated.",
+  "done_at": null,
+  "evidence_refs": [
+    {
+      "id": "ev_01M18C8KECVZD2TABQ86DRVNQX",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01M188FN1EADWKP6WRM0KN7ERD",
+  "last_event_id": "ev_01M18C8KECVZD2TABQ86DRVNQX",
+  "last_status_changed_at": "2026-08-30T03:36:38Z",
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-5",
+  "status": "review",
+  "tags": null,
+  "title": "Chat history durability: JSONL export committed to git",
+  "type": "chore",
+  "updated_at": "2026-08-30T03:43:57Z",
+  "urgency": null
+}

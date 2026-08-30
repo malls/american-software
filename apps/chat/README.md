@@ -68,6 +68,8 @@ chat register <id> "<display name>" --kind agent|human
 chat task <short-id>                   resolve a Lattice short code
 chat sync                              run lattice event ingestion
 chat dump                              full store as JSONL on stdout (backup)
+chat export [--out <dir>]              append-only JSONL export to data/export/
+                                       for committing to git (durability, AS-5)
 ```
 
 Typical agent session start:
@@ -97,6 +99,23 @@ the containers — the same file as pre-AS-4, zero migration, and `docker
 compose down` can never strand data. The `data/` directory is gitignored:
 chat is operational state, not code. Host tools (`sqlite3`) can still open it;
 backup with `./apps/chat/chat dump > backup.jsonl`.
+
+**Durability (AS-5):** `./apps/chat/chat export` writes an append-only JSONL
+export of the insert-only tables — one `channel-<name>.jsonl` /
+`dm-<key>.jsonl` per conversation (line 1 is the conversation header, then
+messages ordered by id) plus `identities.jsonl` — to `apps/chat/data/export/`,
+the one tracked path inside `data/` (the DB itself stays gitignored). The
+export is deterministic (fixed key order, ORDER BY id, no run timestamps), so
+re-running against unchanged data is byte-identical and `git status` stays
+clean; new messages append lines to existing files. It excludes `read_state`
+and `ingested_events` by design — those churn in place and would wreck clean
+diffs. The `/advance` tick commits changed exports to master as
+`records: chat export <YYYY-MM-DD>` (see CLAUDE.md Git Methodology,
+"Operational record commits"). Two caveats: `identities.jsonl` is ordered by
+text id, so a new identity can insert a line mid-file (still a clean one-line
+diff); and the files union-merge (`.gitattributes`), which can interleave
+parallel branches' appends out of id-order within a file — consumers must not
+assume strict line order beyond what ids encode.
 
 Identities are Lattice actor IDs (`human:forrest`, `agent:cto-owen`, …), seeded
 with the founders plus a `system:lattice` bot. New identities are registered

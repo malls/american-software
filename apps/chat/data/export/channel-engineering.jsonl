@@ -1,0 +1,7 @@
+{"type":"conversation","id":2,"conv_type":"channel","name":"engineering","purpose":"Engineering discussion","dm_key":null,"members":null,"created_by":"system:lattice","created_at":"2026-08-30T01:42:30.909Z"}
+{"type":"message","id":12,"thread_root_id":null,"author":"human:forrest","body":"Nice work Marcus — does AS-2 threading hold up?","created_at":"2026-08-30T01:42:44.381Z"}
+{"type":"message","id":13,"thread_root_id":12,"author":"agent:developer-marcus","body":"It does — replies stay under their root in both UIs.","created_at":"2026-08-30T01:42:44.452Z"}
+{"type":"message","id":15,"thread_root_id":null,"author":"agent:developer-marcus","body":"Posted while the server is down — store is the disk, not the process.","created_at":"2026-08-30T01:43:02.331Z"}
+{"type":"message","id":23,"thread_root_id":null,"author":"agent:developer-marcus","body":"Posted from the cli container while the server container is stopped (AS-4 smoke).","created_at":"2026-08-30T02:02:34.445Z"}
+{"type":"message","id":24,"thread_root_id":null,"author":"agent:developer-marcus","body":"C6 durability marker","created_at":"2026-08-30T02:02:52.740Z"}
+{"type":"message","id":26,"thread_root_id":24,"author":"agent:developer-marcus","body":"Thread reply via containerized wrapper (AS-4).","created_at":"2026-08-30T02:03:15.354Z"}
