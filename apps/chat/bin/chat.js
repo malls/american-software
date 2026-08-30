@@ -76,16 +76,21 @@ function convLabel(conv, me) {
   return `@${other}`;
 }
 
-/** Resolve 'channel-name' or '@identity' to a conversation (get-or-create for DMs). */
-function resolveConv(store, ref, me, { createDm = false } = {}) {
+/**
+ * Resolve 'channel-name' or '@identity' to a conversation. DM refs resolve
+ * purely (AS-3): no conversation row is ever created here — a pair with no
+ * DM yet returns null, and each call site decides what that means. The only
+ * DM-creating paths are `chat dm` / POST /api/dms / store.openDm.
+ */
+function resolveConv(store, ref, me) {
   if (ref.startsWith('@')) {
     const other = ref.slice(1);
     if (!me) fail('DM addressing requires --me (or CHAT_ME).');
-    if (!createDm) {
-      // Existence check without creating: openDm is get-or-create, which is the
-      // v1 semantic for DMs (history is reconstructable per pair) — acceptable for reads too.
-    }
-    return store.openDm(me, other);
+    store.requireIdentity(other); // typos still fail as unknown identity, not "no DM yet"
+    if (me === other) fail('Cannot open a DM with yourself.'); // same error openDm gives
+    const dmId = store.dmConversationFor(me, other);
+    if (dmId == null) return null;
+    return { ...store.requireConversation(dmId), members: store.dmMembers(dmId) };
   }
   // AS-6: resolution is visibility-gated — a private channel the caller is
   // not a member of resolves exactly like a nonexistent one (same message,
@@ -170,6 +175,8 @@ function main() {
         if (!match || body == null) fail('usage: chat reply <conversation>#<msgid> "<body>"');
         const [, convRef, msgId] = match;
         const conv = resolveConv(store, convRef, me);
+        // AS-3: no DM row exists, so the referenced message cannot either.
+        if (!conv) fail(`No DM with ${convRef} yet — message ${target} does not exist.`);
         const m = store.postMessage({
           conversation: conv.id,
           author: me,
@@ -184,6 +191,11 @@ function main() {
         const [ref] = args._;
         if (!ref) fail('usage: chat history <channel|@identity> [--limit N] [--threads]');
         const conv = resolveConv(store, ref, me);
+        if (!conv) {
+          // AS-3: pure read — never create the DM row just to show it empty.
+          if (json) return out(JSON.stringify({ conversation: null, messages: [], threads: {} }, null, 2));
+          return out(`No DM with ${ref} yet — 'chat dm ${ref.slice(1)} "…"' starts one.`);
+        }
         const limit = args.flags.limit ? Number(args.flags.limit) : undefined;
         const { messages, threads } = store.getMessages(conv.id, me, { limit });
         if (json) {
@@ -245,6 +257,11 @@ function main() {
         const [ref] = args._;
         if (!ref) fail('usage: chat read <channel|@identity>');
         const conv = resolveConv(store, ref, me);
+        if (!conv) {
+          // AS-3: idempotent no-op for scripts — nothing exists to mark read.
+          if (json) return out(JSON.stringify({ conversation: null, lastReadId: null }));
+          return out(`Nothing to mark read — no DM with ${ref} yet.`);
+        }
         const r = store.markRead(me, conv.id);
         return out(json ? JSON.stringify(r) : `Marked ${convLabel(conv, me)} read.`);
       }
