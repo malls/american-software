@@ -15,7 +15,8 @@ const DB_PATH = process.env.CHAT_DB || join(APP_DIR, 'data', 'chat.db');
 const USAGE = `usage: chat <command> [args] [--me <identity>] [--json]
 
   channels                            list channels and DMs with unread counts
-  create-channel <name> --purpose "…" create a channel
+  create-channel <name> [--purpose "…"] [--visibility public|private --members <id,id,…>]
+                                      create a channel (public by default)
   post <channel> "<body>"             post a top-level message
   dm <identity> "<body>"              get-or-create a DM, post into it
   reply <conv>#<msgid> "<body>"       thread reply (e.g. reply engineering#42 "…")
@@ -40,7 +41,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--json' || a === '--threads') args.flags[a.slice(2)] = true;
-    else if (a === '--me' || a === '--purpose' || a === '--kind' || a === '--limit' || a === '--out') {
+    else if (a === '--me' || a === '--purpose' || a === '--kind' || a === '--limit' || a === '--out' || a === '--visibility' || a === '--members') {
       args.flags[a.slice(2)] = argv[++i];
     } else if (a.startsWith('--')) fail(`Unknown flag '${a}'.\n\n${USAGE}`);
     else args._.push(a);
@@ -142,11 +143,35 @@ function main() {
       }
 
       case 'create-channel': {
+        const usage =
+          'usage: chat create-channel <name> [--purpose "…"] [--visibility public|private --members <id,id,…>]';
         const me = requireMe(store, args.flags);
         const [name] = args._;
-        if (!name) fail('usage: chat create-channel <name> --purpose "…"');
-        const ch = store.createChannel({ name, purpose: args.flags.purpose ?? null, actor: me });
-        return out(json ? JSON.stringify(ch) : `Created #${ch.name}`);
+        if (!name) fail(usage);
+        // AS-22: --members without --visibility private is a hard usage error.
+        // The store silently ignores members on public channels, and a silently
+        // public "restricted" channel is the worst failure mode here.
+        if (args.flags.members != null && args.flags.visibility !== 'private') {
+          fail(`--members requires --visibility private.\n\n${usage}`);
+        }
+        // Comma-separated identity ids; passed through verbatim (the store is
+        // the validation authority — dupes are harmless, insert is OR IGNORE).
+        const members =
+          args.flags.members != null
+            ? args.flags.members.split(',').map((s) => s.trim()).filter(Boolean)
+            : undefined;
+        const ch = store.createChannel({
+          name,
+          purpose: args.flags.purpose ?? null,
+          actor: me,
+          visibility: args.flags.visibility, // undefined → store default 'public'
+          members,
+        });
+        if (json) return out(JSON.stringify(ch)); // shape unchanged; no members key (matches AS-6 conversation shape)
+        if (ch.visibility === 'private') {
+          return out(`Created #${ch.name} (private, ${store.dmMembers(ch.id).length} members)`);
+        }
+        return out(`Created #${ch.name}`);
       }
 
       case 'post': {
