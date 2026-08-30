@@ -1,7 +1,14 @@
 {
-  "assigned_to": null,
-  "branch_links": [],
-  "comment_count": 0,
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [
+    {
+      "branch": "feat/AS-25-push-delivery",
+      "linked_at": "2026-08-30T23:49:12Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-08-30T22:11:09Z",
   "created_by": "human:forrest",
@@ -10,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1ABKYR610RPZ643E7KX7RNB",
-  "last_event_id": "ev_01M1ABKYR886JHC7N6N63JP965",
-  "last_status_changed_at": "2026-08-30T22:11:09Z",
+  "last_event_id": "ev_01M1AH7FMEW2WGGECMBBY67GBR",
+  "last_status_changed_at": "2026-08-30T23:49:12Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-25",
-  "status": "backlog",
+  "status": "planned",
   "tags": null,
   "title": "Chat: push message delivery (websockets/SSE) \u2014 replace the 5s full-refetch poll",
   "type": "task",
-  "updated_at": "2026-08-30T22:11:09Z",
+  "updated_at": "2026-08-30T23:49:12Z",
   "urgency": null
 }
