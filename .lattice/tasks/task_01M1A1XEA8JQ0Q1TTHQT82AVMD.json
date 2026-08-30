@@ -1,5 +1,5 @@
 {
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [
     {
       "branch": "feat/AS-22-create-channel-visibility",
@@ -17,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1A1XEA8JQ0Q1TTHQT82AVMD",
-  "last_event_id": "ev_01M1A5MDX14488ZB6PFAJAE0JK",
-  "last_status_changed_at": "2026-08-30T20:26:33Z",
+  "last_event_id": "ev_01M1A5WEKDGT42Q97ERMNH1EWV",
+  "last_status_changed_at": "2026-08-30T20:30:56Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-22",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "chat CLI: create-channel gains --visibility private + --members \u2014 unblock #bizdev board request",
   "type": "task",
-  "updated_at": "2026-08-30T20:26:33Z",
+  "updated_at": "2026-08-30T20:30:56Z",
   "urgency": null
 }

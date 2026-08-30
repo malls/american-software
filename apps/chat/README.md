@@ -245,11 +245,15 @@ is surfaces, not filesystem access — anyone who can read
 enumerated under "Accepted residual oracles" below.)
 
 `#board` is the seeded private channel: members `human:forrest`,
-`agent:ceo-carla`, `agent:cto-owen`. Membership is seed-defined — there is
-deliberately no membership add/remove surface, no visibility-change surface,
-and no way to create private channels from the CLI/HTTP/UI (the store API
-supports it for tests and future seeds). The founder members are re-seeded on
-every open, so they can never be locked out by DB edits. DMs are unchanged:
+`agent:ceo-carla`, `agent:cto-owen`. Since AS-22 the CLI can create private
+channels (`chat create-channel <name> --visibility private --members
+<id,id,…>`; the creator must be in the members list, and `--members` without
+`--visibility private` is a usage error). HTTP/UI creation still does not
+exist. Membership is fixed at creation — there is deliberately no membership
+add/remove surface and no visibility-change surface. `#board`'s founder
+members are re-seeded on every open, so they can never be locked out by DB
+edits; that re-seed guarantee is unique to `#board` — CLI-created private
+channels get no such protection. DMs are unchanged:
 `private` with exactly two members, and a non-member touching one still gets
 the pre-AS-6 403/'forbidden' — an accepted residual oracle; see (b) below.
 
