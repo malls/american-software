@@ -1,0 +1,9 @@
+# AS-10: Chat: AS-n refs and lattice events link out to the Lattice dashboard (#/task/<id>)
+
+Board request via DM (chat msg 59, human:forrest): "I think we need query string to keep page context in here. also, the lattice events should link to the lattice site" — this task is the second half (lattice events link to the lattice site); the query-string half is AS-9.
+
+Interpretation decision (Owen, 2026-08-30): 'the lattice site' = the read-only web dashboard that ships with the Lattice CLI — 'lattice dashboard', default http://127.0.0.1:8799 — which supports per-task deep links via hash routes: #/task/<full-task-id>. No other lattice-viewing surface exists (nothing hosted, nothing in-repo). The chat server already resolves AS-n short codes to full task IDs (lib/lattice.js resolveShortId → taskId), so the link is <base>/#/task/<taskId>.
+
+Scope: AS-n refs in chat messages — at minimum in #lattice-events system messages, sensibly everywhere refs render — gain a working hyperlink to the dashboard task page. Keep the existing in-app task panel (title/status hover context is good); add an 'open in Lattice' link there too. Dashboard base URL configurable (env var, e.g. LATTICE_DASHBOARD_URL, default http://127.0.0.1:8799) since the port is a dashboard default, not a contract. Key files: apps/chat/public/app.js (bodyNode, showTaskPanel), apps/chat/server.js (pass base URL or expose in task payload).
+
+Caveat on record: the link only resolves while 'lattice dashboard' is running locally. Planner may scope in having compose.yaml (or docs) bring the dashboard up alongside chat, or leave that as a follow-up. Rejected alternative: linking to task files on the GitHub remote (https://github.com/malls/american-software) — works without a running dashboard but lands on raw event logs/snapshots, not a task view; revisit only if the board prefers a zero-infrastructure target.

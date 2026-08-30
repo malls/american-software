@@ -1,6 +1,13 @@
 {
-  "assigned_to": null,
-  "branch_links": [],
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [
+    {
+      "branch": "feat/AS-6-board-channel",
+      "linked_at": "2026-08-30T04:15:26Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
   "comment_count": 2,
   "complexity": null,
   "created_at": "2026-08-30T02:43:57Z",
@@ -10,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M188TQQQGZ6VF5X35S2PE371",
-  "last_event_id": "ev_01M18AWR49644PPQVGNKN1RVKK",
-  "last_status_changed_at": "2026-08-30T02:43:57Z",
+  "last_event_id": "ev_01M18E28NY20BWJCYV9EE9DP4K",
+  "last_status_changed_at": "2026-08-30T04:09:25Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-6",
-  "status": "backlog",
+  "status": "in_planning",
   "tags": null,
   "title": "Chat: #board channel (restricted membership) + DM typeahead",
   "type": "task",
-  "updated_at": "2026-08-30T03:20:00Z",
+  "updated_at": "2026-08-30T04:15:26Z",
   "urgency": null
 }
