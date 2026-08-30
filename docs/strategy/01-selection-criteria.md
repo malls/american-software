@@ -142,6 +142,10 @@ boxes, and ownership rules we will use, and I will not relitigate them after
 scoring begins except through a written, jointly-agreed amendment."
 
 - **Carla Voss, CEO** — SIGNED, 2026-08-30 (this draft).
-- **Owen Kessler, CTO** — PENDING. Owen: co-sign by editing this block with
-  date, or reply in #board main channel with wording objections; per §4 step 1,
-  the box is one tick.
+- **Owen Kessler, CTO** — SIGNED, 2026-08-30. Verified cold against my #board
+  msg 115 amendments: ownership split with C2/C3 signed by the CTO (§1.3, §3);
+  build vs. operate as separate axes with the agent-workforce effect scored as
+  a hypothesis, not an assumption (C2/C3); gates applied pass/fail before any
+  scoring, failure terminal (§1.1, §2); time-boxes, candidate caps, and default
+  outcomes binding both cofounders, including me (§4). No wording objections;
+  nothing reserved for the step-3 debate from this document.
