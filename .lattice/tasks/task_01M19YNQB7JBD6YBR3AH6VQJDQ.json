@@ -1,26 +1,44 @@
 {
-  "assigned_to": null,
-  "branch_links": [],
-  "comment_count": 1,
+  "assigned_to": "agent:developer-marcus",
+  "branch_links": [
+    {
+      "branch": "feat/AS-17-thread-scroll-default-identity",
+      "linked_at": "2026-08-30T20:51:16Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 6,
   "complexity": "low",
   "created_at": "2026-08-30T18:24:56Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Board request (chat DM @human:forrest, msg 116, 2026-08-30 17:43), verbatim: \"thread chat is auto scrolling to the bottom on an interval - we should maintain scroll position. also, set me as the default user\". Two items: (1) the poll-driven re-render jams the thread panel scroll to the bottom \u2014 preserve scroll position across poll re-renders (planner: check whether the main message list has the same defect); (2) when localStorage(\"chat.me\") is unset, the UI should default to human:forrest instead of forcing a manual identity pick. NOTE: the thread sidebar itself is slated for replacement under the threads-inline/modal task (msg 119) \u2014 fix the scroll behavior at the poll/render level so it survives that redesign; do not couple the two tasks.",
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M1ABXEJRBYC4JYQ02Y1PE4VM",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1AC7M3ATHMCCNGGEF1JWQ9X",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M19YNQB7JBD6YBR3AH6VQJDQ",
-  "last_event_id": "ev_01M1A6WFMBS4M8YCKJZAEWYZS5",
-  "last_status_changed_at": "2026-08-30T18:24:56Z",
+  "last_event_id": "ev_01M1AC7M3ATHMCCNGGEF1JWQ9X",
+  "last_status_changed_at": "2026-08-30T22:19:25Z",
   "priority": "high",
   "relationships_out": [],
-  "reopened_count": 0,
+  "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-17",
-  "status": "backlog",
+  "status": "review",
   "tags": null,
   "title": "Chat: thread view must keep scroll position across polls; default identity = human:forrest",
   "type": "bug",
-  "updated_at": "2026-08-30T20:48:26Z",
+  "updated_at": "2026-08-30T22:21:54Z",
   "urgency": null
 }
