@@ -133,9 +133,11 @@ async function refreshSidebar() {
   const dms = conversations.filter((c) => c.type === 'dm');
   const li = (conv) => {
     const item = el('li');
+    // Private channels get a lock marker (members are the only ones who ever
+    // receive them from the server — non-members never see the row at all).
     const label =
       conv.type === 'channel'
-        ? `# ${conv.name}`
+        ? `${conv.visibility === 'private' ? '🔒' : '#'} ${conv.name}`
         : displayName((conv.members || []).find((m) => m !== state.me) || '?');
     item.appendChild(el('span', null, label));
     if (conv.unread > 0) item.appendChild(el('span', 'badge', String(conv.unread)));
@@ -156,7 +158,9 @@ async function selectConversation(conv, { keepThread = false } = {}) {
   state.lastData = data;
   const c = data.conversation;
   $('#conv-title').textContent =
-    c.type === 'channel' ? `# ${c.name}` : `DM with ${displayName((c.members || []).find((m) => m !== state.me) || '?')}`;
+    c.type === 'channel'
+      ? `${c.visibility === 'private' ? '🔒' : '#'} ${c.name}`
+      : `DM with ${displayName((c.members || []).find((m) => m !== state.me) || '?')}`;
   $('#conv-purpose').textContent = c.purpose || '';
   const pane = $('#messages');
   const atBottom = pane.scrollHeight - pane.scrollTop - pane.clientHeight < 40;
@@ -216,6 +220,104 @@ async function showTaskPanel(shortId) {
     body.replaceChildren(title, el('span', 'status', task.status), el('div', 'task-id', task.taskId));
   }
   $('#task-panel').hidden = false;
+}
+
+// --- DM typeahead (AS-6) ----------------------------------------------------
+// Inline combobox over the already-loaded identity map — no new endpoint.
+// Rendering stays textContent-only, like everything else in this file.
+
+const typeahead = { options: [], active: -1 };
+
+function dmCandidates(query) {
+  const q = query.trim().toLowerCase();
+  return Object.values(state.identityMap || {})
+    .filter((i) => i.id !== state.me && i.kind !== 'system')
+    .filter((i) => !q || i.displayName.toLowerCase().includes(q) || i.id.toLowerCase().includes(q))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName))
+    .slice(0, 8);
+}
+
+function renderDmOptions() {
+  const input = $('#dm-search');
+  const list = $('#dm-options');
+  list.replaceChildren(
+    ...typeahead.options.map((ident, idx) => {
+      const item = el('li', 'dm-option' + (idx === typeahead.active ? ' active' : ''));
+      item.id = `dm-option-${idx}`;
+      item.setAttribute('role', 'option');
+      item.setAttribute('aria-selected', idx === typeahead.active ? 'true' : 'false');
+      item.append(el('span', 'dm-option-name', ident.displayName), el('span', 'dm-option-id', ident.id));
+      // mousedown (not click): fires before the input's blur closes the list.
+      item.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        pickDmOption(ident.id);
+      });
+      return item;
+    })
+  );
+  input.setAttribute('aria-expanded', typeahead.options.length > 0 ? 'true' : 'false');
+  if (typeahead.active >= 0) input.setAttribute('aria-activedescendant', `dm-option-${typeahead.active}`);
+  else input.removeAttribute('aria-activedescendant');
+}
+
+function updateDmOptions() {
+  typeahead.options = dmCandidates($('#dm-search').value);
+  typeahead.active = typeahead.options.length > 0 ? 0 : -1;
+  renderDmOptions();
+}
+
+function openDmTypeahead() {
+  const box = $('#dm-typeahead');
+  box.hidden = false;
+  const input = $('#dm-search');
+  input.value = '';
+  updateDmOptions();
+  input.focus();
+}
+
+function closeDmTypeahead() {
+  $('#dm-typeahead').hidden = true;
+  $('#dm-options').replaceChildren();
+  $('#dm-search').setAttribute('aria-expanded', 'false');
+  typeahead.options = [];
+  typeahead.active = -1;
+}
+
+async function pickDmOption(other) {
+  closeDmTypeahead();
+  try {
+    const { conversation } = await post('/api/dms', { me: state.me, other });
+    await refreshSidebar();
+    await selectConversation(conversation);
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+function wireDmTypeahead() {
+  const input = $('#dm-search');
+  $('#new-dm').addEventListener('click', () => {
+    if ($('#dm-typeahead').hidden) openDmTypeahead();
+    else closeDmTypeahead();
+  });
+  input.addEventListener('input', updateDmOptions);
+  input.addEventListener('blur', () => closeDmTypeahead());
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (typeahead.options.length === 0) return;
+      const delta = e.key === 'ArrowDown' ? 1 : -1;
+      typeahead.active =
+        (typeahead.active + delta + typeahead.options.length) % typeahead.options.length;
+      renderDmOptions();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (typeahead.active >= 0) pickDmOption(typeahead.options[typeahead.active].id);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeDmTypeahead();
+    }
+  });
 }
 
 // --- composers ------------------------------------------------------------
@@ -297,17 +399,7 @@ async function init() {
     }
   });
 
-  $('#new-dm').addEventListener('click', async () => {
-    const other = prompt("DM with which identity? (e.g. 'agent:cto-owen'):");
-    if (!other) return;
-    try {
-      const { conversation } = await post('/api/dms', { me: state.me, other });
-      await refreshSidebar();
-      await selectConversation(conversation);
-    } catch (err) {
-      alert(err.message);
-    }
-  });
+  wireDmTypeahead();
 
   $('#thread-close').addEventListener('click', closeThread);
   $('#task-panel-close').addEventListener('click', () => ($('#task-panel').hidden = true));

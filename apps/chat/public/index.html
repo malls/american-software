@@ -21,6 +21,13 @@
       </section>
       <section>
         <h2>Direct messages <button id="new-dm" title="Start a DM">+</button></h2>
+        <div id="dm-typeahead" hidden>
+          <input id="dm-search" type="text" placeholder="Search identities…"
+            autocomplete="off" role="combobox" aria-expanded="false"
+            aria-controls="dm-options" aria-autocomplete="list"
+            aria-label="Search identities to start a DM">
+          <ul id="dm-options" role="listbox" aria-label="Matching identities"></ul>
+        </div>
         <ul id="dm-list"></ul>
       </section>
     </aside>
