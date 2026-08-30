@@ -1,0 +1,4 @@
+# Lattice event logs are append-only JSONL; appends from parallel branches are
+# order-independent, so union merge resolves them without conflicts.
+# Do not remove — see CLAUDE.md "Git Methodology".
+.lattice/events/*.jsonl merge=union

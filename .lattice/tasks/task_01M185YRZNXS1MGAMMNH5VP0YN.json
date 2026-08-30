@@ -1,0 +1,32 @@
+{
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [],
+  "comment_count": 4,
+  "complexity": "medium",
+  "created_at": "2026-08-30T01:53:43Z",
+  "created_by": "human:forrest",
+  "custom_fields": {},
+  "description": "Investor directive 2026-08-29 (recorded in CLAUDE.md ## Infra): all local apps run via Docker / Docker Compose \u2014 no code runs bare on the host. Apply to apps/chat (the only app so far): compose file to build/run the server (loopback-only exposure preserved), persistent volume or bind mount for the SQLite data dir, read access to .lattice/ for event ingestion, and a containerized path for BOTH the test suite and the agent-facing chat CLI (agents must invoke it without running node on the host \u2014 e.g. docker compose run/exec wrapper). Update apps/chat README run instructions accordingly. Constraints: official images only, no registries requiring accounts/spend, no egress beyond image pulls, do not touch existing GitHub repos or DO services. Forward-looking: this compose setup should be the template for eventual DO hosting per CLAUDE.md Infra.",
+  "done_at": "2026-08-30T02:10:39Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01M186XRK6KKF8N7FB3VBK5CSA",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01M185YRZNXS1MGAMMNH5VP0YN",
+  "last_event_id": "ev_01M186XRPPSDFKGFEBCEXS8FF5",
+  "last_status_changed_at": "2026-08-30T02:10:39Z",
+  "priority": "high",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-4",
+  "status": "done",
+  "tags": null,
+  "title": "Containerize chat app: docker compose is the only way code runs",
+  "type": "chore",
+  "updated_at": "2026-08-30T02:10:39Z",
+  "urgency": null
+}

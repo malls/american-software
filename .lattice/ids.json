@@ -1,5 +1,12 @@
 {
-  "map": {},
-  "next_seqs": {},
+  "map": {
+    "AS-1": "task_01M182NZ83NVM08CF6XTSC3PZB",
+    "AS-2": "task_01M1847PZM8BWCV2SWM2MMCF2Y",
+    "AS-3": "task_01M185QACGZFPZ50Z7TV6SBR3P",
+    "AS-4": "task_01M185YRZNXS1MGAMMNH5VP0YN"
+  },
+  "next_seqs": {
+    "AS": 5
+  },
   "schema_version": 2
 }

@@ -26,7 +26,7 @@ TODO, we need a smart means of tracking reporting structure and team assignment.
 This future system also owns all **non-engineering work tracking**: HR tasks (hiring, employee records, resumes, org changes), legal, marketing, business strategy, and purchasing do NOT go in Lattice — Lattice is scoped to software development only (see below). Designing this system is itself an engineering project for the employees to take on (that project *does* get Lattice tasks). Until it exists, non-dev decisions and records live in this file or in dedicated docs in the repo.
 
 ## Infra
-All services will be hosted on Digital Ocean. This is a GitHub repository.
+All services will be hosted on Digital Ocean. This is a GitHub repository. All local apps should be run with Docker / Docker Compose.
 
 ## Lattice
 
@@ -236,3 +236,38 @@ lattice list
 - `lattice link <task> subtask_of|depends_on|blocks <target>` — task relationships
 
 For the full CLI reference, see the `/lattice` skill.
+
+## Git Methodology
+
+Decided 2026-08-29. Git history and the Lattice board are two views of the same work; the short code (`AS-<n>`) is the join key.
+
+### Commits
+
+- **Every commit belongs to a task.** Message format: `AS-<n>: <imperative summary>`. The only commits without a task code are investor/chat-channel work (docs, operating-rule edits), which may go directly to master.
+- **Commit at stage boundaries, including `.lattice/` state.** The planning stage commits the plan file; the implementation stage commits code and tests; the review outcome lands with the merge. Board state in git history should match code state at every commit.
+- **Commit as the employee.** Each stage commits under its persona's identity so `git blame` shows who at the company wrote what:
+  ```
+  git -c user.name="developer-marcus-webb" \
+      -c user.email="developer-marcus-webb@agents.american-software.local" \
+      commit -m "AS-7: ..."
+  ```
+
+### Branches
+
+- **One branch per task:** `feat/AS-<n>-<slug>`, created by the planning stage and linked with `lattice branch-link`. All task work — plan file, code, notes, lattice events — commits on the branch.
+- **QA reviews the branch diff against master** (`git diff master...feat/AS-<n>-<slug>`). Rework commits accumulate on the branch until QA passes.
+- **Merge at `done`:** after QA passes, the orchestrator merges with `--no-ff` (message: `AS-<n>: <task title>`), deletes the branch, and pushes master. Each task stays a visible unit in history.
+- **Master is always green.** Never commit work-in-progress to master. A tick that dies mid-task leaves master untouched; the next tick finds the in-flight branch via `lattice branch-link` and resumes it.
+
+### Pushing
+
+- Push master after each merged task. Pushing in-flight task branches is optional (nice for GitHub visibility).
+- Force-push is always `needs_human`. Never rewrite pushed history autonomously.
+
+### Merge mechanics
+
+`.gitattributes` sets `merge=union` for `.lattice/events/*.jsonl` — event appends from parallel branches are order-independent, so union merge resolves them without conflicts. Do not remove this rule; without it every concurrent task pair conflicts on the event log.
+
+### Worktrees (deferred until parallelism)
+
+While `/advance` runs one action per tick, the loop is sequential and branches alone provide isolation — do not use worktrees. The trigger to activate them: **two or more tasks in `in_progress` concurrently.** At that point, each implementation sub-agent runs in its own worktree checked out to its task branch (harness `isolation: worktree` handles setup/teardown). One rule then matters above all: **the main checkout is the canonical board** — task claims and status transitions happen there, via the orchestrator, so two agents can never claim the same task. Comment/event appends from branches merge via the union driver.
