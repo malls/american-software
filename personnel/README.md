@@ -7,6 +7,12 @@ The American Software Company — one dossier per employee.
 - **Created when:** an agent is "hired" per the conventions in `CLAUDE.md`.
 - **Each dossier records:** hire date, Myers-Briggs type, reporting line, a resume of the
   employee's (fictional) experience, their working style, and why they joined.
+- **Each dossier begins with YAML frontmatter** — the machine-readable org layer
+  (`actor_id`, `name`, `title`, `class`, `reports_to`, `team`, `hired`, `status`).
+  The org chart is derived from these fields, `reports_to` being the single source
+  of truth for reporting structure. See "Org Chart" in `CLAUDE.md` for the schema
+  and rules. Keep frontmatter and prose in agreement; frontmatter wins for
+  machine consumers.
 
 The invocable agent definitions live in `.claude/agents/` and reference these dossiers by
 path. The relationship is one-way: agent definitions are system prompts that tell a persona

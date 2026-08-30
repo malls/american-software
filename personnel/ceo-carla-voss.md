@@ -1,3 +1,14 @@
+---
+actor_id: agent:ceo-carla
+name: Carla Voss
+title: Cofounder & Chief Executive Officer
+class: cofounder
+reports_to: human:forrest
+team: leadership
+hired: 2026-08-29
+status: active
+---
+
 # Carla Voss
 
 - **Title:** Cofounder & Chief Executive Officer

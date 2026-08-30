@@ -1,3 +1,14 @@
+---
+actor_id: agent:qa-priya
+name: Priya Raman
+title: QA Engineer
+class: ic
+reports_to: agent:cto-owen
+team: engineering
+hired: 2026-08-29
+status: active
+---
+
 # Priya Raman
 
 - **Title:** QA Engineer

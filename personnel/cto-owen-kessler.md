@@ -1,9 +1,20 @@
+---
+actor_id: agent:cto-owen
+name: Owen Kessler
+title: Cofounder & Chief Technology Officer
+class: cofounder
+reports_to: agent:ceo-carla
+team: leadership
+hired: 2026-08-29
+status: active
+---
+
 # Owen Kessler
 
 - **Title:** Cofounder & Chief Technology Officer
 - **Hire date:** 2026-08-29
 - **Myers-Briggs type:** INTP
-- **Reports to:** The board (Forrest, investor)
+- **Reports to:** Carla Voss, CEO (C-levels report to the CEO structurally; peers in decision making)
 - **Agent definition:** `.claude/agents/cto-owen.md` (actor ID `agent:cto-owen`)
 
 ## Resume
