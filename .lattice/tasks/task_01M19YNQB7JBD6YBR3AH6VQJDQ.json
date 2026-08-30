@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 2,
+  "comment_count": 3,
   "complexity": "low",
   "created_at": "2026-08-30T18:24:56Z",
   "created_by": "agent:cto-owen",
@@ -17,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M19YNQB7JBD6YBR3AH6VQJDQ",
-  "last_event_id": "ev_01M1AAAT041WMAMNBR7CEFFCKG",
-  "last_status_changed_at": "2026-08-30T21:48:41Z",
+  "last_event_id": "ev_01M1AAFP27G5R7XG3X81Z27D9B",
+  "last_status_changed_at": "2026-08-30T21:51:21Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-17",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Chat: thread view must keep scroll position across polls; default identity = human:forrest",
   "type": "bug",
-  "updated_at": "2026-08-30T21:48:41Z",
+  "updated_at": "2026-08-30T21:51:21Z",
   "urgency": null
 }
