@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps } from '../watch/advance-watcher.mjs';
+import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv } from '../watch/advance-watcher.mjs';
 
 const T0 = Date.parse('2026-08-30T12:00:00.000Z');
 const CONFIG = { debounceS: 15, lockStaleMin: 45 };
@@ -281,6 +281,33 @@ test('makeLockOps: foreign overwrite between create and verify yields without un
   // releaseLock also sees the foreign pid through the injected reader: no-op.
   ops.releaseLock();
   assert.ok(existsSync(lockPath));
+});
+
+// --- AS-14: tick child env pin ----------------------------------------------
+
+test('tickChildEnv: pins exactly {PATH, HOME, USER, LOGNAME} — no more, no less', () => {
+  // USER/LOGNAME earn their place via claude's macOS Keychain auth (AS-14);
+  // PATH/HOME per the AS-7 minimal-env rule. Changing this set means changing
+  // tickChildEnv AND this test — a deliberate act with a stated reason.
+  const fat = {
+    PATH: '/opt/bin:/usr/bin',
+    HOME: '/Users/forrest',
+    USER: 'forrest',
+    LOGNAME: 'forrest',
+    // Present in a real login env but must NOT leak into the child:
+    SHELL: '/bin/zsh',
+    TMPDIR: '/var/folders/xx',
+    SSH_AUTH_SOCK: '/tmp/agent.sock',
+    ANTHROPIC_MODEL: 'nope',
+  };
+  assert.deepEqual(tickChildEnv(fat), {
+    PATH: '/opt/bin:/usr/bin',
+    HOME: '/Users/forrest',
+    USER: 'forrest',
+    LOGNAME: 'forrest',
+  });
+  // Key set is stable even when the source env is thin (launchd).
+  assert.deepEqual(Object.keys(tickChildEnv({})).sort(), ['HOME', 'LOGNAME', 'PATH', 'USER']);
 });
 
 test('config: defaults match the plan; env overrides apply; junk env falls back', () => {

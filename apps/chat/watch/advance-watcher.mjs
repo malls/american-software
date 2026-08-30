@@ -142,6 +142,18 @@ export function decide({ sentinel, highwater, lock, now, config, debounceUntil }
   return { action: 'fire', reason: 'debounce-elapsed', debounceUntil: null };
 }
 
+// Exact child env for a spawned tick — per-variable reasons documented at the
+// spawn site in fire(). Exported so the test suite pins the set: any future
+// narrowing or widening must change this function AND its test, deliberately.
+export function tickChildEnv(env = process.env) {
+  return {
+    PATH: env.PATH,
+    HOME: env.HOME,
+    USER: env.USER, // AS-14: macOS Keychain auth needs the user identity
+    LOGNAME: env.LOGNAME,
+  };
+}
+
 // --- thin effectful shell ----------------------------------------------------
 
 function pidAlive(pid) {
@@ -357,8 +369,17 @@ function main() {
     const tickLog = createWriteStream(tickLogPath, { flags: 'a' });
     log(`FIRE messageId ${sentinel.messageId} from ${sentinel.authorId} -> ${tickLogPath}`);
 
-    // Minimal, explicit child env: launchd's default env is thin; the plist
-    // sets PATH to include node + claude. Nothing else exotic on purpose.
+    // Child env: exactly {PATH, HOME, USER, LOGNAME} via tickChildEnv()
+    // (unit-tested pin). launchd's default env is thin, and the minimal-env
+    // principle stands: every variable here has a stated reason, and any
+    // addition needs one too (AS-14).
+    //   PATH    — locate node + claude (the launchd plist sets it).
+    //   HOME    — claude config/state directory resolution.
+    //   USER    — claude's macOS Keychain auth resolves the login keychain
+    //             through it; without it a headless tick dies in ~2s with
+    //             "Not logged in · Please run /login" (AS-14).
+    //   LOGNAME — POSIX twin of USER, same identity-resolution reason; some
+    //             tooling reads one, some the other.
     // AS-13 #3: timers and handlers close over this fire's own `proc`, never
     // the mutable module-level `child` — a timed-out tick's stray SIGKILL
     // timer must not be able to kill a successor tick. `child` remains only
@@ -368,7 +389,7 @@ function main() {
       ['-p', '/advance', '--permission-mode', config.permissionMode, '--output-format', 'text'],
       {
         cwd: config.repoRoot,
-        env: { PATH: process.env.PATH, HOME: process.env.HOME },
+        env: tickChildEnv(process.env),
         stdio: ['ignore', 'pipe', 'pipe'],
       }
     );
