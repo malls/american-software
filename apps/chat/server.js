@@ -7,7 +7,8 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openStore, StoreError } from './lib/store.js';
-import { ingestNewEvents, resolveRefs, resolveShortId, latticeRoot } from './lib/lattice.js';
+import { ingestNewEvents, resolveRefs, resolveShortId, latticeRoot, assignmentsByActor } from './lib/lattice.js';
+import { readRoster } from './lib/personnel.js';
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)));
 
@@ -56,6 +57,46 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
       const me = q('me');
       if (!me) throw new StoreError("Missing query parameter 'me'.");
       return { conversations: store.listConversationsFor(me) };
+    }
+    if (req.method === 'GET' && pathname === '/api/roster') {
+      // AS-8: company roster (personnel/ frontmatter) joined with current
+      // work (Lattice) and DM state (chat DB). 'me' is required because
+      // dmConversationId/unread are viewer-relative — same rule as
+      // /api/conversations. Reads personnel frontmatter and Lattice
+      // assignment/status only (both repo-public); never touches channels.
+      const me = q('me');
+      if (!me) throw new StoreError("Missing query parameter 'me'.");
+      store.requireIdentity(me);
+      let employees = [];
+      let assignments = {};
+      try {
+        employees = readRoster(root);
+        assignments = assignmentsByActor(root);
+      } catch {
+        // Degradation contract: a missing mount or malformed file means an
+        // empty roster (DM-only sidebar), never a down server.
+      }
+      const roster = employees
+        .filter((e) => e.status === 'active')
+        .map((e) => {
+          const self = e.actorId === me;
+          const dmId = self ? null : store.dmConversationFor(me, e.actorId);
+          const tasks = assignments[e.actorId] ?? [];
+          return {
+            actorId: e.actorId,
+            name: e.name,
+            title: e.title,
+            class: e.class,
+            team: e.team,
+            registered: !!store.getIdentity(e.actorId),
+            dmConversationId: dmId,
+            unread: dmId == null ? 0 : store.unreadCountFor(me, dmId),
+            self,
+            work: tasks[0] ?? null,
+            moreTasks: Math.max(0, tasks.length - 1),
+          };
+        });
+      return { roster };
     }
     if (req.method === 'POST' && pathname === '/api/channels') {
       return { conversation: store.createChannel({ name: body.name, purpose: body.purpose, actor: body.actor }) };
