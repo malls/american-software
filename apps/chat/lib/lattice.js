@@ -91,30 +91,41 @@ const IN_FLIGHT_RANK = {
  */
 export function assignmentsByActor(root) {
   const dir = join(latticeDir(root), 'tasks');
-  const byActor = {};
-  if (!existsSync(dir)) return byActor;
+  if (!existsSync(dir)) return {};
+  // Task files are untrusted input (AS-12): a Map accumulator keeps a hostile
+  // assigned_to like "__proto__" off Object.prototype (a plain object's ??=
+  // would read the prototype and the .push would throw).
+  const byActor = new Map();
   for (const file of readdirSync(dir)) {
     if (!file.endsWith('.json')) continue;
     const task = readJson(join(dir, file));
     if (!task || !task.assigned_to) continue;
-    if (!(task.status in IN_FLIGHT_RANK)) continue;
-    (byActor[task.assigned_to] ??= []).push(task);
+    // Object.hasOwn, not `in`: `in` walks the prototype chain, so a hostile
+    // status like "constructor" would pass and render phantom work (AS-12).
+    if (!Object.hasOwn(IN_FLIGHT_RANK, task.status)) continue;
+    if (!byActor.has(task.assigned_to)) byActor.set(task.assigned_to, []);
+    byActor.get(task.assigned_to).push(task);
   }
-  for (const [actor, tasks] of Object.entries(byActor)) {
+  for (const [actor, tasks] of byActor) {
     tasks.sort(
       (a, b) =>
         IN_FLIGHT_RANK[a.status] - IN_FLIGHT_RANK[b.status] ||
         String(b.last_status_changed_at ?? '').localeCompare(String(a.last_status_changed_at ?? ''))
     );
-    byActor[actor] = tasks.map((t) => ({
-      shortId: t.short_id ?? t.id,
-      taskId: t.id,
-      title: t.title ?? '',
-      status: t.status,
-      url: dashboardTaskUrl(t.id),
-    }));
+    byActor.set(
+      actor,
+      tasks.map((t) => ({
+        shortId: t.short_id ?? t.id,
+        taskId: t.id,
+        title: t.title ?? '',
+        status: t.status,
+        url: dashboardTaskUrl(t.id),
+      }))
+    );
   }
-  return byActor;
+  // fromEntries uses CreateDataProperty, so a "__proto__" actor becomes a
+  // safe own key on the returned object instead of a prototype write.
+  return Object.fromEntries(byActor);
 }
 
 const REF_RE = /\bAS-\d+\b/g;
