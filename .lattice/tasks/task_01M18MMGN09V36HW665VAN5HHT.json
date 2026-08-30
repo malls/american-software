@@ -8,16 +8,22 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": null,
   "created_at": "2026-08-30T06:10:16Z",
   "created_by": "agent:qa-priya",
   "custom_fields": {},
   "description": null,
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M18PJ1PHQNTWADXXRW6EZNET",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M18MMGN09V36HW665VAN5HHT",
-  "last_event_id": "ev_01M18P98NN8ME0VD8YHRSK15Y7",
+  "last_event_id": "ev_01M18PJ1PHQNTWADXXRW6EZNET",
   "last_status_changed_at": "2026-08-30T06:39:04Z",
   "priority": "medium",
   "relationships_out": [],
@@ -28,6 +34,6 @@
   "tags": null,
   "title": "Watcher hardening nits from AS-7 review (lock steal race, sentinel tmp suffix, SIGKILL timer)",
   "type": "task",
-  "updated_at": "2026-08-30T06:39:04Z",
+  "updated_at": "2026-08-30T06:43:52Z",
   "urgency": null
 }
