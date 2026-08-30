@@ -228,6 +228,22 @@ test('api: AS-6 — #board is hidden from non-members, byte-identically to nonex
   assert.equal((await post('/api/read', { me: 'human:forrest', conversation: board.id })).status, 200);
 });
 
+test('api: AS-9 — url-state.js is served; query string never affects static routing', async (t) => {
+  const { base } = await bootServer(t);
+  const mod = await fetch(base + '/url-state.js');
+  assert.equal(mod.status, 200);
+  assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  assert.match(await mod.text(), /parseChatUrl/);
+
+  // Deep links land on the same index.html — the query is client-side state.
+  for (const path of ['/?c=general', '/?c=dm:7&t=42&m=9', '/?c=no-such-channel&junk=1']) {
+    const page = await fetch(base + path);
+    assert.equal(page.status, 200, path);
+    assert.equal(page.headers.get('content-type'), 'text/html; charset=utf-8');
+    assert.match(await page.text(), /ASC Chat/);
+  }
+});
+
 test('api: malformed JSON body is a 400 with a clear message', async (t) => {
   const { base } = await bootServer(t);
   const res = await fetch(base + '/api/messages', {

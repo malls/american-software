@@ -1,7 +1,7 @@
-// ASC Chat UI — vanilla JS, zero external requests.
+// ASC Chat UI — vanilla JS (ES module), zero external requests.
 // Rendering rule: ALL user content goes through textContent (never innerHTML).
 
-'use strict';
+import { parseChatUrl, serializeChatUrl, resolveConversation } from './url-state.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -11,7 +11,36 @@ const state = {
   currentConv: null, // conversation object
   currentThreadRoot: null, // message id
   lastData: null, // last /api/messages payload for current conversation
+  anchorMsg: null, // m= message anchor currently reflected in the URL (AS-9)
+  anchorApplied: false, // one-shot: the 5s poll must never re-scroll/re-highlight
 };
+
+// --- URL state (AS-9) -------------------------------------------------------
+// The query string is a projection of actual view state: c=<channel|dm:id>,
+// t=<thread root>, m=<anchor>. Identity NEVER goes in the URL. All history
+// writes funnel through syncUrl; all reads happen in restoreFromUrl. Nothing
+// else in this file touches `location` or `history`.
+
+function syncUrl(mode /* 'push' | 'replace' | 'none' */) {
+  if (mode === 'none') return;
+  const conv = state.currentConv;
+  const next = serializeChatUrl(
+    {
+      conv: conv
+        ? conv.type === 'dm'
+          ? { kind: 'dm', id: conv.id }
+          : { kind: 'channel', name: conv.name }
+        : null,
+      thread: state.currentThreadRoot,
+      msg: state.anchorMsg,
+    },
+    location.search
+  );
+  if (next === location.search) return; // no-op guard: never write an equal URL
+  const url = next || location.pathname;
+  if (mode === 'push') history.pushState(null, '', url);
+  else history.replaceState(null, '', url);
+}
 
 async function api(path, opts) {
   const res = await fetch(path, opts);
@@ -151,9 +180,10 @@ async function refreshSidebar() {
 
 // --- conversation view ----------------------------------------------------
 
-async function selectConversation(conv, { keepThread = false } = {}) {
+async function selectConversation(conv, { keepThread = false, url = 'push' } = {}) {
+  if (url === 'push') state.anchorMsg = null; // user navigation drops the m= anchor
   state.currentConv = conv;
-  if (!keepThread) closeThread();
+  if (!keepThread) closeThread({ url: 'none' });
   const data = await api(`/api/messages?conversation=${conv.id}&me=${encodeURIComponent(state.me)}`);
   state.lastData = data;
   const c = data.conversation;
@@ -170,7 +200,19 @@ async function selectConversation(conv, { keepThread = false } = {}) {
       : [el('div', 'empty-note', 'No messages yet.')])
   );
   if (atBottom) pane.scrollTop = pane.scrollHeight;
+  // m= anchor: one-shot scroll + highlight — the poll re-render never repeats it.
+  if (state.anchorMsg != null && !state.anchorApplied) {
+    state.anchorApplied = true;
+    const node = document.getElementById(`msg-${state.anchorMsg}`);
+    if (node) {
+      node.scrollIntoView({ block: 'center' });
+      node.classList.add('anchored');
+    } else {
+      state.anchorMsg = null; // not in this conversation's messages: drop the param
+    }
+  }
   if (state.currentThreadRoot != null) renderThread();
+  syncUrl(url);
   // Viewing marks read (advances the watermark to the newest message).
   await post('/api/read', { me: state.me, conversation: conv.id }).catch(() => {});
   refreshSidebar().catch(() => {});
@@ -178,17 +220,19 @@ async function selectConversation(conv, { keepThread = false } = {}) {
 
 // --- threads --------------------------------------------------------------
 
-function openThread(rootId) {
+function openThread(rootId, { url = 'push' } = {}) {
+  if (url === 'push') state.anchorMsg = null; // navigation drops the m= anchor
   state.currentThreadRoot = rootId;
   $('#thread-panel').hidden = false;
-  location.hash = `msg-${rootId}`;
   renderThread();
+  syncUrl(url);
 }
 
-function closeThread() {
+function closeThread({ url = 'push' } = {}) {
+  if (url === 'push') state.anchorMsg = null;
   state.currentThreadRoot = null;
   $('#thread-panel').hidden = true;
-  if (location.hash) history.replaceState(null, '', location.pathname);
+  syncUrl(url);
 }
 
 function renderThread() {
@@ -330,7 +374,8 @@ async function sendMessage(text, threadRoot) {
     body: text,
     threadRoot: threadRoot ?? null,
   });
-  await selectConversation(state.currentConv, { keepThread: true });
+  // Re-render, not navigation: never a history write.
+  await selectConversation(state.currentConv, { keepThread: true, url: 'none' });
 }
 
 function wireComposer(formSel, inputSel, getThreadRoot) {
@@ -355,6 +400,67 @@ function wireComposer(formSel, inputSel, getThreadRoot) {
   });
 }
 
+// --- URL restore (AS-9) -----------------------------------------------------
+
+/** Default view ("Select a conversation"), optionally with a note in the pane. */
+function resetMainPane(note) {
+  state.currentConv = null;
+  state.lastData = null;
+  state.anchorMsg = null;
+  closeThread({ url: 'none' });
+  $('#conv-title').textContent = 'Select a conversation';
+  $('#conv-purpose').textContent = '';
+  $('#messages').replaceChildren(...(note ? [el('div', 'empty-note', note)] : []));
+}
+
+/**
+ * Parse the current URL and apply it to the view. Params resolve ONLY against
+ * the viewer's own visibility-filtered conversation list — a nonexistent
+ * channel, a hidden private channel, and a non-member DM all take this same
+ * fail-soft path with zero network requests distinguishing them.
+ *
+ * mode 'load': initial restore — normalizes the URL via replaceState.
+ * mode 'popstate': back/forward — applies the view; writes only to strip
+ * params the view can't honor (replaceState, per the projection invariant).
+ */
+async function restoreFromUrl(mode) {
+  const raw = new URLSearchParams(location.search);
+  const requested = raw.has('c') || raw.has('t') || raw.has('m');
+  const parsed = parseChatUrl(location.search);
+  const conv = resolveConversation(parsed.conv, state.conversations);
+  if (!conv) {
+    if (requested) {
+      // One neutral note, one code path, for every cause.
+      resetMainPane("That conversation isn't available.");
+      syncUrl('replace'); // strip dead params (foreign params preserved)
+      refreshSidebar().catch(() => {});
+    } else if (mode === 'popstate') {
+      resetMainPane(); // back to '/': leave the conversation
+      refreshSidebar().catch(() => {});
+    }
+    return;
+  }
+  // Per the grammar, m is ignored when t is present.
+  state.anchorMsg = parsed.thread != null ? null : parsed.msg;
+  state.anchorApplied = false;
+  try {
+    await selectConversation(conv, { url: 'none' });
+  } catch {
+    // Listed a moment ago but gone now (e.g. deleted DB row): same fail-soft.
+    resetMainPane("That conversation isn't available.");
+    syncUrl('replace');
+    refreshSidebar().catch(() => {});
+    return;
+  }
+  if (parsed.thread != null) {
+    // Resolved only against the fetched messages — never queried by id.
+    const rootExists = (state.lastData?.messages || []).some((m) => m.id === parsed.thread);
+    if (rootExists) openThread(parsed.thread, { url: 'none' });
+    // Miss: conversation stays open, the dead t param is stripped below.
+  }
+  syncUrl('replace'); // normalize form; no-op when the URL already matches
+}
+
 // --- wiring ---------------------------------------------------------------
 
 async function init() {
@@ -362,11 +468,8 @@ async function init() {
   $('#identity-picker').addEventListener('change', async (e) => {
     state.me = e.target.value;
     try { localStorage.setItem('chat.me', state.me); } catch {}
-    state.currentConv = null;
-    closeThread();
-    $('#conv-title').textContent = 'Select a conversation';
-    $('#conv-purpose').textContent = '';
-    $('#messages').replaceChildren();
+    resetMainPane();
+    syncUrl('replace'); // identity switch clears the URL — never a history entry
     await refreshSidebar();
   });
 
@@ -401,17 +504,23 @@ async function init() {
 
   wireDmTypeahead();
 
-  $('#thread-close').addEventListener('click', closeThread);
+  $('#thread-close').addEventListener('click', () => closeThread());
   $('#task-panel-close').addEventListener('click', () => ($('#task-panel').hidden = true));
   wireComposer('#composer', '#composer-input', () => null);
   wireComposer('#thread-composer', '#thread-input', () => state.currentThreadRoot);
 
   await refreshSidebar();
 
-  // Polling: localhost refresh for the open tab; 5s cadence.
+  // AS-9: restore view from the URL (after identity + conversation list are
+  // loaded, before the poll starts). Back/forward re-applies without writing.
+  await restoreFromUrl('load');
+  window.addEventListener('popstate', () => restoreFromUrl('popstate').catch(() => {}));
+
+  // Polling: localhost refresh for the open tab; 5s cadence. Never writes the URL.
   setInterval(() => {
     refreshSidebar().catch(() => {});
-    if (state.currentConv) selectConversation(state.currentConv, { keepThread: true }).catch(() => {});
+    if (state.currentConv)
+      selectConversation(state.currentConv, { keepThread: true, url: 'none' }).catch(() => {});
   }, 5000);
 }
 

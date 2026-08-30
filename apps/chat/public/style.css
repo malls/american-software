@@ -95,6 +95,13 @@ body {
 .ref-link:hover { text-decoration: underline; }
 .empty-note { color: #616061; padding: 16px; }
 
+/* m= deep-link anchor (AS-9): one-shot highlight that fades on its own. */
+.message.anchored { animation: anchored-fade 2.5s ease-out 1 both; }
+@keyframes anchored-fade {
+  from { background: #fff3bf; }
+  to { background: transparent; }
+}
+
 /* --- composers --- */
 #composer, #thread-composer {
   display: flex; gap: 8px; padding: 10px 16px; border-top: 1px solid #ddd;
