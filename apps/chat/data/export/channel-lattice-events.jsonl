@@ -35,3 +35,8 @@
 {"type":"message","id":66,"thread_root_id":null,"author":"system:lattice","body":"AS-6: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T04:34:54.187Z"}
 {"type":"message","id":67,"thread_root_id":null,"author":"system:lattice","body":"AS-6: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T04:35:59.619Z"}
 {"type":"message","id":68,"thread_root_id":null,"author":"system:lattice","body":"AS-11 created by agent:qa-priya — \"Chat: residual existence oracles for hidden channels — DM 4…\" [backlog]","created_at":"2026-08-30T04:44:57.310Z"}
+{"type":"message","id":69,"thread_root_id":null,"author":"system:lattice","body":"AS-6: review → done — by agent:qa-priya","created_at":"2026-08-30T04:46:23.342Z"}
+{"type":"message","id":70,"thread_root_id":null,"author":"system:lattice","body":"AS-9: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-30T04:46:43.367Z"}
+{"type":"message","id":71,"thread_root_id":null,"author":"system:lattice","body":"AS-9: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T04:53:02.289Z"}
+{"type":"message","id":72,"thread_root_id":null,"author":"system:lattice","body":"AS-9: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T04:53:44.339Z"}
+{"type":"message","id":73,"thread_root_id":null,"author":"system:lattice","body":"AS-9: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T05:02:02.297Z"}
