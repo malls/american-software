@@ -34,7 +34,7 @@ Forrest (the user) is the sole board member. Background: tech, "retired" in his 
 
 The fix (AS-21, commit ee57b3d): the watcher reads settings at fire time and passes the grants explicitly as `--allowedTools`/`--disallowedTools` in `tickArgv()` (`apps/chat/watch/advance-watcher.mjs`). This preserves the `git push --force` deny rules, unlike the `bypassPermissions` fallback. **Verified live in tick `watcher:33733` (19:32Z)** — that tick ran `lattice list`/`comment`, read and posted to the chat app, and staged with `git add`, all previously denied. Keep this paragraph as the record of why the watcher hands grants over argv; do not "simplify" it back to relying on project settings.
 
-Known residual (not a blocker): the `./apps/chat/chat` wrapper shells out to `docker`, which is not on PATH in the headless tick environment. Ticks must call `node apps/chat/bin/chat.js ...` directly.
+Known residual (not a blocker): the `./apps/chat/chat` wrapper shells out to `docker`, which is not on PATH in the headless tick environment. Ticks must not use `node apps/chat/bin/chat.js` for reads **or writes** while the container server is up — host-side CLI writes can land in a WAL view the server never sees (AS-24, orphan msg 161), and host-side reads can be WAL-stale enough to miss the very message that fired the tick. Use the server HTTP API for both: `GET /api/conversations` / `/api/messages`, `POST /api/messages` / `/api/read` at `http://127.0.0.1:8347`. `curl` is not in the tick allowlist; use `node -e` with `fetch`.
 
 ## Org Chart
 
