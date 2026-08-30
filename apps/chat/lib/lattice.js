@@ -1,0 +1,141 @@
+// lib/lattice.js — read-only access to the repo's .lattice/ directory.
+// ALL filesystem knowledge of .lattice/ lives here (portability, plan §8):
+// the repo root is a single configurable path. This module never writes .lattice/.
+
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { join, dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Default repo root: two levels up from apps/chat/ (this file is apps/chat/lib/).
+const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+
+export function latticeRoot() {
+  return process.env.CHAT_REPO_ROOT || DEFAULT_ROOT;
+}
+
+function latticeDir(root) {
+  return join(root ?? latticeRoot(), '.lattice');
+}
+
+function readJson(path) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/** shortId (e.g. 'AS-2') -> task file id, from ids.json. */
+function idMap(root) {
+  const ids = readJson(join(latticeDir(root), 'ids.json'));
+  return ids?.map ?? {};
+}
+
+function taskById(taskId, root) {
+  return readJson(join(latticeDir(root), 'tasks', `${taskId}.json`));
+}
+
+/**
+ * Resolve a Lattice short code to {shortId, exists, taskId?, title?, status?}.
+ * Lattice stays the source of truth; this is annotation only.
+ */
+export function resolveShortId(shortId, root) {
+  const taskId = idMap(root)[shortId];
+  if (!taskId) return { shortId, exists: false };
+  const task = taskById(taskId, root);
+  if (!task) return { shortId, exists: false };
+  return { shortId, exists: true, taskId, title: task.title ?? '', status: task.status ?? '' };
+}
+
+const REF_RE = /\bAS-\d+\b/g;
+
+/** Unique resolved refs for a message body. Unresolvable codes are flagged, not linked. */
+export function resolveRefs(body, root) {
+  const seen = new Set();
+  const refs = [];
+  for (const match of String(body).matchAll(REF_RE)) {
+    if (seen.has(match[0])) continue;
+    seen.add(match[0]);
+    refs.push(resolveShortId(match[0], root));
+  }
+  return refs;
+}
+
+/** Attach a refs array to each message object (non-destructive copy). */
+export function annotate(messages, root) {
+  return messages.map((m) => ({ ...m, refs: resolveRefs(m.body, root) }));
+}
+
+// --- event ingestion ------------------------------------------------------
+
+function truncate(s, n = 60) {
+  s = String(s ?? '');
+  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+}
+
+/**
+ * Read the complete event stream. Source of truth verified 2026-08-29 (M0):
+ * per-task files events/task_*.jsonl are complete; _lifecycle.jsonl holds only
+ * task_created duplicates. Read exactly the per-task files, never both.
+ */
+export function readTaskEvents(root) {
+  const dir = join(latticeDir(root), 'events');
+  if (!existsSync(dir)) return [];
+  const events = [];
+  for (const file of readdirSync(dir)) {
+    if (!file.startsWith('task_') || !file.endsWith('.jsonl')) continue;
+    const text = readFileSync(join(dir, file), 'utf8');
+    for (const line of text.split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const ev = JSON.parse(line);
+        if (ev && ev.id) events.push(ev);
+      } catch {
+        // Malformed line: skip; ingestion must never crash on someone else's file.
+      }
+    }
+  }
+  events.sort((a, b) =>
+    a.ts === b.ts ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.ts < b.ts ? -1 : 1
+  );
+  return events;
+}
+
+function shortIdForTask(taskId, root, eventData) {
+  if (eventData?.short_id) return eventData.short_id;
+  for (const [shortId, tid] of Object.entries(idMap(root))) {
+    if (tid === taskId) return shortId;
+  }
+  return taskId; // last resort: raw task id, still identifies the task
+}
+
+export function formatEvent(ev, root) {
+  const shortId = shortIdForTask(ev.task_id, root, ev.data);
+  if (ev.type === 'task_created') {
+    const title = truncate(ev.data?.title);
+    const status = ev.data?.status ?? 'backlog';
+    return `${shortId} created by ${ev.actor} — "${title}" [${status}]`;
+  }
+  if (ev.type === 'status_changed') {
+    return `${shortId}: ${ev.data?.from} → ${ev.data?.to} — by ${ev.actor}`;
+  }
+  return null;
+}
+
+const INGEST_TYPES = new Set(['task_created', 'status_changed']);
+
+/**
+ * Post any not-yet-ingested Lattice events (creation + status transitions)
+ * into the lattice-events channel as system:lattice. Idempotent by
+ * construction (ingested_events table). Returns the number posted.
+ */
+export function ingestNewEvents(store, root) {
+  let posted = 0;
+  for (const ev of readTaskEvents(root)) {
+    if (!INGEST_TYPES.has(ev.type)) continue;
+    if (store.hasIngested(ev.id)) continue;
+    const body = formatEvent(ev, root);
+    if (body && store.ingestEvent(ev.id, body)) posted++;
+  }
+  return posted;
+}

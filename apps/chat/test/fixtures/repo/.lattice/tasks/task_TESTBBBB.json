@@ -1,0 +1,7 @@
+{
+  "id": "task_TESTBBBB",
+  "short_id": "AS-8",
+  "title": "Fixture task eight with a very long title that should be truncated in the events feed because it just keeps going",
+  "status": "backlog",
+  "schema_version": 1
+}

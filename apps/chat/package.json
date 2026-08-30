@@ -1,0 +1,14 @@
+{
+  "name": "@american-software-company/chat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Internal chat app v1 (AS-2): channels, DMs, threads, Lattice integration. Zero dependencies.",
+  "type": "module",
+  "bin": {
+    "chat": "./bin/chat.js"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  }
+}

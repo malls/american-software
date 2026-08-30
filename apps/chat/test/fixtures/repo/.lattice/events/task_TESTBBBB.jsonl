@@ -1,0 +1,2 @@
+{"actor":"agent:ceo-carla","data":{"short_id":"AS-8","status":"backlog","title":"Fixture task eight with a very long title that should be truncated in the events feed because it just keeps going"},"id":"ev_B1","schema_version":1,"task_id":"task_TESTBBBB","ts":"2026-08-30T10:02:00Z","type":"task_created"}
+{"actor":"agent:ceo-carla","data":{"from":"backlog","to":"cancelled"},"id":"ev_B2","schema_version":1,"task_id":"task_TESTBBBB","ts":"2026-08-30T10:04:00Z","type":"status_changed"}
