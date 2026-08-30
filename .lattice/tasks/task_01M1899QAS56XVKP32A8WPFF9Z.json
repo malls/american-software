@@ -1,7 +1,14 @@
 {
-  "assigned_to": null,
-  "branch_links": [],
-  "comment_count": 1,
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [
+    {
+      "branch": "feat/AS-7-message-trigger",
+      "linked_at": "2026-08-30T05:51:37Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-08-30T02:52:08Z",
   "created_by": "human:forrest",
@@ -10,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1899QAS56XVKP32A8WPFF9Z",
-  "last_event_id": "ev_01M18AXBTB87B5TB704G36W601",
-  "last_status_changed_at": "2026-08-30T02:52:08Z",
+  "last_event_id": "ev_01M18KJP933050HAS43GSC4SZ8",
+  "last_status_changed_at": "2026-08-30T05:51:38Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-7",
-  "status": "backlog",
+  "status": "planned",
   "tags": null,
   "title": "Message-triggered /advance: chat app becomes the board member's primary interface",
   "type": "task",
-  "updated_at": "2026-08-30T03:20:20Z",
+  "updated_at": "2026-08-30T05:51:48Z",
   "urgency": null
 }
