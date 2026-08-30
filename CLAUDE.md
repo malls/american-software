@@ -70,7 +70,7 @@ Lattice does **not** track non-engineering company work: hiring and HR (employee
 
 ### Every Actor Is an Employee
 
-There are no anonymous agents at this company. Every `--actor` on every Lattice operation is a specific persona employee (e.g., `agent:pm-bob`, `agent:developer-dana`, `agent:qa-alice`) or the human (`human:forrest`). Generic lifecycle IDs like `agent:claude-planner` are forbidden — if no employee with the right job title exists yet, hire one first (see "Persona Agents / Employees"). The event log doubles as the company's record of who did what.
+There are no anonymous agents at this company. Every `--actor` on every Lattice operation is a specific persona employee (e.g., `agent:pm-bob`, `agent:developer-dana`, `agent:qa-alice`) or the human (`human:forrest`). Generic lifecycle IDs like `agent:claude-planner` are forbidden — if no employee with the right job title exists yet, hire one first (see "Persona Agents / Employees"). The event log doubles as the company's record of who did what. Use the most reasonable model for the job, considering token cost.
 
 ### Creating Tasks (Non-Negotiable)
 
