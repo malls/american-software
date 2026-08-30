@@ -44,6 +44,10 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
 
   const annotate = (m) => ({ ...m, refs: resolveRefs(m.body, root) });
 
+  // Sentinel key for handleApi results that are raw text (currently only
+  // /api/dump's JSONL), sent as text/plain instead of a JSON envelope.
+  const RAW_TEXT = Symbol('rawText');
+
   function handleApi(req, url, body) {
     const { pathname, searchParams } = url;
     const q = (k) => searchParams.get(k);
@@ -61,13 +65,13 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
     }
     if (req.method === 'GET' && pathname === '/api/roster') {
       // AS-8: company roster (personnel/ frontmatter) joined with current
-      // work (Lattice) and DM state (chat DB). 'me' is required because
-      // dmConversationId/unread are viewer-relative — same rule as
-      // /api/conversations. Reads personnel frontmatter and Lattice
-      // assignment/status only (both repo-public); never touches channels.
-      const me = q('me');
-      if (!me) throw new StoreError("Missing query parameter 'me'.");
-      store.requireIdentity(me);
+      // work (Lattice) and DM state (chat DB). 'me' is optional since AS-24,
+      // mirroring CLI semantics: without it the viewer-relative fields
+      // (dmConversationId/unread/self) are omitted entirely. Reads personnel
+      // frontmatter and Lattice assignment/status only (both repo-public);
+      // never touches channels.
+      const me = q('me') || null;
+      if (me) store.requireIdentity(me);
       let employees = [];
       let assignments = {};
       try {
@@ -80,27 +84,41 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
       const roster = employees
         .filter((e) => e.status === 'active')
         .map((e) => {
-          const self = e.actorId === me;
-          const dmId = self ? null : store.dmConversationFor(me, e.actorId);
           const tasks = assignments[e.actorId] ?? [];
-          return {
+          const row = {
             actorId: e.actorId,
             name: e.name,
             title: e.title,
             class: e.class,
             team: e.team,
             registered: !!store.getIdentity(e.actorId),
-            dmConversationId: dmId,
-            unread: dmId == null ? 0 : store.unreadCountFor(me, dmId),
-            self,
             work: tasks[0] ?? null,
             moreTasks: Math.max(0, tasks.length - 1),
           };
+          if (me) {
+            const self = e.actorId === me;
+            const dmId = self ? null : store.dmConversationFor(me, e.actorId);
+            row.dmConversationId = dmId;
+            row.unread = dmId == null ? 0 : store.unreadCountFor(me, dmId);
+            row.self = self;
+          }
+          return row;
         });
       return { roster };
     }
     if (req.method === 'POST' && pathname === '/api/channels') {
-      return { conversation: store.createChannel({ name: body.name, purpose: body.purpose, actor: body.actor }) };
+      // AS-24 parity: visibility/members pass through (AS-22 added them to the
+      // CLI only). Validation — including "members require private" — lives in
+      // store.createChannel, so CLI and HTTP enforce identically.
+      return {
+        conversation: store.createChannel({
+          name: body.name,
+          purpose: body.purpose,
+          actor: body.actor,
+          visibility: body.visibility ?? undefined,
+          members: body.members ?? null,
+        }),
+      };
     }
     if (req.method === 'POST' && pathname === '/api/dms') {
       return { conversation: store.openDm(body.me, body.other) };
@@ -112,7 +130,10 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
       // hidden conversation 404s byte-identically to a nonexistent one.
       const me = q('me');
       if (!me) throw new StoreError("Missing query parameter 'me'.");
-      const { conversation: conv, messages, threads } = store.getMessages(conversation, me);
+      // AS-24 parity: optional ?limit= mirrors CLI `history --limit N` (same
+      // bare Number() coercion as the CLI; the store ignores non-numeric).
+      const limit = q('limit') != null ? Number(q('limit')) : undefined;
+      const { conversation: conv, messages, threads } = store.getMessages(conversation, me, { limit });
       return {
         conversation: { ...conv, members: conv.type === 'dm' ? store.dmMembers(conv.id) : undefined },
         messages: messages.map(annotate),
@@ -136,6 +157,30 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
     }
     if (req.method === 'POST' && pathname === '/api/read') {
       return { read: store.markRead(body.me, body.conversation, body.upTo ?? null) };
+    }
+    if (req.method === 'POST' && pathname === '/api/catchup') {
+      // AS-24 parity: CLI `chat catchup` equivalent.
+      if (!body.me) throw new StoreError("Missing body field 'me'.");
+      return { conversations: store.catchupAll(body.me) };
+    }
+    if (req.method === 'POST' && pathname === '/api/sync') {
+      // AS-24 parity: forced lattice ingest, bypassing the 10s throttle — the
+      // CLI inbox/sync contract is "ingest now, then read". Resets the throttle
+      // clock so the next maybeIngest() doesn't immediately re-scan.
+      lastIngest = Date.now();
+      return { posted: ingestNewEvents(store, root) };
+    }
+    if (req.method === 'GET' && pathname === '/api/dump') {
+      // AS-24 parity: full-store JSONL, CLI `chat dump` equivalent. Operator
+      // endpoint — bypasses visibility gates exactly like direct DB access
+      // does; exposure unchanged (loopback-only trust domain, same operator
+      // who can already read the DB file).
+      return { [RAW_TEXT]: store.dumpLines().join('\n') + '\n' };
+    }
+    if (req.method === 'GET' && pathname === '/api/export') {
+      // AS-24 parity: store.exportFiles() as JSON; the CLI writes the files
+      // host-side. Operator endpoint — same trust-domain note as /api/dump.
+      return { files: store.exportFiles() };
     }
     {
       const m = req.method === 'GET' && /^\/api\/task\/([A-Za-z]+-\d+)$/.exec(pathname);
@@ -173,7 +218,11 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
           }
         }
         try {
-          sendJson(200, handleApi(req, url, body));
+          const result = handleApi(req, url, body);
+          if (result && result[RAW_TEXT] !== undefined) {
+            return send(200, 'text/plain; charset=utf-8', result[RAW_TEXT]);
+          }
+          return sendJson(200, result);
         } catch (e) {
           if (e instanceof StoreError) {
             const status =
