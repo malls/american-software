@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 1,
+  "comment_count": 3,
   "complexity": "medium",
   "created_at": "2026-08-30T02:37:54Z",
   "created_by": "human:forrest",
@@ -17,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M188FN1EADWKP6WRM0KN7ERD",
-  "last_event_id": "ev_01M188XDASTVHR7ZJ8DT831JRQ",
-  "last_status_changed_at": "2026-08-30T02:45:24Z",
+  "last_event_id": "ev_01M18BV6SHBS9QZFWG2G858MEG",
+  "last_status_changed_at": "2026-08-30T03:36:38Z",
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-5",
-  "status": "planned",
+  "status": "review",
   "tags": null,
   "title": "Chat history durability: JSONL export committed to git",
   "type": "chore",
-  "updated_at": "2026-08-30T02:45:24Z",
+  "updated_at": "2026-08-30T03:36:38Z",
   "urgency": null
 }
