@@ -66,6 +66,57 @@ export function resolveShortId(shortId, root) {
   };
 }
 
+// --- work-status derivation (AS-8) ----------------------------------------
+
+// In-flight statuses only: backlog is a queue (not current work), done and
+// cancelled are over. Lower rank = shown first / primary.
+const IN_FLIGHT_RANK = {
+  in_progress: 0,
+  review: 1,
+  blocked: 2,
+  needs_human: 3,
+  planned: 4,
+  in_planning: 5,
+};
+
+/**
+ * Current work per actor: read every .lattice/tasks/*.json (same tolerant
+ * readJson pattern as event ingestion — ~a dozen small files, no cache), keep
+ * in-flight tasks with an assignee, group by assigned_to. Per actor, entries
+ * are ordered by status priority (in_progress > review > blocked >
+ * needs_human > planned > in_planning), tie-broken by last_status_changed_at
+ * desc; the first is the primary task. Returns
+ * { [actorId]: [{ shortId, taskId, title, status, url }, …] } — actors with
+ * nothing in flight are absent.
+ */
+export function assignmentsByActor(root) {
+  const dir = join(latticeDir(root), 'tasks');
+  const byActor = {};
+  if (!existsSync(dir)) return byActor;
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith('.json')) continue;
+    const task = readJson(join(dir, file));
+    if (!task || !task.assigned_to) continue;
+    if (!(task.status in IN_FLIGHT_RANK)) continue;
+    (byActor[task.assigned_to] ??= []).push(task);
+  }
+  for (const [actor, tasks] of Object.entries(byActor)) {
+    tasks.sort(
+      (a, b) =>
+        IN_FLIGHT_RANK[a.status] - IN_FLIGHT_RANK[b.status] ||
+        String(b.last_status_changed_at ?? '').localeCompare(String(a.last_status_changed_at ?? ''))
+    );
+    byActor[actor] = tasks.map((t) => ({
+      shortId: t.short_id ?? t.id,
+      taskId: t.id,
+      title: t.title ?? '',
+      status: t.status,
+      url: dashboardTaskUrl(t.id),
+    }));
+  }
+  return byActor;
+}
+
 const REF_RE = /\bAS-\d+\b/g;
 
 /** Unique resolved refs for a message body. Unresolvable codes are flagged, not linked. */
