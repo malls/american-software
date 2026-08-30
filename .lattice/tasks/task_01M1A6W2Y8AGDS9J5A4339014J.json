@@ -8,16 +8,22 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": "medium",
   "created_at": "2026-08-30T20:48:13Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Board request, DM msg 163, 2026-08-30 20:41Z, verbatim: \"Also, I'm going to be using this on my phone so let's make it layout mobile friendly\". Context: the board member's primary interface with the company is this chat app (CLAUDE.md), and he will use it from a phone \u2014 mobile is a first-class surface, not a nice-to-have.\n\nScope \u2014 what 'mobile friendly' means for this app: the web UI at apps/chat/public must be usable on a phone-sized viewport (~375-430px wide). Concretely: (1) responsive layout \u2014 the sidebar (channels + DM roster) must not consume the viewport; collapse it behind a toggle/drawer on narrow screens, with the message pane full-width; (2) touch targets and font sizes adequate for touch (no tiny click zones); (3) viewport meta + no horizontal scroll; (4) compose box usable with the on-screen keyboard (doesn't get hidden, input stays visible); (5) the AS-9 URL-state contract keeps working so links shared from phone/desktop open the same view.\n\nRelationship to the other chat UX tasks (all bumped per board msg 160 \"let's get going on all the chat UX improvements\"): AS-17 (thread scroll position + default identity) is independent. AS-18 (DM pinning/sort) touches the same sidebar this task collapses \u2014 coordinate, land AS-18 after or fold its sidebar markup in. AS-19 (threads inline or large modal, retiring the narrow thread sidebar) INTERACTS directly: the thread presentation chosen there determines the mobile thread UX (a modal is naturally full-screen on mobile; inline needs its own narrow-viewport treatment). Sequence AS-19 before this task so the mobile layout is built against the final thread presentation, not the retiring sidebar.\n\nAcceptance: chat is fully usable \u2014 read, switch conversations, post, open threads, mark read \u2014 in a 390px-wide viewport with no horizontal scroll; desktop layout unchanged.",
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M1AGXZBEGY52WXTYQTMT6H3Z",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M1A6W2Y8AGDS9J5A4339014J",
-  "last_event_id": "ev_01M1AGKARJEEKQ7T44HJSNH63G",
+  "last_event_id": "ev_01M1AGXZBEGY52WXTYQTMT6H3Z",
   "last_status_changed_at": "2026-08-30T23:38:12Z",
   "priority": "high",
   "relationships_out": [],
@@ -28,6 +34,6 @@
   "tags": null,
   "title": "Chat UI: mobile-friendly responsive layout",
   "type": "task",
-  "updated_at": "2026-08-30T23:38:12Z",
+  "updated_at": "2026-08-30T23:44:00Z",
   "urgency": null
 }
