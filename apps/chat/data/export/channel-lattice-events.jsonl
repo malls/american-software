@@ -51,3 +51,9 @@
 {"type":"message","id":83,"thread_root_id":null,"author":"system:lattice","body":"AS-8: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T05:27:43.370Z"}
 {"type":"message","id":84,"thread_root_id":null,"author":"system:lattice","body":"AS-8: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T05:37:53.616Z"}
 {"type":"message","id":85,"thread_root_id":null,"author":"system:lattice","body":"AS-12 created by agent:qa-priya — \"chat: harden assignmentsByActor against prototype-chain tas…\" [backlog]","created_at":"2026-08-30T05:45:14.405Z"}
+{"type":"message","id":86,"thread_root_id":null,"author":"system:lattice","body":"AS-8: review → done — by agent:qa-priya","created_at":"2026-08-30T05:46:16.769Z"}
+{"type":"message","id":87,"thread_root_id":null,"author":"system:lattice","body":"AS-7: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-30T05:46:41.312Z"}
+{"type":"message","id":88,"thread_root_id":null,"author":"system:lattice","body":"AS-7: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T05:51:44.365Z"}
+{"type":"message","id":89,"thread_root_id":null,"author":"system:lattice","body":"AS-7: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T05:52:29.424Z"}
+{"type":"message","id":90,"thread_root_id":null,"author":"system:lattice","body":"AS-7: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T06:01:54.297Z"}
+{"type":"message","id":91,"thread_root_id":null,"author":"system:lattice","body":"AS-13 created by agent:qa-priya — \"Watcher hardening nits from AS-7 review (lock steal race, s…\" [backlog]","created_at":"2026-08-30T06:10:24.332Z"}
