@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": null,
   "created_at": "2026-08-30T02:43:57Z",
   "created_by": "agent:cto-owen",
@@ -17,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M188TQQQGZ6VF5X35S2PE371",
-  "last_event_id": "ev_01M18E5CDMF8HWRDB185J104CC",
-  "last_status_changed_at": "2026-08-30T04:17:09Z",
+  "last_event_id": "ev_01M18F7RFKAVSZ822TE67JCS2A",
+  "last_status_changed_at": "2026-08-30T04:35:55Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-6",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Chat: #board channel (restricted membership) + DM typeahead",
   "type": "task",
-  "updated_at": "2026-08-30T04:17:09Z",
+  "updated_at": "2026-08-30T04:35:55Z",
   "urgency": null
 }
