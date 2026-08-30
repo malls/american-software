@@ -47,6 +47,12 @@ services:
     entrypoint: ["node", "bin/chat.js"]
     environment:
       - CHAT_ME
+      # AS-24: the containerized CLI proxies through the server service when it
+      # is up (container-to-container SQLite coherence over the bind mount was
+      # only empirically OK; this makes it irrelevant). Server down → the probe
+      # gets a hard ENOTFOUND/ECONNREFUSED → direct mode against the bind
+      # mount, same as before.
+      - CHAT_API=http://server:8347
     volumes:
       - ./data:/app/data
       - ../../.lattice:/repo/.lattice:ro
