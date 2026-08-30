@@ -296,9 +296,48 @@ async function openRosterDm(emp) {
   await selectConversation(conversation);
 }
 
+// --- sidebar drawer (AS-23) -------------------------------------------------
+// At <=700px the sidebar is an off-canvas drawer (CSS transform); above that
+// width these classes are inert — the media query ignores them. Drawer state
+// is VIEW-LOCAL: never in the URL (AS-9 projection invariant), never
+// persisted. refreshSidebar() replaces children *inside* #sidebar, so the
+// drawer-open class on #app survives every poll re-render.
+
+function openDrawer() {
+  $('#app').classList.add('drawer-open');
+  $('#sidebar-scrim').hidden = false;
+}
+
+function closeDrawer() {
+  $('#app').classList.remove('drawer-open');
+  $('#sidebar-scrim').hidden = true;
+}
+
+// --- iOS keyboard / visible-area pin (AS-23) ---------------------------------
+// No CSS unit (vh/dvh/svh) tracks the iOS on-screen keyboard — only
+// window.visualViewport does. Pin #app's height to the visible area via the
+// --app-height custom property; CSS falls back to 100dvh where visualViewport
+// is absent. window.scrollTo(0,0) counters iOS's automatic pan-on-focus.
+
+function wireViewportPin() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const apply = () => {
+    document.documentElement.style.setProperty('--app-height', vv.height + 'px');
+    window.scrollTo(0, 0);
+  };
+  vv.addEventListener('resize', apply);
+  apply();
+}
+
 // --- conversation view ----------------------------------------------------
 
 async function selectConversation(conv, { keepThread = false, url = 'push', scroll = 'bottom' } = {}) {
+  // AS-23: picking a conversation closes the drawer. Every user pick (sidebar
+  // li, roster row, DM typeahead, new-channel) reaches here as url:'push';
+  // the 5s poll and URL restore come in as url:'none' and must NOT slam a
+  // drawer the user is browsing. Inert at desktop widths.
+  if (url === 'push') closeDrawer();
   if (url === 'push') state.anchorMsg = null; // user navigation drops the m= anchor
   state.currentConv = conv;
   if (!keepThread) closeThread({ url: 'none' });
@@ -666,12 +705,28 @@ async function init() {
   wireComposer('#composer', '#composer-input', () => null);
   wireComposer('#thread-composer', '#thread-input', () => state.currentThreadRoot);
 
+  // AS-23: sidebar drawer wiring (inert above 700px — the CSS ignores the
+  // class there) + the visualViewport keyboard pin.
+  $('#sidebar-toggle').addEventListener('click', () => {
+    if ($('#app').classList.contains('drawer-open')) closeDrawer();
+    else openDrawer();
+  });
+  $('#sidebar-scrim').addEventListener('click', () => closeDrawer());
+  wireViewportPin();
+
   await refreshSidebar();
 
   // AS-9: restore view from the URL (after identity + conversation list are
   // loaded, before the poll starts). Back/forward re-applies without writing.
   await restoreFromUrl('load');
   window.addEventListener('popstate', () => restoreFromUrl('popstate').catch(() => {}));
+
+  // AS-23: one-time empty-state nicety — a phone user with no conversation
+  // selected lands on the channel list, not a blank pane. View-local: never
+  // reflected in the URL, never repeated by the poll.
+  if (!state.currentConv && window.matchMedia && window.matchMedia('(max-width: 700px)').matches) {
+    openDrawer();
+  }
 
   // Polling: localhost refresh for the open tab; 5s cadence. Never writes the URL.
   setInterval(() => {

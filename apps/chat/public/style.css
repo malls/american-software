@@ -5,9 +5,22 @@ body {
   font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   color: #1d1c1d;
   background: #fff;
+  /* AS-23: no-horizontal-scroll invariant. Every pane already wraps; this
+     pins the invariant against future content. No-op at desktop widths. */
+  overflow-x: hidden;
 }
 
-#app { display: flex; height: 100vh; }
+/* AS-23: 100dvh second — on iOS Safari 100vh overshoots the visible area
+   (browser chrome); dvh tracks it. Older engines ignore the dvh line and
+   keep 100vh (cascade fallback). Identical result on desktop. */
+#app { display: flex; height: 100vh; height: 100dvh; }
+
+/* AS-23: mobile-only elements, inert above 700px. The toggle only shows
+   inside the <=700px block; the scrim stays display:none above 700px
+   regardless of its hidden attr or the drawer class — these defaults hide
+   NEW elements and change nothing about the desktop layout. */
+#sidebar-toggle { display: none; }
+#sidebar-scrim { display: none; }
 
 /* --- sidebar --- */
 #sidebar {
@@ -163,7 +176,9 @@ body {
 
 /* --- task panel --- */
 #task-panel {
-  position: fixed; right: 16px; bottom: 16px; width: 300px;
+  /* AS-23: width clamp — identical to 300px at desktop widths, fits 320px
+     phones. No bare fixed width (QA greps for this, same as AS-19). */
+  position: fixed; right: 16px; bottom: 16px; width: min(300px, calc(100vw - 32px));
   background: #fff; border: 1px solid #bbb; border-radius: 6px;
   /* Above the thread modal (z 30): AS-n refs inside thread replies open the
      task panel, which must not vanish behind the backdrop (AS-19). */
@@ -176,3 +191,66 @@ body {
   padding: 1px 6px; font-size: 12px; margin-top: 4px;
 }
 #task-panel-body .task-id { color: #616061; font-size: 11px; margin-top: 6px; word-break: break-all; }
+
+/* --- AS-23: touch reachability -------------------------------------------- */
+/* Where hover does not exist, the hover-gate on message actions is a
+   functional break ("reply in thread" unreachable) — unhide exactly there.
+   Desktop pointer behavior unchanged. */
+@media (hover: none) {
+  .message .actions { visibility: visible; }
+}
+
+/* --- AS-23: mobile layout (<=700px) ---------------------------------------- */
+/* One breakpoint for column layout. AS-19's 600px full-screen-sheet rule is
+   about reading measure and stays untouched; both fire on every phone.
+   Z-order inventory (do not re-derive): dm-options 20 < scrim 25 <
+   sidebar-as-drawer 26 < thread-modal backdrop 30 < task-panel 40. */
+@media (max-width: 700px) {
+  /* Visible-area pin: --app-height is set from window.visualViewport by
+     app.js (the only thing that tracks the iOS on-screen keyboard); where
+     visualViewport is absent this degrades to plain 100dvh. */
+  #app { height: var(--app-height, 100dvh); }
+
+  /* Sidebar becomes an off-canvas drawer. */
+  #sidebar {
+    position: fixed; inset: 0 auto 0 0; width: min(280px, 85vw);
+    transform: translateX(-100%); transition: transform .2s ease;
+    z-index: 26;
+  }
+  #app.drawer-open #sidebar { transform: none; }
+
+  /* Scrim: shown/hidden in lockstep with the drawer class via the hidden
+     attr (house pattern). Click closes (app.js). */
+  #sidebar-scrim {
+    display: block; position: fixed; inset: 0;
+    background: rgba(0, 0, 0, .35); z-index: 25;
+  }
+  #sidebar-scrim[hidden] { display: none; }
+
+  /* Hamburger: first in #conv-header, >=40px hit area. The header becomes a
+     wrapping flex row — toggle + title on line one, purpose below. */
+  #conv-header { display: flex; align-items: center; column-gap: 10px; flex-wrap: wrap; }
+  #conv-purpose { flex-basis: 100%; }
+  #sidebar-toggle {
+    display: block; flex: none; min-width: 40px; min-height: 40px;
+    background: none; border: 1px solid #ddd; border-radius: 4px;
+    font-size: 18px; color: inherit; cursor: pointer; padding: 0;
+  }
+
+  /* Touch targets: >=40px rows and hit areas. */
+  #sidebar li { padding: 10px 16px; }
+  #roster-list li.roster-row { padding: 10px 16px; }
+  .message .actions button, .thread-link { padding: 11px 8px; }
+  #thread-dialog header button, #task-panel header button {
+    padding: 8px 14px; font-size: 20px;
+  }
+  #composer button, #thread-composer button { padding: 10px 16px; }
+
+  /* iOS zoom guard: any input under 16px triggers focus auto-zoom. */
+  textarea, input, select { font-size: 16px; }
+
+  /* Home-indicator clearance (viewport-fit=cover in index.html). */
+  #composer, #thread-composer {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+}
