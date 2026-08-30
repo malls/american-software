@@ -344,6 +344,30 @@ test('api: AS-19 — thread-modal.js is served; index.html ships the modal, not 
   assert.doesNotMatch(html, /thread-panel/, 'narrow thread sidebar is gone from the DOM');
 });
 
+test('api: AS-23 — served page and CSS carry the mobile layout artifacts', async (t) => {
+  const { base } = await bootServer(t);
+
+  // index.html: safe-area viewport + the two new mobile-only elements.
+  const html = await (await fetch(base + '/')).text();
+  assert.match(html, /viewport-fit=cover/, 'viewport meta covers the safe area');
+  assert.match(html, /id="sidebar-toggle"/, 'hamburger toggle in the header');
+  assert.match(html, /id="sidebar-scrim"/, 'drawer scrim present');
+
+  // style.css: the mobile block and its load-bearing rules.
+  const cssRes = await fetch(base + '/style.css');
+  assert.equal(cssRes.status, 200);
+  assert.equal(cssRes.headers.get('content-type'), 'text/css; charset=utf-8');
+  const css = await cssRes.text();
+  assert.match(css, /@media \(max-width: 700px\)/, 'mobile breakpoint');
+  assert.match(css, /translateX\(-100%\)/, 'off-canvas drawer transform');
+  assert.match(css, /hover: none/, 'touch unhides message actions');
+  assert.match(css, /100dvh/, 'dvh viewport fallback');
+  assert.match(css, /--app-height/, 'visualViewport pin variable');
+  assert.match(css, /overflow-x: hidden/, 'no-horizontal-scroll invariant');
+  assert.match(css, /safe-area-inset-bottom/, 'home-indicator clearance');
+  assert.doesNotMatch(css, /width: 300px/, 'task panel width is clamped via min(), never bare');
+});
+
 test('api: AS-8 — roster joins personnel, lattice work status, and DM state', async (t) => {
   const { get, post } = await bootServer(t);
 
