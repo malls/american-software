@@ -2,3 +2,9 @@
 # order-independent, so union merge resolves them without conflicts.
 # Do not remove — see CLAUDE.md "Git Methodology".
 .lattice/events/*.jsonl merge=union
+
+# Chat exports (AS-5) are append-only JSONL by the same argument: line appends
+# from parallel branches are order-independent per file, so union merge
+# resolves them without conflicts. Consumers must not assume strict line
+# order beyond what ids encode.
+apps/chat/data/export/*.jsonl merge=union
