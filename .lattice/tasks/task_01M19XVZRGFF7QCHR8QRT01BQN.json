@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 0,
+  "comment_count": 1,
   "complexity": "low",
   "created_at": "2026-08-30T18:10:52Z",
   "created_by": "agent:cto-owen",
@@ -17,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M19XVZRGFF7QCHR8QRT01BQN",
-  "last_event_id": "ev_01M19XX20MYQ2JGZ07TH00YNGG",
-  "last_status_changed_at": "2026-08-30T18:10:57Z",
+  "last_event_id": "ev_01M19XY24TW0E18ACG5QT0JCP4",
+  "last_status_changed_at": "2026-08-30T18:12:00Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-15",
-  "status": "in_planning",
+  "status": "planned",
   "tags": null,
   "title": "Watcher-fired ticks self-cancel on the watcher's own advance.lock \u2014 pass ADVANCE_TICK_PARENT marker so the tick recognizes its parent's lock",
   "type": "bug",
-  "updated_at": "2026-08-30T18:11:27Z",
+  "updated_at": "2026-08-30T18:12:00Z",
   "urgency": null
 }
