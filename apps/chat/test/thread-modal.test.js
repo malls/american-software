@@ -6,6 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shouldCloseOnEscape, isBackdropClick } from '../public/thread-modal.js';
+import { shouldCloseOnBackdropGesture } from '../public/thread-modal.js'; // AS-23
 
 // --- shouldCloseOnEscape ------------------------------------------------------
 
@@ -42,4 +43,42 @@ test('thread-modal: clicks inside the dialog are not backdrop clicks', () => {
   const dialog = { id: 'thread-dialog' };
   assert.equal(isBackdropClick({ target: dialog, currentTarget: overlay }), false);
   assert.equal(isBackdropClick(null), false, 'no event object -> not a backdrop click');
+});
+
+// --- shouldCloseOnBackdropGesture (AS-23; AS-19 QA backlog item c) ------------
+
+test('thread-modal: gesture down+click both on the backdrop closes', () => {
+  const overlay = { id: 'thread-modal' };
+  const click = { target: overlay, currentTarget: overlay };
+  assert.equal(shouldCloseOnBackdropGesture(click, overlay), true);
+});
+
+test('thread-modal: selection drag from dialog to backdrop does NOT close', () => {
+  // Press inside the dialog (start of a text selection), release on the
+  // backdrop: the browser dispatches click on the common ancestor with
+  // target === currentTarget — the down-target is what distinguishes it.
+  const overlay = { id: 'thread-modal' };
+  const dialogText = { id: 'thread-messages' };
+  const click = { target: overlay, currentTarget: overlay };
+  assert.equal(shouldCloseOnBackdropGesture(click, dialogText), false);
+});
+
+test('thread-modal: null down-target falls back to the click-target check alone', () => {
+  const overlay = { id: 'thread-modal' };
+  const dialog = { id: 'thread-dialog' };
+  assert.equal(
+    shouldCloseOnBackdropGesture({ target: overlay, currentTarget: overlay }, null),
+    true,
+    'no pointer event seen (keyboard/synthetic click) -> legacy behavior: close'
+  );
+  assert.equal(
+    shouldCloseOnBackdropGesture({ target: overlay, currentTarget: overlay }, undefined),
+    true,
+    'undefined down-target treated the same as null'
+  );
+  assert.equal(
+    shouldCloseOnBackdropGesture({ target: dialog, currentTarget: overlay }, null),
+    false,
+    'click inside the dialog never closes, down-target or not'
+  );
 });

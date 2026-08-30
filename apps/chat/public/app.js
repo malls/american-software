@@ -3,7 +3,7 @@
 
 import { parseChatUrl, serializeChatUrl, resolveConversation } from './url-state.js';
 import { renderPreservingScroll } from './scroll.js';
-import { shouldCloseOnEscape, isBackdropClick } from './thread-modal.js';
+import { shouldCloseOnEscape, shouldCloseOnBackdropGesture } from './thread-modal.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -643,8 +643,18 @@ async function init() {
   $('#thread-close').addEventListener('click', () => closeThread());
   // AS-19: backdrop click closes — only when the click lands on the overlay
   // itself; clicks inside the dialog bubble up with a different target.
+  // AS-23: ...and only when the gesture BEGAN on the backdrop too. A text-
+  // selection drag that starts in the dialog and releases on the backdrop
+  // dispatches click on #thread-modal (the common ancestor) — recording the
+  // pointerdown target lets the predicate tell the two apart.
+  let threadPointerDown = null;
+  $('#thread-modal').addEventListener('pointerdown', (e) => {
+    threadPointerDown = e.target;
+  });
   $('#thread-modal').addEventListener('click', (e) => {
-    if (isBackdropClick(e)) closeThread();
+    const down = threadPointerDown;
+    threadPointerDown = null; // one gesture, one answer
+    if (shouldCloseOnBackdropGesture(e, down)) closeThread();
   });
   // AS-19: document-level Escape, live only while the modal is visible.
   // defaultPrevented is respected so the DM typeahead's own Escape (which
