@@ -14,7 +14,7 @@
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Board request (chat DM @human:forrest, msg 116, 2026-08-30 17:43), verbatim: \"thread chat is auto scrolling to the bottom on an interval - we should maintain scroll position. also, set me as the default user\". Two items: (1) the poll-driven re-render jams the thread panel scroll to the bottom \u2014 preserve scroll position across poll re-renders (planner: check whether the main message list has the same defect); (2) when localStorage(\"chat.me\") is unset, the UI should default to human:forrest instead of forcing a manual identity pick. NOTE: the thread sidebar itself is slated for replacement under the threads-inline/modal task (msg 119) \u2014 fix the scroll behavior at the poll/render level so it survives that redesign; do not couple the two tasks.",
-  "done_at": null,
+  "done_at": "2026-08-30T22:22:23Z",
   "evidence_refs": [
     {
       "id": "ev_01M1ABXEJRBYC4JYQ02Y1PE4VM",
@@ -28,17 +28,17 @@
     }
   ],
   "id": "task_01M19YNQB7JBD6YBR3AH6VQJDQ",
-  "last_event_id": "ev_01M1AC7M3ATHMCCNGGEF1JWQ9X",
-  "last_status_changed_at": "2026-08-30T22:19:25Z",
+  "last_event_id": "ev_01M1AC8H56Q5VCSPYQHYQ56GZF",
+  "last_status_changed_at": "2026-08-30T22:22:23Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-17",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "Chat: thread view must keep scroll position across polls; default identity = human:forrest",
   "type": "bug",
-  "updated_at": "2026-08-30T22:21:54Z",
+  "updated_at": "2026-08-30T22:22:23Z",
   "urgency": null
 }
