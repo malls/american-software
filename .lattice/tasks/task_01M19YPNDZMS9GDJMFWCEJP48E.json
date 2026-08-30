@@ -8,16 +8,22 @@
       "repo": null
     }
   ],
-  "comment_count": 2,
+  "comment_count": 3,
   "complexity": "low",
   "created_at": "2026-08-30T18:25:26Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Third first-fire attempt (tick log apps/chat/data/logs/tick-2026-08-30T18-20-03.664Z.log): the tick AUTHENTICATED (AS-14 keychain fix works) but ended as a no-op. Root cause: the headless permission layer (claude -p, permission-mode acceptEdits) DENIES environment-variable reads \u2014 the tick log states verbatim \"the env read was declined by the permission layer\" \u2014 so the tick could not read ADVANCE_TICK_PARENT and, per the AS-15 rule in advance.md step 0 (a lock it cannot positively claim as its parent is foreign), correctly self-cancelled on its own parent watcher lock. AS-15 chose the right marker but the wrong transport: env vars are not readable inside a headless tick. FIX (transport change, design decided at triage): carry the marker in the PROMPT. The watcher fires claude -p \"/advance watcher:<pid>\" \u2014 the marker rides as the /advance slash-command argument; advance.md declares the argument and step 0 matches the advance.lock pid against the ARGUMENT marker, no env read needed. Keep setting ADVANCE_TICK_PARENT in tickChildEnv as belt-and-suspenders (harmless, and useful in any context where env IS readable), but the prompt argument becomes the contract. Files: apps/chat/watch/advance-watcher.mjs fire() argv; .claude/commands/advance.md (argument declaration + step 0 wording \u2014 NOTE advance.md is a .claude command file, not a top-level markdown, so employees may edit it); apps/chat/test/watcher.test.js (pin the spawn argv the way tickChildEnv is pinned). Related: AS-16 (pid-reuse nonce) should ride this same prompt-arg transport when built \u2014 its design depends on this contract. NOT in scope / NOT a bug: the \"watcher re-fired message 120 three times\" observation in that tick log is a misdiagnosis from missing context \u2014 those were deliberate board-side highwater resets during debugging; the highwater logic is correct. Do not file or fix anything for it.",
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M19Z65CXTKHKJ9KPR9DV3R4G",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M19YPNDZMS9GDJMFWCEJP48E",
-  "last_event_id": "ev_01M19Z03X3RPKJ6C0ND8T0VJJ8",
+  "last_event_id": "ev_01M19Z65CXTKHKJ9KPR9DV3R4G",
   "last_status_changed_at": "2026-08-30T18:30:36Z",
   "priority": "high",
   "relationships_out": [
@@ -36,6 +42,6 @@
   "tags": null,
   "title": "advance-watcher: pass the parent-lock marker in the /advance prompt argument \u2014 headless permission layer denies env reads",
   "type": "bug",
-  "updated_at": "2026-08-30T18:30:36Z",
+  "updated_at": "2026-08-30T18:33:54Z",
   "urgency": null
 }
