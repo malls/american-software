@@ -158,6 +158,23 @@ export function tickChildEnv(env = process.env, watcherPid = process.pid) {
   };
 }
 
+// Exact argv for a spawned tick — the parent-lock marker rides as the /advance
+// slash-command argument (AS-20): headless ticks cannot read env vars (the
+// permission layer denies the read), so the prompt argument is the CONTRACT
+// and ADVANCE_TICK_PARENT above stays only as belt for env-readable contexts.
+// Exported so the test suite pins the array exactly like tickChildEnv: any
+// change to the spawn argv changes this function AND its test, deliberately.
+export function tickArgv(watcherPid = process.pid, permissionMode = DEFAULTS.permissionMode) {
+  return [
+    '-p',
+    `/advance watcher:${watcherPid}`,
+    '--permission-mode',
+    permissionMode,
+    '--output-format',
+    'text',
+  ];
+}
+
 // --- thin effectful shell ----------------------------------------------------
 
 function pidAlive(pid) {
@@ -384,18 +401,21 @@ function main() {
     //             "Not logged in · Please run /login" (AS-14).
     //   LOGNAME — POSIX twin of USER, same identity-resolution reason; some
     //             tooling reads one, some the other.
-    //   ADVANCE_TICK_PARENT — "watcher:<this watcher's pid>". Advance.md
-    //             step 0 matches it against advance.lock (source "watcher" +
-    //             same pid) so a watcher-fired tick recognizes its parent's
-    //             lock as its own instead of no-oping on it; the watcher, not
-    //             the tick, releases that lock in settle() (AS-15).
+    //   ADVANCE_TICK_PARENT — "watcher:<this watcher's pid>". BELT only
+    //             (AS-20): headless ticks cannot read env vars, so the marker's
+    //             real transport is the /advance prompt argument built by
+    //             tickArgv() below — advance.md step 0 matches advance.lock
+    //             (source "watcher" + same pid) against the ARGUMENT. The env
+    //             var stays for any context where env IS readable (AS-15).
+    //             Either way the watcher, not the tick, releases the lock in
+    //             settle().
     // AS-13 #3: timers and handlers close over this fire's own `proc`, never
     // the mutable module-level `child` — a timed-out tick's stray SIGKILL
     // timer must not be able to kill a successor tick. `child` remains only
     // the poll()/shutdown() gate, nulled iff it still points at this proc.
     const proc = spawn(
       config.claudeBin,
-      ['-p', '/advance', '--permission-mode', config.permissionMode, '--output-format', 'text'],
+      tickArgv(process.pid, config.permissionMode),
       {
         cwd: config.repoRoot,
         env: tickChildEnv(process.env, process.pid),

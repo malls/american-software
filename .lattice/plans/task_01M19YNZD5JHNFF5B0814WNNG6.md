@@ -1,0 +1,3 @@
+# AS-18: Chat: pin employees in the DM sidebar; sort unpinned DMs by team prefix
+
+Board request (chat DM @human:forrest, msg 118, 2026-08-30 17:49), verbatim: "also, we should be able to pin employees in the DM list section, then otherwise sort them by team prefix." Interpretation left to the planner, with hints: pinning is a per-viewer preference (localStorage is the established per-viewer store — identity already lives there); "team prefix" most cheaply reads as the actor-id role prefix (developer-, qa-, pm-, ceo-, cto-), though personnel frontmatter also carries a team: field via apps/chat/lib/personnel.js (AS-8) — planner picks one and says why. Touches the AS-8 roster/DM sidebar rendering.

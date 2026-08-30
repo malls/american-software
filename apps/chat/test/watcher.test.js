@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv } from '../watch/advance-watcher.mjs';
+import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, tickArgv } from '../watch/advance-watcher.mjs';
 
 const T0 = Date.parse('2026-08-30T12:00:00.000Z');
 const CONFIG = { debounceS: 15, lockStaleMin: 45 };
@@ -324,6 +324,38 @@ test('tickChildEnv: pins exactly {PATH, HOME, USER, LOGNAME, ADVANCE_TICK_PARENT
     'LOGNAME',
     'PATH',
     'USER',
+  ]);
+});
+
+// --- AS-20: tick spawn argv pin ----------------------------------------------
+
+test('tickArgv: pins the exact spawn argv — marker rides as the /advance prompt argument', () => {
+  // Headless ticks cannot read env vars (the permission layer denies the
+  // read, AS-20), so the parent-lock marker's CONTRACT transport is the
+  // /advance slash-command argument; ADVANCE_TICK_PARENT is belt only.
+  // Changing this array means changing tickArgv AND this test, deliberately.
+  assert.deepEqual(tickArgv(4242, 'acceptEdits'), [
+    '-p',
+    '/advance watcher:4242',
+    '--permission-mode',
+    'acceptEdits',
+    '--output-format',
+    'text',
+  ]);
+  // Marker format: "/advance watcher:<pid>", the exact pid passed in — the
+  // same pid acquireLock() writes into advance.lock.
+  assert.match(tickArgv(17730, 'plan')[1], /^\/advance watcher:\d+$/);
+  assert.equal(tickArgv(17730, 'plan')[1], '/advance watcher:17730');
+  // Permission mode passes through verbatim.
+  assert.equal(tickArgv(1, 'plan')[3], 'plan');
+  // Defaults: this process's pid, DEFAULTS.permissionMode.
+  assert.deepEqual(tickArgv(), [
+    '-p',
+    `/advance watcher:${process.pid}`,
+    '--permission-mode',
+    DEFAULTS.permissionMode,
+    '--output-format',
+    'text',
   ]);
 });
 
