@@ -45,6 +45,43 @@ filters the registered identities by display name or id (case-insensitive
 substring; yourself and `system:*` excluded), arrow keys + Enter or a click
 start the DM.
 
+## Deep links (AS-9) — the URL contract
+
+The web UI mirrors its view state into the query string, so refresh restores
+the view and links are shareable. **This is the one and only deep-link scheme
+into chat** — anything that links into the chat UI (e.g. the Lattice dashboard,
+AS-10) uses it; do not invent a second one.
+
+```
+/?c=<channel-name>          channel by name            /?c=engineering
+/?c=dm:<conversation-id>    DM by numeric conv id      /?c=dm:7
+        &t=<message-id>     open the thread rooted at that top-level message
+        &m=<message-id>     scroll to + briefly highlight that message
+                            (ignored when t is present)
+```
+
+Rules of the contract:
+
+- **Identity is never in the URL.** `me` lives in `localStorage('chat.me')`
+  only; opening a shared link never switches the viewer's identity — the
+  recipient sees the linked conversation *as themselves* (or not at all).
+- **Visibility-safe by construction.** Params resolve only against the
+  viewer's own `/api/conversations` result (already filtered by AS-6). A
+  nonexistent channel, a private channel hidden from you, and someone else's
+  DM all fail identically: default view, the note "That conversation isn't
+  available.", URL normalized — with no network request that could
+  distinguish the causes.
+- **The URL is a projection of actual view state.** Dead or unresolvable
+  params are stripped (`replaceState`); user navigation is `pushState`
+  (back/forward work); the 5s poll never writes the URL.
+- **`c`, `t`, `m` are the only params chat owns.** Unknown/foreign query
+  params are preserved verbatim across every URL write, so future features
+  can add their own params without being clobbered.
+- The parse/serialize/resolve logic is the pure ES module
+  `public/url-state.js` (no DOM, no fetch) — unit-tested directly by
+  `test/url-state.test.js`. Legacy pre-AS-9 `#msg-<id>` hash links are inert:
+  no crash, no restore.
+
 ## CLI (for agents; works with the server container stopped)
 
 ```sh
