@@ -1,7 +1,7 @@
 // Unit tests for lib/store.js against a temp-dir DB per test.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -637,7 +637,13 @@ test('AS-7 sentinel: human post writes last-human-message.json; later human post
     conversationId: eng.id,
     createdAt: m1.createdAt,
   });
-  assert.ok(!existsSync(sentinelPath + '.tmp'), 'tmp file renamed away');
+  // AS-13: tmp names are now unique per write, so sweep the whole dir — an
+  // exact-name check could pass vacuously while orphans pile up.
+  assert.deepEqual(
+    readdirSync(dir).filter((n) => n.includes('.tmp')),
+    [],
+    'no tmp files of any name left behind'
+  );
 
   const m2 = store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'second' });
   assert.ok(m2.id > m1.id);
@@ -691,13 +697,60 @@ test('AS-7 sentinel: :memory: store never writes; a failing write never fails th
   assert.ok(posted.id > 0);
   assert.ok(!existsSync('last-human-message.json'), ':memory: store wrote no sentinel in cwd');
 
-  // Failure injection: squat the tmp path with a directory so writeFileSync
-  // throws EISDIR inside writeHumanSentinel. The post must still succeed.
+  // Failure injection (AS-13: tmp names are unique, so squat the sentinel
+  // path itself with a directory — renameSync then throws inside
+  // writeHumanSentinel). The post must still succeed, and the failed rename
+  // must not strand its uniquely named tmp file (best-effort orphan cleanup).
   const { store, dir } = tempStore(t);
   const sentinelPath = join(dir, 'last-human-message.json');
-  mkdirSync(sentinelPath + '.tmp');
+  mkdirSync(sentinelPath);
   const eng2 = store.getChannelByName('engineering');
   const msg = store.postMessage({ conversation: eng2.id, author: 'human:forrest', body: 'still posts' });
   assert.equal(store.getMessage(msg.id).body, 'still posts');
-  assert.ok(!existsSync(sentinelPath), 'sentinel absent after injected write failure');
+  assert.deepEqual(
+    readdirSync(dir).filter((n) => n.includes('.tmp')),
+    [],
+    'failed rename leaves no tmp orphan behind'
+  );
+});
+
+test('AS-13 sentinel: two stores on one data dir interleave posts without tmp collisions', (t) => {
+  // Deterministic interleave stand-in for the server + CLI containers sharing
+  // the bind mount (the 2x200 concurrent hammer stays QA-side). Unique tmp
+  // suffixes mean neither writer can clobber or mis-rename the other's tmp.
+  const dir = mkdtempSync(join(tmpdir(), 'chat-store-'));
+  const dbPath = join(dir, 'chat.db');
+  const a = openStore(dbPath);
+  const b = openStore(dbPath);
+  t.after(() => {
+    a.close();
+    b.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const sentinelPath = join(dir, 'last-human-message.json');
+  const eng = a.getChannelByName('engineering');
+
+  let last = null;
+  for (let i = 0; i < 10; i++) {
+    const writer = i % 2 === 0 ? a : b;
+    last = writer.postMessage({
+      conversation: eng.id,
+      author: 'human:forrest',
+      body: `interleaved ${i}`,
+    });
+    const sentinel = JSON.parse(readFileSync(sentinelPath, 'utf8'));
+    assert.equal(sentinel.messageId, last.id, `sentinel tracks the last writer at post ${i}`);
+  }
+  // Contract intact: exactly the four fields, last writer's message.
+  assert.deepEqual(JSON.parse(readFileSync(sentinelPath, 'utf8')), {
+    messageId: last.id,
+    authorId: 'human:forrest',
+    conversationId: eng.id,
+    createdAt: last.createdAt,
+  });
+  assert.deepEqual(
+    readdirSync(dir).filter((n) => n.includes('.tmp')),
+    [],
+    'no tmp orphans after interleaved posts from two store instances'
+  );
 });
