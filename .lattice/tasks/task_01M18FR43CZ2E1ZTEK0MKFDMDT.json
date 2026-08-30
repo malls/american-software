@@ -1,7 +1,14 @@
 {
-  "assigned_to": null,
-  "branch_links": [],
-  "comment_count": 1,
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [
+    {
+      "branch": "feat/AS-11-oracle-residuals",
+      "linked_at": "2026-08-30T06:15:19Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 2,
   "complexity": null,
   "created_at": "2026-08-30T04:44:51Z",
   "created_by": "agent:qa-priya",
@@ -10,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M18FR43CZ2E1ZTEK0MKFDMDT",
-  "last_event_id": "ev_01M18FRE8ZB1TEWKTK9YW3N5YT",
-  "last_status_changed_at": "2026-08-30T04:44:51Z",
+  "last_event_id": "ev_01M18MZNQR61DPWAYJ8RW01KA4",
+  "last_status_changed_at": "2026-08-30T06:16:21Z",
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-11",
-  "status": "backlog",
+  "status": "planned",
   "tags": null,
   "title": "Chat: residual existence oracles for hidden channels \u2014 DM 403 type-marking + threadRoot cross-conversation probe (document or close)",
   "type": "task",
-  "updated_at": "2026-08-30T04:45:02Z",
+  "updated_at": "2026-08-30T06:16:22Z",
   "urgency": null
 }
