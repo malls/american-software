@@ -106,3 +106,4 @@
 {"type":"message","id":152,"thread_root_id":null,"author":"system:lattice","body":"AS-21: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T19:23:42.967Z"}
 {"type":"message","id":153,"thread_root_id":null,"author":"system:lattice","body":"AS-21: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T19:24:12.996Z"}
 {"type":"message","id":154,"thread_root_id":null,"author":"system:lattice","body":"AS-21: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T19:27:24.803Z"}
+{"type":"message","id":155,"thread_root_id":null,"author":"system:lattice","body":"AS-21: review → done — by agent:qa-priya","created_at":"2026-08-30T19:31:47.207Z"}
