@@ -324,6 +324,13 @@ export function openStore(dbPath) {
       .get(conversationId, identityId);
   }
 
+  /** Existing DM conversation id for the pair, or null. Pure lookup by
+   *  dm_key — never creates (AS-8 roster join; openDm stays the create path). */
+  function dmConversationFor(me, other) {
+    const row = db.prepare('SELECT id FROM conversations WHERE dm_key = ?').get(dmKeyFor(me, other));
+    return row ? Number(row.id) : null;
+  }
+
   function openDm(me, other) {
     requireIdentity(me);
     requireIdentity(other);
@@ -744,6 +751,7 @@ export function openStore(dbPath) {
     getConversation,
     requireConversation,
     openDm,
+    dmConversationFor,
     dmMembers,
     listConversationsFor,
     postMessage,
