@@ -271,6 +271,13 @@ export function openStore(dbPath) {
     if (!['public', 'private'].includes(visibility)) {
       throw new StoreError(`Invalid visibility '${visibility}'. Must be 'public' or 'private'.`);
     }
+    // AS-24 (rule promoted from the AS-22 CLI preflight): a members list on a
+    // non-private channel is an error at the store level, so the CLI and the
+    // HTTP API enforce it identically. Silently ignoring members would create
+    // the worst failure mode — a "restricted" channel that is actually public.
+    if (visibility !== 'private' && members != null) {
+      throw new StoreError("A members list requires visibility 'private'.");
+    }
     if (visibility === 'private') {
       // Store-level only in AS-6: no CLI/HTTP/UI surface exposes these params.
       if (!Array.isArray(members) || members.length === 0) {

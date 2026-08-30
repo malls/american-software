@@ -127,6 +127,8 @@ Plumbing:
   `self`, `work` (`{shortId, taskId, title, status, url}` or `null` = idle),
   and `moreTasks`. Reads personnel frontmatter and Lattice task
   assignment/status only — both repo-public; it never touches channels.
+  `me` is optional since AS-24 (CLI parity): without it the viewer-relative
+  fields are omitted entirely.
 - The frontmatter parser (`lib/personnel.js`) is a deliberate YAML subset:
   flat `key: value` scalars, optional quotes, optional inline `# comments`.
   Per the CLAUDE.md Org Chart contract, schema nesting/lists would be a
@@ -146,6 +148,44 @@ container). Read commands accept `--json`; stdout carries only CLI output, so
 `--json | jq` works. Channel resolution is visibility-gated: a private
 channel you are not a member of behaves exactly like one that does not exist
 (see "Private channels & #board").
+
+### Backend modes (AS-24): the CLI self-routes
+
+While a chat server is up, **the server is the single reader/writer of the
+shared DB** — on the macOS Docker bind mount, a host-side process opening the
+same SQLite file can see (and write) a divergent WAL view the server never
+sees (verified: a host `chat dm` "succeeded" as message 161 that the server
+never saw). So the CLI decides **once per invocation, before touching
+anything**, which backend serves it:
+
+- **API mode** — every command (reads AND writes, `dump`/`export` included)
+  is proxied through the server HTTP API. The CLI never opens a DB file at
+  all. `--json` output shapes are identical to direct mode.
+- **Direct mode** — the pre-AS-24 behavior: open the SQLite file. Survives
+  only where it is provably safe (see precedence below).
+
+Precedence (one decision per invocation):
+
+1. `CHAT_MODE=api` — force API mode; an unreachable server is a loud error.
+2. `CHAT_MODE=direct` — force direct mode, no probe. Operator/offline escape
+   hatch: **you own the divergence risk.**
+3. `CHAT_API` set — probe that URL (`GET /api/identities`, ~500ms, shape-
+   checked). Up → API mode; hard `ECONNREFUSED`/`ENOTFOUND` → direct mode;
+   **anything else (timeout, 5xx, wrong-shaped response) → exit 1 with a
+   refusal naming AS-24, zero side effects.** Ambiguity never silently falls
+   back to the DB file — silent divergence was the failure mode.
+4. `CHAT_DB` set (and no `CHAT_API`) — direct mode, no probe: an explicit
+   alternate store is by definition not the DB the server owns. (This is
+   what keeps the whole test suite hermetic — tests never probe the real
+   port 8347.)
+5. Neither — probe `http://127.0.0.1:8347`, then as in 3.
+
+The containerized CLI (`./apps/chat/chat`) sets `CHAT_API=http://server:8347`
+in compose, so it proxies to the server service whenever it is up and falls
+back to direct mode against the bind mount (hard connection-refused/not-found)
+when it is not. In API mode, `inbox`/`sync` force a lattice ingest via
+`POST /api/sync` (no 10s throttle), and `export` still writes its files where
+the caller runs — only the data comes from the server.
 
 ```
 chat channels                          list channels + DMs with unread counts
@@ -185,8 +225,10 @@ In-container values are set by the image/compose; callers only set `CHAT_ME`.
 | Var | Set by | Value | Meaning |
 |---|---|---|---|
 | `CHAT_ME` | caller | — | CLI identity (same as `--me`); forwarded by compose |
+| `CHAT_MODE` | caller | — | CLI backend override (AS-24): `api` (server required) or `direct` (no probe; you own the divergence risk). Unset → auto-detect per the precedence above |
+| `CHAT_API` | compose (`cli`) | `http://server:8347` | server base URL the CLI probes/proxies through (AS-24). Beats `CHAT_DB`; on the host it defaults to `http://127.0.0.1:8347` when neither is set |
 | `CHAT_BIND` | compose | `0.0.0.0` | server bind inside the container (the app's own default stays `127.0.0.1`; loopback-only is enforced by the `127.0.0.1:8347:8347` port map) |
-| `CHAT_DB` | image | `/app/data/chat.db` | SQLite path in-container (bind-mounted to `apps/chat/data/`) |
+| `CHAT_DB` | image | `/app/data/chat.db` | SQLite path in-container (bind-mounted to `apps/chat/data/`); used by the CLI only in direct mode — setting it explicitly (without `CHAT_API`) selects direct mode against that alternate store |
 | `CHAT_REPO_ROOT` | image | `/repo` | repo root for read-only mounts: `.lattice/` at `/repo/.lattice`, `personnel/` at `/repo/personnel` (AS-8) |
 | `LATTICE_DASHBOARD_URL` | caller | `http://127.0.0.1:8799` | base URL for the Lattice-dashboard deep links rendered by chat (AS-10); forwarded by compose, trailing `/` trimmed, empty = default |
 | `PORT` | — | `8347` | change only via a compose override file, not env |
