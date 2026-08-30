@@ -87,9 +87,15 @@ function bodyNode(message) {
     div.appendChild(document.createTextNode(message.body.slice(last, m.index)));
     const ref = refs.find((r) => r.shortId === m[0]);
     const a = el('a', 'ref-link', m[0]);
-    a.href = '#';
+    // Real href to the Lattice dashboard (AS-10): copy-link and modified
+    // clicks (cmd/ctrl/shift/alt/middle) go to the dashboard in a new tab;
+    // a plain click keeps the in-app task panel.
+    a.href = ref.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
     a.title = `${ref.title} — ${ref.status}`;
     a.addEventListener('click', (e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
       e.preventDefault();
       showTaskPanel(ref.shortId);
     });
@@ -261,7 +267,11 @@ async function showTaskPanel(shortId) {
   } else {
     const title = el('div', null, task.title);
     title.style.fontWeight = '600';
-    body.replaceChildren(title, el('span', 'status', task.status), el('div', 'task-id', task.taskId));
+    const open = el('a', 'lattice-open', 'Open in Lattice ↗');
+    open.href = task.url;
+    open.target = '_blank';
+    open.rel = 'noopener';
+    body.replaceChildren(title, el('span', 'status', task.status), el('div', 'task-id', task.taskId), open);
   }
   $('#task-panel').hidden = false;
 }

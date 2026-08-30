@@ -24,7 +24,8 @@ services:
     ports:
       - "127.0.0.1:8347:8347"
     environment:
-      CHAT_BIND: 0.0.0.0
+      - CHAT_BIND=0.0.0.0
+      - LATTICE_DASHBOARD_URL # dashboard link base (AS-10); unset -> app default
     volumes:
       - ./data:/app/data
       - ../../.lattice:/repo/.lattice:ro

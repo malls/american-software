@@ -13,6 +13,7 @@ import {
   readTaskEvents,
   formatEvent,
   ingestNewEvents,
+  dashboardTaskUrl,
 } from '../lib/lattice.js';
 
 const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
@@ -25,8 +26,38 @@ test('resolveShortId resolves existing tasks and flags missing ones', () => {
     taskId: 'task_TESTAAAA',
     title: 'Fixture task seven',
     status: 'in_progress',
+    url: 'http://127.0.0.1:8799/#/task/task_TESTAAAA',
   });
-  assert.deepEqual(resolveShortId('AS-999', FIXTURE_ROOT), { shortId: 'AS-999', exists: false });
+  const miss = resolveShortId('AS-999', FIXTURE_ROOT);
+  assert.deepEqual(miss, { shortId: 'AS-999', exists: false });
+  assert.ok(!('url' in miss), 'unresolvable codes carry no url (AS-10)');
+});
+
+test('dashboardTaskUrl: default base, env override, trailing-slash trim (AS-10)', () => {
+  const saved = process.env.LATTICE_DASHBOARD_URL;
+  try {
+    delete process.env.LATTICE_DASHBOARD_URL;
+    assert.equal(dashboardTaskUrl('task_TESTAAAA'), 'http://127.0.0.1:8799/#/task/task_TESTAAAA');
+    // Compose passthrough sets "" when the host var is absent: treated as unset.
+    process.env.LATTICE_DASHBOARD_URL = '';
+    assert.equal(dashboardTaskUrl('task_TESTAAAA'), 'http://127.0.0.1:8799/#/task/task_TESTAAAA');
+    process.env.LATTICE_DASHBOARD_URL = 'http://127.0.0.1:9999';
+    assert.equal(dashboardTaskUrl('task_TESTAAAA'), 'http://127.0.0.1:9999/#/task/task_TESTAAAA');
+    process.env.LATTICE_DASHBOARD_URL = 'http://127.0.0.1:9999/';
+    assert.equal(
+      dashboardTaskUrl('task_TESTAAAA'),
+      'http://127.0.0.1:9999/#/task/task_TESTAAAA',
+      'trailing slash is trimmed'
+    );
+    // resolveShortId builds its url through the same base.
+    assert.equal(
+      resolveShortId('AS-7', FIXTURE_ROOT).url,
+      'http://127.0.0.1:9999/#/task/task_TESTAAAA'
+    );
+  } finally {
+    if (saved === undefined) delete process.env.LATTICE_DASHBOARD_URL;
+    else process.env.LATTICE_DASHBOARD_URL = saved;
+  }
 });
 
 test('resolveRefs extracts unique refs; unresolvable codes are flagged, not dropped', () => {
