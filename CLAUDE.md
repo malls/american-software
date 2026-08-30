@@ -1,34 +1,62 @@
 # american-software-company
-A high level overview of what this repo is is available in `PHILOSOPHY.md`. In addition to the software product itself, we need adequate internal tools to track decision history, and records of legal documents, external URLs, and non-code stuff of that nature. This file should be freely updated as decisions are made within the context of a chat. Prioritize updating this file over memoriess. 
+A high level overview of what this repo is is available in `PHILOSOPHY.md`. In addition to the software product itself, we need adequate internal tools to track decision history, and records of legal documents, external URLs, and non-code stuff of that nature. This file should be freely updated as decisions are made within the context of a chat. Prioritize updating this file over memoriess.
+
+GitHub remote: https://github.com/malls/american-software. `README.md` is the public face of the repo — keep it current: when the repo structure, operating model, product, or company status changes materially, update the README as part of that change (its Status section goes stale fastest).
 
 
-## Persona Agents
+## Persona Agents / Employees
 Agents reporesent employees of this company. They have job titles, backgrounds, personas, and biases informed by their experience, and their own self interest. They are "hired" when a piece of work requires work that would be done by a person at a company with a job title that does not exist yet. They are prefixed by type, and given unique first names. For example, `pm-bob` or `qa-automation-manager-alice` or `copywriter-al`. When hired, record the date, give them a Myers Briggs type, and a resume with their experience.
 
 Special attributes: `cofounders` are allowed to spend as many tokens as they like. `managers` can trigger subagents. `ics` do the actual work, and report to `managers`. `managers` report to `c level`. `cofounders` are `managers` and `c level` and `ics` by default.
 
 Employees should leave lattice comments as they contribute to the work. Employees talk to each other over a user-visible "Slack" type app that the user can also particulate in. 
 
+## Investor / Board
+Forrest (the user) is the sole investor/board member. Background: tech, "retired" in his 30s, pivoted to investing. Communicate with him at full technical depth — no dumbing down. He expects to greenlight most decisions rather than veto them; keep approval gates lightweight but still surface them (especially spend >$50 per PHILOSOPHY.md). Recorded 2026-08-29 from his own words.
+
+## Operating Modes: Chat vs. Loop
+
+**Chat is the investor channel (decided 2026-08-29).** Anything Forrest sends directly through Claude Code chat is an investor/board interaction — questions, decisions, unblocking, meta-work on the company's operating rules. **Do NOT create Lattice tasks for direct chat requests.** Handle them in-session, at investor altitude. The only exception is when Forrest explicitly asks to queue something for the company — then create a backlog task attributed `human:forrest` and let the loop pick it up rather than doing it in chat.
+
+**The loop is the company (target state).** The intended operating model is an autonomous agent loop where employees create, claim, and complete Lattice tasks on their own — not chat-triggered work. One tick of the company is the `/advance` command (`.claude/commands/advance.md`); run it continuously with `/loop /advance` in a live session, or unattended via scheduled agents. All Lattice discipline below applies to loop work; chat is exempt per the above.
+
 ## Org Chart
-TODO, we need a smart means of tracking reporting structure and team assignment. 
+TODO, we need a smart means of tracking reporting structure and team assignment.
+
+This future system also owns all **non-engineering work tracking**: HR tasks (hiring, employee records, resumes, org changes), legal, marketing, business strategy, and purchasing do NOT go in Lattice — Lattice is scoped to software development only (see below). Designing this system is itself an engineering project for the employees to take on (that project *does* get Lattice tasks). Until it exists, non-dev decisions and records live in this file or in dedicated docs in the repo.
+
+## Infra
+All services will be hosted on Digital Ocean. This is a GitHub repository.
 
 ## Lattice
 
-> **MANDATORY: This project has Lattice initialized (`.lattice/` exists). You MUST use Lattice to track all work. Creating tasks, updating statuses, and following the workflow below is not optional — it is a hard requirement. Failure to track work in Lattice is a coordination failure: other agents and humans cannot see, build on, or trust untracked work. If you are about to write code and no Lattice task exists for it, stop and create one first.**
+> **MANDATORY: This project has Lattice initialized (`.lattice/` exists). You MUST use Lattice to track all software development work. Creating tasks, updating statuses, and following the workflow below is not optional — it is a hard requirement. Failure to track dev work in Lattice is a coordination failure: other agents and humans cannot see, build on, or trust untracked work. If you are about to write code and no Lattice task exists for it, stop and create one first.**
 
 Lattice is file-based, event-sourced task tracking built for minds that think in tokens and act in tool calls. The `.lattice/` directory is the coordination state — it lives alongside the code, not behind an API.
 
+**In-fiction framing (decided 2026-08-29):** Lattice is the company's chosen off-the-shelf engineering issue tracker — the equivalent of a real startup adopting Linear or Jira rather than building its own. It is also the investor's required audit trail: the human mandates it for governance and legibility, the way an investor demands clean books. Employees own everything built *on top* of it — dashboards, the "Slack" app, and org-chart tooling may freely read and write `.lattice/` files. Cofounders may propose replacing Lattice, but that is a real migration project requiring investor sign-off, not a whim.
+
+### Scope: Software Development Only
+
+Lattice tracks **engineering work** — anything that changes code or technical infrastructure: features, bugs, refactors, cleanup, internal tools, CI, deployment config.
+
+Lattice does **not** track non-engineering company work: hiring and HR (employee records, resumes, org changes), legal, marketing, business strategy, purchasing, incorporation. That work belongs to the (TBD) org-chart / internal-operations system — see "Org Chart" above. Until that system exists, record non-dev decisions and artifacts in this file or in dedicated docs in the repo. Note the boundary: *building* the org-chart/HR system is engineering and gets Lattice tasks; the HR records it manages do not.
+
+### Every Actor Is an Employee
+
+There are no anonymous agents at this company. Every `--actor` on every Lattice operation is a specific persona employee (e.g., `agent:pm-bob`, `agent:developer-dana`, `agent:qa-alice`) or the human (`human:forrest`). Generic lifecycle IDs like `agent:claude-planner` are forbidden — if no employee with the right job title exists yet, hire one first (see "Persona Agents / Employees"). The event log doubles as the company's record of who did what.
+
 ### Creating Tasks (Non-Negotiable)
 
-Before you plan, implement, or touch a single file — the task must exist in Lattice. This is the first thing you do when work arrives.
+Before you plan, implement, or touch a single file — the task must exist in Lattice. This is the first thing you do when engineering work arrives.
 
 ```
-lattice create "<title>" --actor agent:<your-id>
+lattice create "<title>" --actor agent:<employee-id>
 ```
 
-**Create a task for:** Any work that will produce commits — features, bugs, refactors, cleanup, pivots.
+**Create a task for:** Any software development work that will produce commits — features, bugs, refactors, cleanup, technical pivots.
 
-**Skip task creation only when:** The work is a sub-step of a task you're already tracking (lint fixes within your feature, test adjustments from your change), pure research with no deliverable, or work explicitly scoped under an existing task.
+**Skip task creation only when:** The work is non-engineering (HR, legal, marketing — see Scope above), a sub-step of a task you're already tracking (lint fixes within your feature, test adjustments from your change), pure research with no deliverable, or work explicitly scoped under an existing task.
 
 When in doubt, create the task. A small task costs nothing. Lost visibility costs everything.
 
@@ -47,7 +75,7 @@ Descriptions tell *what* and *why*. Plan files tell *how*.
 Every transition is an immutable, attributed event. **The cardinal rule: update status BEFORE you start the work, not after.** If the board says `backlog` but you're actively working, the board is lying and every mind reading it makes decisions on false information.
 
 ```
-lattice status <task> <status> --actor agent:<your-id>
+lattice status <task> <status> --actor agent:<employee-id>
 ```
 
 ```
@@ -64,32 +92,32 @@ backlog → in_planning → planned → in_progress → review → done
 - `done` — only after a review has been performed and recorded.
 - Spawning a sub-agent? Update status in the parent context first.
 
-### Sub-Agent Execution Model
+### Employee Execution Model
 
-Each lifecycle stage gets its own sub-agent with fresh context. This is the default execution pattern — not a suggestion, not complexity-gated. Every task, every time.
+Each lifecycle stage gets its own sub-agent with fresh context, and each sub-agent *is* a specific employee doing the job their title implies. This mirrors a real dev team: a PM scopes and plans, a developer builds, QA verifies. Every task, every time.
 
-**Why this matters:** When a planning agent writes a plan and a separate implementation agent reads it, the plan *must* be clear and complete — there's no shared context to fall back on. This forces better plans. When a review agent reads the diff cold, it catches things the implementer's context-polluted mind would miss. The plan file and git diff are the handoff artifacts.
+**Why this matters:** When a PM writes a plan and a separate developer reads it, the plan *must* be clear and complete — there's no shared context to fall back on. This forces better plans. When QA reads the diff cold, it catches things the implementer's context-polluted mind would miss. The plan file and git diff are the handoff artifacts.
 
-**The three sub-agents:**
+**The three roles:**
 
-| Stage | Sub-agent does | Reads | Produces |
-|-------|---------------|-------|----------|
-| **Plan** | Explore codebase, write plan, move to `planned` | Task description | Plan file |
-| **Implement** | Read plan, build it, test, commit, move to `review` | Plan file | Committed code |
-| **Review** | Read diff cold, review against acceptance criteria, record findings | Git diff + plan | Review comment (`--role review`), move to `done` |
+| Stage | Employee | Does | Reads | Produces |
+|-------|----------|------|-------|----------|
+| **Plan** | `pm-*` or a tech lead | Explore codebase, write plan, move to `planned` | Task description | Plan file |
+| **Implement** | `developer-*` (or the relevant IC) | Read plan, build it, test, commit, move to `review` | Plan file | Committed code |
+| **Review** | `qa-*` — never the implementer | Read diff cold, review against acceptance criteria, record findings | Git diff + plan | Review comment (`--role review`), move to `done` |
 
-**The parent orchestrator** (the main agent session) manages the lifecycle:
-1. Move the task to `in_planning` before spawning the planning sub-agent.
-2. After the planner finishes, move to `in_progress` and spawn the implementation sub-agent.
-3. After the implementer finishes, the review sub-agent runs independently.
+**The orchestrator** (the main session, acting as the responsible `manager` or `cofounder`) manages the lifecycle:
+1. Move the task to `in_planning` before spawning the planning employee.
+2. After the plan is written, move to `in_progress` and spawn the implementing employee.
+3. After implementation, the QA employee reviews independently.
 
-Each sub-agent should use a distinct actor ID (e.g., `agent:claude-opus-4-planner`, `agent:claude-opus-4-impl`, `agent:claude-opus-4-reviewer`) so the event log shows who did what.
+Each sub-agent uses its employee's actor ID (e.g., `agent:pm-bob`, `agent:developer-dana`, `agent:qa-alice`) so the event log shows who did what. Per the org rules above, only `manager`-class employees (and cofounders) spawn sub-agents.
 
 ### The Planning Gate
 
 The plan file lives at `.lattice/plans/<task_id>.md` — scaffolded on creation, empty until you fill it.
 
-This is the **planning sub-agent's** job. Spawn a sub-agent whose sole purpose is to explore the codebase, understand the problem, and write the plan. It should:
+This is the **planning employee's** job (a `pm-*` or tech lead). Spawn that employee as a sub-agent whose sole purpose is to explore the codebase, understand the problem, and write the plan. It should:
 1. Read the task description and any linked context.
 2. Explore the relevant source files — understand existing patterns and constraints.
 3. Write the plan to `.lattice/plans/<task_id>.md` — scope, approach, key files, acceptance criteria. For trivial tasks, a single sentence is fine. For substantial work, be thorough.
@@ -101,7 +129,7 @@ This is the **planning sub-agent's** job. Spawn a sub-agent whose sole purpose i
 
 Moving to `review` is a commitment to actually review the work.
 
-This is the **review sub-agent's** job. Spawn a sub-agent with fresh context — it did NOT write the code and comes in cold. It should:
+This is the **QA employee's** job (a `qa-*`). Spawn that employee as a sub-agent with fresh context — it did NOT write the code and comes in cold. It should:
 1. Read the plan file to understand what was supposed to be built.
 2. Read the git diff to see what was actually built.
 3. Run tests and linting to verify nothing is broken.
@@ -110,11 +138,11 @@ This is the **review sub-agent's** job. Spawn a sub-agent with fresh context —
 
 **When moving to `done`:** If the completion policy blocks you for a missing review artifact, do the review. Do not `--force` past it. `--force --reason` is for genuinely exceptional cases, not a convenience shortcut.
 
-**The test:** If the same agent that wrote the code also reviewed it without a fresh context boundary, the review gate is not doing its job. The whole point is independent verification.
+**The test:** If the same employee that wrote the code also reviewed it without a fresh context boundary, the review gate is not doing its job. The whole point is independent verification — no company lets the developer approve their own release.
 
 ### Review Rework Loop
 
-When a review agent evaluates work, it produces one of three outcomes:
+When the QA employee evaluates work, it produces one of three outcomes:
 
 1. **Pass (with optional minor fix):** The review agent uses vibes-based judgment. If the only issues are trivial (obvious typos, missing semicolons, etc.), fix them inline, record what was changed in the review comment, and move to `done`. No strict line-count threshold — the review agent decides.
 
@@ -126,10 +154,10 @@ When a review agent evaluates work, it produces one of three outcomes:
 
 | Decision | Who | How |
 |----------|-----|-----|
-| Fix inline vs send back | Review agent | Vibes-based judgment, recorded in review comment |
-| Implementation-level vs plan-level | Review agent | Explicitly stated in review comment |
-| Route to in_progress vs in_planning | Orchestrator | Follows review agent's recommendation |
-| Whether to spawn fresh sub-agent | Orchestrator | Encouraged by convention, not enforced |
+| Fix inline vs send back | QA employee | Vibes-based judgment, recorded in review comment |
+| Implementation-level vs plan-level | QA employee | Explicitly stated in review comment |
+| Route to in_progress vs in_planning | Orchestrator (manager) | Follows QA's recommendation |
+| Whether to spawn fresh sub-agent | Orchestrator (manager) | Encouraged by convention, not enforced |
 
 **3-cycle safety valve:** After 3 review-to-rework transitions (any combination of `review -> in_progress` and `review -> in_planning`), the CLI blocks the 4th attempt. The error message instructs the agent to move the task to `needs_human` with a comment explaining the situation. The limit is configurable via `review_cycle_limit` in the workflow config (default: 3). Override with `--force --reason` for genuinely exceptional cases.
 
@@ -148,25 +176,25 @@ Max cycles:   3 review->rework transitions, then CLI blocks -> needs_human
 Use `needs_human` when you need human decision, approval, or input. This is distinct from `blocked` (generic external dependency) — it creates a scannable queue.
 
 ```
-lattice status <task> needs_human --actor agent:<your-id>
-lattice comment <task> "Need: <what you need, in one line>" --actor agent:<your-id>
+lattice status <task> needs_human --actor agent:<employee-id>
+lattice comment <task> "Need: <what you need, in one line>" --actor agent:<employee-id>
 ```
 
 Use for: design decisions requiring human judgment, missing access/credentials, ambiguous requirements, approval gates. The comment is mandatory — explain what you need in seconds, not minutes. The human's queue should be scannable.
 
 ### Actor Attribution
 
-Every operation requires `--actor`. Attribution follows authorship of the *decision*, not the keystroke.
+Every operation requires `--actor`, and every agent actor is a named employee (see "Every Actor Is an Employee" above). Attribution follows authorship of the *decision*, not the keystroke.
 
-- Agent decided autonomously → `agent:<id>`
-- Human typed it directly → `human:<id>`
-- Human meaningfully shaped the outcome → `human:<id>` (agent was the instrument)
+- Employee decided autonomously → `agent:<employee-id>` (e.g., `agent:developer-dana`)
+- Human typed it directly → `human:forrest`
+- Human meaningfully shaped the outcome → `human:forrest` (the employee was the instrument)
 
 When in doubt, credit the human.
 
 ### Branch Linking
 
-Link feature branches to tasks: `lattice branch-link <task> <branch-name> --actor agent:<your-id>`. Auto-detection works when the branch contains the short code (e.g., `feat/LAT-42-login`), but explicit linking is preferred.
+Link feature branches to tasks: `lattice branch-link <task> <branch-name> --actor agent:<employee-id>`. Auto-detection works when the branch contains the short code (e.g., `feat/LAT-42-login`), but explicit linking is preferred.
 
 ### Leave Breadcrumbs
 
@@ -190,13 +218,13 @@ When you discover something important about how this project works — a pattern
 ### Quick Reference
 
 ```
-lattice create "<title>" --actor agent:<id>
-lattice status <task> <status> --actor agent:<id>
-lattice assign <task> <actor> --actor agent:<id>
-lattice comment <task> "<text>" --actor agent:<id>
-lattice link <task> <type> <target> --actor agent:<id>
-lattice branch-link <task> <branch> --actor agent:<id>
-lattice next [--actor agent:<id>] [--claim]
+lattice create "<title>" --actor agent:<employee-id>
+lattice status <task> <status> --actor agent:<employee-id>
+lattice assign <task> <actor> --actor agent:<employee-id>
+lattice comment <task> "<text>" --actor agent:<employee-id>
+lattice link <task> <type> <target> --actor agent:<employee-id>
+lattice branch-link <task> <branch> --actor agent:<employee-id>
+lattice next [--actor agent:<employee-id>] [--claim]
 lattice show <task>
 lattice list
 ```
