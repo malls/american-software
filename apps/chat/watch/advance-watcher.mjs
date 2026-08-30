@@ -145,12 +145,16 @@ export function decide({ sentinel, highwater, lock, now, config, debounceUntil }
 // Exact child env for a spawned tick — per-variable reasons documented at the
 // spawn site in fire(). Exported so the test suite pins the set: any future
 // narrowing or widening must change this function AND its test, deliberately.
-export function tickChildEnv(env = process.env) {
+export function tickChildEnv(env = process.env, watcherPid = process.pid) {
   return {
     PATH: env.PATH,
     HOME: env.HOME,
     USER: env.USER, // AS-14: macOS Keychain auth needs the user identity
     LOGNAME: env.LOGNAME,
+    // AS-15: parent marker — lets the spawned tick's advance.md step 0
+    // recognize the watcher's own advance.lock (source:"watcher", this pid)
+    // as its own and proceed instead of self-cancelling as "lock held".
+    ADVANCE_TICK_PARENT: `watcher:${watcherPid}`,
   };
 }
 
@@ -369,10 +373,10 @@ function main() {
     const tickLog = createWriteStream(tickLogPath, { flags: 'a' });
     log(`FIRE messageId ${sentinel.messageId} from ${sentinel.authorId} -> ${tickLogPath}`);
 
-    // Child env: exactly {PATH, HOME, USER, LOGNAME} via tickChildEnv()
-    // (unit-tested pin). launchd's default env is thin, and the minimal-env
-    // principle stands: every variable here has a stated reason, and any
-    // addition needs one too (AS-14).
+    // Child env: exactly {PATH, HOME, USER, LOGNAME, ADVANCE_TICK_PARENT} via
+    // tickChildEnv() (unit-tested pin). launchd's default env is thin, and the
+    // minimal-env principle stands: every variable here has a stated reason,
+    // and any addition needs one too (AS-14).
     //   PATH    — locate node + claude (the launchd plist sets it).
     //   HOME    — claude config/state directory resolution.
     //   USER    — claude's macOS Keychain auth resolves the login keychain
@@ -380,6 +384,11 @@ function main() {
     //             "Not logged in · Please run /login" (AS-14).
     //   LOGNAME — POSIX twin of USER, same identity-resolution reason; some
     //             tooling reads one, some the other.
+    //   ADVANCE_TICK_PARENT — "watcher:<this watcher's pid>". Advance.md
+    //             step 0 matches it against advance.lock (source "watcher" +
+    //             same pid) so a watcher-fired tick recognizes its parent's
+    //             lock as its own instead of no-oping on it; the watcher, not
+    //             the tick, releases that lock in settle() (AS-15).
     // AS-13 #3: timers and handlers close over this fire's own `proc`, never
     // the mutable module-level `child` — a timed-out tick's stray SIGKILL
     // timer must not be able to kill a successor tick. `child` remains only
@@ -389,7 +398,7 @@ function main() {
       ['-p', '/advance', '--permission-mode', config.permissionMode, '--output-format', 'text'],
       {
         cwd: config.repoRoot,
-        env: tickChildEnv(process.env),
+        env: tickChildEnv(process.env, process.pid),
         stdio: ['ignore', 'pipe', 'pipe'],
       }
     );

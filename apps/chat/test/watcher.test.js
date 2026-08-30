@@ -285,10 +285,12 @@ test('makeLockOps: foreign overwrite between create and verify yields without un
 
 // --- AS-14: tick child env pin ----------------------------------------------
 
-test('tickChildEnv: pins exactly {PATH, HOME, USER, LOGNAME} — no more, no less', () => {
+test('tickChildEnv: pins exactly {PATH, HOME, USER, LOGNAME, ADVANCE_TICK_PARENT} — no more, no less', () => {
   // USER/LOGNAME earn their place via claude's macOS Keychain auth (AS-14);
-  // PATH/HOME per the AS-7 minimal-env rule. Changing this set means changing
-  // tickChildEnv AND this test — a deliberate act with a stated reason.
+  // PATH/HOME per the AS-7 minimal-env rule; ADVANCE_TICK_PARENT is the
+  // watcher's parent marker so a spawned tick recognizes its parent's
+  // advance.lock (AS-15). Changing this set means changing tickChildEnv AND
+  // this test — a deliberate act with a stated reason.
   const fat = {
     PATH: '/opt/bin:/usr/bin',
     HOME: '/Users/forrest',
@@ -299,15 +301,30 @@ test('tickChildEnv: pins exactly {PATH, HOME, USER, LOGNAME} — no more, no les
     TMPDIR: '/var/folders/xx',
     SSH_AUTH_SOCK: '/tmp/agent.sock',
     ANTHROPIC_MODEL: 'nope',
+    // Even a pre-existing marker in the source env must not leak through —
+    // the child's marker names THIS watcher, not an ancestor's:
+    ADVANCE_TICK_PARENT: 'watcher:99999',
   };
-  assert.deepEqual(tickChildEnv(fat), {
+  assert.deepEqual(tickChildEnv(fat, 4242), {
     PATH: '/opt/bin:/usr/bin',
     HOME: '/Users/forrest',
     USER: 'forrest',
     LOGNAME: 'forrest',
+    ADVANCE_TICK_PARENT: 'watcher:4242',
   });
+  // Marker format: "watcher:<pid>", the exact pid passed in.
+  assert.match(tickChildEnv({}, 17730).ADVANCE_TICK_PARENT, /^watcher:\d+$/);
+  assert.equal(tickChildEnv({}, 17730).ADVANCE_TICK_PARENT, 'watcher:17730');
+  // Default watcherPid is this process — the watcher passes its own pid.
+  assert.equal(tickChildEnv({}).ADVANCE_TICK_PARENT, `watcher:${process.pid}`);
   // Key set is stable even when the source env is thin (launchd).
-  assert.deepEqual(Object.keys(tickChildEnv({})).sort(), ['HOME', 'LOGNAME', 'PATH', 'USER']);
+  assert.deepEqual(Object.keys(tickChildEnv({}, 1)).sort(), [
+    'ADVANCE_TICK_PARENT',
+    'HOME',
+    'LOGNAME',
+    'PATH',
+    'USER',
+  ]);
 });
 
 test('config: defaults match the plan; env overrides apply; junk env falls back', () => {
