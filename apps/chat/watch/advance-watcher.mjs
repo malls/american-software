@@ -164,8 +164,25 @@ export function tickChildEnv(env = process.env, watcherPid = process.pid) {
 // and ADVANCE_TICK_PARENT above stays only as belt for env-readable contexts.
 // Exported so the test suite pins the array exactly like tickChildEnv: any
 // change to the spawn argv changes this function AND its test, deliberately.
-export function tickArgv(watcherPid = process.pid, permissionMode = DEFAULTS.permissionMode) {
-  return [
+//
+// AS-21: permission grants ride the argv too. Project-scope
+// .claude/settings.json allowlists never load for headless `claude -p`
+// children (workspace trust is granted interactively; a headless child logs
+// "Ignoring N permissions.allow entries … this workspace has not been
+// trusted"), so fire() passes the settings file's allow/deny lists explicitly
+// as --allowedTools / --disallowedTools. Both flags are variadic ("comma or
+// space-separated", claude --help 2026-08-30); we spawn without a shell and
+// rules contain internal spaces (`Bash(git *)`), so each rule is its own argv
+// element. A variadic flag consumes args until the next --flag, so the two
+// flag groups go last and the deny group terminates the array — no positional
+// args may follow. `rules` stays injected (never read from disk here) so this
+// function remains pure; loadPermissionRules below is the effectful reader.
+export function tickArgv(
+  watcherPid = process.pid,
+  permissionMode = DEFAULTS.permissionMode,
+  rules = { allow: [], deny: [] }
+) {
+  const argv = [
     '-p',
     `/advance watcher:${watcherPid}`,
     '--permission-mode',
@@ -173,6 +190,33 @@ export function tickArgv(watcherPid = process.pid, permissionMode = DEFAULTS.per
     '--output-format',
     'text',
   ];
+  if (rules.allow.length > 0) argv.push('--allowedTools', ...rules.allow);
+  if (rules.deny.length > 0) argv.push('--disallowedTools', ...rules.deny);
+  return argv;
+}
+
+// AS-21: fire-time read of .claude/settings.json — the single source of truth
+// for permission grants (no hardcoded copy anywhere in this file; drift
+// between settings and runtime is the exact failure class that caused the
+// bug). Success -> { allow, deny } string arrays from the same parse, so
+// "allows passed but force-push denies dropped" is impossible by
+// construction. Missing/unreadable/unparsable/non-object -> null; the caller
+// logs a WARN and fires without extra grants (degraded, not broken — never a
+// hardcoded fallback list). Effectful (readFileSync), separately testable
+// against fixture files, composed by fire().
+export function loadPermissionRules(settingsPath) {
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(settingsPath, 'utf8'));
+  } catch {
+    return null;
+  }
+  if (parsed === null || typeof parsed !== 'object') return null;
+  const onlyStrings = (v) => (Array.isArray(v) ? v.filter((r) => typeof r === 'string') : []);
+  return {
+    allow: onlyStrings(parsed.permissions?.allow),
+    deny: onlyStrings(parsed.permissions?.deny),
+  };
 }
 
 // --- thin effectful shell ----------------------------------------------------
@@ -292,6 +336,7 @@ function main() {
     lock: join(dataDir, 'advance.lock'),
     pid: join(dataDir, 'advance-watcher.pid'),
     log: join(logsDir, 'advance-watcher.log'),
+    settings: join(config.repoRoot, '.claude', 'settings.json'),
   };
   mkdirSync(logsDir, { recursive: true });
 
@@ -390,6 +435,13 @@ function main() {
     const tickLog = createWriteStream(tickLogPath, { flags: 'a' });
     log(`FIRE messageId ${sentinel.messageId} from ${sentinel.authorId} -> ${tickLogPath}`);
 
+    // AS-21: permission grants re-read from .claude/settings.json at every
+    // fire — settings edits take effect on the next tick, no watcher restart.
+    const rules = loadPermissionRules(paths.settings);
+    if (rules === null) {
+      log(`WARN permission rules unavailable (${paths.settings} missing/unreadable/unparsable); firing without grants`);
+    }
+
     // Child env: exactly {PATH, HOME, USER, LOGNAME, ADVANCE_TICK_PARENT} via
     // tickChildEnv() (unit-tested pin). launchd's default env is thin, and the
     // minimal-env principle stands: every variable here has a stated reason,
@@ -409,13 +461,18 @@ function main() {
     //             var stays for any context where env IS readable (AS-15).
     //             Either way the watcher, not the tick, releases the lock in
     //             settle().
+    // Child argv (tickArgv, unit-tested pin): -p '/advance watcher:<pid>',
+    // --permission-mode, --output-format, then the AS-21 permission grants —
+    // --allowedTools/--disallowedTools carrying .claude/settings.json's
+    // allow/deny lists (loaded above; project-scope settings never load for
+    // headless children, so the argv is the grants' only transport).
     // AS-13 #3: timers and handlers close over this fire's own `proc`, never
     // the mutable module-level `child` — a timed-out tick's stray SIGKILL
     // timer must not be able to kill a successor tick. `child` remains only
     // the poll()/shutdown() gate, nulled iff it still points at this proc.
     const proc = spawn(
       config.claudeBin,
-      tickArgv(process.pid, config.permissionMode),
+      tickArgv(process.pid, config.permissionMode, rules ?? undefined),
       {
         cwd: config.repoRoot,
         env: tickChildEnv(process.env, process.pid),

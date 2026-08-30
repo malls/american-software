@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 7,
+  "comment_count": 8,
   "complexity": "medium",
   "created_at": "2026-08-30T02:52:08Z",
   "created_by": "human:forrest",
@@ -23,7 +23,7 @@
     }
   ],
   "id": "task_01M1899QAS56XVKP32A8WPFF9Z",
-  "last_event_id": "ev_01M19YQRMHFWT61A116Y4M5QWH",
+  "last_event_id": "ev_01M1A1XK8HBSX26REH3ZYY5B4E",
   "last_status_changed_at": "2026-08-30T06:11:44Z",
   "priority": "high",
   "relationships_out": [],
@@ -34,6 +34,6 @@
   "tags": null,
   "title": "Message-triggered /advance: chat app becomes the board member's primary interface",
   "type": "task",
-  "updated_at": "2026-08-30T18:26:03Z",
+  "updated_at": "2026-08-30T19:21:39Z",
   "urgency": null
 }

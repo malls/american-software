@@ -1,0 +1,39 @@
+{
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [
+    {
+      "branch": "feat/AS-21-tickargv-permission-grants",
+      "linked_at": "2026-08-30T19:22:27Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 3,
+  "complexity": "low",
+  "created_at": "2026-08-30T19:21:21Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": "Evidence (tick log apps/chat/data/logs/tick-2026-08-30T19-14-54.450Z.log): project-scope .claude/settings.json permission allowlists are INERT for headless `claude -p` children. The 19:14:54Z tick tested four commands the committed allowlist (65d567e, file mtime 19:13:56Z \u2014 on disk before spawn) explicitly allows: `lattice list` [Bash(lattice *)], `node -e` [Bash(node *)], `rtk --version` [Bash(rtk *)], `git add --dry-run` [Bash(git *)] \u2014 all four denied. The log's header line gives the mechanism: 'Ignoring 9 permissions.allow entries from .claude/settings.json: this workspace has not been trusted' \u2014 a headless child never sees the trust dialog, so project-scope allow rules never load. Read-only commands that still work pass via the built-in read-only heuristic, not our rules. This disproves rung 1 of the permission ladder in apps/chat/watch/README.md:94.\n\nFIX (board + orchestrator selected the tick's proposed fix #2): tickArgv() in apps/chat/watch/advance-watcher.mjs gains --allowedTools carrying exactly the grants from .claude/settings.json's allow list, and --disallowedTools carrying its deny list. The three force-push deny rules MUST survive \u2014 that is the git-methodology rule (force-push is always needs_human) riding on this change.\n\nOPEN DESIGN QUESTION for the planner, decide and record why: (a) read .claude/settings.json at fire time \u2014 single source of truth, no drift; or (b) hardcode the list in tickArgv with a comment pointing at settings.json \u2014 simpler, but two places to update. CTO's read going in: fire-time read is ~6 lines with node's JSON parsing and eliminates drift, which is the exact failure class that caused this bug (settings said allowed, runtime said denied).\n\nVerified flag syntax (claude --help, 2026-08-30): --allowedTools / --disallowedTools are variadic, 'comma or space-separated list' \u2014 the watcher spawns without a shell, so each rule rides as its own argv element.\n\nTest impact: apps/chat/test/watcher.test.js:332 pins the exact tickArgv argv array and must account for dynamically-loaded rules; test any settings loader against a fixture settings file, not the live repo file.",
+  "done_at": null,
+  "evidence_refs": [
+    {
+      "id": "ev_01M1A2EXQNWWEG8W3J9PATDHVX",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01M1A1X0XF2N6GX5302PRSHEZ6",
+  "last_event_id": "ev_01M1A2EXQNWWEG8W3J9PATDHVX",
+  "last_status_changed_at": "2026-08-30T19:27:21Z",
+  "priority": "high",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-21",
+  "status": "review",
+  "tags": null,
+  "title": "advance-watcher: pass permission grants via --allowedTools/--disallowedTools in tickArgv() \u2014 project settings allowlist is inert for headless ticks",
+  "type": "bug",
+  "updated_at": "2026-08-30T19:31:07Z",
+  "urgency": null
+}
