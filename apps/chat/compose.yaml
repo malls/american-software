@@ -29,6 +29,9 @@ services:
     volumes:
       - ./data:/app/data
       - ../../.lattice:/repo/.lattice:ro
+      # AS-8: read-only roster source. Missing mount degrades to an empty
+      # roster (DM-only sidebar) — never a crash.
+      - ../../personnel:/repo/personnel:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8347/api/identities').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
@@ -47,7 +50,10 @@ services:
     volumes:
       - ./data:/app/data
       - ../../.lattice:/repo/.lattice:ro
+      - ../../personnel:/repo/personnel:ro
 
+  # No mounts here by design: the suite passing mountless proves the tests
+  # touch no real state (personnel/ access included — fixtures only).
   test:
     build: .
     platform: linux/amd64

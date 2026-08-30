@@ -14,6 +14,7 @@ import {
   formatEvent,
   ingestNewEvents,
   dashboardTaskUrl,
+  assignmentsByActor,
 } from '../lib/lattice.js';
 
 const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
@@ -94,6 +95,39 @@ test('formatEvent formats creations and transitions; truncates long titles', () 
   assert.match(created8, /…" \[backlog\]$/, 'long title is truncated with an ellipsis');
   // status_changed without short_id in data resolves via ids.json reverse map.
   assert.match(formatEvent(byId.ev_B2, FIXTURE_ROOT), /^AS-8: backlog → cancelled — by agent:ceo-carla$/);
+});
+
+test('assignmentsByActor: in-flight only, priority ranking, recency tie-break (AS-8)', (t) => {
+  const map = assignmentsByActor(FIXTURE_ROOT);
+  // Only ada has in-flight assigned work. Excluded: done (TESTD1), backlog
+  // (TESTD2), cancelled (TESTD3), unassigned in-flight (TESTAAAA).
+  assert.deepEqual(Object.keys(map), ['agent:eng-ada']);
+  // in_progress outranks planned even with an older timestamp; among equal
+  // statuses, the more recent last_status_changed_at comes first.
+  assert.deepEqual(
+    map['agent:eng-ada'].map((e) => [e.shortId, e.status]),
+    [
+      ['AS-22', 'in_progress'],
+      ['AS-23', 'planned'],
+      ['AS-21', 'planned'],
+    ]
+  );
+  assert.deepEqual(map['agent:eng-ada'][0], {
+    shortId: 'AS-22',
+    taskId: 'task_TESTC2',
+    title: 'Ada primary in-progress',
+    status: 'in_progress',
+    url: 'http://127.0.0.1:8799/#/task/task_TESTC2', // AS-10 dashboard link
+  });
+  // Actors with nothing in flight are absent, not present-with-empty-array.
+  assert.ok(!('agent:qa-bob' in map));
+  assert.ok(!('agent:analyst-dora' in map));
+});
+
+test('assignmentsByActor: missing tasks dir yields an empty map', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'chat-lattice-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  assert.deepEqual(assignmentsByActor(dir), {});
 });
 
 test('ingestNewEvents is idempotent: five runs post each event exactly once (T6)', (t) => {

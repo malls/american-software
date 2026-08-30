@@ -1,0 +1,9 @@
+{
+  "id": "task_TESTC1",
+  "short_id": "AS-21",
+  "title": "Ada planned older",
+  "status": "planned",
+  "assigned_to": "agent:eng-ada",
+  "last_status_changed_at": "2026-08-30T01:00:00Z",
+  "schema_version": 1
+}

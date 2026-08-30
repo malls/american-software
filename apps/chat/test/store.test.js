@@ -75,6 +75,17 @@ test('createChannel validates name and uniqueness', (t) => {
   assert.throws(() => store.createChannel({ name: 'ok', actor: 'agent:nobody' }), /Unknown identity/);
 });
 
+test('dmConversationFor: null pre-DM, the conv id post-openDm, never creates (AS-8)', (t) => {
+  const { store } = tempStore(t);
+  assert.equal(store.dmConversationFor('human:forrest', 'agent:cto-owen'), null);
+  // The lookup itself must not have created anything.
+  assert.ok(!store.listConversationsFor('human:forrest').some((c) => c.type === 'dm'));
+  const dm = store.openDm('human:forrest', 'agent:cto-owen');
+  assert.equal(store.dmConversationFor('human:forrest', 'agent:cto-owen'), dm.id);
+  assert.equal(store.dmConversationFor('agent:cto-owen', 'human:forrest'), dm.id, 'order-insensitive');
+  assert.equal(store.dmConversationFor('human:forrest', 'agent:ceo-carla'), null);
+});
+
 test('DM is get-or-create on the normalized pair', (t) => {
   const { store } = tempStore(t);
   const a = store.openDm('human:forrest', 'agent:cto-owen');

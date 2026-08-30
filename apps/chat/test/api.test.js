@@ -10,9 +10,9 @@ import { createChatServer } from '../server.js';
 
 const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
 
-async function bootServer(t) {
+async function bootServer(t, repoRoot = FIXTURE_ROOT) {
   const dir = mkdtempSync(join(tmpdir(), 'chat-api-'));
-  const { server, close } = createChatServer({ dbPath: join(dir, 'chat.db'), repoRoot: FIXTURE_ROOT });
+  const { server, close } = createChatServer({ dbPath: join(dir, 'chat.db'), repoRoot });
   await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${server.address().port}`;
   t.after(async () => {
@@ -243,6 +243,80 @@ test('api: AS-9 — url-state.js is served; query string never affects static ro
     assert.equal(page.headers.get('content-type'), 'text/html; charset=utf-8');
     assert.match(await page.text(), /ASC Chat/);
   }
+});
+
+test('api: AS-8 — roster joins personnel, lattice work status, and DM state', async (t) => {
+  const { get, post } = await bootServer(t);
+
+  // 'me' is required (dmConversationId/unread are viewer-relative).
+  const noMe = await get('/api/roster');
+  assert.equal(noMe.status, 400);
+  assert.match(noMe.data.error, /Missing query parameter 'me'/);
+
+  const first = await get('/api/roster?me=human:forrest');
+  assert.equal(first.status, 200);
+  // Only status: active dossiers, sorted by name — departed/malformed/bad
+  // actor_id/README fixtures never appear.
+  assert.deepEqual(
+    first.data.roster.map((r) => r.actorId),
+    ['agent:eng-ada', 'agent:qa-bob']
+  );
+  const ada = first.data.roster[0];
+  assert.deepEqual(ada, {
+    actorId: 'agent:eng-ada',
+    name: 'Ada Fixture',
+    title: 'Fixture Engineer',
+    class: 'ic',
+    team: 'engineering',
+    registered: false, // not in the identities table yet
+    dmConversationId: null,
+    unread: 0,
+    self: false,
+    work: {
+      shortId: 'AS-22',
+      taskId: 'task_TESTC2',
+      title: 'Ada primary in-progress',
+      status: 'in_progress',
+      url: 'http://127.0.0.1:8799/#/task/task_TESTC2',
+    },
+    moreTasks: 2, // AS-21 and AS-23 beyond the primary
+  });
+  // Bob's only assignments are done/backlog: idle.
+  assert.equal(first.data.roster[1].work, null);
+  assert.equal(first.data.roster[1].moreTasks, 0);
+
+  // Register + open a DM + one message from ada: registered flips, the DM id
+  // appears with the correct viewer-relative unread.
+  await post('/api/identities', { id: 'agent:eng-ada', displayName: 'Ada Fixture', kind: 'agent' });
+  const dm = await post('/api/dms', { me: 'human:forrest', other: 'agent:eng-ada' });
+  await post('/api/messages', {
+    conversation: dm.data.conversation.id, author: 'agent:eng-ada', body: 'hello from ada',
+  });
+  const second = await get('/api/roster?me=human:forrest');
+  const ada2 = second.data.roster.find((r) => r.actorId === 'agent:eng-ada');
+  assert.equal(ada2.registered, true);
+  assert.equal(ada2.dmConversationId, dm.data.conversation.id);
+  assert.equal(ada2.unread, 1);
+  // The other party sees the same DM id but their own unread (0 — they wrote it).
+  const forAda = await get('/api/roster?me=agent:eng-ada');
+  const selfRow = forAda.data.roster.find((r) => r.actorId === 'agent:eng-ada');
+  assert.equal(selfRow.self, true);
+  assert.equal(selfRow.dmConversationId, null, 'no DM with yourself');
+  const bobRow = forAda.data.roster.find((r) => r.actorId === 'agent:qa-bob');
+  assert.equal(bobRow.dmConversationId, null, "ada has no DM with bob — forrest's DM never leaks");
+
+  // Unknown viewer: same 404 as /api/conversations.
+  assert.equal((await get('/api/roster?me=agent:ghost')).status, 404);
+});
+
+test('api: AS-8 — roster degrades to empty when personnel/ is absent', async (t) => {
+  // Repo root with no personnel/ (and no .lattice/): 200 + [], never a crash.
+  const bareRoot = mkdtempSync(join(tmpdir(), 'chat-bare-root-'));
+  t.after(() => rmSync(bareRoot, { recursive: true, force: true }));
+  const { get } = await bootServer(t, bareRoot);
+  const res = await get('/api/roster?me=human:forrest');
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.data, { roster: [] });
 });
 
 test('api: malformed JSON body is a 400 with a clear message', async (t) => {

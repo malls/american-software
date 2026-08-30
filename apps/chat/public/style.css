@@ -70,6 +70,19 @@ body {
 .dm-option-id { font-size: 11px; color: #616061; }
 #dm-options li:hover .dm-option-id, #dm-options li.active .dm-option-id { color: #d7e6f2; }
 
+/* --- roster rows (AS-8) --- */
+#roster-list li.roster-row {
+  display: block; padding: 4px 16px; white-space: normal;
+}
+#roster-list li.roster-row.self { cursor: default; }
+#roster-list li.roster-row.self:hover { background: transparent; }
+.roster-top { display: flex; justify-content: space-between; align-items: center; }
+.roster-name { font-weight: 600; }
+.roster-status { font-size: 11px; color: #bfa8c0; }
+#roster-list li.roster-row.active .roster-status { color: #d7e6f2; }
+.roster-status .ref-link { color: inherit; text-decoration: underline dotted; }
+#dm-list:empty { display: none; }
+
 /* --- main pane --- */
 #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 #conv-header { border-bottom: 1px solid #ddd; padding: 10px 16px; }
