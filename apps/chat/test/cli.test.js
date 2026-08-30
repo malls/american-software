@@ -105,6 +105,33 @@ test('cli: create-channel collision on the hidden name is uninformative', (t) =>
   assert.match(member.stderr, /Channel 'board' already exists\./);
 });
 
+test('cli: roster prints the active company roster with work status (AS-8)', (t) => {
+  const dbPath = setupDb(t);
+  const table = run(dbPath, ['roster']);
+  assert.equal(table.status, 0, table.stderr);
+  assert.match(table.stdout, /agent:eng-ada\s+Ada Fixture\s+Fixture Engineer\s+AS-22 in progress \(\+2\)/);
+  assert.match(table.stdout, /agent:qa-bob\s+Bob Fixture\s+QA Engineer\s+idle/);
+  assert.ok(!table.stdout.includes('Dora'), 'departed dossier excluded');
+
+  const asJson = JSON.parse(run(dbPath, ['roster', '--json']).stdout);
+  assert.deepEqual(asJson.map((r) => r.actorId), ['agent:eng-ada', 'agent:qa-bob']);
+  assert.equal(asJson[0].work.shortId, 'AS-22');
+  assert.equal(asJson[0].registered, false);
+  assert.ok(!('dmConversationId' in asJson[0]), 'viewer-relative fields absent without --me');
+  // --me adds viewer-relative fields (no DM yet: null/0).
+  const withMe = JSON.parse(run(dbPath, ['roster', '--json', '--me', M]).stdout);
+  assert.equal(withMe[0].dmConversationId, null);
+  assert.equal(withMe[0].unread, 0);
+
+  // Degradation contract: repo root without personnel/ notes it and exits 0.
+  const bare = spawnSync(process.execPath, [BIN, 'roster'], {
+    env: { ...process.env, CHAT_DB: dbPath, CHAT_REPO_ROOT: tmpdir() },
+    encoding: 'utf8',
+  });
+  assert.equal(bare.status, 0, bare.stderr);
+  assert.match(bare.stdout, /No personnel records found/);
+});
+
 test('cli: members use #board normally (post, history, reply, read)', (t) => {
   const dbPath = setupDb(t);
   const post = run(dbPath, ['post', 'board', 'agenda item', '--me', 'agent:cto-owen']);

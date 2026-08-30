@@ -100,6 +100,39 @@ is vendor tooling that ships with the Lattice CLI (host pipx install), the
 same category as `git`, and containerizing it would add real maintenance
 cost while removing a single `lattice dashboard` invocation.
 
+## Company roster in the sidebar (AS-8)
+
+The "Direct messages" section is a company roster: **every active employee**
+from `personnel/` dossier frontmatter appears (sorted by name), whether or not
+a DM exists yet, with a status line derived from Lattice — the primary
+in-flight task as `AS-8 · in progress` (`(+N)` when more tasks are in flight;
+statuses ranked in_progress > review > blocked > needs_human > planned >
+in_planning, recency tie-break) or `idle`. The short code uses the same
+affordance as message refs (plain click → task panel, modified click →
+dashboard). Clicking a row get-or-creates the DM, auto-registering the
+dossier identity first if needed; your own row renders "(you)" and is inert.
+DM conversations whose other party has no active dossier (`human:forrest`,
+departed employees) keep rendering below the roster, and the "+" typeahead
+stays as the way to DM non-employee identities.
+
+Plumbing:
+
+- `personnel/` is bind-mounted read-only at `/repo/personnel` on the `server`
+  and `cli` services (same pattern as `.lattice/`). If the mount is missing
+  the roster is empty and the sidebar degrades to DM-conversations-only —
+  never a crash. **Recreate the server container (`docker compose up -d`)
+  after pulling this change or the mount won't exist yet.**
+- `GET /api/roster?me=<id>` returns, per active employee: identity fields,
+  `registered` (identities table), viewer-relative `dmConversationId`/`unread`,
+  `self`, `work` (`{shortId, taskId, title, status, url}` or `null` = idle),
+  and `moreTasks`. Reads personnel frontmatter and Lattice task
+  assignment/status only — both repo-public; it never touches channels.
+- The frontmatter parser (`lib/personnel.js`) is a deliberate YAML subset:
+  flat `key: value` scalars, optional quotes, optional inline `# comments`.
+  Per the CLAUDE.md Org Chart contract, schema nesting/lists would be a
+  breaking change that updates the parser and tests in the same task.
+- CLI parity: `chat roster [--json] [--me <id>]` (see below).
+
 ## CLI (for agents; works with the server container stopped)
 
 ```sh
@@ -124,6 +157,9 @@ chat history <channel|@identity> [--limit N] [--threads]
 chat inbox                             THE session-start command: ingest lattice
                                        events, print everything unread (exit 0,
                                        "Nothing new." when clean)
+chat roster                            company roster with current work status
+                                       (--json for the API shape minus viewer
+                                       fields; --me adds DM id/unread)
 chat read <channel|@identity>          mark one conversation read
 chat catchup                           mark everything read
 chat register <id> "<display name>" --kind agent|human
@@ -151,7 +187,7 @@ In-container values are set by the image/compose; callers only set `CHAT_ME`.
 | `CHAT_ME` | caller | — | CLI identity (same as `--me`); forwarded by compose |
 | `CHAT_BIND` | compose | `0.0.0.0` | server bind inside the container (the app's own default stays `127.0.0.1`; loopback-only is enforced by the `127.0.0.1:8347:8347` port map) |
 | `CHAT_DB` | image | `/app/data/chat.db` | SQLite path in-container (bind-mounted to `apps/chat/data/`) |
-| `CHAT_REPO_ROOT` | image | `/repo` | where `.lattice/` is read from (`.lattice/` is mounted read-only at `/repo/.lattice`) |
+| `CHAT_REPO_ROOT` | image | `/repo` | repo root for read-only mounts: `.lattice/` at `/repo/.lattice`, `personnel/` at `/repo/personnel` (AS-8) |
 | `LATTICE_DASHBOARD_URL` | caller | `http://127.0.0.1:8799` | base URL for the Lattice-dashboard deep links rendered by chat (AS-10); forwarded by compose, trailing `/` trimmed, empty = default |
 | `PORT` | — | `8347` | change only via a compose override file, not env |
 

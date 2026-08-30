@@ -6,7 +6,8 @@ import { resolve, dirname, join } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { openStore, StoreError, EVENTS_CHANNEL } from '../lib/store.js';
-import { ingestNewEvents, resolveRefs, resolveShortId, latticeRoot } from '../lib/lattice.js';
+import { ingestNewEvents, resolveRefs, resolveShortId, latticeRoot, assignmentsByActor } from '../lib/lattice.js';
+import { readRoster } from '../lib/personnel.js';
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DB_PATH = process.env.CHAT_DB || join(APP_DIR, 'data', 'chat.db');
@@ -22,6 +23,8 @@ const USAGE = `usage: chat <command> [args] [--me <identity>] [--json]
   inbox                               ingest lattice events, then print everything unread
   read <channel|@identity>            mark one conversation read
   catchup                             mark everything read
+  roster                              company roster with current work status
+                                      (add --me for DM ids/unread)
   register <id> "<display name>" --kind agent|human|system
   sync                                run lattice event ingestion
   dump                                full store as JSONL on stdout
@@ -250,6 +253,49 @@ function main() {
         const me = requireMe(store, args.flags);
         const n = store.catchupAll(me);
         return out(json ? JSON.stringify({ conversations: n }) : `Caught up on ${n} conversations.`);
+      }
+
+      case 'roster': {
+        // AS-8 CLI parity with GET /api/roster, minus viewer-relative fields
+        // ('me' optional here: --me/CHAT_ME adds dmConversationId/unread).
+        const me = args.flags.me || process.env.CHAT_ME || null;
+        const assignments = assignmentsByActor(root);
+        const rows = readRoster(root)
+          .filter((e) => e.status === 'active')
+          .map((e) => {
+            const tasks = assignments[e.actorId] ?? [];
+            const row = {
+              actorId: e.actorId,
+              name: e.name,
+              title: e.title,
+              class: e.class,
+              team: e.team,
+              registered: !!store.getIdentity(e.actorId),
+              work: tasks[0] ?? null,
+              moreTasks: Math.max(0, tasks.length - 1),
+            };
+            if (me) {
+              const dmId = e.actorId === me ? null : store.dmConversationFor(me, e.actorId);
+              row.dmConversationId = dmId;
+              row.unread = dmId == null ? 0 : store.unreadCountFor(me, dmId);
+            }
+            return row;
+          });
+        if (json) return out(JSON.stringify(rows, null, 2));
+        if (rows.length === 0) {
+          // Degradation contract: missing personnel/ mount is a note, not an error.
+          return out('No personnel records found (personnel/ missing or empty).');
+        }
+        const workLabel = (r) =>
+          r.work
+            ? `${r.work.shortId} ${r.work.status.replace('_', ' ')}${r.moreTasks > 0 ? ` (+${r.moreTasks})` : ''}`
+            : 'idle';
+        const cols = rows.map((r) => [r.actorId, r.name, r.title, workLabel(r)]);
+        const width = (i) => Math.max(...cols.map((c) => c[i].length));
+        for (const c of cols) {
+          out(`${c[0].padEnd(width(0))}  ${c[1].padEnd(width(1))}  ${c[2].padEnd(width(2))}  ${c[3]}`);
+        }
+        return;
       }
 
       case 'register': {
