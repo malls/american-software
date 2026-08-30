@@ -24,6 +24,21 @@ const STATIC_FILES = {
 
 const INGEST_THROTTLE_MS = 10_000;
 
+// AS-25: SSE heartbeat cadence. One shared timer writes a comment line (:hb)
+// to every open stream — keeps proxy/NAT idle timeouts from reaping the
+// connection and surfaces dead sockets as write errors. Uniform to all
+// connections (no information content).
+const HEARTBEAT_MS = 25_000;
+
+/** StoreError -> HTTP status (one mapping for the JSON API and /api/stream). */
+function storeErrorStatus(e) {
+  return e.code === 'not_found' ? 404
+    : e.code === 'forbidden' ? 403
+    : e.code === 'conflict' ? 409
+    : e.code === 'unknown_identity' || e.code === 'unknown_conversation' ? 404
+    : 400;
+}
+
 export function createChatServer({ dbPath, repoRoot } = {}) {
   const store = openStore(dbPath || process.env.CHAT_DB || join(APP_DIR, 'data', 'chat.db'));
   const root = repoRoot || latticeRoot();
@@ -44,6 +59,39 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
   }
 
   const annotate = (m) => ({ ...m, refs: resolveRefs(m.body, root) });
+
+  // --- AS-25: SSE push delivery ---------------------------------------------
+  // Live stream connections: { res, me }. Registered by GET /api/stream,
+  // removed on socket close (and reaped wholesale by close()).
+  const streams = new Set();
+
+  // Fan-out: the store's post-commit hook is the single event source (since
+  // AS-24 the server is the sole live writer — CLI writes proxy through the
+  // HTTP API, lattice ingestion runs in-process). Annotate once; deliver per
+  // connection iff visibleTo at delivery time. Non-members of a hidden
+  // channel receive zero bytes — nonexistent-parity applies to the stream.
+  store.onMessage((msg) => {
+    let frame = null;
+    for (const conn of streams) {
+      if (!store.visibleTo(msg.conversationId, conn.me)) continue;
+      frame ??= `event: message\ndata: ${JSON.stringify(annotate(msg))}\n\n`;
+      try {
+        conn.res.write(frame);
+      } catch {
+        streams.delete(conn);
+      }
+    }
+  });
+
+  const heartbeat = setInterval(() => {
+    for (const conn of streams) {
+      try {
+        conn.res.write(':hb\n\n');
+      } catch {
+        streams.delete(conn);
+      }
+    }
+  }, HEARTBEAT_MS);
 
   // Sentinel key for handleApi results that are raw text (currently only
   // /api/dump's JSONL), sent as text/plain instead of a JSON envelope.
@@ -131,6 +179,18 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
       // hidden conversation 404s byte-identically to a nonexistent one.
       const me = q('me');
       if (!me) throw new StoreError("Missing query parameter 'me'.");
+      // AS-25: ?since=<id> is the delta path (reconnect catch-up) — a flat,
+      // id-ordered slice with replies included and NO threads key; the client
+      // merges rows through the same applyMessage as live frames. Same bare
+      // Number() coercion as ?limit=. Without since, behavior is unchanged
+      // (structured cold-load shape).
+      if (q('since') != null) {
+        const { conversation: conv, messages } = store.messagesSince(conversation, me, Number(q('since')));
+        return {
+          conversation: { ...conv, members: conv.type === 'dm' ? store.dmMembers(conv.id) : undefined },
+          messages: messages.map(annotate),
+        };
+      }
       // AS-24 parity: optional ?limit= mirrors CLI `history --limit N` (same
       // bare Number() coercion as the CLI; the store ignores non-numeric).
       const limit = q('limit') != null ? Number(q('limit')) : undefined;
@@ -202,6 +262,33 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
     };
     const sendJson = (status, obj) => send(status, 'application/json; charset=utf-8', JSON.stringify(obj));
 
+    // AS-25: SSE stream — handled outside handleApi (the raw res is held open,
+    // never wrapped in the JSON envelope). Identity is validated first: an
+    // unknown/missing 'me' gets the normal JSON error envelope, never a stream.
+    if (req.method === 'GET' && url.pathname === '/api/stream') {
+      maybeIngest();
+      try {
+        const me = url.searchParams.get('me');
+        if (!me) throw new StoreError("Missing query parameter 'me'.");
+        store.requireIdentity(me);
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Content-Security-Policy': "default-src 'self'",
+          'Cache-Control': 'no-store',
+          Connection: 'keep-alive',
+        });
+        res.write(':connected\n\n'); // flushes headers; EventSource fires open
+        const conn = { res, me };
+        streams.add(conn);
+        res.on('close', () => streams.delete(conn));
+      } catch (e) {
+        if (e instanceof StoreError) return sendJson(storeErrorStatus(e), { error: e.message });
+        console.error(e);
+        return sendJson(500, { error: 'Internal error.' });
+      }
+      return;
+    }
+
     if (url.pathname.startsWith('/api/')) {
       maybeIngest();
       let raw = '';
@@ -226,13 +313,7 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
           return sendJson(200, result);
         } catch (e) {
           if (e instanceof StoreError) {
-            const status =
-              e.code === 'not_found' ? 404
-              : e.code === 'forbidden' ? 403
-              : e.code === 'conflict' ? 409
-              : e.code === 'unknown_identity' || e.code === 'unknown_conversation' ? 404
-              : 400;
-            return sendJson(status, { error: e.message });
+            return sendJson(storeErrorStatus(e), { error: e.message });
           }
           console.error(e);
           return sendJson(500, { error: 'Internal error.' });
@@ -254,6 +335,21 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
     store,
     close: () =>
       new Promise((done) => {
+        // AS-25: reap push state FIRST — the heartbeat timer and held-open
+        // stream responses would otherwise wedge server.close() (it waits for
+        // live connections) and keep the event loop (and any test suite)
+        // alive forever. end() then destroy(): flush the goodbye, then make
+        // sure the socket is actually gone.
+        clearInterval(heartbeat);
+        for (const conn of streams) {
+          try {
+            conn.res.end();
+            conn.res.destroy();
+          } catch {
+            // Already dead — reaping is best-effort by definition.
+          }
+        }
+        streams.clear();
         server.close(() => {
           store.close();
           done();
