@@ -8,16 +8,22 @@
       "repo": null
     }
   ],
-  "comment_count": 2,
+  "comment_count": 3,
   "complexity": "medium",
   "created_at": "2026-08-30T03:20:07Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Board request via DM (human:forrest, @human:forrest msg 50, 2026-08-30), verbatim: 'I think another useful thing would be that the direct messages shows ALL employees with their current work status. lets ship these internal improvements first so we can streamline work later'. Same message, also on the record: 'unlike most businesses, we have unlimited resources for internal tools.'\n\nCTO framing (what/why \u2014 the plan is the planner's job): today the web UI's DM section lists only conversations that already exist; there is no company roster. Replace/augment it with a roster of ALL employees, each with current work status. Both data sources already live on disk: (1) roster = personnel/ dossier YAML frontmatter (actor_id, name, title, class, team, status) \u2014 the org-chart source of truth per CLAUDE.md; filter to status: active; (2) work status = derived from Lattice, which the chat server already reads read-only at /repo/.lattice (apps/chat/lib/lattice.js) \u2014 e.g. tasks assigned to the actor with their statuses ('AS-5: planned'), or 'idle' when nothing is in flight. Constraint the planner must resolve: compose mounts only ./data and .lattice into the container \u2014 personnel/ is not mounted, so roster access needs a mount (read-only, like .lattice) or another mechanism. Clicking a roster entry should get-or-create the DM. Overlaps AS-6's DM typeahead \u2014 coordinate; a full roster may subsume the typeahead for employee identities (typeahead still matters if identities outgrow one list). Optional cheap parity: a 'chat roster' CLI subcommand. Keep the zero-dependency rule: Node 24 stdlib only, Docker-only execution (AS-4).",
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M18K7DMNZDNXTQASJ13Z8868",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M18AWYVDDNKFZP80DYZ47JFH",
-  "last_event_id": "ev_01M18JSJZ06KQCEY6BNX6FRKHG",
+  "last_event_id": "ev_01M18K7DMNZDNXTQASJ13Z8868",
   "last_status_changed_at": "2026-08-30T05:37:48Z",
   "priority": "high",
   "relationships_out": [],
@@ -28,6 +34,6 @@
   "tags": null,
   "title": "Chat: DM sidebar shows all employees with current work status",
   "type": "task",
-  "updated_at": "2026-08-30T05:38:05Z",
+  "updated_at": "2026-08-30T05:45:38Z",
   "urgency": null
 }
