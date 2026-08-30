@@ -8,16 +8,22 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": null,
   "created_at": "2026-08-30T04:44:51Z",
   "created_by": "agent:qa-priya",
   "custom_fields": {},
   "description": null,
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M18NMDS9RTAJCP7WTY9174ET",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M18FR43CZ2E1ZTEK0MKFDMDT",
-  "last_event_id": "ev_01M18NCJ52CQSFH9RHBEZBFFY3",
+  "last_event_id": "ev_01M18NMDS9RTAJCP7WTY9174ET",
   "last_status_changed_at": "2026-08-30T06:23:24Z",
   "priority": "medium",
   "relationships_out": [],
@@ -28,6 +34,6 @@
   "tags": null,
   "title": "Chat: residual existence oracles for hidden channels \u2014 DM 403 type-marking + threadRoot cross-conversation probe (document or close)",
   "type": "task",
-  "updated_at": "2026-08-30T06:23:24Z",
+  "updated_at": "2026-08-30T06:27:41Z",
   "urgency": null
 }
