@@ -35,8 +35,20 @@ function taskById(taskId, root) {
   return readJson(join(latticeDir(root), 'tasks', `${taskId}.json`));
 }
 
+// Lattice dashboard deep links (AS-10). The server never fetches this URL —
+// it is rendered for the viewer's browser, which sits on the same host as the
+// loopback-only chat UI, so the 127.0.0.1 default is correct even in-container.
+const DEFAULT_DASHBOARD_URL = 'http://127.0.0.1:8799';
+
+/** Dashboard task URL: <base>/#/task/<taskId>. Base from LATTICE_DASHBOARD_URL
+ * (empty string = unset, per compose passthrough), trailing '/' trimmed. */
+export function dashboardTaskUrl(taskId) {
+  const base = (process.env.LATTICE_DASHBOARD_URL || DEFAULT_DASHBOARD_URL).replace(/\/+$/, '');
+  return `${base}/#/task/${taskId}`;
+}
+
 /**
- * Resolve a Lattice short code to {shortId, exists, taskId?, title?, status?}.
+ * Resolve a Lattice short code to {shortId, exists, taskId?, title?, status?, url?}.
  * Lattice stays the source of truth; this is annotation only.
  */
 export function resolveShortId(shortId, root) {
@@ -44,7 +56,14 @@ export function resolveShortId(shortId, root) {
   if (!taskId) return { shortId, exists: false };
   const task = taskById(taskId, root);
   if (!task) return { shortId, exists: false };
-  return { shortId, exists: true, taskId, title: task.title ?? '', status: task.status ?? '' };
+  return {
+    shortId,
+    exists: true,
+    taskId,
+    title: task.title ?? '',
+    status: task.status ?? '',
+    url: dashboardTaskUrl(taskId),
+  };
 }
 
 const REF_RE = /\bAS-\d+\b/g;

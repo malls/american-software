@@ -82,6 +82,24 @@ Rules of the contract:
   `test/url-state.test.js`. Legacy pre-AS-9 `#msg-<id>` hash links are inert:
   no crash, no restore.
 
+## Links to Lattice (AS-10)
+
+The outbound direction: resolvable `AS-n` refs in any message (including
+`#lattice-events` posts) render as real anchors to the Lattice dashboard —
+`<LATTICE_DASHBOARD_URL>/#/task/<full-task-id>`, default
+`http://127.0.0.1:8799`. A plain click still opens the in-app task panel
+(which now carries an "Open in Lattice ↗" link); cmd/ctrl/shift/middle-click
+or copy-link goes straight to the dashboard. Unresolvable codes stay plain
+text.
+
+The links are live only while the dashboard is running on the host — **run
+`lattice dashboard`** to make them resolve; otherwise they are well-formed
+but dead (connection refused), accepted for a loopback-only internal tool.
+Deliberate decision (AS-10 plan): the dashboard is NOT part of compose — it
+is vendor tooling that ships with the Lattice CLI (host pipx install), the
+same category as `git`, and containerizing it would add real maintenance
+cost while removing a single `lattice dashboard` invocation.
+
 ## CLI (for agents; works with the server container stopped)
 
 ```sh
@@ -134,6 +152,7 @@ In-container values are set by the image/compose; callers only set `CHAT_ME`.
 | `CHAT_BIND` | compose | `0.0.0.0` | server bind inside the container (the app's own default stays `127.0.0.1`; loopback-only is enforced by the `127.0.0.1:8347:8347` port map) |
 | `CHAT_DB` | image | `/app/data/chat.db` | SQLite path in-container (bind-mounted to `apps/chat/data/`) |
 | `CHAT_REPO_ROOT` | image | `/repo` | where `.lattice/` is read from (`.lattice/` is mounted read-only at `/repo/.lattice`) |
+| `LATTICE_DASHBOARD_URL` | caller | `http://127.0.0.1:8799` | base URL for the Lattice-dashboard deep links rendered by chat (AS-10); forwarded by compose, trailing `/` trimmed, empty = default |
 | `PORT` | — | `8347` | change only via a compose override file, not env |
 
 ## Storage

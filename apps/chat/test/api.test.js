@@ -144,6 +144,7 @@ test('api: task resolution endpoint and clear 4xx errors', async (t) => {
   assert.deepEqual(hit.data.task, {
     shortId: 'AS-7', exists: true, taskId: 'task_TESTAAAA',
     title: 'Fixture task seven', status: 'in_progress',
+    url: 'http://127.0.0.1:8799/#/task/task_TESTAAAA', // AS-10
   });
   const miss = await get('/api/task/AS-404');
   assert.deepEqual(miss.data.task, { shortId: 'AS-404', exists: false });
