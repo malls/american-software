@@ -77,3 +77,9 @@
 {"type":"message","id":109,"thread_root_id":null,"author":"system:lattice","body":"AS-3: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T06:55:31.690Z"}
 {"type":"message","id":110,"thread_root_id":null,"author":"system:lattice","body":"AS-3: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T06:56:23.410Z"}
 {"type":"message","id":111,"thread_root_id":null,"author":"system:lattice","body":"AS-3: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T07:01:38.849Z"}
+{"type":"message","id":112,"thread_root_id":null,"author":"system:lattice","body":"AS-3: review → done — by agent:qa-priya","created_at":"2026-08-30T07:07:30.985Z"}
+{"type":"message","id":121,"thread_root_id":null,"author":"system:lattice","body":"AS-14 created by agent:cto-owen — \"advance-watcher: pass USER (keychain auth) in tick child env\" [backlog]","created_at":"2026-08-30T18:00:44.820Z"}
+{"type":"message","id":122,"thread_root_id":null,"author":"system:lattice","body":"AS-14: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-30T18:00:54.866Z"}
+{"type":"message","id":123,"thread_root_id":null,"author":"system:lattice","body":"AS-14: in_planning → planned — by agent:cto-owen","created_at":"2026-08-30T18:01:26.233Z"}
+{"type":"message","id":124,"thread_root_id":null,"author":"system:lattice","body":"AS-14: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-30T18:01:56.541Z"}
+{"type":"message","id":125,"thread_root_id":null,"author":"system:lattice","body":"AS-14: in_progress → review — by agent:developer-marcus","created_at":"2026-08-30T18:04:37.246Z"}
