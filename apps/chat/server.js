@@ -65,7 +65,11 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
     if (req.method === 'GET' && pathname === '/api/messages') {
       const conversation = q('conversation');
       if (!conversation) throw new StoreError("Missing query parameter 'conversation'.");
-      const { conversation: conv, messages, threads } = store.getMessages(conversation);
+      // AS-6: 'me' is required — the store gates reads on visibility, and a
+      // hidden conversation 404s byte-identically to a nonexistent one.
+      const me = q('me');
+      if (!me) throw new StoreError("Missing query parameter 'me'.");
+      const { conversation: conv, messages, threads } = store.getMessages(conversation, me);
       return {
         conversation: { ...conv, members: conv.type === 'dm' ? store.dmMembers(conv.id) : undefined },
         messages: messages.map(annotate),
