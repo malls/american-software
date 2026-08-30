@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(lattice *)",
+      "Bash(node *)",
+      "Bash(./apps/chat/chat *)",
+      "Bash(git *)",
+      "Bash(rtk *)",
+      "Bash(sqlite3 *)",
+      "Bash(docker *)",
+      "Bash(rm apps/chat/data/advance.lock)",
+      "Bash(rm /Users/forrest/Code/american-software-company/apps/chat/data/advance.lock)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push origin +*)"
+    ]
+  }
+}
