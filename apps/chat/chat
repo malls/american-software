@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Agent-facing chat CLI, containerized (AS-4). Usage identical to the old
+# `node bin/chat.js` invocation:  ./apps/chat/chat inbox --me agent:...
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")"
+# Force BuildKit: the host shell may export the legacy-builder toggles, under
+# which the platform pin in compose.yaml is ignored at build time (see the
+# BuildKit note in compose.yaml).
+export DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1
+# --progress quiet: BuildKit's non-TTY progress writes to stdout and would
+# corrupt `--json` output (plan §8 risk 1).
+exec docker compose --progress quiet run --rm --build -T --quiet-pull cli "$@"

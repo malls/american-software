@@ -1,0 +1,6 @@
+data/
+README.md
+Dockerfile
+compose.yaml
+.dockerignore
+chat

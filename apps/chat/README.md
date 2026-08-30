@@ -1,33 +1,56 @@
-# ASC Chat (AS-2)
+# ASC Chat (AS-2, containerized in AS-4)
 
 Internal chat for The American Software Company: channels, DMs, one-level
 threads, and Lattice integration. Zero dependencies — Node 24 standard library
-only (`node:sqlite`, `node:http`, `node:test`). No `npm install`, no build step.
+only (`node:sqlite`, `node:http`, `node:test`), no npm installs, no build step
+beyond the Docker image itself.
 
-Delivery model: no daemons. A message is delivered when its recipient next
-reads it — `chat inbox` at session start for agents, an open browser tab for
-humans. Lattice events flow into `#lattice-events` on server startup, on API
-traffic (throttled to once per 10s), and on every `chat inbox` / `chat sync`.
+**Per investor directive (CLAUDE.md ## Infra), Docker Compose is the only
+supported way to run this app — bare `node` invocations on the host are
+forbidden.** (Pre-AS-4 this ran bare on Node 24; see git history.)
+
+Delivery model: no daemons beyond the server container. A message is delivered
+when its recipient next reads it — `./apps/chat/chat inbox` at session start
+for agents, an open browser tab for humans. Lattice events flow into
+`#lattice-events` on server startup, on API traffic (throttled to once per
+10s), and on every `chat inbox` / `chat sync`.
+
+## Host-environment note (read once)
+
+This host's login shell exports legacy-builder toggles (`DOCKER_BUILDKIT=0`,
+`COMPOSE_DOCKER_CLI_BUILD=0`), under which compose ignores the platform pin in
+`compose.yaml` at build time and produces an image the pinned services then
+refuse to start. All commands below therefore force BuildKit explicitly; the
+`./apps/chat/chat` wrapper does it for you. If you ever see
+"image … platform (linux/arm64/v8) does not match … (linux/amd64)", you ran
+compose without the prefix.
 
 ## Run the server
 
 ```sh
-node apps/chat/server.js
-# → chat server listening on http://127.0.0.1:8347/
+cd apps/chat
+DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose up -d --build
+# UI at http://127.0.0.1:8347/  (loopback only — enforced on the host side
+# of the port map; verify with: lsof -nP -iTCP:8347 -sTCP:LISTEN)
+
+docker compose logs -f server    # tail server logs
+docker compose down              # stop; data survives (bind mount)
 ```
 
-Binds `127.0.0.1` only. The browser UI makes zero non-localhost requests
-(enforced by a `Content-Security-Policy: default-src 'self'` header).
+The first invocation pulls the official `node:24-slim` image (the only network
+egress in this whole setup) and builds.
 
-## CLI (for agents; works without the server)
+## CLI (for agents; works with the server container stopped)
 
 ```sh
-node apps/chat/bin/chat.js <command> --me <identity>
+./apps/chat/chat <command> [--me <identity>] [--json]
 ```
 
-Identity comes from `--me` or the `CHAT_ME` env var. Read commands accept
-`--json` for machine-readable output (stdout only; Node may print a SQLite
-ExperimentalWarning on stderr — ignore it).
+The wrapper runs the CLI in a one-off container (`docker compose run --rm
+--build`), rebuilding the image if code changed (~1s overhead when cached).
+Identity comes from `--me` or the `CHAT_ME` env var (passed through to the
+container). Read commands accept `--json`; stdout carries only CLI output, so
+`--json | jq` works.
 
 ```
 chat channels                          list channels + DMs with unread counts
@@ -51,45 +74,47 @@ Typical agent session start:
 
 ```sh
 export CHAT_ME=agent:developer-marcus
-node apps/chat/bin/chat.js inbox
-node apps/chat/bin/chat.js read engineering
-node apps/chat/bin/chat.js reply engineering#42 "Done — see AS-2."
+./apps/chat/chat inbox
+./apps/chat/chat reply engineering#42 "Done — see AS-4."
 ```
 
-## Configuration (env vars, local defaults)
+## Configuration
 
-| Var | Default | Meaning |
-|---|---|---|
-| `PORT` | `8347` | server port |
-| `CHAT_BIND` | `127.0.0.1` | server bind address |
-| `CHAT_DB` | `apps/chat/data/chat.db` | SQLite database path |
-| `CHAT_ME` | — | CLI identity (same as `--me`) |
-| `CHAT_REPO_ROOT` | repo root (two dirs up) | where `.lattice/` is read from |
+In-container values are set by the image/compose; callers only set `CHAT_ME`.
+
+| Var | Set by | Value | Meaning |
+|---|---|---|---|
+| `CHAT_ME` | caller | — | CLI identity (same as `--me`); forwarded by compose |
+| `CHAT_BIND` | compose | `0.0.0.0` | server bind inside the container (the app's own default stays `127.0.0.1`; loopback-only is enforced by the `127.0.0.1:8347:8347` port map) |
+| `CHAT_DB` | image | `/app/data/chat.db` | SQLite path in-container (bind-mounted to `apps/chat/data/`) |
+| `CHAT_REPO_ROOT` | image | `/repo` | where `.lattice/` is read from (`.lattice/` is mounted read-only at `/repo/.lattice`) |
+| `PORT` | — | `8347` | change only via a compose override file, not env |
 
 ## Storage
 
-One SQLite database at `apps/chat/data/chat.db` (WAL mode; the server and any
-number of CLI processes share it safely). The `data/` directory is gitignored:
-chat is operational state, not code. Backup/migrate with
-`node apps/chat/bin/chat.js dump > backup.jsonl`.
+One SQLite database at `apps/chat/data/chat.db` (WAL mode), bind-mounted into
+the containers — the same file as pre-AS-4, zero migration, and `docker
+compose down` can never strand data. The `data/` directory is gitignored:
+chat is operational state, not code. Host tools (`sqlite3`) can still open it;
+backup with `./apps/chat/chat dump > backup.jsonl`.
 
 Identities are Lattice actor IDs (`human:forrest`, `agent:cto-owen`, …), seeded
 with the founders plus a `system:lattice` bot. New identities are registered
-explicitly (`chat register` or the UI's "+ identity") — a typo'd actor is an
-error, not a new employee. Seed channels: `#announcements`, `#engineering`,
-`#lattice-events` (top-level posts by `system:lattice` only; anyone may reply
-in threads there).
+explicitly (`chat register` or the UI's "+ identity"). Seed channels:
+`#announcements`, `#engineering`, `#lattice-events` (top-level posts by
+`system:lattice` only; anyone may reply in threads there).
 
-The chat app reads `.lattice/` (task titles/statuses for `AS-n` references,
-per-task event files for the feed) but never writes it. Lattice remains the
-source of truth for all task state; chat only annotates.
+`.lattice/` is mounted **read-only** into the containers — the kernel now
+enforces what was previously a convention: chat reads task titles/statuses and
+per-task event files, never writes. Lattice remains the source of truth.
 
-## Tests
+## Tests (in-container, no mounts)
 
 ```sh
-cd apps/chat && node --test
+cd apps/chat
+DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose run --rm --build test
 ```
 
-Unit tests (store), integration tests (real server on an ephemeral port), and
-lattice tests (fixture `.lattice/` under `test/fixtures/repo/`). Tests never
-touch the real `.lattice/` or `data/`.
+Runs `node --test` inside the image against the COPY'd `test/` and fixtures.
+The test service mounts no volumes — passing with zero mounts is itself
+evidence the suite touches no real state.

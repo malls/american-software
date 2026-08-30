@@ -1,0 +1,54 @@
+# ASC Chat compose (AS-4). Per investor directive (CLAUDE.md ## Infra), this is
+# the only way the app runs — no bare node on the host.
+#
+# Loopback exposure note: the server binds 0.0.0.0 INSIDE the container (the
+# port map is dead otherwise); loopback-only is enforced on the HOST side of
+# the mapping ("127.0.0.1:8347:8347"). The app's own default stays 127.0.0.1.
+#
+# platform is pinned to linux/amd64 on every service so the image is the same
+# everywhere and matches the eventual DO deployment target (plan §7). Runs
+# emulated on Apple Silicon via Docker Desktop; fine at our volume.
+#
+# BuildKit note: the host shell exports DOCKER_BUILDKIT=0 and
+# COMPOSE_DOCKER_CLI_BUILD=0 (legacy builder), under which compose ignores
+# every platform setting at build time and produces a native image that then
+# refuses to start against the amd64 pin. All documented invocations (the
+# ./chat wrapper and the README commands) therefore force
+# DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1.
+name: asc-chat
+
+services:
+  server:
+    build: .
+    platform: linux/amd64
+    ports:
+      - "127.0.0.1:8347:8347"
+    environment:
+      CHAT_BIND: 0.0.0.0
+    volumes:
+      - ./data:/app/data
+      - ../../.lattice:/repo/.lattice:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8347/api/identities').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+
+  cli:
+    build: .
+    platform: linux/amd64
+    profiles: ["tools"]
+    entrypoint: ["node", "bin/chat.js"]
+    environment:
+      - CHAT_ME
+    volumes:
+      - ./data:/app/data
+      - ../../.lattice:/repo/.lattice:ro
+
+  test:
+    build: .
+    platform: linux/amd64
+    profiles: ["tools"]
+    command: ["node", "--test"]
