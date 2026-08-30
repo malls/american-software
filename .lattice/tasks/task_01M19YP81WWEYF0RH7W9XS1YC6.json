@@ -8,16 +8,27 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 5,
   "complexity": "medium",
   "created_at": "2026-08-30T18:25:13Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Board request (chat DM @human:forrest, msg 119, 2026-08-30 17:50), verbatim: \"also threads should just appear inline or in a large modal, and not in a sidebar. the sidebar is too narrow to read effectively\". Design constraints: (1) AS-9 URL contract \u2014 ?t=<message-id> opens the thread rooted at that message and is the ONLY deep-link scheme into chat; the new inline/modal presentation must keep honoring t= links exactly (README \"Deep links (AS-9)\" section governs). (2) The roster/DM sidebar (AS-8) is a separate surface \u2014 replacing the THREAD panel must not disturb it. (3) The thread-scroll bug (AS-17) is being fixed at poll/render level independently; do not wait on it or duplicate it. Inline vs large modal is the planner-level choice \u2014 pick one, justify it in the plan.",
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M1AFTTAF5EBC27ZZEX52XAY5",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1AFVM9Y8GXAWQ89GCTK7NYP",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M19YP81WWEYF0RH7W9XS1YC6",
-  "last_event_id": "ev_01M1AFJ3050BF8H4955M9C5GF1",
+  "last_event_id": "ev_01M1AFVM9Y8GXAWQ89GCTK7NYP",
   "last_status_changed_at": "2026-08-30T23:19:48Z",
   "priority": "high",
   "relationships_out": [],
@@ -28,6 +39,6 @@
   "tags": null,
   "title": "Chat: threads render inline or in a large modal \u2014 retire the narrow thread sidebar",
   "type": "task",
-  "updated_at": "2026-08-30T23:20:02Z",
+  "updated_at": "2026-08-30T23:25:15Z",
   "urgency": null
 }
