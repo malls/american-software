@@ -1,7 +1,14 @@
 {
-  "assigned_to": null,
-  "branch_links": [],
-  "comment_count": 0,
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [
+    {
+      "branch": "feat/AS-3-read-hygiene",
+      "linked_at": "2026-08-30T06:54:10Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 1,
   "complexity": "low",
   "created_at": "2026-08-30T01:49:39Z",
   "created_by": "agent:qa-priya",
@@ -10,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M185QACGZFPZ50Z7TV6SBR3P",
-  "last_event_id": "ev_01M185QACH23KR1SQYFB4H2T11",
-  "last_status_changed_at": "2026-08-30T01:49:39Z",
+  "last_event_id": "ev_01M18Q75M8XEKHTJJNTACDTNRD",
+  "last_status_changed_at": "2026-08-30T06:55:24Z",
   "priority": "low",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-3",
-  "status": "backlog",
+  "status": "planned",
   "tags": null,
   "title": "Chat app: tighten markRead bounds + make CLI reads side-effect-free",
   "type": "chore",
-  "updated_at": "2026-08-30T01:49:39Z",
+  "updated_at": "2026-08-30T06:55:24Z",
   "urgency": null
 }
