@@ -46,17 +46,24 @@
       </form>
     </main>
 
-    <aside id="thread-panel" hidden>
-      <header>
-        <span id="thread-title">Thread</span>
-        <button id="thread-close" title="Close thread">×</button>
-      </header>
-      <div id="thread-messages"></div>
-      <form id="thread-composer">
-        <textarea id="thread-input" rows="2" placeholder="Reply in thread…"></textarea>
-        <button type="submit">Reply</button>
-      </form>
-    </aside>
+    <!-- AS-19: thread modal (replaces the narrow thread sidebar). The outer
+         #thread-modal is the dimmed backdrop; a click landing on it (not on
+         the dialog) closes. Inner ids are unchanged from the old panel so
+         renderThread/wireComposer and the AS-9 t= restore work verbatim. -->
+    <div id="thread-modal" hidden>
+      <div id="thread-dialog" role="dialog" aria-modal="true"
+           aria-labelledby="thread-title" tabindex="-1">
+        <header>
+          <span id="thread-title">Thread</span>
+          <button id="thread-close" title="Close thread">×</button>
+        </header>
+        <div id="thread-messages"></div>
+        <form id="thread-composer">
+          <textarea id="thread-input" rows="2" placeholder="Reply in thread…"></textarea>
+          <button type="submit">Reply</button>
+        </form>
+      </div>
+    </div>
 
     <div id="task-panel" hidden>
       <header>

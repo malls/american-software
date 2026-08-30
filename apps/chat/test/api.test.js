@@ -325,6 +325,25 @@ test('api: AS-17 — scroll.js is served (app.js module graph must not 404)', as
   assert.match(await mod.text(), /renderPreservingScroll/);
 });
 
+test('api: AS-19 — thread-modal.js is served; index.html ships the modal, not the sidebar', async (t) => {
+  const { base } = await bootServer(t);
+  const mod = await fetch(base + '/thread-modal.js');
+  assert.equal(mod.status, 200);
+  assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  assert.match(await mod.text(), /shouldCloseOnEscape/);
+
+  // The served page carries the modal skeleton (dialog semantics + the inner
+  // ids renderThread/AS-9 depend on) and no trace of the retired sidebar.
+  const html = await (await fetch(base + '/')).text();
+  assert.match(html, /id="thread-modal"/);
+  assert.match(html, /role="dialog"/);
+  assert.match(html, /aria-modal="true"/);
+  for (const id of ['thread-title', 'thread-messages', 'thread-composer', 'thread-input', 'thread-close']) {
+    assert.match(html, new RegExp(`id="${id}"`), `inner id ${id} kept verbatim`);
+  }
+  assert.doesNotMatch(html, /thread-panel/, 'narrow thread sidebar is gone from the DOM');
+});
+
 test('api: AS-8 — roster joins personnel, lattice work status, and DM state', async (t) => {
   const { get, post } = await bootServer(t);
 

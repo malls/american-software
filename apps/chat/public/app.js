@@ -3,6 +3,7 @@
 
 import { parseChatUrl, serializeChatUrl, resolveConversation } from './url-state.js';
 import { renderPreservingScroll } from './scroll.js';
+import { shouldCloseOnEscape, isBackdropClick } from './thread-modal.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -346,15 +347,16 @@ async function selectConversation(conv, { keepThread = false, url = 'push', scro
 function openThread(rootId, { url = 'push' } = {}) {
   if (url === 'push') state.anchorMsg = null; // navigation drops the m= anchor
   state.currentThreadRoot = rootId;
-  $('#thread-panel').hidden = false;
+  $('#thread-modal').hidden = false; // AS-19: large modal, was the sidebar
   renderThread({ forceBottom: true }); // a freshly opened thread starts at its newest reply
+  $('#thread-input').focus(); // a11y floor: focus enters the dialog on open
   syncUrl(url);
 }
 
 function closeThread({ url = 'push' } = {}) {
   if (url === 'push') state.anchorMsg = null;
   state.currentThreadRoot = null;
-  $('#thread-panel').hidden = true;
+  $('#thread-modal').hidden = true;
   syncUrl(url);
 }
 
@@ -639,6 +641,17 @@ async function init() {
   wireDmTypeahead();
 
   $('#thread-close').addEventListener('click', () => closeThread());
+  // AS-19: backdrop click closes — only when the click lands on the overlay
+  // itself; clicks inside the dialog bubble up with a different target.
+  $('#thread-modal').addEventListener('click', (e) => {
+    if (isBackdropClick(e)) closeThread();
+  });
+  // AS-19: document-level Escape, live only while the modal is visible.
+  // defaultPrevented is respected so the DM typeahead's own Escape (which
+  // preventDefaults on its input before the event reaches document) wins.
+  document.addEventListener('keydown', (e) => {
+    if (shouldCloseOnEscape(e, $('#thread-modal').hidden)) closeThread();
+  });
   $('#task-panel-close').addEventListener('click', () => ($('#task-panel').hidden = true));
   wireComposer('#composer', '#composer-input', () => null);
   wireComposer('#thread-composer', '#thread-input', () => state.currentThreadRoot);
