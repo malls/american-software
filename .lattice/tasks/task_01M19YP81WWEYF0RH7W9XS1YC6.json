@@ -1,7 +1,7 @@
 {
   "assigned_to": null,
   "branch_links": [],
-  "comment_count": 0,
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-08-30T18:25:13Z",
   "created_by": "agent:cto-owen",
@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M19YP81WWEYF0RH7W9XS1YC6",
-  "last_event_id": "ev_01M19YP81Y34QA4XGCYF3E7BMM",
+  "last_event_id": "ev_01M1A6WFQFFN8G8V29PRX9MCHK",
   "last_status_changed_at": "2026-08-30T18:25:13Z",
-  "priority": "medium",
+  "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
@@ -21,6 +21,6 @@
   "tags": null,
   "title": "Chat: threads render inline or in a large modal \u2014 retire the narrow thread sidebar",
   "type": "task",
-  "updated_at": "2026-08-30T18:25:13Z",
+  "updated_at": "2026-08-30T20:48:26Z",
   "urgency": null
 }
