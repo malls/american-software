@@ -286,7 +286,11 @@ no single task. They commit directly to master with message format
 the `AS-<n>:` rule alongside investor/chat-channel work. Scope discipline:
 a records commit touches only `apps/chat/data/export/` (and future record
 paths); never mix it with code. Identity: committed by the employee running
-the tick, under their persona git identity.
+the tick, under their persona git identity. Private channels (currently
+`#board`, per the AS-6 board decision) are excluded from the chat export by
+design — hidden means hidden, including git. Their only durable copies are the
+live DB and manual `chat dump` backups; the board accepted this tradeoff on
+2026-08-30 (AS-6).
 
 ### Branches
 

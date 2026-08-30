@@ -43,6 +43,33 @@ body {
   font-weight: 700; padding: 0 6px; margin-left: 8px;
 }
 
+/* --- DM typeahead (AS-6) --- */
+#dm-typeahead { position: relative; padding: 2px 16px 6px; }
+#dm-typeahead[hidden] { display: none; }
+#dm-search {
+  width: 100%; font: inherit; font-size: 13px; padding: 4px 6px;
+  border: 1px solid #5b2c5c; border-radius: 4px;
+  background: #fff; color: #1d1c1d;
+}
+#dm-options {
+  position: absolute; left: 16px; right: 16px; z-index: 20;
+  margin-top: 2px; max-height: 240px; overflow-y: auto;
+  background: #fff; color: #1d1c1d;
+  border: 1px solid #bbb; border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25);
+}
+#dm-options:empty { display: none; }
+/* Option rows sit inside #sidebar; equal specificity to the #sidebar li
+   rules above, so source order (this block later) wins. */
+#dm-options li {
+  display: flex; flex-direction: column; align-items: stretch; gap: 1px;
+  padding: 5px 8px; cursor: pointer; white-space: normal;
+}
+#dm-options li:hover, #dm-options li.active { background: #1164a3; color: #fff; }
+.dm-option-name { font-weight: 600; }
+.dm-option-id { font-size: 11px; color: #616061; }
+#dm-options li:hover .dm-option-id, #dm-options li.active .dm-option-id { color: #d7e6f2; }
+
 /* --- main pane --- */
 #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 #conv-header { border-bottom: 1px solid #ddd; padding: 10px 16px; }

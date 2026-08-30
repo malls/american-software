@@ -1,26 +1,39 @@
 {
-  "assigned_to": null,
-  "branch_links": [],
-  "comment_count": 2,
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [
+    {
+      "branch": "feat/AS-6-board-channel",
+      "linked_at": "2026-08-30T04:15:26Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 5,
   "complexity": null,
   "created_at": "2026-08-30T02:43:57Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Investor request via DM (human:forrest, 2026-08-30, @human:forrest msg 39): 'There should be a founder/investor/c level/board channel so I can talk to you and carla. also, dm selection should be a typeahead list'. Two chat-app features: (1) a #board channel restricted to human:forrest, agent:ceo-carla, agent:cto-owen \u2014 note the current schema has no channel membership concept (channels are all-visible; only DMs have members), so this needs a small membership mechanism or a private-channel type, not just a seeded channel name; (2) the web UI's DM identity selector becomes a typeahead over registered identities. CTO judgment: low complexity, real value, but does not preempt AS-5. Owner: whoever plans it should confirm restricted-visibility semantics (hidden vs read-only for non-members) with Forrest if ambiguous.",
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M18FS74F8TQW1TGGSSY6P8PW",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M188TQQQGZ6VF5X35S2PE371",
-  "last_event_id": "ev_01M18AWR49644PPQVGNKN1RVKK",
-  "last_status_changed_at": "2026-08-30T02:43:57Z",
+  "last_event_id": "ev_01M18FS74F8TQW1TGGSSY6P8PW",
+  "last_status_changed_at": "2026-08-30T04:35:55Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-6",
-  "status": "backlog",
+  "status": "review",
   "tags": null,
   "title": "Chat: #board channel (restricted membership) + DM typeahead",
   "type": "task",
-  "updated_at": "2026-08-30T03:20:00Z",
+  "updated_at": "2026-08-30T04:45:27Z",
   "urgency": null
 }

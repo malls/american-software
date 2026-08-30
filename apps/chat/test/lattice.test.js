@@ -76,7 +76,7 @@ test('ingestNewEvents is idempotent: five runs post each event exactly once (T6)
   assert.equal(first, 4, '2 creations + 2 transitions; comment and malformed line excluded');
   for (let i = 0; i < 4; i++) assert.equal(ingestNewEvents(store, FIXTURE_ROOT), 0);
   const chan = store.getChannelByName('lattice-events');
-  const { messages } = store.getMessages(chan.id);
+  const { messages } = store.getMessages(chan.id, 'human:forrest');
   assert.equal(messages.length, 4);
   assert.ok(messages.every((m) => m.authorId === 'system:lattice'));
   // Feed reads chronologically on backfill.

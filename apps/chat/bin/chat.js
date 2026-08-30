@@ -84,7 +84,10 @@ function resolveConv(store, ref, me, { createDm = false } = {}) {
     }
     return store.openDm(me, other);
   }
-  const chan = store.getChannelByName(ref);
+  // AS-6: resolution is visibility-gated — a private channel the caller is
+  // not a member of resolves exactly like a nonexistent one (same message,
+  // same exit code). Never reveal hidden channels here.
+  const chan = store.getChannelVisibleTo(ref, me);
   if (!chan) fail(`Unknown channel '${ref}'. 'chat channels' lists them.`);
   return chan;
 }
@@ -142,7 +145,7 @@ function main() {
         const me = requireMe(store, args.flags);
         const [channel, body] = args._;
         if (!channel || body == null) fail('usage: chat post <channel> "<body>"');
-        const chan = store.getChannelByName(channel);
+        const chan = store.getChannelVisibleTo(channel, me);
         if (!chan) fail(`Unknown channel '${channel}'. 'chat channels' lists them.`);
         const m = store.postMessage({ conversation: chan.id, author: me, body });
         return out(json ? JSON.stringify(m) : `Posted to #${channel} as message ${m.id}`);
@@ -179,7 +182,7 @@ function main() {
         if (!ref) fail('usage: chat history <channel|@identity> [--limit N] [--threads]');
         const conv = resolveConv(store, ref, me);
         const limit = args.flags.limit ? Number(args.flags.limit) : undefined;
-        const { messages, threads } = store.getMessages(conv.id, { limit });
+        const { messages, threads } = store.getMessages(conv.id, me, { limit });
         if (json) {
           const annotate = (m) => ({ ...m, refs: resolveRefs(m.body, root) });
           return out(

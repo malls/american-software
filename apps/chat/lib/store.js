@@ -6,6 +6,11 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
+// Schema v1 (AS-6): conversations carry visibility; dm_members generalized to
+// conversation_members. v0 DBs (pre-AS-6) are migrated in place in openStore,
+// gated on PRAGMA user_version.
+const SCHEMA_VERSION = 1;
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS identities (
   id           TEXT PRIMARY KEY,
@@ -20,11 +25,12 @@ CREATE TABLE IF NOT EXISTS conversations (
   name        TEXT UNIQUE,
   purpose     TEXT,
   dm_key      TEXT UNIQUE,
+  visibility  TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public','private')),
   created_by  TEXT NOT NULL REFERENCES identities(id),
   created_at  TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS dm_members (
+CREATE TABLE IF NOT EXISTS conversation_members (
   conversation_id INTEGER NOT NULL REFERENCES conversations(id),
   identity_id     TEXT NOT NULL REFERENCES identities(id),
   PRIMARY KEY (conversation_id, identity_id)
@@ -68,6 +74,15 @@ const SEED_CHANNELS = [
     name: 'lattice-events',
     purpose: 'Automated feed of Lattice task events; read-only by convention',
   },
+  // AS-6 board decision: #board is private and HIDDEN from non-members on
+  // every surface. Membership is seed-defined (no mutation API exists);
+  // founders are re-added on every open so they can never be locked out.
+  {
+    name: 'board',
+    purpose: 'Board & founders. Restricted: visible to members only.',
+    visibility: 'private',
+    members: ['human:forrest', 'agent:ceo-carla', 'agent:cto-owen'],
+  },
 ];
 
 export const EVENTS_CHANNEL = 'lattice-events';
@@ -105,7 +120,43 @@ export function openStore(dbPath) {
   db.exec('PRAGMA journal_mode=WAL');
   db.exec('PRAGMA busy_timeout = 5000');
   db.exec('PRAGMA foreign_keys=ON');
-  db.exec(SCHEMA);
+
+  // --- schema versioning & in-place migration (AS-6) -----------------------
+  // v0 (pre-AS-6): dm_members table, no conversations.visibility.
+  // v1: conversation_members + visibility. Idempotent by construction: the
+  // whole migration runs inside one BEGIN IMMEDIATE tx, gated on user_version
+  // (re-checked under the write lock, so a concurrent open can't double-run).
+  const userVersion = () => Number(db.prepare('PRAGMA user_version').get().user_version);
+  if (userVersion() < SCHEMA_VERSION) {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      if (userVersion() < SCHEMA_VERSION) {
+        db.exec(SCHEMA); // fresh DBs get v1 directly (CREATE IF NOT EXISTS)
+        const hasTable = (name) =>
+          !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
+        if (hasTable('dm_members')) {
+          db.exec(
+            'INSERT OR IGNORE INTO conversation_members (conversation_id, identity_id) SELECT conversation_id, identity_id FROM dm_members'
+          );
+          db.exec('DROP TABLE dm_members');
+        }
+        const convCols = db.prepare('PRAGMA table_info(conversations)').all().map((c) => c.name);
+        if (!convCols.includes('visibility')) {
+          db.exec(
+            "ALTER TABLE conversations ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public','private'))"
+          );
+          db.exec("UPDATE conversations SET visibility = 'private' WHERE type = 'dm'");
+        }
+        db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+      }
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
+  } else {
+    db.exec(SCHEMA);
+  }
 
   function tx(fn) {
     db.exec('BEGIN IMMEDIATE');
@@ -173,13 +224,10 @@ export function openStore(dbPath) {
 
   // --- conversations ------------------------------------------------------
 
+  const CONV_COLS = `id, type, name, purpose, dm_key AS dmKey, visibility, created_by AS createdBy, created_at AS createdAt`;
+
   function getConversation(id) {
-    return db
-      .prepare(
-        `SELECT id, type, name, purpose, dm_key AS dmKey, created_by AS createdBy, created_at AS createdAt
-         FROM conversations WHERE id = ?`
-      )
-      .get(id);
+    return db.prepare(`SELECT ${CONV_COLS} FROM conversations WHERE id = ?`).get(id);
   }
 
   function requireConversation(id) {
@@ -190,39 +238,89 @@ export function openStore(dbPath) {
 
   function getChannelByName(name) {
     return db
-      .prepare(
-        `SELECT id, type, name, purpose, dm_key AS dmKey, created_by AS createdBy, created_at AS createdAt
-         FROM conversations WHERE type = 'channel' AND name = ?`
-      )
+      .prepare(`SELECT ${CONV_COLS} FROM conversations WHERE type = 'channel' AND name = ?`)
       .get(name);
   }
 
-  function createChannel({ name, purpose, actor }) {
+  /**
+   * Channel lookup through the visibility boundary (AS-6): returns the channel
+   * only if `me` may see it — public, or private with `me` a member. A hidden
+   * channel returns undefined, exactly like a nonexistent one. Every
+   * name-addressed caller surface (CLI post/history/read/reply) goes through
+   * this, never getChannelByName.
+   */
+  function getChannelVisibleTo(name, me) {
+    return db
+      .prepare(
+        `SELECT ${CONV_COLS} FROM conversations c
+         WHERE c.type = 'channel' AND c.name = ?
+           AND (c.visibility = 'public' OR EXISTS (
+             SELECT 1 FROM conversation_members cm
+             WHERE cm.conversation_id = c.id AND cm.identity_id = ?))`
+      )
+      .get(name, me);
+  }
+
+  function createChannel({ name, purpose, actor, visibility = 'public', members = null }) {
     requireIdentity(actor);
     if (typeof name !== 'string' || !/^[a-z0-9-]+$/.test(name)) {
       throw new StoreError(
         `Invalid channel name '${name}'. Use lowercase letters, digits, and hyphens only (e.g. 'engineering').`
       );
     }
-    if (getChannelByName(name)) {
+    if (!['public', 'private'].includes(visibility)) {
+      throw new StoreError(`Invalid visibility '${visibility}'. Must be 'public' or 'private'.`);
+    }
+    if (visibility === 'private') {
+      // Store-level only in AS-6: no CLI/HTTP/UI surface exposes these params.
+      if (!Array.isArray(members) || members.length === 0) {
+        throw new StoreError('Private channels require a non-empty members list.');
+      }
+      if (!members.includes(actor)) {
+        throw new StoreError(`Private channel members must include the creating actor '${actor}'.`);
+      }
+      for (const m of members) requireIdentity(m);
+    }
+    const existing = getChannelByName(name);
+    if (existing) {
+      // Name collision against a channel hidden from the actor must not be an
+      // existence proof: deliberately uninformative wording (name reserved vs
+      // channel exists — indistinguishable). Documented residual one-bit leak.
+      if (existing.visibility === 'private' && !isMember(existing.id, actor)) {
+        throw new StoreError(`Channel name '${name}' is unavailable.`, 'conflict');
+      }
       throw new StoreError(`Channel '${name}' already exists.`, 'conflict');
     }
-    db.prepare(
-      `INSERT INTO conversations (type, name, purpose, created_by, created_at) VALUES ('channel', ?, ?, ?, ?)`
-    ).run(name, purpose ?? null, actor, nowIso());
-    return getChannelByName(name);
+    return tx(() => {
+      db.prepare(
+        `INSERT INTO conversations (type, name, purpose, visibility, created_by, created_at)
+         VALUES ('channel', ?, ?, ?, ?, ?)`
+      ).run(name, purpose ?? null, visibility, actor, nowIso());
+      const chan = getChannelByName(name);
+      if (visibility === 'private') {
+        const ins = db.prepare(
+          'INSERT OR IGNORE INTO conversation_members (conversation_id, identity_id) VALUES (?, ?)'
+        );
+        for (const m of members) ins.run(chan.id, m);
+      }
+      return chan;
+    });
   }
 
+  /** Members of a conversation (DMs always; private channels too). Name kept
+   *  from the v0 API — reads conversation_members since AS-6. */
   function dmMembers(conversationId) {
     return db
-      .prepare('SELECT identity_id FROM dm_members WHERE conversation_id = ? ORDER BY identity_id')
+      .prepare(
+        'SELECT identity_id FROM conversation_members WHERE conversation_id = ? ORDER BY identity_id'
+      )
       .all(conversationId)
       .map((r) => r.identity_id);
   }
 
-  function isDmMember(conversationId, identityId) {
+  function isMember(conversationId, identityId) {
     return !!db
-      .prepare('SELECT 1 FROM dm_members WHERE conversation_id = ? AND identity_id = ?')
+      .prepare('SELECT 1 FROM conversation_members WHERE conversation_id = ? AND identity_id = ?')
       .get(conversationId, identityId);
   }
 
@@ -231,34 +329,40 @@ export function openStore(dbPath) {
     requireIdentity(other);
     if (me === other) throw new StoreError('Cannot open a DM with yourself.');
     const key = dmKeyFor(me, other);
-    const existing = db
-      .prepare(
-        `SELECT id, type, name, purpose, dm_key AS dmKey, created_by AS createdBy, created_at AS createdAt
-         FROM conversations WHERE dm_key = ?`
-      )
-      .get(key);
+    const existing = db.prepare(`SELECT ${CONV_COLS} FROM conversations WHERE dm_key = ?`).get(key);
     if (existing) return { ...existing, members: dmMembers(existing.id) };
     return tx(() => {
       db.prepare(
-        `INSERT INTO conversations (type, dm_key, created_by, created_at) VALUES ('dm', ?, ?, ?)`
+        `INSERT INTO conversations (type, dm_key, visibility, created_by, created_at)
+         VALUES ('dm', ?, 'private', ?, ?)`
       ).run(key, me, nowIso());
-      const conv = db
-        .prepare(
-          `SELECT id, type, name, purpose, dm_key AS dmKey, created_by AS createdBy, created_at AS createdAt
-           FROM conversations WHERE dm_key = ?`
-        )
-        .get(key);
-      const ins = db.prepare('INSERT INTO dm_members (conversation_id, identity_id) VALUES (?, ?)');
+      const conv = db.prepare(`SELECT ${CONV_COLS} FROM conversations WHERE dm_key = ?`).get(key);
+      const ins = db.prepare(
+        'INSERT INTO conversation_members (conversation_id, identity_id) VALUES (?, ?)'
+      );
       ins.run(conv.id, me);
       ins.run(conv.id, other);
       return { ...conv, members: dmMembers(conv.id) };
     });
   }
 
-  function requireVisible(conversation, identityId) {
-    if (conversation.type === 'dm' && !isDmMember(conversation.id, identityId)) {
+  /**
+   * One gate for every id-addressed read/write path (AS-6). Public: pass.
+   * Private + member: pass. DM non-member: 403 'forbidden' (pre-AS-6
+   * semantics, deliberately unchanged — the deterministic dm_key already
+   * makes DM existence computable, so 403 proves nothing secret). Hidden
+   * channel: 'unknown_conversation' with the byte-same message template as a
+   * nonexistent id — never 403, which would be an existence proof. `ref` is
+   * the caller-supplied conversation reference so the echoed id matches what
+   * requireConversation would echo for a nonexistent one.
+   */
+  function requireVisible(conversation, identityId, ref = conversation.id) {
+    if (conversation.visibility === 'public') return;
+    if (isMember(conversation.id, identityId)) return;
+    if (conversation.type === 'dm') {
       throw new StoreError(`Identity '${identityId}' is not a member of that DM.`, 'forbidden');
     }
+    throw new StoreError(`Unknown conversation '${ref}'.`, 'unknown_conversation');
   }
 
   function unreadCountFor(me, conversationId) {
@@ -278,16 +382,20 @@ export function openStore(dbPath) {
     requireIdentity(me);
     const channels = db
       .prepare(
-        `SELECT id, type, name, purpose, dm_key AS dmKey, created_by AS createdBy, created_at AS createdAt
-         FROM conversations WHERE type = 'channel' ORDER BY name`
+        `SELECT ${CONV_COLS} FROM conversations c
+         WHERE c.type = 'channel'
+           AND (c.visibility = 'public' OR EXISTS (
+             SELECT 1 FROM conversation_members cm
+             WHERE cm.conversation_id = c.id AND cm.identity_id = ?))
+         ORDER BY c.name`
       )
-      .all();
+      .all(me);
     const dms = db
       .prepare(
-        `SELECT c.id, c.type, c.name, c.purpose, c.dm_key AS dmKey, c.created_by AS createdBy, c.created_at AS createdAt
+        `SELECT c.id, c.type, c.name, c.purpose, c.dm_key AS dmKey, c.visibility, c.created_by AS createdBy, c.created_at AS createdAt
          FROM conversations c
-         JOIN dm_members dm ON dm.conversation_id = c.id
-         WHERE c.type = 'dm' AND dm.identity_id = ?
+         JOIN conversation_members cm ON cm.conversation_id = c.id
+         WHERE c.type = 'dm' AND cm.identity_id = ?
          ORDER BY c.id`
       )
       .all(me);
@@ -313,11 +421,12 @@ export function openStore(dbPath) {
   function postMessage({ conversation, author, body, threadRoot }) {
     requireIdentity(author);
     const conv = requireConversation(conversation);
+    // Visibility gate BEFORE any input validation: a hidden channel must fail
+    // exactly like a nonexistent id on every probe, including malformed ones —
+    // a 400 for a bad body where a nonexistent id gives 404 would leak existence.
+    requireVisible(conv, author, conversation);
     if (typeof body !== 'string' || body.trim() === '') {
       throw new StoreError('Message body must be a non-empty string.');
-    }
-    if (conv.type === 'dm' && !isDmMember(conv.id, author)) {
-      throw new StoreError(`Identity '${author}' is not a member of that DM.`, 'forbidden');
     }
     let rootId = null;
     if (threadRoot != null) {
@@ -347,8 +456,10 @@ export function openStore(dbPath) {
     });
   }
 
-  function getMessages(conversation, { limit } = {}) {
+  function getMessages(conversation, me, { limit } = {}) {
+    requireIdentity(me);
     const conv = requireConversation(conversation);
+    requireVisible(conv, me, conversation);
     let topLevel = db
       .prepare(
         `SELECT m.id, m.conversation_id AS conversationId, m.thread_root_id AS threadRootId,
@@ -389,7 +500,7 @@ export function openStore(dbPath) {
   function markRead(me, conversation, upTo) {
     requireIdentity(me);
     const conv = requireConversation(conversation);
-    requireVisible(conv, me);
+    requireVisible(conv, me, conversation);
     const target = upTo == null ? maxMessageId(conv.id) : Number(upTo);
     if (!Number.isInteger(target) || target < 0) {
       throw new StoreError(`Invalid upTo '${upTo}'.`);
@@ -428,9 +539,9 @@ export function openStore(dbPath) {
            AND m.id > COALESCE(
              (SELECT last_read_id FROM read_state
               WHERE identity_id = ? AND conversation_id = m.conversation_id), 0)
-           AND (c.type = 'channel'
-                OR EXISTS (SELECT 1 FROM dm_members dm
-                           WHERE dm.conversation_id = c.id AND dm.identity_id = ?))
+           AND (c.visibility = 'public'
+                OR EXISTS (SELECT 1 FROM conversation_members cm
+                           WHERE cm.conversation_id = c.id AND cm.identity_id = ?))
          ORDER BY m.conversation_id, m.id`
       )
       .all(me, me, me);
@@ -491,7 +602,7 @@ export function openStore(dbPath) {
     const tables = [
       ['identities', 'SELECT * FROM identities ORDER BY id'],
       ['conversations', 'SELECT * FROM conversations ORDER BY id'],
-      ['dm_members', 'SELECT * FROM dm_members ORDER BY conversation_id, identity_id'],
+      ['conversation_members', 'SELECT * FROM conversation_members ORDER BY conversation_id, identity_id'],
       ['messages', 'SELECT * FROM messages ORDER BY id'],
       ['read_state', 'SELECT * FROM read_state ORDER BY identity_id, conversation_id'],
       ['ingested_events', 'SELECT * FROM ingested_events ORDER BY event_id'],
@@ -542,9 +653,17 @@ export function openStore(dbPath) {
       ),
     });
 
+    // AS-6: private channels are excluded outright — no file, no counts.
+    // Hidden includes the git export (board decision); their only durable
+    // copies are the live DB and manual `chat dump` backups. DMs keep
+    // exporting exactly as before (pre-existing AS-5 behavior). The header
+    // line format deliberately does NOT gain a visibility key: adding one
+    // would rewrite line 1 of every previously committed export file and
+    // break the byte-identical-prefix contract.
     const convs = db
       .prepare(
-        'SELECT id, type, name, purpose, dm_key, created_by, created_at FROM conversations ORDER BY id'
+        `SELECT id, type, name, purpose, dm_key, created_by, created_at FROM conversations
+         WHERE NOT (type = 'channel' AND visibility = 'private') ORDER BY id`
       )
       .all();
     const selectMsgs = db.prepare(
@@ -594,10 +713,23 @@ export function openStore(dbPath) {
     );
     for (const s of SEED_IDENTITIES) insId.run(s.id, s.displayName, s.kind, now);
     const insChan = db.prepare(
-      `INSERT OR IGNORE INTO conversations (type, name, purpose, created_by, created_at)
-       VALUES ('channel', ?, ?, 'system:lattice', ?)`
+      `INSERT OR IGNORE INTO conversations (type, name, purpose, visibility, created_by, created_at)
+       VALUES ('channel', ?, ?, ?, 'system:lattice', ?)`
     );
-    for (const c of SEED_CHANNELS) insChan.run(c.name, c.purpose, now);
+    const insMember = db.prepare(
+      'INSERT OR IGNORE INTO conversation_members (conversation_id, identity_id) VALUES (?, ?)'
+    );
+    for (const c of SEED_CHANNELS) {
+      insChan.run(c.name, c.purpose, c.visibility ?? 'public', now);
+      if (c.members) {
+        // Re-run on every open: seed members can never be locked out of a
+        // seed channel by DB fiddling (deliberate — recorded in the AS-6 plan).
+        const { id } = db
+          .prepare("SELECT id FROM conversations WHERE type = 'channel' AND name = ?")
+          .get(c.name);
+        for (const m of c.members) insMember.run(id, m);
+      }
+    }
   });
 
   return {
@@ -608,6 +740,7 @@ export function openStore(dbPath) {
     registerIdentity,
     createChannel,
     getChannelByName,
+    getChannelVisibleTo,
     getConversation,
     requireConversation,
     openDm,

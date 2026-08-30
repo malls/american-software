@@ -184,3 +184,101 @@ test('cli: chat export writes files, prints summary, and re-runs byte-identicall
   assert.equal(parsed.out, outDir);
   assert.deepEqual([...parsed.files].sort(), names);
 });
+
+// --- AS-6: private channels are excluded from the export --------------------
+
+test('AS-6: #board never produces an export file, even with messages in it', (t) => {
+  const { store } = tempStore(t);
+  const board = store.getChannelByName('board');
+  store.postMessage({ conversation: board.id, author: 'human:forrest', body: 'board secret' });
+  store.postMessage({ conversation: board.id, author: 'agent:ceo-carla', body: 'more board talk' });
+  const files = store.exportFiles();
+  assert.ok(!files.some((f) => f.filename === 'channel-board.jsonl'));
+  const allLines = files.flatMap((f) => f.lines).join('\n');
+  assert.ok(!allLines.includes('board secret'), 'board content must not leak into any file');
+  // Store-level private channels are excluded the same way.
+  store.createChannel({
+    name: 'warroom', actor: 'human:forrest', visibility: 'private',
+    members: ['human:forrest', 'agent:cto-owen'],
+  });
+  assert.ok(!store.exportFiles().some((f) => f.filename === 'channel-warroom.jsonl'));
+});
+
+test('AS-6: the export header line format is unchanged (no visibility key)', (t) => {
+  const { store } = tempStore(t);
+  store.openDm('human:forrest', 'agent:cto-owen');
+  for (const f of store.exportFiles()) {
+    if (f.filename === 'identities.jsonl') continue;
+    // Exact key order — the byte-identical-prefix contract against files
+    // already committed under AS-5 depends on this never changing.
+    assert.deepEqual(Object.keys(JSON.parse(f.lines[0])), [
+      'type', 'id', 'conv_type', 'name', 'purpose', 'dm_key',
+      'members', 'created_by', 'created_at',
+    ]);
+  }
+});
+
+test('AS-6: interleaved board traffic never perturbs public export files', (t) => {
+  const { store } = tempStore(t);
+  const eng = store.getChannelByName('engineering');
+  const board = store.getChannelByName('board');
+  store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'public one' });
+  const before = new Map(store.exportFiles().map((f) => [f.filename, f.lines.join('\n')]));
+  // Board traffic interleaved with public traffic: message ids interleave in
+  // the shared sequence, but exported public files must only append.
+  store.postMessage({ conversation: board.id, author: 'human:forrest', body: 'hidden between' });
+  store.postMessage({ conversation: eng.id, author: 'agent:cto-owen', body: 'public two' });
+  store.postMessage({ conversation: board.id, author: 'agent:ceo-carla', body: 'hidden after' });
+  const after = new Map(store.exportFiles().map((f) => [f.filename, f.lines.join('\n')]));
+  assert.deepEqual([...after.keys()], [...before.keys()], 'file set unchanged by board traffic');
+  for (const [filename, oldContent] of before) {
+    assert.ok(after.get(filename).startsWith(oldContent), `${filename} stays a prefix`);
+  }
+  assert.ok(!([...after.values()].join('\n').includes('hidden')), 'no board bytes exported');
+});
+
+test('cli: AS-6 — chat export skips #board: no file, no counts, still byte-identical on re-run', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'chat-export-cli-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dbPath = join(dir, 'chat.db');
+  const outDir = join(dir, 'out');
+  const store = openStore(dbPath);
+  const eng = store.getChannelByName('engineering');
+  const board = store.getChannelByName('board');
+  store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'public' });
+  store.postMessage({ conversation: board.id, author: 'human:forrest', body: 'board secret' });
+  store.close();
+
+  const run = () =>
+    spawnSync(process.execPath, [BIN, 'export', '--out', outDir, '--json'], {
+      env: { ...process.env, CHAT_DB: dbPath },
+      encoding: 'utf8',
+    });
+  const first = run();
+  assert.equal(first.status, 0, first.stderr);
+  const parsed = JSON.parse(first.stdout);
+  // The seeded-but-hidden #board moves no number and produces no file:
+  // same "3 conversations, 1 messages" a board-less DB would report.
+  assert.equal(parsed.conversations, 3);
+  assert.equal(parsed.messages, 1);
+  assert.ok(!parsed.files.includes('channel-board.jsonl'));
+  assert.deepEqual(readdirSync(outDir).sort(), [
+    'channel-announcements.jsonl',
+    'channel-engineering.jsonl',
+    'channel-lattice-events.jsonl',
+    'identities.jsonl',
+  ]);
+  for (const f of readdirSync(outDir)) {
+    assert.ok(!readFileSync(join(outDir, f), 'utf8').includes('board secret'));
+  }
+  const hashes = () =>
+    Object.fromEntries(
+      readdirSync(outDir)
+        .sort()
+        .map((f) => [f, createHash('sha256').update(readFileSync(join(outDir, f))).digest('hex')])
+    );
+  const h1 = hashes();
+  const second = run();
+  assert.equal(second.status, 0, second.stderr);
+  assert.deepEqual(hashes(), h1, 're-run is byte-identical');
+});
