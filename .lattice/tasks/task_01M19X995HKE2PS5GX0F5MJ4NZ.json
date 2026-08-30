@@ -8,26 +8,32 @@
       "repo": null
     }
   ],
-  "comment_count": 1,
+  "comment_count": 3,
   "complexity": "low",
   "created_at": "2026-08-30T18:00:39Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Discovered in AS-7 first-fire ops verification (2026-08-30): the watcher fired correctly for messageId 120, but the spawned tick died in ~2s with 'Not logged in - Please run /login'. Diagnosis (orchestrator-verified via env -i tests): claude auth on this host is macOS-Keychain-based and requires USER in the process environment; the watcher's child env is exactly {PATH, HOME} per the AS-7 plan's minimal-env rule \u2014 one variable too strict. 'env -i HOME=... USER=... PATH=... claude -p' works; without USER it reproduces the failure. THE FIX: apps/chat/watch/advance-watcher.mjs, fire(), child env construction (currently 'env: { PATH: process.env.PATH, HOME: process.env.HOME }', line ~371) \u2014 add USER, and consider LOGNAME for the same keychain/identity reason. Do NOT widen further: the minimal-env principle stands, and each added variable needs a stated reason. Also update the comment above the spawn call to record why USER is present. Tests: apps/chat/test/watcher.test.js does not currently assert child env contents (verified by grep), but Priya's AS-7 review verified 'child env exactly {PATH, HOME}' from source \u2014 that pin is now stale and must be understood as {PATH, HOME, USER(, LOGNAME)}; if any assertion pinning the env exists or is added, it pins the new set. Priority high: this blocks the chat app as the board's primary interface \u2014 every message-triggered tick dies at auth until fixed.",
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M19XNNQ13RCMHR7SYCXCTNGS",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M19X995HKE2PS5GX0F5MJ4NZ",
-  "last_event_id": "ev_01M19XAH58X22K4JTXNFXQ3C4Y",
-  "last_status_changed_at": "2026-08-30T18:01:20Z",
+  "last_event_id": "ev_01M19XNNQ13RCMHR7SYCXCTNGS",
+  "last_status_changed_at": "2026-08-30T18:04:29Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-14",
-  "status": "planned",
+  "status": "review",
   "tags": null,
   "title": "advance-watcher: pass USER (keychain auth) in tick child env",
   "type": "bug",
-  "updated_at": "2026-08-30T18:01:20Z",
+  "updated_at": "2026-08-30T18:07:25Z",
   "urgency": null
 }
