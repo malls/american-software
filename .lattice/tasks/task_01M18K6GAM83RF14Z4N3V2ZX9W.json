@@ -14,7 +14,7 @@
   "created_by": "agent:qa-priya",
   "custom_fields": {},
   "description": "Found during AS-8 review (qa-priya, hostile-fixture attack; does not violate any AS-8 acceptance criterion \u2014 defense-in-depth backlog item). Two prototype-chain leaks in apps/chat/lib/lattice.js assignmentsByActor(): (1) the in-flight filter uses `task.status in IN_FLIGHT_RANK`, and `in` walks the prototype chain \u2014 a task JSON with status \"constructor\"/\"toString\"/etc passes the filter and renders as phantom work (verified in-container: status \"constructor\" appeared as 'AS-92 \u00b7 constructor'; textContent rendering means no XSS, wrong data only). (2) the accumulator is a plain object, so `byActor[task.assigned_to] ??= []` with assigned_to \"__proto__\" reads Object.prototype (non-nullish) and the following .push throws TypeError (verified in-container). Server impact: /api/roster's try/catch swallows it, silently blanking the ENTIRE roster on one hostile task file; CLI 'chat roster' impact: unhandled crash. Trigger requires a hand-crafted .lattice/tasks/*.json (the lattice CLI never writes such values), hence low priority. Fix sketch: filter with Object.hasOwn(IN_FLIGHT_RANK, task.status), accumulate in a Map, return Object.fromEntries(map) (fromEntries uses CreateDataProperty so a '__proto__' key becomes a safe own property). Add regression fixtures: status 'constructor', assigned_to '__proto__'. Repro fixtures used in review are described here; rebuild from this description.",
-  "done_at": null,
+  "done_at": "2026-08-30T06:51:22Z",
   "evidence_refs": [
     {
       "id": "ev_01M18PYYTD6P6NPC9MCX6WMRCB",
@@ -23,17 +23,17 @@
     }
   ],
   "id": "task_01M18K6GAM83RF14Z4N3V2ZX9W",
-  "last_event_id": "ev_01M18PYYTD6P6NPC9MCX6WMRCB",
-  "last_status_changed_at": "2026-08-30T06:48:12Z",
+  "last_event_id": "ev_01M18PZRZNHX1AVDNTTWMNDA52",
+  "last_status_changed_at": "2026-08-30T06:51:22Z",
   "priority": "low",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-12",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "chat: harden assignmentsByActor against prototype-chain task fields",
   "type": "bug",
-  "updated_at": "2026-08-30T06:50:55Z",
+  "updated_at": "2026-08-30T06:51:22Z",
   "urgency": null
 }
