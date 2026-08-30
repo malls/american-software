@@ -1,7 +1,7 @@
 // Unit tests for lib/store.js against a temp-dir DB per test.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -556,4 +556,85 @@ test('AS-6: v0 database migrates in place to v1, preserving all data; re-open is
   assert.equal(Number(raw2.prepare('PRAGMA user_version').get().user_version), 1);
   raw2.close();
   store.close();
+});
+
+// --- AS-7 sentinel: last-human-message.json ---------------------------------
+
+test('AS-7 sentinel: human post writes last-human-message.json; later human post overwrites', (t) => {
+  const { store, dir } = tempStore(t);
+  const sentinelPath = join(dir, 'last-human-message.json');
+  assert.ok(!existsSync(sentinelPath), 'no sentinel before any human post');
+
+  const eng = store.getChannelByName('engineering');
+  const m1 = store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'first' });
+  assert.ok(existsSync(sentinelPath));
+  assert.deepEqual(JSON.parse(readFileSync(sentinelPath, 'utf8')), {
+    messageId: m1.id,
+    authorId: 'human:forrest',
+    conversationId: eng.id,
+    createdAt: m1.createdAt,
+  });
+  assert.ok(!existsSync(sentinelPath + '.tmp'), 'tmp file renamed away');
+
+  const m2 = store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'second' });
+  assert.ok(m2.id > m1.id);
+  assert.equal(JSON.parse(readFileSync(sentinelPath, 'utf8')).messageId, m2.id);
+});
+
+test('AS-7 sentinel: agent and system authors (incl. ingestEvent) never touch it', (t) => {
+  const { store, dir } = tempStore(t);
+  const sentinelPath = join(dir, 'last-human-message.json');
+  const eng = store.getChannelByName('engineering');
+
+  store.postMessage({ conversation: eng.id, author: 'agent:cto-owen', body: 'agent post' });
+  assert.ok(!existsSync(sentinelPath), 'agent post writes no sentinel');
+  const events = store.getChannelByName('lattice-events');
+  store.postMessage({ conversation: events.id, author: 'system:lattice', body: 'system post' });
+  assert.ok(!existsSync(sentinelPath), 'system post writes no sentinel');
+  store.ingestEvent('ev_sentinel_1', 'ingested event');
+  assert.ok(!existsSync(sentinelPath), 'ingestEvent writes no sentinel');
+
+  // Existing sentinel is left unchanged by subsequent non-human traffic.
+  const human = store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'hi' });
+  store.postMessage({ conversation: eng.id, author: 'agent:cto-owen', body: 'reply-ish' });
+  store.ingestEvent('ev_sentinel_2', 'another event');
+  assert.equal(JSON.parse(readFileSync(sentinelPath, 'utf8')).messageId, human.id);
+});
+
+test('AS-7 sentinel: a human thread reply updates it (any human message counts)', (t) => {
+  const { store, dir } = tempStore(t);
+  const sentinelPath = join(dir, 'last-human-message.json');
+  const eng = store.getChannelByName('engineering');
+  const root = store.postMessage({ conversation: eng.id, author: 'agent:cto-owen', body: 'root' });
+  assert.ok(!existsSync(sentinelPath));
+  const reply = store.postMessage({
+    conversation: eng.id,
+    author: 'human:forrest',
+    body: 'thread reply',
+    threadRoot: root.id,
+  });
+  const sentinel = JSON.parse(readFileSync(sentinelPath, 'utf8'));
+  assert.equal(sentinel.messageId, reply.id);
+  assert.equal(sentinel.authorId, 'human:forrest');
+  assert.equal(sentinel.conversationId, eng.id);
+});
+
+test('AS-7 sentinel: :memory: store never writes; a failing write never fails the post', (t) => {
+  // :memory: — no data dir, no sentinel attempt (cwd stays clean).
+  const mem = openStore(':memory:');
+  t.after(() => mem.close());
+  const eng = mem.getChannelByName('engineering');
+  const posted = mem.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'in memory' });
+  assert.ok(posted.id > 0);
+  assert.ok(!existsSync('last-human-message.json'), ':memory: store wrote no sentinel in cwd');
+
+  // Failure injection: squat the tmp path with a directory so writeFileSync
+  // throws EISDIR inside writeHumanSentinel. The post must still succeed.
+  const { store, dir } = tempStore(t);
+  const sentinelPath = join(dir, 'last-human-message.json');
+  mkdirSync(sentinelPath + '.tmp');
+  const eng2 = store.getChannelByName('engineering');
+  const msg = store.postMessage({ conversation: eng2.id, author: 'human:forrest', body: 'still posts' });
+  assert.equal(store.getMessage(msg.id).body, 'still posts');
+  assert.ok(!existsSync(sentinelPath), 'sentinel absent after injected write failure');
 });

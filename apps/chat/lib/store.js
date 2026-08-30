@@ -3,8 +3,8 @@
 // through this module; no SQL lives anywhere else (portability seam per plan §8).
 
 import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 // Schema v1 (AS-6): conversations carry visibility; dm_members generalized to
 // conversation_members. v0 DBs (pre-AS-6) are migrated in place in openStore,
@@ -413,6 +413,36 @@ export function openStore(dbPath) {
     }));
   }
 
+  // --- AS-7 sentinel: the container→host signal seam -----------------------
+  // The one deliberate fs impurity in this otherwise fs-free module. On every
+  // human-authored post, drop a tiny JSON marker in the data dir (bind-mounted
+  // to the host) so the host-side advance watcher (apps/chat/watch/) can react
+  // without touching chat.db. Lives here — not in the server — so the CLI
+  // post path is covered too. tmp+rename keeps the write atomic (the watcher
+  // can never read a torn file); any failure is swallowed because a sentinel
+  // write failure must NEVER fail the post. Skipped for :memory: stores.
+  const sentinelPath =
+    dbPath === ':memory:' ? null : join(dirname(dbPath), 'last-human-message.json');
+
+  function writeHumanSentinel(msg) {
+    if (sentinelPath === null) return;
+    try {
+      const tmp = sentinelPath + '.tmp';
+      writeFileSync(
+        tmp,
+        JSON.stringify({
+          messageId: msg.id,
+          authorId: msg.authorId,
+          conversationId: msg.conversationId,
+          createdAt: msg.createdAt,
+        }) + '\n'
+      );
+      renameSync(tmp, sentinelPath);
+    } catch {
+      // Non-fatal by design: chat keeps working if the data dir is unwritable.
+    }
+  }
+
   // --- messages / threads -------------------------------------------------
 
   function getMessage(id) {
@@ -453,7 +483,7 @@ export function openStore(dbPath) {
         'forbidden'
       );
     }
-    return tx(() => {
+    const msg = tx(() => {
       db.prepare(
         `INSERT INTO messages (conversation_id, thread_root_id, author_id, body, created_at)
          VALUES (?, ?, ?, ?, ?)`
@@ -461,6 +491,11 @@ export function openStore(dbPath) {
       const id = db.prepare('SELECT last_insert_rowid() AS id').get().id;
       return getMessage(Number(id));
     });
+    // AS-7: after the tx commits, signal the host watcher for human authors
+    // only. The registerIdentity regex guarantees the id prefix matches the
+    // stored kind, so the prefix test is authoritative — no extra query.
+    if (author.startsWith('human:')) writeHumanSentinel(msg);
+    return msg;
   }
 
   function getMessages(conversation, me, { limit } = {}) {
