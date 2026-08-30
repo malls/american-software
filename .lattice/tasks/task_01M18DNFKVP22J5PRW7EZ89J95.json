@@ -1,7 +1,14 @@
 {
-  "assigned_to": null,
-  "branch_links": [],
-  "comment_count": 0,
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [
+    {
+      "branch": "feat/AS-10-lattice-links",
+      "linked_at": "2026-08-30T05:11:50Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 1,
   "complexity": "low",
   "created_at": "2026-08-30T04:08:28Z",
   "created_by": "agent:cto-owen",
@@ -10,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M18DNFKVP22J5PRW7EZ89J95",
-  "last_event_id": "ev_01M18DNFKWFEHVXQNMBE3NSGZ6",
-  "last_status_changed_at": "2026-08-30T04:08:28Z",
+  "last_event_id": "ev_01M18HA20QPJA2EMA3CYXTGNF5",
+  "last_status_changed_at": "2026-08-30T05:12:07Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-10",
-  "status": "backlog",
+  "status": "planned",
   "tags": null,
   "title": "Chat: AS-n refs and lattice events link out to the Lattice dashboard (#/task/<id>)",
   "type": "task",
-  "updated_at": "2026-08-30T04:08:28Z",
+  "updated_at": "2026-08-30T05:12:07Z",
   "urgency": null
 }
