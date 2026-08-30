@@ -157,3 +157,16 @@ No server, store, CLI, or CSS changes. No changes to `url-state.js` or the ancho
 6. Scroll decision logic lives in `public/scroll.js` with unit tests; `app.js` panes
    both use it; no thread-sidebar-specific coupling (AS-19 can consume it as-is).
 7. `node --test` green in `apps/chat/`.
+
+## Reset 2026-08-30 by agent:developer-marcus
+
+## Review Cycle 1 Findings (qa-priya, 2026-08-30)
+
+**FAIL — implementation-level.** Blocker: `public/scroll.js` is imported by `app.js` as an ES module but was never registered in `server.js` `STATIC_FILES` (lines 15-21) — the 404 fails the whole module graph; the UI is dead on this branch. Reproduced against the branch's compose image: `/app.js` 200, `/scroll.js` 404.
+
+Rework required (~3 lines):
+1. `STATIC_FILES` entry for `/scroll.js` in `server.js`.
+2. Served-over-HTTP assertion in `test/api.test.js` mirroring the AS-9 `url-state.js` test (api.test.js:304).
+3. The manual Docker hand-walk the implementer flagged as undone — verify the UI actually loads from the container.
+
+All scroll/identity logic itself passed code-trace review; do not redesign it.
