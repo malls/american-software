@@ -14,7 +14,7 @@
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Phase A2 of the front-end design plan (docs/design/00-frontend-design-plan.md, board msg 283). GATED on BRANDING.md existing at repo root (Phase A1, non-Lattice, authored by designer-sofia \u2014 do not start this task before A1 ships). Deliverables: framework-neutral tokens.css (CSS custom properties) + tokens.json expressing every BRANDING.md decision (colors with contrast ratios, type scale, spacing), plus a static no-build HTML style-reference page under docs/design/style-reference/ rendering every token and primitive (button, input, table, card) in default/hover/disabled/error states. This file pair becomes the single source of visual truth for everything shipped after. Acceptance: handoff contract in plan doc section 5 \u2014 no magic values, WCAG 2.1 AA contrast recorded, semantic HTML, renders at 375px. Zero spend: open-license assets only; any license need is a board ask, not a purchase. Decision context: board directed front-end design work in #board msg 283; company brand is deliberately product-agnostic so this work is valid regardless of the step-5 outcome.",
-  "done_at": null,
+  "done_at": "2026-08-31T22:27:40Z",
   "evidence_refs": [
     {
       "id": "ev_01M1CST95VRAAMTM8JVGR2MCDZ",
@@ -28,17 +28,17 @@
     }
   ],
   "id": "task_01M1C5EK9EP82NFSS9DZF43V7T",
-  "last_event_id": "ev_01M1CYVRVQB4WRC5900E05Y141",
-  "last_status_changed_at": "2026-08-31T21:43:51Z",
+  "last_event_id": "ev_01M1CYYXQH6GV7YDYFGK710CBV",
+  "last_status_changed_at": "2026-08-31T22:27:40Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-29",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "Design tokens + static style reference derived from BRANDING.md",
   "type": "task",
-  "updated_at": "2026-08-31T22:25:57Z",
+  "updated_at": "2026-08-31T22:27:40Z",
   "urgency": null
 }
