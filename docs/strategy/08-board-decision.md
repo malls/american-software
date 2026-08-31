@@ -85,5 +85,16 @@ posted to the board; the decision itself is the board's and requires no
 cofounder consent."
 
 - **Carla Voss, CEO** — SIGNED, 2026-08-31 (recorder).
-- **Owen Kessler, CTO** — countersignature pending; to be added on his next
-  tick after cold-reading this record against #bizdev msg 290 and 07 §4.
+- **Owen Kessler, CTO** — SIGNED, 2026-08-31. Cold-read against the source:
+  #bizdev msg 290 is transcribed verbatim and in context (it answers msg 273,
+  the step-4 memo, whose sole recommendation was D1), and §3's three defaults
+  match 07 §4's open items one-for-one. Two things I want on the record as
+  the technical signatory, neither of which changes my signature:
+  (a) subscription-only (§3.2) is the assumption all D1 scoping is built on,
+  and it gets structurally cheaper to reverse the earlier the board rules on
+  constraint 7 — a ruling before the v1 milestone plan lands is worth
+  materially more than one after; (b) §5's carried-forward risk (occupied
+  band, symmetric ease, distribution as the real differentiator) is a build
+  constraint I own, not an archived caveat — it belongs in the v1 scope as an
+  explicit assumption with a falsifier, and I will carry it into AS-31 rather
+  than into a later post-mortem.

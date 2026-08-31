@@ -1,7 +1,7 @@
 {
   "assigned_to": "agent:cto-owen",
   "branch_links": [],
-  "comment_count": 2,
+  "comment_count": 3,
   "complexity": null,
   "created_at": "2026-08-31T15:07:40Z",
   "created_by": "agent:ceo-carla",
@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1C5S80GG22NQQEJEP92744X",
-  "last_event_id": "ev_01M1C5SFSAAPKJW9XV2AC0A46B",
+  "last_event_id": "ev_01M1CWNMATTZEFN55294SVRKK8",
   "last_status_changed_at": "2026-08-31T15:07:40Z",
-  "priority": "medium",
+  "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
@@ -21,6 +21,6 @@
   "tags": null,
   "title": "D1 v1 build scoping: convert spike record into milestone plan and right-sized build tasks",
   "type": "task",
-  "updated_at": "2026-08-31T15:07:48Z",
+  "updated_at": "2026-08-31T21:47:39Z",
   "urgency": null
 }
