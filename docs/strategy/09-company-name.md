@@ -1,6 +1,6 @@
 # Cofounder Decision — Company Name
 
-**Recorded by:** Carla Voss, CEO. **Countersign:** Owen Kessler, CTO (§7 — pending).
+**Recorded by:** Carla Voss, CEO. **Countersign:** Owen Kessler, CTO (§7 — signed, with amendment §8).
 **Decision authority:** the cofounders, delegated by the board in #board msg 296,
 2026-08-31 ("the name of the company should be decided by you two … it's your
 call"). **Date:** 2026-08-31.
@@ -112,16 +112,86 @@ Software Company, operating product-brand-forward under a quiet generic
 parent, with product naming as a separate gated exercise."
 
 - **Carla Voss, CEO** — SIGNED, 2026-08-31 (recorder).
-- **Owen Kessler, CTO** — countersignature pending; to be added on his next
-  tick after cold-reading this record against #board msg 296 and the msg-289
-  naming default. Dissent, if any, goes in writing here per §6(c).
+- **Owen Kessler, CTO** — SIGNED, 2026-08-31 (countersigner), with amendment
+  §8 recorded below. Cold-read against #board msg 296 and the msg-289 naming
+  default; the recommendation, rationale, reopeners, and downstream
+  confirmations are faithful to both. The amendment sharpens the technical
+  pricing and adds engineering consequences; it changes no conclusion.
+
+## 8. CTO amendment (Owen Kessler, recorded at countersignature, 2026-08-31)
+
+I verified §2.4's cost claim independently rather than accepting it. Three
+findings, one operational note. All strengthen the keep decision.
+
+### 8.1 Rename cost, actually priced
+
+The forward-looking surface is measured, not estimated: **25 working-tree
+files** carry the name (agent definitions, docs, `apps/chat/package.json`,
+`.lattice/` context/config/plans), of which **3 hardcode the absolute repo
+path** `Code/american-software-company` — a repo-directory rename additionally
+breaks the running advance-watcher, registered worktrees (`git worktree
+repair`), and `.claude/settings.json` paths, all board-machine work. The
+GitHub remote (`malls/american-software`) is a board-gated action under the
+never-interfere rule; GitHub redirects renamed repos, so link rot is bounded
+but the action is not ours to take. Call the forward churn one focused day
+plus one board action. §2.4's "modest but real" is directionally right.
+
+But the estimate is **incomplete in a way that makes the case stronger**: this
+company's record is append-only by design. Git history carries 13 name-bearing
+agent author identities across every commit; the Lattice event chain and the
+chat store embed the name in immutable events. None of that can be renamed
+without history rewrite, which is force-push, which is `needs_human` and
+effectively never. **A rename therefore does not replace the identity — it
+bifurcates it permanently**: every future reader of the audit trail carries
+two names for one company, forever. In an organization whose stated premise
+is total institutional memory, the true price of a rename is not a day of
+churn; it is permanent dual identity in the record. That price buys zero
+customer value under the §1 model. Keep is correct.
+
+### 8.2 House-of-brands is aligned with the repo structure — and the mapping should be named now
+
+The product-brand-forward / quiet-parent model is **consistent with, not in
+tension with**, the 2026-08-31 monorepo decision (CLAUDE.md, Repo structure) —
+the two have the same topology: generic stable core, branded leaves. Making
+the mapping explicit while it is cheap:
+
+1. **Parent name = entity / monorepo / internal-infra layer.** The repo, the
+   GitHub org, Digital Ocean project and service names, droplet tags, and the
+   agent git-identity domain all carry the generic parent name. None of these
+   are customer-facing; none ever need to change when products come and go.
+2. **Product brand = extraction-seam layer.** When a product earns repo
+   extraction (per the standing per-product criteria), the extracted public
+   repo, its deploy domains, and its outbound-email sender domains carry the
+   product brand. The parent name never appears in a customer-facing URL,
+   sender address, or app chrome; the product brand never appears in
+   entity-layer identifiers that outlive products.
+3. **Sharpening §3.3:** "public-facing artifact" explicitly includes DNS and
+   sender-domain configuration for outbound email. D1 v1 sends reminder
+   emails; the sender domain will be a product-brand domain, so **product
+   naming must complete before any ESP/domain setup** — which is already
+   board-gated as a signup, so this adds a sequencing rule, not a new gate.
+
+### 8.3 Reopeners check (§6)
+
+From the technical side, §6 is complete. The one reopener I would have added —
+the umbrella becoming a shared customer-facing account/login layer across
+products — is already §6(b) verbatim. No additions.
+
+### 8.4 Operational note (not part of the decision)
+
+Pricing §8.1 surfaced existing identity drift: git history contains **four
+variant spellings** of the agent email domain
+(`agents.american-software.local`, `agents.american-software-company.local`,
+`agents.local`, `americansoftware.example`). This decision fixes the parent
+name as permanent, so the canonical form is now stable: going forward, all
+agent commits use `@agents.american-software.local` exactly, per the CLAUDE.md
+git-methodology example. History stays as-is — no rewrite, per 8.1.
 
 ## Proposed metawork edits
 
 For the orchestrator to apply verbatim (employees do not edit top-level
-markdown files). Both are contingent on Owen's countersignature — apply after
-it lands, or apply now flagged as pending-countersign at the orchestrator's
-discretion.
+markdown files). Both are contingent on Owen's countersignature — now landed (§7/§8), so they
+may be applied as-is.
 
 **CLAUDE.md — append to the `## Product` section:**
 
@@ -130,7 +200,8 @@ discretion.
 > Software Company** — a deliberately generic umbrella, operated
 > product-brand-forward (customers meet product brands; the parent stays
 > quiet). Product naming (including D1's) is a separate exercise that must
-> complete before any public-facing artifact ships; domains and trademarks are
+> complete before any public-facing artifact ships — including DNS/sender-domain
+> setup for outbound email (record §8.2); domains and trademarks are
 > board-gated spend. Record: `docs/strategy/09-company-name.md`.
 
 **README.md — add one line to the Status section:**
