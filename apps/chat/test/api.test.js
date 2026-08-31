@@ -640,3 +640,28 @@ test('api: AS-25 — GET /api/messages?since= returns the flat delta; hidden-cha
     assert.equal(norm(hidden.data, board.id), norm(missing.data, 99999));
   }
 });
+
+test('api: AS-25 — live.js is served (app.js module graph must not 404); the 5s poll is retired', async (t) => {
+  const { base } = await bootServer(t);
+  const mod = await fetch(base + '/live.js');
+  assert.equal(mod.status, 200);
+  assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  assert.match(await mod.text(), /applyMessage/);
+
+  // Poll retirement (acceptance criterion 5), pinned against the served
+  // app.js — the exact bits the browser runs:
+  const app = await (await fetch(base + '/app.js')).text();
+  assert.match(app, /new EventSource\(`\/api\/stream\?me=/, 'push transport wired');
+  assert.match(app, /from '\.\/live\.js'/, 'frames/catch-up merge through live.js');
+  assert.doesNotMatch(app, /,\s*5000\)/, 'no 5s interval remains');
+  const intervals = [...app.matchAll(/setInterval\([\s\S]*?,\s*([\d_]+)\)/g)].map((m) =>
+    Number(m[1].replaceAll('_', ''))
+  );
+  assert.equal(intervals.length, 1, 'exactly one reconcile interval');
+  assert.ok(intervals[0] >= 30_000, `reconcile cadence >= 30s (got ${intervals[0]})`);
+  // sendMessage applies the POST response locally — no full-history refetch.
+  const sendFn = app.slice(app.indexOf('async function sendMessage'), app.indexOf('function wireComposer'));
+  assert.ok(sendFn.length > 0, 'sendMessage found');
+  assert.doesNotMatch(sendFn, /selectConversation|\/api\/messages\?conversation/, 'send does not refetch');
+  assert.match(sendFn, /applyMessage/, 'send merges its own POST response');
+});

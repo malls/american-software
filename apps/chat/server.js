@@ -19,6 +19,7 @@ const STATIC_FILES = {
   '/url-state.js': ['url-state.js', 'text/javascript; charset=utf-8'],
   '/scroll.js': ['scroll.js', 'text/javascript; charset=utf-8'],
   '/thread-modal.js': ['thread-modal.js', 'text/javascript; charset=utf-8'],
+  '/live.js': ['live.js', 'text/javascript; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
 };
 

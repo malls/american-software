@@ -4,6 +4,7 @@
 import { parseChatUrl, serializeChatUrl, resolveConversation } from './url-state.js';
 import { renderPreservingScroll } from './scroll.js';
 import { shouldCloseOnEscape, shouldCloseOnBackdropGesture } from './thread-modal.js';
+import { applyMessage, maxLoadedId } from './live.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -19,7 +20,8 @@ const state = {
   currentThreadRoot: null, // message id
   lastData: null, // last /api/messages payload for current conversation
   anchorMsg: null, // m= message anchor currently reflected in the URL (AS-9)
-  anchorApplied: false, // one-shot: the 5s poll must never re-scroll/re-highlight
+  anchorApplied: false, // one-shot: a push re-render must never re-scroll/re-highlight
+  lastReadSent: 0, // AS-25: highest read watermark POSTed for currentConv (keeps /api/read cheap)
 };
 
 // --- URL state (AS-9) -------------------------------------------------------
@@ -183,6 +185,14 @@ async function refreshSidebar() {
   } catch {
     state.roster = [];
   }
+  renderSidebar();
+}
+
+// AS-25: pure re-render from state — push frames bump local badges and call
+// this directly, no fetch. refreshSidebar (initial load, catch-up, the 60s
+// reconcile poll) stays the authoritative fetch-then-render path.
+function renderSidebar() {
+  const conversations = state.conversations;
   const channels = conversations.filter((c) => c.type === 'channel');
   // Non-roster DMs render below the roster: DMs whose other member has no
   // active dossier (human:forrest, departed employees — history never disappears).
@@ -332,17 +342,14 @@ function wireViewportPin() {
 
 // --- conversation view ----------------------------------------------------
 
-async function selectConversation(conv, { keepThread = false, url = 'push', scroll = 'bottom' } = {}) {
-  // AS-23: picking a conversation closes the drawer. Every user pick (sidebar
-  // li, roster row, DM typeahead, new-channel) reaches here as url:'push';
-  // the 5s poll and URL restore come in as url:'none' and must NOT slam a
-  // drawer the user is browsing. Inert at desktop widths.
-  if (url === 'push') closeDrawer();
-  if (url === 'push') state.anchorMsg = null; // user navigation drops the m= anchor
-  state.currentConv = conv;
-  if (!keepThread) closeThread({ url: 'none' });
-  const data = await api(`/api/messages?conversation=${conv.id}&me=${encodeURIComponent(state.me)}`);
-  state.lastData = data;
+/**
+ * AS-25: render the current conversation from state.lastData — no fetch.
+ * Push frames and catch-up merges re-render through here with
+ * scroll:'preserve'; navigation renders with scroll:'bottom'.
+ */
+function renderConversation({ scroll = 'preserve' } = {}) {
+  const data = state.lastData;
+  if (!data || !state.currentConv) return;
   const c = data.conversation;
   $('#conv-title').textContent =
     c.type === 'channel'
@@ -351,7 +358,7 @@ async function selectConversation(conv, { keepThread = false, url = 'push', scro
   $('#conv-purpose').textContent = c.purpose || '';
   const pane = $('#messages');
   // AS-17: navigation (scroll:'bottom') always lands at the newest message;
-  // poll/send re-renders (scroll:'preserve') are sticky-bottom — follow new
+  // push/send re-renders (scroll:'preserve') are sticky-bottom — follow new
   // messages only when the reader was already at the bottom.
   renderPreservingScroll(
     pane,
@@ -363,7 +370,7 @@ async function selectConversation(conv, { keepThread = false, url = 'push', scro
       ),
     { forceBottom: scroll === 'bottom' }
   );
-  // m= anchor: one-shot scroll + highlight — the poll re-render never repeats it.
+  // m= anchor: one-shot scroll + highlight — a push re-render never repeats it.
   if (state.anchorMsg != null && !state.anchorApplied) {
     state.anchorApplied = true;
     const node = document.getElementById(`msg-${state.anchorMsg}`);
@@ -375,6 +382,22 @@ async function selectConversation(conv, { keepThread = false, url = 'push', scro
     }
   }
   if (state.currentThreadRoot != null) renderThread();
+}
+
+async function selectConversation(conv, { keepThread = false, url = 'push', scroll = 'bottom' } = {}) {
+  // AS-23: picking a conversation closes the drawer. Every user pick (sidebar
+  // li, roster row, DM typeahead, new-channel) reaches here as url:'push';
+  // URL restore comes in as url:'none' and must NOT slam a drawer the user
+  // is browsing. Inert at desktop widths.
+  if (url === 'push') closeDrawer();
+  if (url === 'push') state.anchorMsg = null; // user navigation drops the m= anchor
+  state.currentConv = conv;
+  state.lastReadSent = 0; // new conversation, new watermark bookkeeping
+  if (!keepThread) closeThread({ url: 'none' });
+  const data = await api(`/api/messages?conversation=${conv.id}&me=${encodeURIComponent(state.me)}`);
+  state.lastData = data;
+  state.lastReadSent = maxLoadedId(data);
+  renderConversation({ scroll });
   syncUrl(url);
   // Viewing marks read (advances the watermark to the newest message).
   await post('/api/read', { me: state.me, conversation: conv.id }).catch(() => {});
@@ -542,15 +565,20 @@ function wireDmTypeahead() {
 
 async function sendMessage(text, threadRoot) {
   if (!text.trim() || !state.currentConv) return;
-  await post('/api/messages', {
+  const { message } = await post('/api/messages', {
     conversation: state.currentConv.id,
     author: state.me,
     body: text,
     threadRoot: threadRoot ?? null,
   });
-  // Re-render, not navigation: never a history write, never a scroll yank —
-  // your message lands below without moving a scrolled-up pane (AS-17).
-  await selectConversation(state.currentConv, { keepThread: true, url: 'none', scroll: 'preserve' });
+  // AS-25: no full-history refetch — the POST response merges through the
+  // same idempotent applyMessage as live frames (our own SSE echo of this
+  // message then dedupes by id). Re-render, not navigation: never a history
+  // write, never a scroll yank (AS-17).
+  if (applyMessage(state.lastData, message)) {
+    renderConversation({ scroll: 'preserve' });
+    noteRead(message.id);
+  }
 }
 
 function wireComposer(formSel, inputSel, getThreadRoot) {
@@ -582,6 +610,7 @@ function resetMainPane(note) {
   state.currentConv = null;
   state.lastData = null;
   state.anchorMsg = null;
+  state.lastReadSent = 0;
   closeThread({ url: 'none' });
   $('#conv-title').textContent = 'Select a conversation';
   $('#conv-purpose').textContent = '';
@@ -636,6 +665,107 @@ async function restoreFromUrl(mode) {
   syncUrl('replace'); // normalize form; no-op when the URL already matches
 }
 
+// --- push delivery (AS-25) --------------------------------------------------
+// The server pushes every message it commits over GET /api/stream (SSE),
+// gated per connection by visibility. The client merges frames — and the
+// since= catch-up delta, and its own POST responses — through the single
+// idempotent applyMessage (live.js). EventSource reconnects natively; on
+// open-after-drop and on tab foregrounding we run explicit catch-up.
+
+let eventSource = null;
+let streamDropped = false; // set on error; the next 'open' is a reconnect
+
+function connectStream() {
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+  }
+  if (!state.me) return;
+  streamDropped = false;
+  eventSource = new EventSource(`/api/stream?me=${encodeURIComponent(state.me)}`);
+  eventSource.addEventListener('message', (e) => {
+    let msg;
+    try {
+      msg = JSON.parse(e.data);
+    } catch {
+      return; // a torn frame is the reconnect path's problem, not a crash
+    }
+    handleFrame(msg);
+  });
+  eventSource.addEventListener('open', () => {
+    // First open: nothing missed. Open after a drop: the gap is unknown —
+    // reconcile the sidebar and replay the open conversation's delta.
+    if (streamDropped) {
+      streamDropped = false;
+      catchUp().catch(() => {});
+    }
+  });
+  eventSource.addEventListener('error', () => {
+    streamDropped = true; // EventSource retries by itself
+  });
+}
+
+/** Advance the server read watermark, cheaply: at most one POST per new id. */
+function noteRead(msgId) {
+  if (!state.currentConv || msgId <= state.lastReadSent) return;
+  state.lastReadSent = msgId;
+  post('/api/read', { me: state.me, conversation: state.currentConv.id, upTo: msgId }).catch(() => {});
+}
+
+function handleFrame(msg) {
+  const convId = msg.conversationId;
+  if (state.currentConv && convId === state.currentConv.id) {
+    // Open conversation: merge + re-render (sticky scroll), mark read.
+    // applyMessage no-ops if a conversation-switch fetch hasn't landed yet —
+    // that fetch will include this message.
+    if (applyMessage(state.lastData, msg)) {
+      renderConversation({ scroll: 'preserve' });
+      noteRead(msg.id);
+    }
+    return;
+  }
+  const conv = state.conversations.find((c) => c.id === convId);
+  if (!conv) {
+    // Unknown conversation (brand-new channel, first DM message): one
+    // authoritative refresh — closes the new-conversation gap without a
+    // 'conversation' event type.
+    refreshSidebar().catch(() => {});
+    return;
+  }
+  // Known, unopened conversation: bump local badges (same author rule as
+  // unreadCountFor) and re-render the sidebar from state — no fetch.
+  if (msg.authorId !== state.me) {
+    conv.unread = (conv.unread || 0) + 1;
+    const rosterRowFor = state.roster.find((r) => r.dmConversationId === convId);
+    if (rosterRowFor) rosterRowFor.unread = (rosterRowFor.unread || 0) + 1;
+    renderSidebar();
+  }
+}
+
+/**
+ * Reconnect / foreground catch-up: authoritative sidebar (unread, roster,
+ * new conversations) + the open conversation's since= delta, replayed
+ * through the same applyMessage as frames. One merge code path.
+ */
+async function catchUp() {
+  await refreshSidebar();
+  if (!state.currentConv || !state.lastData) return;
+  const since = maxLoadedId(state.lastData);
+  const data = await api(
+    `/api/messages?conversation=${state.currentConv.id}&me=${encodeURIComponent(state.me)}&since=${since}`
+  );
+  let latest = 0;
+  let changed = false;
+  for (const m of data.messages) {
+    if (applyMessage(state.lastData, m)) changed = true;
+    if (m.id > latest) latest = m.id;
+  }
+  if (changed) {
+    renderConversation({ scroll: 'preserve' });
+    noteRead(latest);
+  }
+}
+
 // --- wiring ---------------------------------------------------------------
 
 async function init() {
@@ -645,6 +775,7 @@ async function init() {
     try { localStorage.setItem('chat.me', state.me); } catch {}
     resetMainPane();
     syncUrl('replace'); // identity switch clears the URL — never a history entry
+    connectStream(); // AS-25: the stream is per-identity — tear down, reconnect
     await refreshSidebar();
   });
 
@@ -728,12 +859,23 @@ async function init() {
     openDrawer();
   }
 
-  // Polling: localhost refresh for the open tab; 5s cadence. Never writes the URL.
+  // AS-25: push replaces the old 5s full-refetch poll. Live delivery comes
+  // over SSE; connect after identity + sidebar are loaded.
+  connectStream();
+
+  // Foregrounding (the iOS path — Safari kills background connections no
+  // matter the transport): reconcile + replay the delta explicitly.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') catchUp().catch(() => {});
+  });
+
+  // 60s reconcile poll — sidebar only, never the message history. Covers
+  // what push has no event source for: roster/work-status changes (Lattice
+  // files change outside the chat DB), cross-device markRead drift, and it
+  // keeps the server's lattice-ingest throttle ticking. Never writes the URL.
   setInterval(() => {
     refreshSidebar().catch(() => {});
-    if (state.currentConv)
-      selectConversation(state.currentConv, { keepThread: true, url: 'none', scroll: 'preserve' }).catch(() => {});
-  }, 5000);
+  }, 60_000);
 }
 
 init().catch((err) => {
