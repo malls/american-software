@@ -9,7 +9,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, tickArgv, loadPermissionRules } from '../watch/advance-watcher.mjs';
+import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, tickArgv, loadPermissionRules, fireNonce } from '../watch/advance-watcher.mjs';
+
+// AS-16: fixed per-fire nonce for the pin tests — production nonces come from
+// fireNonce(); pins inject a constant so the expected strings stay exact.
+const NONCE = 'deadbeefcafef00d';
 
 const T0 = Date.parse('2026-08-30T12:00:00.000Z');
 const CONFIG = { debounceS: 15, lockStaleMin: 45 };
@@ -224,10 +228,11 @@ const foreignLockBody = (over = {}) =>
 
 test('makeLockOps: clean acquire creates the lock with our pid; release removes it', (t) => {
   const { lockPath, ops } = lockFixture(t);
-  assert.equal(ops.acquireLock(), true);
+  assert.equal(ops.acquireLock(NONCE), true);
   const written = JSON.parse(readFileSync(lockPath, 'utf8'));
   assert.equal(written.pid, 1111);
   assert.equal(written.source, 'watcher');
+  assert.equal(written.nonce, NONCE, 'AS-16: lock body carries the injected per-fire nonce');
   ops.releaseLock();
   assert.ok(!existsSync(lockPath), 'release unlinks our own lock');
 });
@@ -236,7 +241,7 @@ test('makeLockOps: fresh foreign lock is respected — acquire false, file untou
   const { lockPath, ops } = lockFixture(t);
   const body = foreignLockBody();
   writeFileSync(lockPath, body);
-  assert.equal(ops.acquireLock(), false);
+  assert.equal(ops.acquireLock(NONCE), false);
   assert.equal(readFileSync(lockPath, 'utf8'), body, 'foreign lock byte-identical');
   ops.releaseLock();
   assert.ok(existsSync(lockPath), 'release never unlinks a foreign lock');
@@ -246,7 +251,7 @@ test('makeLockOps: stale locks (dead pid / old startedAt / unparsable) are stole
   // Dead pid.
   const dead = lockFixture(t, { isPidAlive: (pid) => pid !== 2222 });
   writeFileSync(dead.lockPath, foreignLockBody());
-  assert.equal(dead.ops.acquireLock(), true);
+  assert.equal(dead.ops.acquireLock(NONCE), true);
   assert.equal(JSON.parse(readFileSync(dead.lockPath, 'utf8')).pid, 1111);
   assert.ok(dead.logs.some((l) => l.startsWith('STEAL stale lock (dead-pid')));
 
@@ -256,14 +261,14 @@ test('makeLockOps: stale locks (dead pid / old startedAt / unparsable) are stole
     old.lockPath,
     foreignLockBody({ startedAt: new Date(Date.now() - STALE_MS - 60_000).toISOString() })
   );
-  assert.equal(old.ops.acquireLock(), true);
+  assert.equal(old.ops.acquireLock(NONCE), true);
   assert.equal(JSON.parse(readFileSync(old.lockPath, 'utf8')).pid, 1111);
   assert.ok(old.logs.some((l) => l.startsWith('STEAL stale lock (age')));
 
   // Unparsable lockfile.
   const junk = lockFixture(t);
   writeFileSync(junk.lockPath, 'not json{');
-  assert.equal(junk.ops.acquireLock(), true);
+  assert.equal(junk.ops.acquireLock(NONCE), true);
   assert.equal(JSON.parse(readFileSync(junk.lockPath, 'utf8')).pid, 1111);
   assert.ok(junk.logs.some((l) => l.startsWith('STEAL stale lock (unparsable')));
 });
@@ -275,7 +280,7 @@ test('makeLockOps: foreign overwrite between create and verify yields without un
   // unlink it.
   const foreign = foreignLockBody();
   const { lockPath, logs, ops } = lockFixture(t, { readFile: () => foreign });
-  assert.equal(ops.acquireLock(), false);
+  assert.equal(ops.acquireLock(NONCE), false);
   assert.ok(existsSync(lockPath), 'lock left in place for its new owner');
   assert.ok(logs.some((l) => l.startsWith('STEAL-LOST')), 'loss is logged');
   // releaseLock also sees the foreign pid through the injected reader: no-op.
@@ -302,23 +307,25 @@ test('tickChildEnv: pins exactly {PATH, HOME, USER, LOGNAME, ADVANCE_TICK_PARENT
     SSH_AUTH_SOCK: '/tmp/agent.sock',
     ANTHROPIC_MODEL: 'nope',
     // Even a pre-existing marker in the source env must not leak through —
-    // the child's marker names THIS watcher, not an ancestor's:
-    ADVANCE_TICK_PARENT: 'watcher:99999',
+    // the child's marker names THIS watcher/fire, not an ancestor's:
+    ADVANCE_TICK_PARENT: 'watcher:99999:aaaaaaaaaaaaaaaa',
   };
-  assert.deepEqual(tickChildEnv(fat, 4242), {
+  assert.deepEqual(tickChildEnv(fat, 4242, NONCE), {
     PATH: '/opt/bin:/usr/bin',
     HOME: '/Users/forrest',
     USER: 'forrest',
     LOGNAME: 'forrest',
-    ADVANCE_TICK_PARENT: 'watcher:4242',
+    ADVANCE_TICK_PARENT: `watcher:4242:${NONCE}`,
   });
-  // Marker format: "watcher:<pid>", the exact pid passed in.
-  assert.match(tickChildEnv({}, 17730).ADVANCE_TICK_PARENT, /^watcher:\d+$/);
-  assert.equal(tickChildEnv({}, 17730).ADVANCE_TICK_PARENT, 'watcher:17730');
+  // Marker format (AS-16): "watcher:<pid>:<nonce>", the exact pid and per-fire
+  // nonce passed in.
+  assert.match(tickChildEnv({}, 17730, NONCE).ADVANCE_TICK_PARENT, /^watcher:\d+:[0-9a-f]{16}$/);
+  assert.equal(tickChildEnv({}, 17730, NONCE).ADVANCE_TICK_PARENT, `watcher:17730:${NONCE}`);
   // Default watcherPid is this process — the watcher passes its own pid.
-  assert.equal(tickChildEnv({}).ADVANCE_TICK_PARENT, `watcher:${process.pid}`);
+  // Nonce has no default (a defaulted random would be nondeterministic).
+  assert.equal(tickChildEnv({}, undefined, NONCE).ADVANCE_TICK_PARENT, `watcher:${process.pid}:${NONCE}`);
   // Key set is stable even when the source env is thin (launchd).
-  assert.deepEqual(Object.keys(tickChildEnv({}, 1)).sort(), [
+  assert.deepEqual(Object.keys(tickChildEnv({}, 1, NONCE)).sort(), [
     'ADVANCE_TICK_PARENT',
     'HOME',
     'LOGNAME',
@@ -334,24 +341,26 @@ test('tickArgv: pins the exact spawn argv — marker rides as the /advance promp
   // read, AS-20), so the parent-lock marker's CONTRACT transport is the
   // /advance slash-command argument; ADVANCE_TICK_PARENT is belt only.
   // Changing this array means changing tickArgv AND this test, deliberately.
-  assert.deepEqual(tickArgv(4242, 'acceptEdits'), [
+  assert.deepEqual(tickArgv(4242, NONCE, 'acceptEdits'), [
     '-p',
-    '/advance watcher:4242',
+    `/advance watcher:4242:${NONCE}`,
     '--permission-mode',
     'acceptEdits',
     '--output-format',
     'text',
   ]);
-  // Marker format: "/advance watcher:<pid>", the exact pid passed in — the
-  // same pid acquireLock() writes into advance.lock.
-  assert.match(tickArgv(17730, 'plan')[1], /^\/advance watcher:\d+$/);
-  assert.equal(tickArgv(17730, 'plan')[1], '/advance watcher:17730');
+  // Marker format (AS-16): "/advance watcher:<pid>:<nonce>", the exact pid
+  // and per-fire nonce passed in — the same values acquireLock(nonce) writes
+  // into advance.lock.
+  assert.match(tickArgv(17730, NONCE, 'plan')[1], /^\/advance watcher:\d+:[0-9a-f]{16}$/);
+  assert.equal(tickArgv(17730, NONCE, 'plan')[1], `/advance watcher:17730:${NONCE}`);
   // Permission mode passes through verbatim.
-  assert.equal(tickArgv(1, 'plan')[3], 'plan');
-  // Defaults: this process's pid, DEFAULTS.permissionMode.
-  assert.deepEqual(tickArgv(), [
+  assert.equal(tickArgv(1, NONCE, 'plan')[3], 'plan');
+  // Defaults: this process's pid, DEFAULTS.permissionMode. Nonce has no
+  // default — fire() always supplies one.
+  assert.deepEqual(tickArgv(undefined, NONCE), [
     '-p',
-    `/advance watcher:${process.pid}`,
+    `/advance watcher:${process.pid}:${NONCE}`,
     '--permission-mode',
     DEFAULTS.permissionMode,
     '--output-format',
@@ -368,9 +377,9 @@ test('tickArgv: injected rules append --allowedTools/--disallowedTools, each rul
     allow: ['Bash(lattice *)', 'Bash(git *)'],
     deny: ['Bash(git push --force*)'],
   };
-  assert.deepEqual(tickArgv(4242, 'acceptEdits', rules), [
+  assert.deepEqual(tickArgv(4242, NONCE, 'acceptEdits', rules), [
     '-p',
-    '/advance watcher:4242',
+    `/advance watcher:4242:${NONCE}`,
     '--permission-mode',
     'acceptEdits',
     '--output-format',
@@ -383,14 +392,14 @@ test('tickArgv: injected rules append --allowedTools/--disallowedTools, each rul
   ]);
   // The flags are variadic and we spawn without a shell: a rule with internal
   // spaces must stay ONE argv element, never split or quoted.
-  assert.ok(tickArgv(1, 'plan', rules).includes('Bash(git push --force*)'));
+  assert.ok(tickArgv(1, NONCE, 'plan', rules).includes('Bash(git push --force*)'));
 
   // allow-only: no --disallowedTools flag at all (a bare variadic flag with
   // zero args would eat whatever followed; nothing follows, but the flag is
   // still omitted when its list is empty).
-  assert.deepEqual(tickArgv(4242, 'acceptEdits', { allow: ['Bash(node *)'], deny: [] }), [
+  assert.deepEqual(tickArgv(4242, NONCE, 'acceptEdits', { allow: ['Bash(node *)'], deny: [] }), [
     '-p',
-    '/advance watcher:4242',
+    `/advance watcher:4242:${NONCE}`,
     '--permission-mode',
     'acceptEdits',
     '--output-format',
@@ -399,9 +408,9 @@ test('tickArgv: injected rules append --allowedTools/--disallowedTools, each rul
     'Bash(node *)',
   ]);
   // deny-only: --disallowedTools group alone.
-  assert.deepEqual(tickArgv(4242, 'acceptEdits', { allow: [], deny: ['Bash(git push -f*)'] }), [
+  assert.deepEqual(tickArgv(4242, NONCE, 'acceptEdits', { allow: [], deny: ['Bash(git push -f*)'] }), [
     '-p',
-    '/advance watcher:4242',
+    `/advance watcher:4242:${NONCE}`,
     '--permission-mode',
     'acceptEdits',
     '--output-format',
@@ -411,8 +420,8 @@ test('tickArgv: injected rules append --allowedTools/--disallowedTools, each rul
   ]);
   // Both empty: byte-identical to the no-rules argv (back-compat).
   assert.deepEqual(
-    tickArgv(4242, 'acceptEdits', { allow: [], deny: [] }),
-    tickArgv(4242, 'acceptEdits')
+    tickArgv(4242, NONCE, 'acceptEdits', { allow: [], deny: [] }),
+    tickArgv(4242, NONCE, 'acceptEdits')
   );
 });
 
@@ -474,7 +483,7 @@ test('loadPermissionRules -> tickArgv composition: force-push denies ride as tra
       },
     })
   );
-  const argv = tickArgv(4242, 'acceptEdits', loadPermissionRules(path));
+  const argv = tickArgv(4242, NONCE, 'acceptEdits', loadPermissionRules(path));
   assert.deepEqual(argv.slice(-4), [
     '--disallowedTools',
     'Bash(git push --force*)',
@@ -482,6 +491,38 @@ test('loadPermissionRules -> tickArgv composition: force-push denies ride as tra
     'Bash(git push origin +*)',
   ]);
   assert.ok(argv.includes('--allowedTools'));
+});
+
+// --- AS-16: per-fire nonce ----------------------------------------------------
+
+test('fireNonce: 16 lowercase hex chars (64 bits), fresh per call', () => {
+  const a = fireNonce();
+  const b = fireNonce();
+  assert.match(a, /^[0-9a-f]{16}$/);
+  assert.match(b, /^[0-9a-f]{16}$/);
+  assert.notEqual(a, b, 'two fires never share a nonce');
+});
+
+test('nonce threading: one fire\'s nonce is identical across lock body, argv marker, and env marker', (t) => {
+  // Pins both sides of the contract advance.md step 0 reads (the step 0
+  // matcher itself is prose, not testable JS): the lock the watcher writes
+  // and the markers the spawned tick receives carry the SAME per-fire nonce,
+  // so a full source+pid+nonce match is possible exactly when the tick really
+  // is this lock's child.
+  const nonce = fireNonce();
+  const { lockPath, ops } = lockFixture(t);
+  assert.equal(ops.acquireLock(nonce), true);
+  const lock = JSON.parse(readFileSync(lockPath, 'utf8'));
+  assert.equal(lock.nonce, nonce);
+  assert.equal(tickArgv(1111, nonce, 'acceptEdits')[1], `/advance watcher:1111:${nonce}`);
+  assert.equal(
+    tickChildEnv({}, 1111, nonce).ADVANCE_TICK_PARENT,
+    `watcher:1111:${nonce}`,
+    'belt marker agrees with the contract marker'
+  );
+  // All three artifacts express the same pid:nonce pair.
+  assert.equal(tickArgv(1111, nonce, 'plan')[1], `/advance ${tickChildEnv({}, 1111, nonce).ADVANCE_TICK_PARENT}`);
+  assert.equal(`watcher:${lock.pid}:${lock.nonce}`, tickChildEnv({}, 1111, nonce).ADVANCE_TICK_PARENT);
 });
 
 test('config: defaults match the plan; env overrides apply; junk env falls back', () => {

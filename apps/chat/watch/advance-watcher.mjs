@@ -40,6 +40,7 @@ import {
   createWriteStream,
 } from 'node:fs';
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -142,10 +143,23 @@ export function decide({ sentinel, highwater, lock, now, config, debounceUntil }
   return { action: 'fire', reason: 'debounce-elapsed', debounceUntil: null };
 }
 
+// AS-16: per-fire nonce. Generated once per fire() before lock acquisition;
+// every artifact of that fire (lock body, argv marker, env marker) carries the
+// same value. 64 bits of randomness (16 lowercase hex chars) make pid-reuse
+// spoofing of the adoption rule in advance.md step 0 impossible in practice —
+// a stale marker whose pid was recycled by a new watcher cannot also guess the
+// new lock's nonce. node:crypto builtin — still zero external deps.
+export function fireNonce() {
+  return randomBytes(8).toString('hex');
+}
+
 // Exact child env for a spawned tick — per-variable reasons documented at the
 // spawn site in fire(). Exported so the test suite pins the set: any future
 // narrowing or widening must change this function AND its test, deliberately.
-export function tickChildEnv(env = process.env, watcherPid = process.pid) {
+// `nonce` has NO default: a defaulted random would make the pin tests
+// nondeterministic, and the sole production caller (fire()) always supplies
+// the fire's own nonce.
+export function tickChildEnv(env = process.env, watcherPid = process.pid, nonce) {
   return {
     PATH: env.PATH,
     HOME: env.HOME,
@@ -154,7 +168,9 @@ export function tickChildEnv(env = process.env, watcherPid = process.pid) {
     // AS-15: parent marker — lets the spawned tick's advance.md step 0
     // recognize the watcher's own advance.lock (source:"watcher", this pid)
     // as its own and proceed instead of self-cancelling as "lock held".
-    ADVANCE_TICK_PARENT: `watcher:${watcherPid}`,
+    // AS-16: carries the per-fire nonce too — adoption requires source, pid,
+    // AND nonce to all match the lock, closing the pid-reuse spoof window.
+    ADVANCE_TICK_PARENT: `watcher:${watcherPid}:${nonce}`,
   };
 }
 
@@ -177,14 +193,19 @@ export function tickChildEnv(env = process.env, watcherPid = process.pid) {
 // flag groups go last and the deny group terminates the array — no positional
 // args may follow. `rules` stays injected (never read from disk here) so this
 // function remains pure; loadPermissionRules below is the effectful reader.
+//
+// AS-16: the marker is `watcher:<pid>:<nonce>` — the nonce slots directly
+// after the pid it composes with, and has NO default (a defaulted random
+// would make the pin tests nondeterministic; fire() always supplies one).
 export function tickArgv(
   watcherPid = process.pid,
+  nonce,
   permissionMode = DEFAULTS.permissionMode,
   rules = { allow: [], deny: [] }
 ) {
   const argv = [
     '-p',
-    `/advance watcher:${watcherPid}`,
+    `/advance watcher:${watcherPid}:${nonce}`,
     '--permission-mode',
     permissionMode,
     '--output-format',
@@ -277,9 +298,15 @@ export function makeLockOps({
    * create+verify before B's unlink+create and both still fire. Sanctioned
    * residual per the etiquette stance: a lost race costs one duplicate tick's
    * tokens, never correctness.
+   *
+   * AS-16: `nonce` (required) is this fire's fireNonce() value, written into
+   * the lock body so advance.md step 0 can demand a full source+pid+nonce
+   * match before adopting. Staleness, release, and verify stay nonce-blind:
+   * they guard concurrent races between live processes (pids differ by
+   * construction); the nonce targets pid reuse across time.
    */
-  function acquireLock() {
-    const body = JSON.stringify({ pid, startedAt: new Date().toISOString(), source: 'watcher' });
+  function acquireLock(nonce) {
+    const body = JSON.stringify({ pid, startedAt: new Date().toISOString(), source: 'watcher', nonce });
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         writeFileSync(lockPath, body, { flag: 'wx' });
@@ -418,7 +445,10 @@ function main() {
   }
 
   function fire(sentinel) {
-    if (!acquireLock()) {
+    // AS-16: one nonce per fire, minted before lock acquisition — the lock
+    // body and both markers (argv + env) below carry this same value.
+    const nonce = fireNonce();
+    if (!acquireLock(nonce)) {
       log(`SKIP fire aborted: lock acquisition failed (messageId ${sentinel.messageId})`);
       return;
     }
@@ -453,16 +483,17 @@ function main() {
     //             "Not logged in · Please run /login" (AS-14).
     //   LOGNAME — POSIX twin of USER, same identity-resolution reason; some
     //             tooling reads one, some the other.
-    //   ADVANCE_TICK_PARENT — "watcher:<this watcher's pid>". BELT only
-    //             (AS-20): headless ticks cannot read env vars, so the marker's
-    //             real transport is the /advance prompt argument built by
-    //             tickArgv() below — advance.md step 0 matches advance.lock
-    //             (source "watcher" + same pid) against the ARGUMENT. The env
-    //             var stays for any context where env IS readable (AS-15).
-    //             Either way the watcher, not the tick, releases the lock in
-    //             settle().
-    // Child argv (tickArgv, unit-tested pin): -p '/advance watcher:<pid>',
-    // --permission-mode, --output-format, then the AS-21 permission grants —
+    //   ADVANCE_TICK_PARENT — "watcher:<this watcher's pid>:<this fire's
+    //             nonce>". BELT only (AS-20): headless ticks cannot read env
+    //             vars, so the marker's real transport is the /advance prompt
+    //             argument built by tickArgv() below — advance.md step 0
+    //             matches advance.lock (source "watcher" + same pid + same
+    //             nonce, AS-16) against the ARGUMENT. The env var stays for
+    //             any context where env IS readable (AS-15). Either way the
+    //             watcher, not the tick, releases the lock in settle().
+    // Child argv (tickArgv, unit-tested pin): -p '/advance
+    // watcher:<pid>:<nonce>', --permission-mode, --output-format, then the
+    // AS-21 permission grants —
     // --allowedTools/--disallowedTools carrying .claude/settings.json's
     // allow/deny lists (loaded above; project-scope settings never load for
     // headless children, so the argv is the grants' only transport).
@@ -472,10 +503,10 @@ function main() {
     // the poll()/shutdown() gate, nulled iff it still points at this proc.
     const proc = spawn(
       config.claudeBin,
-      tickArgv(process.pid, config.permissionMode, rules ?? undefined),
+      tickArgv(process.pid, nonce, config.permissionMode, rules ?? undefined),
       {
         cwd: config.repoRoot,
-        env: tickChildEnv(process.env, process.pid),
+        env: tickChildEnv(process.env, process.pid, nonce),
         stdio: ['ignore', 'pipe', 'pipe'],
       }
     );
