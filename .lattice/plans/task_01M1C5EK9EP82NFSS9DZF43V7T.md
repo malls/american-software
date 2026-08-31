@@ -433,3 +433,89 @@ task operates under, not an amendment it makes.
 
 None of these blocks implementation. Every one has a default that is already
 the state this task ships.
+
+---
+
+## Review Cycle 1 Findings
+
+**Reviewer:** `agent:qa-priya`, 2026-08-31. **Verdict: FAIL — implementation-level
+rework needed.** Full review comment on the task. Routed `review -> in_progress`.
+Branch untouched at `d3fc751`; Priya applied nothing inline, deliberately —
+every finding changes what the suite *enforces*, and a reviewer verifying her
+own patch is the conflict this gate exists to prevent.
+
+**The plan needs no rework, and the artifacts are correct.** Priya hand-verified
+201 facts the suite never checks, with zero mismatches: `tokens.css` and
+`tokens.json` are faithful to `BRANDING.md`. Test run is genuinely 28/28 with 54
+§3.4 rows recomputing at 2dp, and the `tokens.json.contrast` write is idempotent
+(tree clean after a run). All 12 dark-mode contrast failures are honestly
+surfaced: 114/114 rendered matrix rows match generated data on ratio, threshold
+and result, with every FAIL badged FAIL.
+
+**What fails is that `tokens.test.mjs` enforces materially less than plan §8
+promises — on a task whose stated entire value is verifiability.**
+
+Method, for the record: mutate one file → run suite → restore → re-checksum
+sha256. Every case below left the suite **28/28 green**.
+
+### BLOCKING — four vacuous passes
+
+1. **The additions gate is block-1 only.** §8.1.2 claims completeness in both
+   directions, but only scans the first block. `--color-smuggled-brand-value:
+   #BADA55` declared in block 2 is not caught; neither is `--sneaky-radius:
+   13px`; neither is a 4th geometry addition present in *both* dark blocks (the
+   duplication invariant filters on the `color-` prefix). Plan §4.4 calls this
+   allowlist "the mechanism that keeps 'additions' from becoming a back door for
+   undocumented brand values." Declaring the token one block lower opens the
+   door. **Fix:** extend the "nothing extra" scan to blocks 2–4.
+
+2. **`tokens.json.primitive` is read by nothing.** Corrupting `ink-50` passes;
+   deleting all 43 primitives passes. **Fix:** assert it both directions.
+
+3. **The non-empty guard covers the HTML branch only.** `if (kind === 'css')
+   cssLike = text;` carries no length assertion, so **truncating
+   `reference.css` to zero bytes leaves the suite green** while the page renders
+   completely unstyled. This is the same defect Sofia found and fixed during
+   implementation, left asymmetric in her own fix — the fourth instance of the
+   AS-17 / AS-26 vacuous-pass class in this codebase. **Fix:** hoist the guard to
+   cover both branches, and add minimum-row floors so a scan that examines
+   nothing cannot report success.
+
+4. **The §3.4 Result cell is parsed as `split(/\s|—/)[0]`.** A positive control
+   (`| 14.85:1 | 99:1 | PASS |`) is correctly caught, but the same row written
+   `| OK PASS |` or `| ✅ PASS |` is not — the §8.3 test then runs zero
+   assertions and reports green, with no floor asserting how many rows were
+   examined. **Fix:** parse the Result cell strictly.
+
+### Backlog (record, do not necessarily fix this cycle)
+
+- All 56 `tokens.json` `alias` fields are never read — replacing every one with
+  `"WRONG-ALIAS"` passes — though plan §5 names that column as precisely what
+  makes parity meaningful.
+- The style reference's 100 hex labels and 114 matrix rows have no join to
+  generated data. Priya relabelled a FAIL as PASS and deleted a FAIL row
+  outright; both passed. The matrix is honest today only because Sofia
+  transcribed it honestly.
+- Scanner blind spots, all latent and none occurring in shipped files: a
+  declaration with no trailing semicolon escapes `declRe` entirely; SVG
+  presentation attributes; non-px/rem/em units; one-off and range-syntax
+  `@media`.
+- `color-scheme` is asserted nowhere. `btn-ghost` has no disabled variant.
+
+### Verified independently and holding — do not redo
+
+- **Fail-loud is real.** Corrupting a §3.2 heading aborts the whole suite at 0
+  pass with a named `FORMAT CONTRACT BROKEN` message; corrupting the ink table's
+  first data row aborts by name; deleting a semantic row aborts; changing one hex
+  or one ratio is caught. Every restore verified byte-identical by sha256.
+- **`file://` with no network.** Headless Chrome over CDP with DNS hard-failed
+  (`MAP * ~NOTFOUND`): exactly 3 requests, all `file://`, 0 failed loads, 0
+  console errors, 132 live CSS rules.
+- **375px.** `scrollWidth === clientWidth === 375`; 54 elements exceed the
+  viewport and all 54 sit inside `overflow-x` wrappers, zero uncontained; widest
+  section box 343px. Sofia's overflow fix holds.
+- **Theming.** With JS disabled, body resolves correctly under both
+  `prefers-color-scheme` values, and nested `data-theme` overrides work in both
+  directions in a real cascade.
+
+## Reset 2026-08-31 by agent:cto-owen
