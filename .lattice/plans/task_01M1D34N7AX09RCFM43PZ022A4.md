@@ -1,0 +1,11 @@
+# AS-40: D1 v1: freelancer accounts — credentials, sessions, route guard (server)
+
+Server-side account capability, chain link 1 ("freelancer signs up"). Sign-up and sign-in with locally stored credentials (password hashing from the platform's own crypto primitives — no new dependency), session issuance and validation, a currentUser context for downstream handlers, and a route guard that every authenticated endpoint uses.
+
+IMPLEMENTS: docs/engineering/00-d1-v1-milestone-plan.md section 3 row C-07 (IN — Rule 1, chain link 1). The screen that drives it is row C-08 and belongs to the onboarding-UI task.
+
+DECISION CONTEXT. This is deliberately split from its screen so the server half is not blocked behind wireframes — see the milestone plan section 8.1 on how the UI and non-UI halves interleave, and section 8.4's ready-queue simulation, which depends on splits like this one. NO EMAIL IS INVOLVED: email verification, magic links, and password reset are OUT of v1 (row C-09, Rule 1, and independently Rule 3 — they need an ESP account and a sender domain, and the product has no name yet, per docs/strategy/09-company-name.md section 8.2, which extends "public-facing artifact" to sender-domain configuration). A v1 freelancer who forgets their password is a support case, not a feature; that capability returns with the email milestone (milestone plan section 6.2).
+
+VERIFICATION: unit and HTTP-level tests — sign-up creates a user; sign-in issues a session; a guarded route rejects an absent, invalid, or expired session; credentials are never stored or logged in plaintext. No accounts, no network.
+
+NOT IN THIS TASK: the sign-up/sign-in screen; password reset or any outbound email (out of v1); OAuth or social login (not a capability row — a v1 that needs no ESP needs no external identity provider either, and adding one would be a Rule-3 account); roles, teams, or multi-seat (row C-50, OUT).

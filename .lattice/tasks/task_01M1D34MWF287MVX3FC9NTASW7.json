@@ -1,0 +1,39 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "medium",
+  "created_at": "2026-08-31T23:40:42Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": "Spine task 2 of D1 v1. Create apps/invoicing/ \u2014 the product application \u2014 in the stack chosen by the stack-decision task: docker compose service(s), configuration loading, a test harness, and a health endpoint. The acceptance property that matters: docker compose up starts the app and the full test suite passes with NO external services, NO accounts, and NO network egress. Everything after this depends on that property continuing to hold.\n\nIMPLEMENTS: docs/engineering/00-d1-v1-milestone-plan.md section 3 row C-02 (IN \u2014 Rule 1: nothing in the chain runs without it). Section 8.3 spine task 2.\n\nDECISION CONTEXT. The directory name apps/invoicing/ is decided, not a placeholder. Under the company-name record docs/strategy/09-company-name.md section 8.2, the monorepo/internal-infra layer carries generic descriptive names and the product brand attaches at the extraction seam and on customer-facing surfaces (deploy domains, sender domains, app chrome). The product has no name yet and this directory never needs to change when it gets one \u2014 which is also why naming does not block the scaffold. Follow apps/chat/ for compose and test-runner conventions unless the stack decision chose otherwise; note that the chat app is internal tooling and its zero-dependency convention is evidence, not a mandate, for the product.\n\nVERIFICATION: docker compose up serves the health endpoint; the test suite runs green from a clean checkout with the network unavailable. Both are runnable today with no accounts.\n\nNOT IN THIS TASK: the data model or any table (the data-model task); any Stripe code whatsoever \u2014 the custody guard lands before any Stripe caller and this task must not front-run it with a \"temporary\" client; authentication; any UI screen (screens are wireframe-gated on AS-30).",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1D34MWF287MVX3FC9NTASW7",
+  "last_event_id": "ev_01M1D358C7820V1Y5CBKYHBNJ9",
+  "last_status_changed_at": "2026-08-31T23:40:42Z",
+  "priority": "high",
+  "relationships_out": [
+    {
+      "created_at": "2026-08-31T23:41:02Z",
+      "created_by": "agent:cto-owen",
+      "note": "spine: scaffold cannot start before the stack is chosen",
+      "target_task_id": "task_01M1D34MRX0ZKT9NRQXXA1S9ZA",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-37",
+  "status": "backlog",
+  "tags": [
+    "d1",
+    "v1",
+    "spine",
+    "server"
+  ],
+  "title": "D1 v1: apps/invoicing scaffold \u2014 compose stack, config, test harness, health check",
+  "type": "task",
+  "updated_at": "2026-08-31T23:41:02Z",
+  "urgency": null
+}

@@ -1,0 +1,31 @@
+{
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "medium",
+  "created_at": "2026-08-31T23:40:42Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": "Spine task 1 of D1 v1. Produce docs/engineering/01-stack-decision.md: the framework/stack decision for the product app, in the form the front-end design plan (docs/design/00-frontend-design-plan.md) section 4 Phase C requires \u2014 options considered, criteria, a recommendation, and what would reverse it. Nothing else in the D1 build starts until this lands; every other v1 task depends on it transitively.\n\nIMPLEMENTS: docs/engineering/00-d1-v1-milestone-plan.md section 3 row C-01 (IN by mandate \u2014 front-end design plan section 4 Phase C). Section 8.3 names it as spine task 1.\n\nDECISION CONTEXT. The criteria are already fixed and are not re-derived here. The stack must be: (a) implementable by agent ICs working from text alone; (b) runnable under docker compose (infra rule, CLAUDE.md); (c) testable with NO external accounts \u2014 the right-sizing rule in milestone plan section 8.2 requires every task to name a verification method that works with the accounts we actually have, which is currently none; (d) free of paid services or licences; (e) able to keep every Stripe call behind a single enforceable chokepoint (the custody guard, the next spine task \u2014 see assumption A3, milestone plan section 5); (f) deployable to Digital Ocean when the deployment milestone opens (out of v1, but do not choose something that forecloses it); (g) able to consume the AS-29 design tokens (docs/design/tokens/tokens.css) without a build-step fight (front-end design plan section 5).\n\nOur internal-tooling convention (zero dependencies, node --test, compose per app \u2014 see apps/chat/package.json) is EVIDENCE for this decision, not the decision. A product with a payment integration and real users may justify different answers; that is what this task is for. AS-31 named the slot and the criteria and deliberately named no candidates, because choosing a stack inside a scoping task is deciding in the wrong order.\n\nVERIFICATION: the doc exists, names at least two real options, evaluates each against all seven criteria above, states a recommendation and the conditions that would reverse it. QA checks that every criterion is addressed for every option \u2014 this is a decision record, not a preference. Runnable now; no accounts, no code.\n\nNOT IN THIS TASK: writing any application code (that is the scaffold task); choosing a hosting provider (Digital Ocean is already the infra rule); choosing a database engine beyond what the stack decision implies \u2014 if the stack leaves it open, say so and leave it to the data-model task.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1D34MRX0ZKT9NRQXXA1S9ZA",
+  "last_event_id": "ev_01M1D34MRYKY8YEHY4694B1DRB",
+  "last_status_changed_at": "2026-08-31T23:40:42Z",
+  "priority": "high",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-36",
+  "status": "backlog",
+  "tags": [
+    "d1",
+    "v1",
+    "spine",
+    "decision"
+  ],
+  "title": "D1 v1: stack decision for the product app (options, criteria, recommendation)",
+  "type": "task",
+  "updated_at": "2026-08-31T23:40:42Z",
+  "urgency": null
+}

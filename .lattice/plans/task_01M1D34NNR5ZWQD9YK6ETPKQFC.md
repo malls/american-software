@@ -1,0 +1,11 @@
+# AS-44: D1 v1: webhook receiver — signature verification, idempotency, invoice state sync
+
+Chain link 6, "freelancer sees it paid" — the state-sync half. Receive Stripe webhooks, verify signatures, dedupe by event id against the processed-event table the data-model task defines, and apply invoice.created / finalized / sent / paid / payment_failed plus account.updated to our mirror records. Out-of-order and repeated deliveries must be safe.
+
+IMPLEMENTS: docs/engineering/00-d1-v1-milestone-plan.md section 3 row C-36 (IN — Rule 1, chain link 6).
+
+DECISION CONTEXT. The chain-critical capability is KNOWING an invoice was paid, not webhooks specifically — polling would also close the chain, which is why the capability row is written as state sync rather than as "webhooks". Webhooks are the chosen implementation because Stripe pushes state we would otherwise poll for on every open invoice, and because the D1 spike named webhook fidelity as the single largest thing it could not measure (stripe-mock emits none). Signature verification is computable locally against a test secret, so it is genuinely unit-testable now; DELIVERY is not. The account.updated handler feeds the Connect task's readiness state — one receiver, two consumers.
+
+VERIFICATION: unit tests over synthetic signed payloads — valid signature accepted; tampered payload rejected; stale timestamp rejected; a duplicate event id applied exactly once; an out-of-order paid-before-finalized sequence converging to the correct state. NAMED RESIDUAL (milestone plan section 8.2, right-sizing test 3): stripe-mock emits no webhooks, so real delivery, real ordering, and real latency cannot be verified until the board-approved test-mode account exists; the test-mode acceptance run covers them and is gated on that ask. This task is honest at the unit level and says so rather than claiming an end-to-end guarantee it cannot demonstrate.
+
+NOT IN THIS TASK: any UI (the read-views task renders status); reminder emails or cadences (row C-39, OUT); retry, alerting or queueing infrastructure beyond idempotent handling — no capability row, because v1's worst day is a missed webhook we recover by re-reading the invoice through the wrapper, and building a delivery-guarantee layer for a v1 with one user would be scope Rule 1 does not admit.

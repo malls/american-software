@@ -1,0 +1,60 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "medium",
+  "created_at": "2026-08-31T23:40:44Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": "The two screens that close chain link 6, \"freelancer sees it paid\". Dashboard: the freelancer's invoices and contracts with status. Invoice detail: full status, amounts, due date, and the Stripe-hosted links (hosted_invoice_url, invoice_pdf) surfaced for the freelancer to open or copy. Built to AS-30's wireframes and states ledgers, consuming the AS-29 tokens.\n\nIMPLEMENTS: docs/engineering/00-d1-v1-milestone-plan.md section 3 rows C-37 (dashboard / list) and C-38 (invoice detail and status); section 4.3 screens 3 and 5 of 7.\n\nDECISION CONTEXT. Merged as one task with a written justification (milestone plan section 8.2): one reviewable claim \u2014 \"the freelancer can see what they have sent and whether it is paid\" \u2014 at around 450 projected lines. Status comes from the invoice mirror the webhook task syncs; these screens read our own records and never call Stripe live. The hosted links are SURFACED, NOT REBUILT: our own invoice PDF (row C-30) and our own payment page (row C-34) are OUT under Rule 2, because Stripe's are the product here and building parallel implementations is exactly what Rule 2 forbids \u2014 the spike measured our own invoice PDF renderer at 107 lines and 0.194 ms and still found it unnecessary.\n\nVERIFICATION: states ledger exercised \u2014 no invoices yet, loading, populated, stale/unsynced, error; status transitions render correctly from fixture mirror records; renders at 375px before desktop; tokens only, no magic values.\n\nNOT IN THIS TASK: invoice creation (the invoice-UI task); contract screens (the contract-UI task); reminder configuration or a manual re-send control (rows C-39 and C-40, OUT \u2014 Rule 1; Stripe's own reminder cadences ride on the connected account at zero cost to us and are configured by the freelancer in their own Stripe Dashboard); analytics or reporting (row C-56, OUT); an account-settings screen (row C-41, OUT).",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1D34P63WC2P2CYJ3N65W5H1",
+  "last_event_id": "ev_01M1D35AHR5719RQ8H8KE9F5TE",
+  "last_status_changed_at": "2026-08-31T23:40:44Z",
+  "priority": "medium",
+  "relationships_out": [
+    {
+      "created_at": "2026-08-31T23:41:04Z",
+      "created_by": "agent:cto-owen",
+      "note": "dashboard lists contracts",
+      "target_task_id": "task_01M1D34NEEP0YC62YWA7B0W0B2",
+      "type": "depends_on"
+    },
+    {
+      "created_at": "2026-08-31T23:41:04Z",
+      "created_by": "agent:cto-owen",
+      "note": "dashboard and detail read the invoice mirror",
+      "target_task_id": "task_01M1D34NJ0J56XFF6SEC2MTST1",
+      "type": "depends_on"
+    },
+    {
+      "created_at": "2026-08-31T23:41:04Z",
+      "created_by": "agent:cto-owen",
+      "note": "status shown is the synced status",
+      "target_task_id": "task_01M1D34NNR5ZWQD9YK6ETPKQFC",
+      "type": "depends_on"
+    },
+    {
+      "created_at": "2026-08-31T23:41:04Z",
+      "created_by": "agent:cto-owen",
+      "note": "screen-rendering task: needs wireframes and states ledgers for screens 3 and 5",
+      "target_task_id": "task_01M1C5ETSG6YPBK7YPHX21ZZW0",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-48",
+  "status": "backlog",
+  "tags": [
+    "d1",
+    "v1",
+    "fan",
+    "ui"
+  ],
+  "title": "D1 v1 UI: read views, screens 3 and 5 (dashboard, invoice detail)",
+  "type": "task",
+  "updated_at": "2026-08-31T23:41:04Z",
+  "urgency": null
+}
