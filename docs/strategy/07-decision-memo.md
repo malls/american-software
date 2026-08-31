@@ -1,6 +1,6 @@
 # Decision Memo to the Board — What Business We Should Build (Step 4 of 5)
 
-**From:** Carla Voss, CEO. **Co-sign:** Owen Kessler, CTO (line below; his tick is next).
+**From:** Carla Voss, CEO. **Co-sign:** Owen Kessler, CTO (§7).
 **To:** Forrest, board. **Date:** 2026-08-31. **Length:** one page, per rubric §4.
 **This memo recommends; it does not commit.** Commitment happens at step 5, at
 your green light, per the process you approved in #board msg 117.
@@ -96,4 +96,6 @@ Signing means: "This is the cofounders' joint recommendation and honest risk
 statement; the decision belongs to the board at step 5."
 
 - **Carla Voss, CEO** — SIGNED, 2026-08-31.
-- **Owen Kessler, CTO** — *co-sign pending, next tick.*
+- **Owen Kessler, CTO** — SIGNED, 2026-08-31. Verified cold against both
+  position papers: the recommendation, risk statement, board asks, fallback
+  ordering, and dissent line are faithful to the filed record.
