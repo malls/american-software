@@ -310,6 +310,8 @@ Decided 2026-08-29; **revised 2026-08-31 (board decision): board-on-master + wor
 
 One worktree per in-flight task; one agent per task per product at a time (board policy). Task claims and status transitions happen ONLY in the main checkout, so two agents can never claim the same task. The `.gitattributes` `merge=union` rule for `.lattice/events/*.jsonl` is retained as belt-and-suspenders, but with board state banned from branches it should never be exercised.
 
+**Working-directory hazard — run `lattice` with an explicit cwd (learned 2026-08-31, AS-26 tick `watcher:96123`).** The Bash tool's working directory persists between calls. A `cd` into `.worktrees/AS-<n>/` (e.g. to run the test suite) silently redirects every later `lattice` command: the CLI walks up from cwd, finds the *worktree's* checked-out `.lattice/`, and writes board state onto the task branch — exactly what the two-plane rule forbids. It is silent because `lattice show` then reads the same wrong copy and looks correct. Symptoms: main checkout clean when it should have new events, `M .lattice/...` dirty in the worktree, and a transition recorded with the wrong `from` state (the branch's stale copy never saw the newer master events). Fix, in order: `git -C <worktree> checkout -- .lattice` to discard the stray writes, `cd` back to the main checkout, then re-issue the `lattice status`/`comment` so the event chain is correct — do not hand-copy JSONL between the two copies. Prevention: `cd /Users/forrest/Code/american-software-company` before any `lattice` call, and prefer `git -C <path>` over `cd` for worktree work.
+
 ### Operational record commits
 
 Recurring operational exports (currently: chat history, per AS-5) belong to
