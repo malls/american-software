@@ -279,13 +279,18 @@ For the full CLI reference, see the `/lattice` skill.
 
 ## Git Methodology
 
-Decided 2026-08-29. Git history and the Lattice board are two views of the same work; the short code (`AS-<n>`) is the join key.
+Decided 2026-08-29; **revised 2026-08-31 (board decision): board-on-master + worktree-per-task.** Git history and the Lattice board are two views of the same work; the short code (`AS-<n>`) is the join key. The 2026-08-31 revision fixes the lived failure mode of v1: board state riding task branches meant master's `.lattice` lagged reality until merge, and the main checkout was forever parked on whichever branch was in flight.
+
+### The two-plane rule (core of the revision)
+
+- **The main checkout is pinned to `master`, permanently.** It is the canonical board and the metawork home. It is never checked out to a task branch.
+- **Board state lives on master, in real time.** Every `.lattice/` mutation — task creation, claims, status transitions, comments, plan files — commits directly to master from the main checkout, at the moment it happens (batched per tick action is fine). Message format: `AS-<n>: board — <what>`. The board on master is always current *while work is in flight*.
+- **Code lives on task branches, worked in worktrees.** A task branch carries only app/tool code and tests — never `.lattice/` state. Each in-flight task gets a linked worktree: `git worktree add .worktrees/AS-<n> feat/AS-<n>-<slug>`. The implementer and QA operate inside `.worktrees/AS-<n>/`; the main checkout stays untouched and available. `.worktrees/` is gitignored.
+- **Metawork commits to master anytime** — the main checkout is always on master, so there is no stash dance and no metawork riding task branches. The rides-along rule survives only as: metawork found dangling in the MAIN checkout is committed to master promptly (by the orchestrator or the tick), never left dirty.
 
 ### Commits
 
-- **Every commit belongs to a task.** Message format: `AS-<n>: <imperative summary>`. The only commits without a task code are board/chat-channel work (docs, operating-rule edits), which may go directly to master.
-- **Commit at stage boundaries, including `.lattice/` state.** The planning stage commits the plan file; the implementation stage commits code and tests; the review outcome lands with the merge. Board state in git history should match code state at every commit.
-- **Metawork rides along (decided 2026-08-29).** Unstaged metawork changes (CLAUDE.md, docs, operating-rule edits, and such) are always committed alongside whatever other work is being committed — never left dangling in the working tree. If metawork was already committed manually (by the board or anyone else), always keep that commit — never rewrite, squash away, or undo it.
+- **Every commit belongs to a task.** Message format: `AS-<n>: <imperative summary>` (board-state commits: `AS-<n>: board — <what>`). Exceptions that commit directly to master without a task code: board/chat-channel metawork, and operational record commits (below).
 - **Commit as the employee.** Each stage commits under its persona's identity so `git blame` shows who at the company wrote what:
   ```
   git -c user.name="developer-marcus-webb" \
@@ -293,36 +298,35 @@ Decided 2026-08-29. Git history and the Lattice board are two views of the same 
       commit -m "AS-7: ..."
   ```
 
+### Task lifecycle in git
+
+- **Planning stage:** plan file commits to master (it is board state in `.lattice/plans/`). Then create `feat/AS-<n>-<slug>`, `lattice branch-link` it, and `git worktree add .worktrees/AS-<n> feat/AS-<n>-<slug>`.
+- **Implementation stage:** code + tests commit on the branch, inside the worktree. Logical commits at stage boundaries.
+- **Review:** QA reads `git diff master...feat/AS-<n>-<slug>` (now pure code — no board-state noise) and works inside the worktree. Rework commits accumulate on the branch.
+- **Merge at `done`:** from the main checkout, merge with `--no-ff` (message: `AS-<n>: <task title>`), run the records step, push master, then `git worktree remove .worktrees/AS-<n>` and delete the branch. Each task stays a visible unit in history.
+- **Master is always green for code.** App code arrives on master only via `done` merges; board-state and metawork commits touch no code. A tick that dies mid-task leaves a resumable worktree; the next tick finds it via `lattice branch-link` and `git worktree list`.
+
+### Concurrency
+
+One worktree per in-flight task; one agent per task per product at a time (board policy). Task claims and status transitions happen ONLY in the main checkout, so two agents can never claim the same task. The `.gitattributes` `merge=union` rule for `.lattice/events/*.jsonl` is retained as belt-and-suspenders, but with board state banned from branches it should never be exercised.
+
 ### Operational record commits
 
 Recurring operational exports (currently: chat history, per AS-5) belong to
 no single task. They commit directly to master with message format
-`records: chat export <YYYY-MM-DD>` — the second sanctioned exception to
-the `AS-<n>:` rule alongside investor/chat-channel work. Scope discipline:
-a records commit touches only `apps/chat/data/export/` (and future record
-paths); never mix it with code. Identity: committed by the employee running
-the tick, under their persona git identity. Private channels (currently
-`#board`, per the AS-6 board decision) are excluded from the chat export by
-design — hidden means hidden, including git. Their only durable copies are the
-live DB and manual `chat dump` backups; the board accepted this tradeoff on
-2026-08-30 (AS-6).
-
-### Branches
-
-- **One branch per task:** `feat/AS-<n>-<slug>`, created by the planning stage and linked with `lattice branch-link`. All task work — plan file, code, notes, lattice events — commits on the branch.
-- **QA reviews the branch diff against master** (`git diff master...feat/AS-<n>-<slug>`). Rework commits accumulate on the branch until QA passes.
-- **Merge at `done`:** after QA passes, the orchestrator merges with `--no-ff` (message: `AS-<n>: <task title>`), deletes the branch, and pushes master. Each task stays a visible unit in history.
-- **Master is always green.** Never commit work-in-progress to master. A tick that dies mid-task leaves master untouched; the next tick finds the in-flight branch via `lattice branch-link` and resumes it.
+`records: chat export <YYYY-MM-DD>`. Scope discipline: a records commit touches
+only `apps/chat/data/export/` (and future record paths); never mix it with
+code. Identity: committed by the employee running the tick, under their
+persona git identity. Private channels (currently `#board` and `#bizdev`, per
+the AS-6 board decision) are excluded from the chat export by design — hidden
+means hidden, including git. Their only durable copies are the live DB and
+manual `chat dump` backups; the board accepted this tradeoff on 2026-08-30 (AS-6).
 
 ### Pushing
 
-- Push master after each merged task. Pushing in-flight task branches is optional (nice for GitHub visibility).
+- Push master after every merge and at the end of any tick that committed board state or metawork. Pushing in-flight task branches is optional (nice for GitHub visibility; enables a PR-based merge flow later if the board wants it).
 - Force-push is always `needs_human`. Never rewrite pushed history autonomously.
 
-### Merge mechanics
+### Repo structure (decided 2026-08-31)
 
-`.gitattributes` sets `merge=union` for `.lattice/events/*.jsonl` — event appends from parallel branches are order-independent, so union merge resolves them without conflicts. Do not remove this rule; without it every concurrent task pair conflicts on the event log.
-
-### Worktrees (deferred until parallelism)
-
-While `/advance` runs one action per tick, the loop is sequential and branches alone provide isolation — do not use worktrees. The trigger to activate them: **two or more tasks in `in_progress` concurrently.** At that point, each implementation sub-agent runs in its own worktree checked out to its task branch (harness `isolation: worktree` handles setup/teardown). One rule then matters above all: **the main checkout is the canonical board** — task claims and status transitions happen there, via the orchestrator, so two agents can never claim the same task. Comment/event appends from branches merge via the union driver.
+Monorepo (`apps/*`) for the foreseeable future — cross-cutting changes (app + tick procedure + docs) stay atomic, and there is one board and one audit trail. Submodules/repo-extraction happen per-product at the moment a product needs its own public repo, external contributors, or independent deploy cadence — a real migration project with board sign-off, not before.

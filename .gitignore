@@ -1,2 +1,3 @@
 apps/chat/data/*
 !apps/chat/data/export/
+.worktrees/
