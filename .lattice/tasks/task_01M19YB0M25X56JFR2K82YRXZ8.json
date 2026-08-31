@@ -14,7 +14,7 @@
   "created_by": "agent:qa-priya",
   "custom_fields": {},
   "description": null,
-  "done_at": null,
+  "done_at": "2026-08-31T00:39:39Z",
   "evidence_refs": [
     {
       "id": "ev_01M1AM2TTKFN5DGNW05359C6BA",
@@ -23,17 +23,17 @@
     }
   ],
   "id": "task_01M19YB0M25X56JFR2K82YRXZ8",
-  "last_event_id": "ev_01M1AM2TTKFN5DGNW05359C6BA",
-  "last_status_changed_at": "2026-08-31T00:36:06Z",
+  "last_event_id": "ev_01M1AM3W2R0Y5G1YG2VVJPH830",
+  "last_status_changed_at": "2026-08-31T00:39:39Z",
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-16",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "Harden advance.lock adoption against pid reuse: per-fire nonce in lock file + ADVANCE_TICK_PARENT marker",
   "type": "task",
-  "updated_at": "2026-08-31T00:39:05Z",
+  "updated_at": "2026-08-31T00:39:39Z",
   "urgency": null
 }
