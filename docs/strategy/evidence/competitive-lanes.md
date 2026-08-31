@@ -391,6 +391,44 @@
 
 ---
 
+## TICK 3: D3 Evidence Conflict Resolution (Joint Reconciliation with Nadia)
+
+**Conflict:** Elliot tick-2 verdict (D3 aftermarket tools "nonexistent") vs. Nadia tick-2 verdict (D3 tools "exist and compete").
+
+**Investigation:** Verified named tools from Nadia's research (Trqk, Orphiq, Curve Royalty Systems, Stem, Madverse).
+
+**Findings:**
+
+1. **Tools Existence:** ✓ NADIA CORRECT
+   - **Trqk (TrqkIQ):** Confirmed real; "Music Royalty Intelligence" platform with audio content recognition for real-time royalty tracking and auditing
+   - **Curve Royalty Systems:** Confirmed real; B2B platform used by 800+ labels, distributors, publishers; launched "Curve Lite" tier (£20/mo+) in 2024
+   - **Stem:** Confirmed real; combines distribution with royalty processing and automated split payments for collaborators
+   - Source: Trqk.io (2026), MusicBusinessWorldwide (Curve Lite launch), LabelGrid (2026)
+
+2. **Market Segment Distinction:** ✓ ELLIOT PARTIALLY CORRECT (BUT IMPRECISE)
+   - Aftermarket tools DO exist but serve LABEL/DISTRIBUTOR/PUBLISHER segment, not solo artists directly
+   - Trqk, Curve, Stem all focus on professional music businesses and labels; positioning unclear for casual solo artists
+   - Curve Lite £20/mo targets "smaller labels, distributors, and publishers" — not solo artist consumer tier
+   - Solo artists access royalty tracking via their distribution platforms (DistroKid, CD Baby) or through labels' Curve dashboard
+   - **Verdict:** The D3 niche gap is real and remains underserved for SOLO-ARTIST-ACCESSIBLE consumer tools, even though B2B aftermarket tools exist
+   - Source: MusicBusinessWorldwide, Music Week (Curve Lite positioning), LabelGrid analysis
+
+3. **Unclaimed Royalty Figure Correction:** ✗ ELLIOT INCORRECT ($561M+), ✓ NADIA CORRECT ($424M)
+   - Original MLC 2021 historical transfer: **$424,384,787** (confirmed via Aristake, Chartlex, The MLC)
+   - Elliot's $561M+ figure: OUTDATED OR INCORRECT SOURCE
+   - As of June 2026: ~$160M in pre-2021 historical unmatched royalties remain; ongoing distributions have reduced the pool
+   - **Correction:** Use Nadia's $424M as the baseline for original unclaimed historical royalties (2021); note that current amount is ~$160M pre-2021 figure + new unmatched royalties accumulating monthly
+   - Source: Aristake (songwriters claiming MLC money, 2026), Chartlex (MLC Unclaimed Royalties 2026), Velveteen (MLC historical royalties)
+
+**Joint Verdict:**
+- **Aftermarket tools exist:** Trqk, Curve, Stem, and others are real, established platforms
+- **Market gap is intact:** These tools serve labels/distributors, not solo artists; no consumer-friendly solo-artist royalty dashboard exists at $10–50/mo price point
+- **D3 niche validity:** CONFIRMED — solo independent musicians lack accessible, affordable, unified royalty tracking across multiple DSPs; the gap exists even though B2B solutions exist for labels
+- **Royalty figure:** Corrected to $424M (original 2021 MLC historical royalties); as of June 2026, ~$160M remains from pre-2021 pool
+- **Status:** D3 proceeds to long-list as-is; product positioning is valid (artist-side multi-DSP reconciliation + split payments) and distinct from existing label-side tools
+
+---
+
 ## Sufficiency Assessment & Gaps
 
 ### C1 (Micro-Credentials): Sufficient for Long-List
@@ -617,31 +655,37 @@
 | **RouteNote** | Free (15% royalty share) or $10–$45 upfront | Distribution | Free tier is feasible for solo artists; premium removes royalties entirely | RouteNote pricing (SoundCloud topic, Loop.fans) | 2026-08-30 |
 | **Symphonic** | $19.99/year | Distribution + AI policy | Includes Content ID, sync licensing, artist advances up to $5M (Symphonic NEXT); no dedicated royalty tracking | Symphonic review (Undetectr), Loop.fans | 2026-08-30 |
 | **Tools 4 Music** | Free | Royalty calculator / metadata tools | Free platform combining streaming royalty calculators, production tools, and education; limited to royalty *calculation*, not tracking | AudioBulb (best tools guide) | 2026-08-30 |
+| **Trqk (TrqkIQ)** | Pricing not disclosed; enterprise/professional-focused | Music Royalty Intelligence | Real-time royalty tracking and auditing; targets music creators and their representatives; focuses on professional creators and label-side use; not accessible as consumer solo-artist tool | Trqk.io, LabelGrid (Music Royalty Accounting Software 2026) | 2026-08-30 |
+| **Curve Royalty Systems** | Curve Lite: £20/month+; target: smaller labels/distributors, not solo artists | B2B Royalty Accounting | Industry platform (800+ labels/distributors/publishers); Curve Lite targets smaller label entities; Creator Dashboard allows artist access to labels' Curve installation but not a standalone solo-artist tool | MusicBusinessWorldwide, Music Week, CurveRoyaltySystems.com | 2026-08-30 |
+| **Stem** | Pricing not disclosed; distribution + royalty splits | Distribution + Artist Royalty Platform | Combines distribution with royalty processing; automates splits for collaborators; artist-facing but bundled with distribution; targets artists with collaborators | LabelGrid (Music Royalty Accounting Software 2026), Symphonic blog | 2026-08-30 |
 | **MusicAlligator** | Pricing unavailable | Publishing administration + royalty tracking | Offers ISRC code assignment and publishing administration; unclear if available to solo artists or requires label partnership | AudioBulb reference only | 2026-08-30 |
 | **Madverse** | Pricing unavailable | Royalty splits + payments | Offers royalty splits at source and 95% royalty retention; positioning unclear for solo artists vs. labels | AudioBulb reference only | 2026-08-30 |
 
 ### Feature & Pricing Gaps for D3
 
-**Gap 1: Aftermarket Royalty Tracking Tools Are Sparse**
-- Distribution platforms (DistroKid, CD Baby, RouteNote, Symphonic) all aggregate royalties but don't offer dedicated tracking/comparison tools
-- Tools 4 Music is free but is a calculator, not a persistent tracking dashboard
-- MusicAlligator and Madverse exist but pricing and solo-artist accessibility are unclear
-- **Critical finding:** No clear standalone royalty-aggregation dashboard for solo musicians exists at consumer pricing
-- Source: AudioBulb (best tools guide for 2026), multiple distribution site reviews
+**Gap 1: Artist-Side vs Label-Side Market Distinction**
+- Aftermarket royalty-tracking tools exist but primarily serve LABEL/DISTRIBUTOR/PUBLISHER segment (Trqk, Curve, Stem all focus on professional music businesses)
+- Trqk: "Music Royalty Intelligence" platform targets professional music creators and representatives, not casual solo artists; pricing/accessibility not disclosed
+- Curve Royalty Systems: £20/mo starting price targets SMALLER LABELS/DISTRIBUTORS, not solo artists; solo artists only access via labels' dashboard
+- Stem: Distribution + royalty tool, but targets artists WITH collaborators, bundled with distribution
+- **Key Finding:** No consumer-friendly, solo-artist-accessible unified royalty dashboard exists at $10–50/month price point
+- Source: Music Royalty Intelligence (Trqk), MusicBusinessWorldwide (Curve Lite launch 2024), LabelGrid (Music Royalty Accounting Software 2026)
 - Observed: 2026-08-30
 
 **Gap 2: Metadata & Split Payment Automation Fragmented**
 - Each distribution platform requires separate registration with collection societies (ASCAP, BMI, SESAC); no unified management
 - Split payments to collaborators/featured artists are manual across all platforms
-- MLC sits on $561M+ unclaimed royalties due to metadata mismatches (Nadia's Tier 2 evidence)
-- Source: Nadia's tick-1 research + AudioBulb (best tools guide)
+- MLC historical royalties: $424M (original 2021 transfer from streaming services) in unmatched "black box" royalties due to metadata mismatches
+- As of June 2026, ~$160M in pre-2021 historical unmatched royalties remain after ongoing distributions
+- Source: Aristake (songwriters claiming MLC money, 2026), Chartlex (MLC Unclaimed Royalties Guide 2026), Nadia's demand-side evidence (tick-2)
 - Observed: 2026-08-30
 
-**Gap 3: Multi-DSP Reconciliation Nonexistent**
+**Gap 3: Multi-DSP Reconciliation Nonexistent at Consumer Price Point**
 - Solo musicians manually reconcile across Spotify, Apple Music, YouTube, Bandcamp, etc. on different reporting schedules
-- No platform offers "unified royalty view across all DSPs" at $10–50/month price point
-- RouteNote's free tier and Tools 4 Music are low-cost, but neither solves the reconciliation problem
-- Source: Music royalty audit guide (Chartlex), royalty management analysis (Madverse)
+- Distribution platforms (DistroKid, CD Baby, RouteNote) aggregate but don't offer standalone dashboard for comparison/reconciliation
+- No platform offers "unified royalty view across all DSPs for solo artists" at $10–50/month consumer price point
+- Professional tools (Trqk, Curve) exist but are enterprise/label-focused
+- Source: Music royalty audit guide (Chartlex 2026), LabelGrid (Music Royalty Accounting Software guide 2026), Symphonic blog (artist royalty tracking)
 - Observed: 2026-08-30
 
 ---
