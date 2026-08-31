@@ -21,6 +21,7 @@ const STATIC_FILES = {
   '/thread-modal.js': ['thread-modal.js', 'text/javascript; charset=utf-8'],
   '/live.js': ['live.js', 'text/javascript; charset=utf-8'],
   '/dm-sort.js': ['dm-sort.js', 'text/javascript; charset=utf-8'],
+  '/msg-refs.js': ['msg-refs.js', 'text/javascript; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
 };
 

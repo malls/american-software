@@ -57,7 +57,8 @@ AS-10) uses it; do not invent a second one.
 /?c=dm:<conversation-id>    DM by numeric conv id      /?c=dm:7
         &t=<message-id>     open the thread rooted at that top-level message
         &m=<message-id>     scroll to + briefly highlight that message
-                            (ignored when t is present)
+                            (with t: highlights the reply inside the open
+                            thread modal — t and m compose since AS-26)
 ```
 
 Rules of the contract:
@@ -81,6 +82,23 @@ Rules of the contract:
   `public/url-state.js` (no DOM, no fetch) — unit-tested directly by
   `test/url-state.test.js`. Legacy pre-AS-9 `#msg-<id>` hash links are inert:
   no crash, no restore.
+
+## Message permalinks & "msg N" references (AS-26)
+
+Every message shows its numeric id (`#156`) in the meta row — a real anchor
+whose href is the canonical deep link (`?c=<conv>&m=<id>`, plus `t=<root>`
+for thread replies). Right-click → Copy Link yields a durable permalink;
+plain click highlights in place and pushes the permalink into the URL bar.
+
+Body text like `msg 156` / `message 156` / `msgs 218/220/221` renders as
+links (message ids are globally unique across conversations, so the
+reference is unambiguous company-wide). Clicking resolves at click time:
+same-conversation targets anchor with zero network; cross-conversation
+targets go through `GET /api/message/<id>?me=` (navigation data only — no
+body, no author) and then navigate. Nonexistent and not-visible targets fail
+with one identical neutral message — the API 404s are byte-identical by
+design. The tokenizer is the pure module `public/msg-refs.js`
+(`test/msg-refs.test.js`).
 
 ## Links to Lattice (AS-10)
 

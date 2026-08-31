@@ -6,7 +6,9 @@
 //   c = <channel-name>        channel by name, ^[a-z0-9-]+$        ?c=general
 //     | "dm:" <conv-id>       DM by numeric conversation id        ?c=dm:7
 //   t = <message-id>          thread root to open; requires c
-//   m = <message-id>          scroll-to anchor in the main pane; requires c
+//   m = <message-id>          scroll-to anchor; requires c. Composes with t
+//                             (AS-26): when t is present, m anchors the reply
+//                             inside the open thread modal.
 //
 // Identity is NEVER encoded in the URL — 'me' lives in localStorage only.
 // Unknown/foreign query params are preserved verbatim-by-value; serialize

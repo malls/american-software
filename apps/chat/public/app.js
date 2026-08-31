@@ -6,6 +6,7 @@ import { renderPreservingScroll } from './scroll.js';
 import { shouldCloseOnEscape, shouldCloseOnBackdropGesture } from './thread-modal.js';
 import { applyMessage, maxLoadedId } from './live.js';
 import { rosterOrder, dmOrder, togglePin, sanitizePins } from './dm-sort.js';
+import { tokenizeMsgRefs } from './msg-refs.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -53,16 +54,23 @@ function savePins(me, pins) {
 // writes funnel through syncUrl; all reads happen in restoreFromUrl. Nothing
 // else in this file touches `location` or `history`.
 
+/** Conversation object -> the url-state selection shape (AS-9/AS-26). */
+const convSelector = (conv) =>
+  conv.type === 'dm' ? { kind: 'dm', id: conv.id } : { kind: 'channel', name: conv.name };
+
+/** Modified click (cmd/ctrl/shift/alt/middle): let the real href win (AS-10). */
+const isModifiedClick = (e) => e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1;
+
+// AS-26: one neutral wording for every msg-ref failure — nonexistent and
+// not-visible targets must be indistinguishable (parity invariant).
+const MSG_UNAVAILABLE = "That message isn't available.";
+
 function syncUrl(mode /* 'push' | 'replace' | 'none' */) {
   if (mode === 'none') return;
   const conv = state.currentConv;
   const next = serializeChatUrl(
     {
-      conv: conv
-        ? conv.type === 'dm'
-          ? { kind: 'dm', id: conv.id }
-          : { kind: 'channel', name: conv.name }
-        : null,
+      conv: conv ? convSelector(conv) : null,
       thread: state.currentThreadRoot,
       msg: state.anchorMsg,
     },
@@ -104,37 +112,76 @@ function fmtTime(iso) {
   return sameDay ? time : `${d.toLocaleDateString()} ${time}`;
 }
 
-/** Body text with AS-n refs turned into safe link elements. */
+// --- body rendering: composed ref pipeline (AS-10 refs + AS-26 msg refs) ---
+// Ref passes run per plain-text leaf, AS-refs FIRST so "AS-26" can never get
+// its "26" half-eaten by the msg-ref pass (the patterns are disjoint, but the
+// order is the recorded invariant). All content via el()/createTextNode.
+
+/** Split text into { type:'text'|'asref' } tokens against resolved refs. */
+function tokenizeAsRefs(text, refs) {
+  if (!text) return [];
+  if (refs.length === 0) return [{ type: 'text', text }];
+  const re = new RegExp(`\\b(${refs.map((r) => r.shortId).join('|')})\\b`, 'g');
+  const tokens = [];
+  let last = 0;
+  for (const m of text.matchAll(re)) {
+    if (m.index > last) tokens.push({ type: 'text', text: text.slice(last, m.index) });
+    tokens.push({ type: 'asref', text: m[0], ref: refs.find((r) => r.shortId === m[0]) });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) tokens.push({ type: 'text', text: text.slice(last) });
+  return tokens;
+}
+
+/** AS-n ref anchor (AS-10): plain click → task panel, modified → dashboard. */
+function asRefLink(ref) {
+  const a = el('a', 'ref-link', ref.shortId);
+  a.href = ref.url;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.title = `${ref.title} — ${ref.status}`;
+  a.addEventListener('click', (e) => {
+    if (isModifiedClick(e)) return;
+    e.preventDefault();
+    showTaskPanel(ref.shortId);
+  });
+  return a;
+}
+
+/** "msg 156" anchor (AS-26): render optimistically, resolve at click time. */
+function msgRefLink(tok) {
+  const a = el('a', 'ref-link msg-ref', tok.text);
+  // Conversationless placeholder href — parseable, restore treats it as
+  // unrequested; plain click (below) is the primary path.
+  a.href = `?m=${tok.id}`;
+  a.title = `msg ${tok.id}`;
+  a.addEventListener('click', (e) => {
+    if (isModifiedClick(e)) return;
+    e.preventDefault();
+    goToMessage(tok.id).catch(() => alert(MSG_UNAVAILABLE));
+  });
+  return a;
+}
+
+/** Append a plain-text leaf with every ref pass applied, in order. */
+function appendRefLeaf(parent, text, refs) {
+  for (const seg of tokenizeAsRefs(text, refs)) {
+    if (seg.type === 'asref') {
+      parent.appendChild(asRefLink(seg.ref));
+      continue;
+    }
+    for (const tok of tokenizeMsgRefs(seg.text)) {
+      if (tok.type === 'msgref') parent.appendChild(msgRefLink(tok));
+      else parent.appendChild(document.createTextNode(tok.text));
+    }
+  }
+}
+
+/** Body text with AS-n refs and msg refs turned into safe link elements. */
 function bodyNode(message) {
   const div = el('div', 'body');
   const refs = (message.refs || []).filter((r) => r.exists);
-  if (refs.length === 0) {
-    div.textContent = message.body;
-    return div;
-  }
-  const codes = refs.map((r) => r.shortId);
-  const re = new RegExp(`\\b(${codes.join('|')})\\b`, 'g');
-  let last = 0;
-  for (const m of message.body.matchAll(re)) {
-    div.appendChild(document.createTextNode(message.body.slice(last, m.index)));
-    const ref = refs.find((r) => r.shortId === m[0]);
-    const a = el('a', 'ref-link', m[0]);
-    // Real href to the Lattice dashboard (AS-10): copy-link and modified
-    // clicks (cmd/ctrl/shift/alt/middle) go to the dashboard in a new tab;
-    // a plain click keeps the in-app task panel.
-    a.href = ref.url;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    a.title = `${ref.title} — ${ref.status}`;
-    a.addEventListener('click', (e) => {
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
-      e.preventDefault();
-      showTaskPanel(ref.shortId);
-    });
-    div.appendChild(a);
-    last = m.index + m[0].length;
-  }
-  div.appendChild(document.createTextNode(message.body.slice(last)));
+  appendRefLeaf(div, message.body, refs);
   return div;
 }
 
@@ -152,7 +199,26 @@ function messageNode(m, { inThread = false } = {}) {
   author.title = m.authorId;
   const time = el('span', 'time', fmtTime(m.createdAt));
   time.title = m.createdAt + ' (UTC)';
-  meta.append(author, time);
+  // AS-26 §1: the visible message number IS the permalink anchor. href is the
+  // canonical deep link built against an EMPTY search (foreign params are a
+  // copy-link's problem, not ours): ?c=<conv>&m=<id>, plus t=<root> for
+  // thread replies. Right-click → Copy Link gives a durable permalink;
+  // plain click highlights in place and puts the permalink in the URL bar.
+  const permalink = el('a', 'msg-permalink', `#${m.id}`);
+  permalink.href = serializeChatUrl(
+    { conv: convSelector(state.currentConv), thread: m.threadRootId ?? null, msg: m.id },
+    ''
+  );
+  permalink.title = 'Permalink';
+  permalink.addEventListener('click', (e) => {
+    if (isModifiedClick(e)) return;
+    e.preventDefault();
+    state.anchorMsg = m.id;
+    state.anchorApplied = false;
+    applyAnchor();
+    syncUrl('push');
+  });
+  meta.append(author, time, permalink);
   if (!inThread) {
     const actions = el('span', 'actions');
     const replyBtn = el('button', null, 'reply in thread');
@@ -415,18 +481,32 @@ function renderConversation({ scroll = 'preserve' } = {}) {
       ),
     { forceBottom: scroll === 'bottom' }
   );
-  // m= anchor: one-shot scroll + highlight — a push re-render never repeats it.
-  if (state.anchorMsg != null && !state.anchorApplied) {
-    state.anchorApplied = true;
-    const node = document.getElementById(`msg-${state.anchorMsg}`);
-    if (node) {
-      node.scrollIntoView({ block: 'center' });
-      node.classList.add('anchored');
-    } else {
-      state.anchorMsg = null; // not in this conversation's messages: drop the param
-    }
-  }
+  // Render the open thread BEFORE applying the anchor (AS-26): a reply
+  // anchor's node exists only inside the thread pane.
   if (state.currentThreadRoot != null) renderThread();
+  applyAnchor();
+}
+
+/**
+ * m= anchor, one-shot (AS-9, shared by both panes since AS-26): scroll to and
+ * highlight whichever rendered pane contains msg-<id> — main conversation or
+ * open thread modal. A push re-render never repeats it (anchorApplied); a
+ * repeat anchor on the same node re-fires the highlight animation via
+ * class-remove + forced reflow. Node not rendered anywhere (dead id, or a
+ * reply whose thread isn't open): drop the param, AS-9 behavior.
+ */
+function applyAnchor() {
+  if (state.anchorMsg == null || state.anchorApplied) return;
+  const node = document.getElementById(`msg-${state.anchorMsg}`);
+  if (!node) {
+    state.anchorMsg = null;
+    return;
+  }
+  state.anchorApplied = true;
+  node.scrollIntoView({ block: 'center' });
+  node.classList.remove('anchored');
+  void node.offsetWidth; // force reflow so a re-added class restarts the animation
+  node.classList.add('anchored');
 }
 
 async function selectConversation(conv, { keepThread = false, url = 'push', scroll = 'bottom' } = {}) {
@@ -486,6 +566,8 @@ function renderThread({ forceBottom = false } = {}) {
       ),
     { forceBottom }
   );
+  // AS-26 §3: reply permalinks (?c&t&m) anchor inside the thread pane.
+  applyAnchor();
 }
 
 // --- task panel -----------------------------------------------------------
@@ -506,6 +588,70 @@ async function showTaskPanel(shortId) {
     body.replaceChildren(title, el('span', 'status', task.status), el('div', 'task-id', task.taskId), open);
   }
   $('#task-panel').hidden = false;
+}
+
+// --- msg-ref navigation (AS-26) ---------------------------------------------
+// Rendering is optimistic (every "msg N" is a link, zero render-time network);
+// resolution happens at click time: local anchor when the target is already
+// loaded, one /api/message/<id> call otherwise. Every failure — nonexistent,
+// hidden, transient — collapses to the one neutral MSG_UNAVAILABLE wording.
+
+/** The loaded message with this id (top-level or thread reply), or null. */
+function findLoadedMessage(id) {
+  const data = state.lastData;
+  if (!data) return null;
+  const top = data.messages.find((m) => m.id === id);
+  if (top) return top;
+  for (const arr of Object.values(data.threads || {})) {
+    const hit = arr.find((m) => m.id === id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+async function goToMessage(id) {
+  // 1. Target already in the loaded conversation: no network at all.
+  const local = findLoadedMessage(id);
+  if (local) {
+    state.anchorMsg = id;
+    state.anchorApplied = false;
+    if (local.threadRootId != null && state.currentThreadRoot !== local.threadRootId) {
+      openThread(local.threadRootId, { url: 'none' }); // renderThread applies the anchor
+    } else {
+      applyAnchor();
+    }
+    syncUrl('push');
+    return;
+  }
+  // 2. Cross-conversation: resolve, then navigate with the anchor pre-set,
+  // reusing the restore path's sequencing (anchor applies after the fetch
+  // renders; thread replies open their thread first).
+  let resolved;
+  try {
+    resolved = (await api(`/api/message/${id}?me=${encodeURIComponent(state.me)}`)).message;
+  } catch {
+    alert(MSG_UNAVAILABLE); // 404 and failure: byte-identical wording
+    return;
+  }
+  let conv = state.conversations.find((c) => c.id === resolved.conversationId);
+  if (!conv) {
+    // Visible per the resolver but not in the (stale) sidebar list yet.
+    await refreshSidebar().catch(() => {});
+    conv = state.conversations.find((c) => c.id === resolved.conversationId);
+  }
+  if (!conv) {
+    alert(MSG_UNAVAILABLE);
+    return;
+  }
+  state.anchorMsg = resolved.threadRootId == null ? id : null;
+  state.anchorApplied = false;
+  await selectConversation(conv, { url: 'none' });
+  if (resolved.threadRootId != null) {
+    state.anchorMsg = id;
+    state.anchorApplied = false;
+    openThread(resolved.threadRootId, { url: 'none' });
+  }
+  syncUrl('push'); // one history entry for the whole navigation
 }
 
 // --- DM typeahead (AS-6) ----------------------------------------------------
@@ -689,7 +835,10 @@ async function restoreFromUrl(mode) {
     }
     return;
   }
-  // Per the grammar, m is ignored when t is present.
+  // AS-26 §3: t and m compose — ?c&t&m is a reply permalink. When a thread is
+  // requested, the anchor is set only AFTER openThread so renderThread (not
+  // the main-pane render) applies it; a dead m inside the thread is dropped
+  // by applyAnchor and stripped below.
   state.anchorMsg = parsed.thread != null ? null : parsed.msg;
   state.anchorApplied = false;
   try {
@@ -704,8 +853,14 @@ async function restoreFromUrl(mode) {
   if (parsed.thread != null) {
     // Resolved only against the fetched messages — never queried by id.
     const rootExists = (state.lastData?.messages || []).some((m) => m.id === parsed.thread);
-    if (rootExists) openThread(parsed.thread, { url: 'none' });
-    // Miss: conversation stays open, the dead t param is stripped below.
+    if (rootExists) {
+      if (parsed.msg != null) {
+        state.anchorMsg = parsed.msg;
+        state.anchorApplied = false;
+      }
+      openThread(parsed.thread, { url: 'none' });
+    }
+    // Root miss: conversation stays open; the dead t (and its m) strip below.
   }
   syncUrl('replace'); // normalize form; no-op when the URL already matches
 }

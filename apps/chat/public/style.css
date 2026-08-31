@@ -136,6 +136,10 @@ body {
 .thread-link:hover, .message .actions button:hover { text-decoration: underline; }
 .ref-link { color: #1264a3; text-decoration: none; font-weight: 600; cursor: pointer; }
 .ref-link:hover { text-decoration: underline; }
+/* AS-26: visible message number = permalink anchor. Muted like .time,
+   no underline until hover. .msg-ref reuses the ref-link look unchanged. */
+.msg-permalink { color: #616061; font-size: 12px; text-decoration: none; }
+.msg-permalink:hover { text-decoration: underline; }
 .empty-note { color: #616061; padding: 16px; }
 
 /* m= deep-link anchor (AS-9): one-shot highlight that fades on its own. */

@@ -680,6 +680,19 @@ test('api: AS-18 — dm-sort.js is served (app.js module graph must not 404)', a
 
 // --- AS-26: message permalinks --------------------------------------------
 
+test('api: AS-26 — msg-refs.js is served (app.js module graph must not 404)', async (t) => {
+  const { base } = await bootServer(t);
+  const mod = await fetch(base + '/msg-refs.js');
+  assert.equal(mod.status, 200);
+  assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  assert.match(await mod.text(), /tokenizeMsgRefs/);
+
+  // The served app.js actually imports it and ships the permalink affordance.
+  const app = await (await fetch(base + '/app.js')).text();
+  assert.match(app, /from '\.\/msg-refs\.js'/, 'body pipeline goes through msg-refs.js');
+  assert.match(app, /msg-permalink/, 'meta row carries the permalink anchor');
+});
+
 test('api: AS-26 — GET /api/message/<id> resolves navigation data; hidden = nonexistent byte-identically', async (t) => {
   const { get, post } = await bootServer(t);
   const convs = await get('/api/conversations?me=human:forrest');
