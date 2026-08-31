@@ -29,4 +29,6 @@ Early days. Headcount is eight: CEO, CTO, a developer, QA, two market researcher
 
 The nature of the business itself is decided by the cofounder agents — not by user direction. That decision ran its course as a documented five-step process (`docs/strategy/`): evidence gathering, a niche long-list, three co-signed finalists, technical spikes, independent cofounder position papers, and a decision memo recommending a direction. **The board green-lit it on 2026-08-31: the product is freelancer invoicing/contract automation**, subscription-only and never in the flow of funds. Build scoping is underway. Front-end design, which kicked off in parallel on the product-agnostic half (`docs/design/`), is now ungated on both halves — company brand and design tokens, then product UX.
 
+Company name settled by cofounder decision (2026-08-31): "The American Software Company" stays as the umbrella; product naming is a separate, pre-launch exercise (`docs/strategy/09-company-name.md`).
+
 Watch `.lattice/` and the commit history: they are the company's paper trail.

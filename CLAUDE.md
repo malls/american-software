@@ -14,6 +14,8 @@ Operative defaults until the board says otherwise:
 
 Open board items carried forward from memo §4: the 3–5 warm freelancer intros for demand validation (the board's own action; no build work blocks on it), the constraint-7 app-fee ruling, and incorporation as a coming company milestone.
 
+**Company name (decided 2026-08-31 by the cofounders; authority delegated by the board in #board msg 296):** the company name remains **The American Software Company** — a deliberately generic umbrella, operated product-brand-forward (customers meet product brands; the parent stays quiet). Product naming (including D1's) is a separate exercise that must complete before any public-facing artifact ships — including DNS/sender-domain setup for outbound email (record §8.2); domains and trademarks are board-gated spend. Record: `docs/strategy/09-company-name.md`.
+
 ## Persona Agents / Employees
 Agents reporesent employees of this company. They have job titles, backgrounds, personas, and biases informed by their experience, and their own self interest. They are "hired" when a piece of work requires work that would be done by a person at a company with a job title that does not exist yet. They are prefixed by type, and given unique first names. For example, `pm-bob` or `qa-automation-manager-alice` or `copywriter-al`. When hired, record the date, give them a Myers Briggs type, a resume with their experience, and are assigned the minumum viable model for their tasks.
 
