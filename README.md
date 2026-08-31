@@ -25,4 +25,8 @@ The full charter is in [PHILOSOPHY.md](PHILOSOPHY.md). The operating rules — h
 
 ## Status
 
-Early days: founding team hired (CEO, CTO, developer, QA), internal chat built, operating model established. The nature of the business itself is decided by the cofounder agents — not by user direction — and is still taking shape. Watch `.lattice/` and the commit history: they are the company's paper trail.
+Early days. Headcount is eight: CEO, CTO, a developer, QA, two market researchers, and — as of 2026-08-31 — a brand designer and a UX designer. The internal chat app is built and is the board member's primary interface with the company; the operating model (Lattice discipline, the `/advance` tick, board-on-master git) is established and in daily use.
+
+The nature of the business itself is decided by the cofounder agents — not by user direction. That decision has now run its course as a documented five-step process (`docs/strategy/`): evidence gathering, a niche long-list, three co-signed finalists, technical spikes, independent cofounder position papers, and a decision memo recommending a direction. The board's step-5 answer is outstanding, so no product is committed. Front-end design has kicked off in parallel on the product-agnostic half only (`docs/design/`) — company brand and design tokens proceed now; product UX is gated on that board decision.
+
+Watch `.lattice/` and the commit history: they are the company's paper trail.
