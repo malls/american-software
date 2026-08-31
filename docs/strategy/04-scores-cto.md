@@ -1,4 +1,11 @@
-# CTO Scores: C2 (Cost to Build v1) & C3 (Cost to Operate Forever) — Competitive Lanes C1–C4
+# CTO Scores: C2 (Cost to Build v1) & C3 (Cost to Operate Forever) — All Nine Candidates
+
+*This file holds both scoring ticks in my signed domain: Part I (competitive lanes
+C1–C4, filed first) and Part II (demand lanes D1–D5, appended the following tick).
+Part I is reproduced untouched below its original header; nothing in it was revised
+when Part II was appended.*
+
+# Part I — Competitive Lanes C1–C4
 
 **Status:** SIGNED — 8 scores (2 criteria × 4 candidates), CTO domain per rubric §1.3
 **Owner:** Owen Kessler, CTO (sole signer; per rubric §1.3 the CEO neither edits nor pre-approves these scores; disagreement goes to the step-3 written debate)
@@ -321,3 +328,390 @@ unmeasured claim flagged for spike validation."
 - **Owen Kessler, CTO** — SIGNED, 2026-08-31. D-lane C2/C3 scores (D1–D5) next
   tick, where the BAA verification (constraint 6) and non-custody rails
   (constraint 7) get priced into the rationales.
+
+---
+---
+
+# Part II — CTO Scores: C2 (Cost to Build v1) & C3 (Cost to Operate Forever) — Demand Lanes D1–D5
+
+**Status:** SIGNED — 10 scores (2 criteria × 5 candidates), CTO domain per rubric §1.3. With Part I above, my scoring domain is complete: 18 signed scores across all 9 surviving candidates.
+**Owner:** Owen Kessler, CTO (sole signer; per rubric §1.3 the CEO neither edits nor pre-approves these scores; disagreement goes to the step-3 written debate)
+**Rubric:** docs/strategy/01-selection-criteria.md §3 — C2 and C3 definitions as signed; scale 1–5; every score carries a written rationale citing evidence, or it is void
+**Evidence basis:** docs/strategy/evidence/demand-lanes.md (Nadia Okonkwo, D1–D5), docs/strategy/evidence/competitive-lanes.md Tick-2 D-lane sections (Elliot Kwan), docs/strategy/evidence/00-longlist.md (final long-list, labeled gaps), docs/strategy/03-gate-verdicts.md (binding constraints, incl. my co-sign constraints 6–7 and the 2026-08-30 BAA verification)
+**Scope:** The five demand-lane candidates only. No ranking, no recommendation; these are 2 of 5 criteria and Carla's C1/C4/C5 are absent by design.
+
+## Method notes (in addition to Part I notes 1–5, which apply unchanged)
+
+6. **Constraint 6 is priced in, not waved at (D2, D5).** BAA-before-PHI (03-gate-verdicts.md,
+   constraint 6, verified by me against primary sources 2026-08-30): every component that
+   touches PHI/regulated data — host, database, email, SMS, transcription, logging,
+   backups — requires an executed BAA before the first regulated byte, and the enabling
+   spend is a board-approval event that *precedes* PHI, not first revenue. My verification
+   findings are evidence and are cited as such: AWS signs a HIPAA BAA self-serve at $0
+   (AWS Artifact); DigitalOcean, our default host, signs on a covered-product set
+   conditional on a Standard/Premium support subscription. Consequence for scoring: the
+   *dollars* are proportional (a percentage premium, not a wall), but the *engineering
+   floor* (Security Rule-grade controls in v1) is mandatory scope, and both land in C2/C3
+   below honestly.
+7. **Constraint 7 is an architecture, not a caveat (D1, D3).** Never a payee, never an
+   aggregator of receipts, never in the flow of funds (03-gate-verdicts.md, constraint 7).
+   Both candidates' payment features are scored as builds on licensed processor
+   connected-account rails — client money settles to the customer's own processor account;
+   we compute, we never hold. The integration cost of those rails, and the permanent
+   design-review obligation of keeping the boundary intact, are priced into the scores.
+8. **Naming collision, again, for the record:** criteria C2/C3 (build/operate) share names
+   with two competitive-lane candidates scored in Part I. In Part II every candidate is
+   D-numbered, so "C2" and "C3" below always mean the criteria.
+
+---
+
+## Candidate D1 — Freelance Writers & Content Creators (invoice/contract automation)
+
+### C2 (Cost to build v1): **4**
+
+This is the most conventional build in the nine-candidate portfolio. The evidenced v1
+shape — invoicing, contract templates, payment tracking, late-payment reminders
+(demand-lanes.md §D1 Product shape, narrowed by the researchers' own Tick-2 Gap Closure
+to invoice/contract automation with usage-rights as a bundled secondary feature, not a
+standalone product) — decomposes into small-account CRUD, document templating, and
+scheduled notifications: no media pipeline, no regulated data, no third-party data
+dependency. Dollars are ~$0 (gate verdict D1 G4: board-approvable hosting; processor
+fees revenue-contingent). The payment feature is scored under constraint 7 as a
+connected-account build: client payments settle directly to the freelancer's own
+processor account, we are never a payee — the rails are documented commodity
+integrations, but the invariant has a real read-side cost (payment status must come from
+processor webhooks on accounts we do not own, and the no-custody boundary must be
+designed in from the first line, not retrofitted). Two things hold this off a 5. First,
+template provenance: the G3 constraint (templates stay self-serve documents, never legal
+advice) means v1 needs credible contract-template *content*, and none of the evidence
+says where it comes from — drafting or licensing it is either bounded board-gated spend
+or lawyer-agent work, currently unscoped (it also touches Carla's C5 domain; I price
+only the build-cost side here). Second, the evidenced market gap is a $15–30/mo
+self-serve tier against Wave-free and FreshBooks-$49–99 (competitive-lanes.md §D1
+Gap 3, demand-lanes.md Tick-2 Pattern 1), which means self-serve onboarding and billing
+polish *are* the product, not an afterthought — the revenue-capable floor includes them.
+Enumerable scope, commodity components, two bounded unknowns: 4.
+
+### C3 (Cost to operate forever): **4**
+
+Marginal delivery cost is near zero — small structured text data, no media, no metered
+third-party cost in the core loop — and the data held is ordinary business PII, not
+regulated. The standing obligations are real but light. One: deliverability. The
+product's headline value is late-payment reduction (demand-lanes.md §D1: 85% of
+freelancers experience late payments; 61% of late payments attributed to invoice
+errors), and that value rides entirely on reminder emails landing in inboxes — sender
+reputation and bounce management are permanent operations, and a silent deliverability
+degradation is a silent product failure. Two: the processor integration tracks a
+third-party API forever, and constraint 7's boundary must survive every future payment
+feature — a permanent design-review obligation, cheap but non-optional. Three: template
+currency — contract norms and platform terms drift, so the template library is recurring
+content maintenance, not a one-time asset. Four, the economics of the segment: at the
+evidenced $15–30/mo gap price the business is many small self-serve accounts, so
+per-account support must round toward zero for the margin to hold. Agent-workforce
+hypothesis, labeled per method note 2: support and template maintenance here are
+text-heavy, asynchronous, procedural — plausibly good agent work — but unmeasured, so no
+discount today. Light obligations, one deliverability SLA, thin-but-clean unit
+economics: 4.
+
+### Spike must test (if finalist)
+
+1. Constraint 7 end-to-end on a real processor sandbox: invoice issued → client pays →
+   funds settle to the freelancer's own connected account, with us provably outside the
+   flow — measuring integration effort, the freelancer-side onboarding friction the
+   processor imposes, and webhook-based payment-status fidelity.
+2. Template provenance and cost: identify where legally credible self-serve templates
+   come from and what lawyer-agent review costs (joint with Carla's C5 — her legal-surface
+   score and my build cost share this unknown).
+3. Reminder deliverability path: domain/sender reputation setup and measured inbox
+   placement for dunning-style email; determine whether SMS is needed at all in v1.
+
+---
+
+## Candidate D2 — Solo Therapists & Coaches (lightweight HIPAA practice management)
+
+### C2 (Cost to build v1): **2**
+
+The conventional core — scheduling, progress notes, secure messaging, no billing in v1
+(demand-lanes.md §D2 Product shape) — is a handful of ticks of ordinary engineering.
+What makes this a 2 is that with PHI, the compliance floor is v1 scope *by law*, and the
+evidenced differentiator is the hardest single component in the D-set. Constraint 6
+binds (my co-sign, verified 2026-08-30): every component — host, database, email, SMS
+reminders, transcription, logging, backups — needs an executed BAA before the first byte
+of PHI, and the enabling spend precedes development with real data as a board-approval
+event. The dollars are genuinely proportional (AWS BAA $0 self-serve via Artifact; DO
+conditional on a Standard/Premium support tier over its covered-product set — my primary-
+source findings), but the engineering floor is not small: Security Rule controls —
+encryption, access controls, audit logging, backup/recovery, documented risk analysis —
+cannot be fast-follows, because the buyer's entire reason to pay us is that we got this
+right where generic tools fail (demand-lanes.md §D2: Otter.ai HIPAA-compliant only on
+Enterprise-with-BAA; therapists' documented liability fears). Then the differentiator:
+AI note assist with speaker separation for couples/group therapy (§D2 Product shape),
+whose incumbent failure mode — hallucinated clinical language in multi-speaker settings
+(§D2 Tier 2, Reddit r/therapists) — is exactly a clinical-liability bar. It must run
+inside the BAA envelope, its achievable quality is unmeasured, and it is the component
+where the evidence says willingness-to-pay concentrates ($35–40/mo AI add-ons actively
+bought, §D2 Tier 1) — so a cheaper AI-less v1 exists but sheds the evidenced premium.
+Conventional core, mandatory compliance floor, one hard unmeasured component: 2.
+
+### C3 (Cost to operate forever): **2**
+
+The permanent obligations here *are* the business. First, the HIPAA apparatus runs
+forever: risk analyses, audit-log operation, breach-notification readiness, and BAA
+management across every vendor in the chain — constraint 6 applies to every component we
+ever add, which permanently constrains vendor choice and adds diligence to every
+architectural change. Second, the enabling spend recurs: regulated hosting carries the
+documented 20–40% premium (demand-lanes.md §D5 Tick-2 evidence, cited by the D2 gate
+verdict) plus the support-tier or equivalent recurring cost from my BAA verification.
+Third, per-unit cost: AI transcription compute per session against a sub-$50/mo target —
+the wedge the competitive evidence defines is precisely undercutting SimplePractice's
+~$85–90/mo-with-AI real price (competitive-lanes.md §D2 Gap 1) — is a real margin line
+that needs measurement, not assertion. Fourth, tenancy risk is existential asymmetry:
+we would hold therapy notes, so a breach of us is a reportable clinical-privacy event
+for every customer simultaneously. Fifth, the switching-cost evidence cuts both ways:
+incumbents' lock-in (real cost 8–10x advertised, migration friction, §D2 Tick-2 Gap
+Closure) is our opportunity *and* our onboarding burden — every won customer arrives
+expecting data migration help (evidenced at 1–2 hours of support effort per switch).
+Availability matters at practice-day granularity: a solo practice runs its day on
+scheduling and notes. Agent-workforce hypothesis, labeled: BAA tracking, audit review,
+and migration assistance are procedural text work plausibly suited to agents —
+unmeasured, no discount. Heavy standing apparatus, real per-unit cost, existential
+breach asymmetry: 2.
+
+### Spike must test (if finalist)
+
+1. The BAA chain, enumerated and priced for the board: every v1 component mapped to a
+   named BAA-covered service, with the enabling spend quoted (AWS $0 baseline vs. DO
+   covered-products + support tier) — a dated document, since terms shift; this is the
+   constraint-6 board-approval package, prepared before any PHI exists.
+2. AI notes inside the BAA envelope: measure transcription + speaker-separation quality
+   on representative multi-speaker audio using only BAA-covered services, against a
+   pre-stated kill criterion — if quality sits below the clinical-liability bar, v1 ships
+   without AI and the pricing/positioning consequence goes back to Carla's C1 evidence.
+3. Security Rule floor, sized by building it: stand up the audit-logging +
+   access-control + encrypted-storage core in the spike tick and measure how much of the
+   control set is genuinely v1-mandatory scope.
+4. Migration import: parse real SimplePractice/TherapyNotes export formats — the
+   switching-cost evidence says migration is the adoption path, so its per-customer cost
+   is a C3 input, not a nice-to-have.
+
+---
+
+## Candidate D3 — Independent Musicians & Sound Creators (multi-DSP royalty aggregation & splits)
+
+### C2 (Cost to build v1): **3**
+
+The build decomposes into four parts of very different certainty. Per-source ingestion
+is the dominant unknown: royalty data must come in from distributors, DSP artist
+portals, PROs, and the MLC, each with its own undocumented, changeable report format —
+structurally the same shape as candidate C3's scraper program, but an order of magnitude
+smaller and friendlier: a solo artist's money flows through a handful of sources, not
+hundreds (demand-lanes.md §D3 Tier 1: DistroKid, CD Baby, RouteNote, Symphonic dominate
+the paid-behavior evidence), and the data arrives as the artist's *own* exports or
+authorized access (gate verdict D3 G4), not adversarial scraping. The unresolved part is
+exactly what the gate verdicts flagged: per-source access method (export upload vs.
+authorized API vs. portal automation) is unevidenced, and it swings per-source build
+effort by multiples. Split accounting is arithmetic — cheap. Payout initiation is a
+constraint-7 build: splits computed by us, executed from the artist's own
+processor-managed connected account, us never in the flow — documented rails, bounded
+integration, same invariant cost as D1. The metadata audit tool runs against public
+matching data, and the evidence says the target is real ($424M unmatched black-box
+royalties at the 2021 transfer; ~$160M pre-2021 still unmatched as of June 2026,
+competitive-lanes.md §D3 Gap 2). The revenue-capable floor is coverage: at the evidenced
+$10–50/mo consumer price point — a gap the tick-3 reconciliation confirmed is genuinely
+unserved (no consumer solo-artist unified dashboard exists there; Trqk/Curve/Stem serve
+the label side, 00-longlist.md §Critical Tick-3 Reconciliation) — the dashboard must
+cover enough of an artist's sources that "unified" is true. Small N, cheap dollars, one
+effort-multiplying unknown: 3.
+
+### C3 (Cost to operate forever): **3**
+
+The standing obligation is parser and integration maintenance against upstreams that
+owe us nothing: distributor and DSP report formats change without notice or contract,
+and every format is ours to maintain forever — candidate C3's scraper burden at perhaps
+a tenth the source count, but with a sharper correctness bar, because this is people's
+money. The product's one job is that our numbers reconcile with the artist's statements;
+a silent format change that miscounts royalties is the worst failure mode in this
+candidate's profile, and support in this category is data-dispute triage ("your
+dashboard disagrees with my DistroKid statement") — recurring, trust-critical, and
+arriving at consumer price points where per-account margin is thin. The payout path adds
+two permanent lines: the processor integration tracks someone else's API schedule, and
+constraint 7's boundary (never a payee, never an aggregator of receipts, never in the
+flow of funds) must survive every future feature — a standing design-review obligation I
+price as cheap but mandatory. Pure serving cost is trivial: small structured data, no
+media. Agent-workforce hypothesis, labeled: parser repair on format drift is mechanical,
+well-scoped, feedback-rich — alongside candidate C3's scraper repair, the strongest
+agent-fit case in the portfolio — and if a spike measures a high autonomous-repair rate
+this score should be revisited upward in the debate with data on the table; today it is
+unmeasured, no discount. Modest source count, permanent format churn, money-grade
+correctness bar: 3.
+
+### Spike must test (if finalist)
+
+1. Ingestion reality, measured: parse real royalty reports from the top sources
+   (DistroKid, CD Baby, Spotify for Artists export, MLC statement) in the spike tick —
+   per-source parser effort, format stability, and the N needed to cover ~80% of a
+   representative solo artist's income.
+2. Per-source access terms: export-upload vs. authorized-API vs. portal-automation,
+   with the ToS answer recorded per source (joint with Carla's C5 — the gate verdicts
+   flagged data-access terms as a legal-surface question; it is also my build multiplier).
+3. Constraint 7 payout architecture on a real processor's connected-account sandbox:
+   splits executed from the artist's own account to collaborators, with us demonstrably
+   outside the flow of funds at every step.
+4. Metadata audit match rate: run a real catalog against public MLC/PRO matching data
+   and measure hit rate — the feature's value claim depends on it.
+
+---
+
+## Candidate D4 — Small Event Organizers (RSVP + no-show reduction + vendor coordination)
+
+### C2 (Cost to build v1): **4**
+
+Every component is commodity: RSVP pages, an attendee CRM, scheduled email/SMS
+reminders, vendor checklists, a budget tracker (demand-lanes.md §D4 Product shape). No
+regulated data, no payment custody in the evidenced v1 shape (we are not ticketing —
+transaction-fee ticketing is Eventbrite's model, and its fee pain on free events is the
+competitor's weakness, competitive-lanes.md §D4 Gap 3, not our obligation), and dollars
+are ~$0 plus metered SMS (gate verdict D4 G4: small, metered, largely
+revenue-contingent). The evidence even hands the product its proof mechanism: 30–50%
+no-show rates on free events with analyst evidence that reminder automation cuts free-
+event no-shows to ~10–15% (§D4 Tier 2 and Tier 4) — a measurable claim a v1 can be built
+to demonstrate. Two things hold this off a 5. First, SMS is not free plumbing: US
+carrier sender registration, consent capture, and opt-out handling must work on day one
+— reminders *are* the product, and the SMS consent/compliance rules the gate verdict
+routed to C5 (competitive-lanes.md §D4 Gap 1 context) still have a build-cost shadow —
+bounded, well-trodden, but mandatory scope. Second, the anomaly log's finding that D4
+may be two products — no-show reduction vs. vendor logistics, with different buyers and
+price points (competitive-lanes.md Tick-2 Anomaly #4) — is a real scope fork: a v1 that
+builds both halves is bigger than the evidence justifies, and which half is the wedge is
+a demand question (Carla's C1 domain), so I price the ambiguity, not a guess. Commodity
+surface, one compliance-shaped integration, one unresolved scope fork: 4.
+
+### C3 (Cost to operate forever): **4**
+
+The one line that separates this from pure-CRUD economics is SMS: every active customer
+consumes metered messages, so per-unit delivery cost is real, small, and must be
+measured against the $30–100/mo band the competitive evidence identifies as the unserved
+sweet spot (competitive-lanes.md §D4 Gap 1: Meetup under-delivers automation, Eventbrite
+Premium and Splash overshoot on price). Standing obligations are moderate: sender
+reputation and deliverability across both SMS and email (an undelivered reminder is a
+silent product failure, same shape as D1's obligation with a second channel);
+punctuality of scheduled sends — consequence is organizer embarrassment and churn, not
+an audit gap or a breach, so the reliability bar is ordinary-SaaS-plus-cron-discipline,
+not candidate-C4's high-consequence execution; consent/opt-out processing forever; and
+event-day traffic spikes, which are bursty but small at this segment's scale. Support is
+self-serve solo organizers, and the 73%-upgrade-within-90-days evidence (§D4 Tick-2 Gap
+Closure) suggests customers onboard themselves when the pain is acute. Agent-workforce
+hypothesis, labeled: deliverability monitoring and organizer support are routine,
+text-based, agent-shaped work — unmeasured, no discount. Ordinary obligations plus one
+metered cost line: 4.
+
+### Spike must test (if finalist)
+
+1. The SMS path end-to-end: carrier sender registration (timeline and cost — it is the
+   long pole in SMS onboarding), consent capture, opt-out handling, and measured
+   per-event message cost against the $30–100/mo price band.
+2. The product's own proof: a reminder-sequence design whose no-show delta is
+   measurable per event — if the headline claim (30–50% → 10–15%) can't be demonstrated
+   from our own data, the value proposition is an assertion.
+3. The two-product fork (Anomaly #4): spike RSVP + reminders only, and test whether
+   vendor/budget features are required for credibility — joint with Carla's C1 evidence
+   on which half the buyer actually pays for.
+
+---
+
+## Candidate D5 — Research Teams, Academic/Nonprofit (secure data collaboration with audit logging)
+
+### C2 (Cost to build v1): **2**
+
+Three expensive axes intersect in this build: it is storage-centric, federated, and
+regulated. The v1-mandatory scope per the evidence: granular project-based access
+controls, audit logging, dataset versioning, and multi-institutional collaboration
+(demand-lanes.md §D5 Product shape) — and "multi-institutional" is not a checkbox but
+the product's defining property: the buyer's collaborators authenticate through their
+*own* institutions, so identity federation (SAML/campus SSO) lands in v1, precisely the
+layer the competitive evidence identifies as incumbent friction (per-institution manual
+permission setup, DUA/IRB governance — competitive-lanes.md §D5 Gap 2). Constraint 6
+applies in full, because the HIPAA/FERPA-aligned posture is the selling point (gate
+verdict D5 G3): a BAA-covered chain before the first regulated byte, board-gated
+enabling spend, and Security Rule-grade controls as day-one scope — D2's compliance
+floor, sitting on a much heavier data plane (research-scale datasets, versioning,
+egress). My BAA verification says the vendor path exists at proportional dollars (AWS $0
+self-serve; DO conditional on support tier over its covered-product set) — so, as with
+D2, the engineering floor rather than the BAA fee is the cost. What finally caps this at
+2 is the same disease as candidate C4: the labeled Tier-1 gap (00-longlist.md §D5:
+small-team <$50K-budget spending unvalidated, no confirmed board intros) means nobody
+can yet say what feature floor a $100–200/mo research team accepts against Box at
+~$100/mo/team (competitive-lanes.md §D5 Gap 1) — and per rubric §3 an unscopeable
+revenue-capable release cannot score well on build cost. Heavy mandatory floor, three
+expensive axes, unvalidated scope boundary: 2.
+
+### C3 (Cost to operate forever): **2**
+
+Four permanent lines, each heavier than generic SaaS. One: per-unit delivery cost is
+storage plus egress on research-scale datasets, served from regulated infrastructure
+carrying the documented 20–40% HIPAA premium (demand-lanes.md §D5 Tick-2) — against a
+price the evidence says must land under ~$200/mo to reach $10–50K-budget teams
+(competitive-lanes.md §D5 Gap 1), and with versioned datasets and append-only audit
+trails the stored bytes grow monotonically, so cost per customer *rises with tenure*;
+whether the margin survives is unmeasured and could be the whole story. Two: the
+compliance apparatus is permanent, as in D2 — Security Rule operations, BAA management
+across the chain, breach readiness — with FERPA obligations alongside. Three: durability
+is the existential obligation, and it is worse than D2's: we would hold researchers'
+*primary datasets* — irreplaceable originals, not a re-scrapable cache or a reconstructible
+ledger — so backup, recovery, and integrity verification are the top-tier standing
+commitment; losing a dataset is unrecoverable harm to the customer. Four: support is
+multi-institutional governance — onboarding means per-institution identity setup and
+access-policy mediation (competitive-lanes.md §D5 Gap 2), recurring, high-touch, with
+non-commercial buyers on academic timelines. Agent-workforce hypothesis, labeled:
+governance paperwork, onboarding runbooks, and audit-log review are plausible agent
+work — unmeasured, no discount. Rising per-unit cost curve, permanent compliance
+apparatus, irreplaceable-data custody: 2.
+
+### Spike must test (if finalist)
+
+1. Sequencing precondition, same logic as candidate C4's: the labeled Tier-1 gap means a
+   build spike measures an imaginary product until Carla-side validation establishes what
+   small research teams actually use and pay today (00-longlist.md §D5 gap; no confirmed
+   board intros — sourcing them is a step-2b prerequisite). Sequence the spike after
+   that.
+2. Regulated reference architecture, priced: a named BAA-covered storage/compute/
+   logging/backup chain with the 20–40% premium made concrete in dollars at
+   representative dataset sizes — storage + egress margin computed against the
+   sub-$200/mo shape. This is also the constraint-6 board-approval package.
+3. Identity federation effort, measured: stand up SAML federation against at least one
+   real institutional IdP flow in the spike tick — the multi-institutional layer is the
+   product, so its integration cost cannot stay an estimate.
+4. Versioning + audit at realistic file sizes: measure dataset-versioning storage
+   amplification and audit-trail growth on research-scale files — the input the
+   rising-cost-curve claim in my C3 rationale most depends on.
+
+---
+
+## Part II score summary (raw, unranked, unweighted — 2 of 5 criteria only)
+
+| Candidate | C2 (build v1) | C3 (operate forever) |
+|---|---|---|
+| D1 Freelancer invoicing/contracts | 4 | 4 |
+| D2 Solo-therapist HIPAA practice mgmt | 2 | 2 |
+| D3 Musician royalty aggregation | 3 | 3 |
+| D4 Event RSVP/no-show | 4 | 4 |
+| D5 Research secure data collab | 2 | 2 |
+
+With Part I, all 18 scores in my signed domain (2 criteria × 9 candidates) now exist.
+No ranking is expressed or implied — these two columns are unweighted inputs, three
+criteria per candidate are Carla's signed domain and absent by design (rubric §1.3),
+and per rubric §1.4 finalists get a one-tick, $0 spike to replace these estimates with
+measurements before the step-3 debate may cite them as validated.
+
+## Part II signature
+
+A signature below means: "These 10 scores and rationales are mine alone, scored on
+evidence in hand under the signed rubric definitions, with binding gate constraints 6
+(BAA-before-PHI, enabling spend board-gated and pre-PHI) and 7 (never in the flow of
+funds) priced into the rationales rather than footnoted, agent-workforce effects
+treated as hypotheses, and every unmeasured claim flagged for spike validation."
+
+- **Owen Kessler, CTO** — SIGNED, 2026-08-31. My scoring domain is complete: 18 signed
+  scores (C2/C3 × C1–C4, D1–D5). Carla's C1/C4/C5 columns complete the matrix; nothing
+  is rankable until they exist, and not by me even then — ranking belongs to the step-3
+  written debate.
