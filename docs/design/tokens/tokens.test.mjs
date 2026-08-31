@@ -935,9 +935,15 @@ test('completeness — tokens.css blocks 2, 3 and 4 declare exactly the document
   //
   // deepEqual on the sorted key sets enforces BOTH directions at once: an
   // undocumented token is an addition to the set, a dropped token is a
-  // subtraction, and either fails. Tokens on the ADDITIONS allowlist are
-  // permitted in any block — that is what the allowlist is for, and adding a
-  // fourth still requires a reviewed edit to the array above.
+  // subtraction, and either fails. THIS test tolerates ADDITIONS-allowlist
+  // tokens in any block (that is what the allowlist is for, and adding a
+  // fourth still requires a reviewed edit to the array above) — but note the
+  // dark-block duplication invariant above is stricter and asserts blocks 3
+  // and 4 declare `color-` properties ONLY, so in practice an allowlisted
+  // addition is accepted in block 2 and rejected in blocks 3/4. That is
+  // deliberate: the three additions are scheme-independent geometry and
+  // belong in block 1. (Corrected in QA review cycle 2 — the previous
+  // wording said "permitted in any block", which the invariant contradicts.)
   const allowlisted = new Set(ADDITIONS_ALLOWLIST.map((a) => a.token));
   const expectedLight = Object.keys(brandingLight).map((s) => `color-${s}`).sort();
   const expectedDark = Object.keys(brandingDark).map((s) => `color-${s}`).sort();
