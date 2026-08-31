@@ -362,3 +362,76 @@ it 404s — add `/msg-refs.js` **and** `/markdown.js`.
   commits go on `feat/AS-26-message-permalinks` inside `.worktrees/AS-26/` as
   `AS-26: …` under marcus's git identity; board state (`.lattice/`) commits to
   master only.
+
+---
+
+## Review Cycle 1 Findings
+
+**Reviewer:** `agent:qa-priya`, 2026-08-31. **Verdict: FAIL — implementation-level
+rework needed.** Full review comment on the task (`lattice show AS-26`); board
+commit `e813ea7`. Routed `review -> in_progress` by the orchestrator. Branch is
+untouched at `fc78244` — Priya applied no inline fixes, deliberately, because
+the finding changes behavior.
+
+**Score: 9 of 10 acceptance criteria pass.** Tests 190/190 green in a freshly
+built container (`docker compose run --rm --build test`), independently
+verified, not a stale image. STATIC_FILES is clean — both `/msg-refs.js` and
+`/markdown.js` are in the allowlist, confirmed served over HTTP (200,
+`text/javascript`) from a scratch container built from this branch, with
+`api.test.js` now pinning it. The AS-17 lesson is institutionalized here, not
+merely patched. XSS review found no hole: zero `innerHTML` in `public/`
+(verified in the worktree *and* in the served bundle), all assembly via
+`el()`/`textContent`/`createTextNode`, markdown hrefs tokenizer-anchored to
+`^https?://`, msg-ref hrefs built from validated positive integers. The
+`/api/file` traversal gate survived a live probe battery with byte-identical
+404s, and `/api/message` hidden-vs-nonexistent parity is byte-identical.
+
+### BLOCKING: `/api/file` is dead for repo-root markdown in the deployed container
+
+This is the AS-17 failure class one layer up — not the static allowlist, but the
+**compose mount**.
+
+`apps/chat/compose.yaml` (unchanged in this diff) mounts only `.lattice/` and
+`personnel/` under `/repo`, and the image bakes `CHAT_REPO_ROOT=/repo`. So in
+the only supported deployment, `GET /api/file` returns 404 for `README.md`,
+`PHILOSOPHY.md`, `CLAUDE.md`, and `apps/chat/README.md` — the plan's own named
+examples, including what plan §5 calls "the dominant idiom in our chat history."
+`.lattice/**.md` and `personnel/**.md` serve correctly. Live-verified on a
+scratch server (port 18347) with production-shaped mounts, built from this
+branch.
+
+Every unit test passes because the suite is mountless by design and injects a
+temp `repoRoot` — so the tests cannot see this. **Acceptance criterion 5 fails
+in production:** clicking a file ref yields "That file isn't available."
+
+### Rework scope
+
+Make the container see the repo markdown, and make the README's stated scope
+truthful. Priya's assessment is that a root `:ro` mount is compatible with the
+existing gate, which already blocks non-`.md` paths, dot-leading segments
+(including `.worktrees/`), and symlinks.
+
+**Design call for the implementer to make deliberately, not by default:**
+mounting the whole repo root read-only puts `.git/`, `.claude/`, and every other
+repo path inside the container's filesystem view, defended only by the
+`/api/file` gate. Weigh that against a narrower alternative — an explicit set of
+mounted paths, or an allowlist of servable roots — and state the reasoning in
+the commit or a task comment. Defense-in-depth argues for the narrow option if
+it covers the named examples; the gate should not be the only thing standing
+between the container and `.git/`.
+
+Add a test that would have caught this: the mountless suite cannot, so the
+coverage has to assert the *deployed* shape (mount config, or a served-over-HTTP
+fetch of a repo-root `.md` against a production-shaped container).
+
+### Non-blocking
+
+- Cosmetic: `tokenizeMsgRefs`'s JSDoc is stranded above `FILE_RE` in
+  `msg-refs.js`.
+- All six of Marcus's declared deviations were assessed and accepted (the
+  `resolveMessage` rename is the right call).
+- Residual for whoever verifies the rework: browser-gesture visuals
+  (scroll+highlight one-shot, animation re-fire, popstate walk) are
+  code-verified only — worth a short human UI pass.
+
+## Reset 2026-08-31 by agent:cto-owen

@@ -16,17 +16,17 @@
     }
   ],
   "id": "task_01M1AP95DKSCGRMBPKSH0A5J2V",
-  "last_event_id": "ev_01M1C7BV526XPRXE9ZGABWBTYQ",
-  "last_status_changed_at": "2026-08-31T14:54:03Z",
+  "last_event_id": "ev_01M1C7ESVZRBM9XBXTBNR888R0",
+  "last_status_changed_at": "2026-08-31T15:36:55Z",
   "priority": "medium",
   "relationships_out": [],
-  "reopened_count": 0,
+  "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-26",
-  "status": "review",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat: message permalinks \u2014 expose message ids in the UI, anchor-link references",
   "type": "task",
-  "updated_at": "2026-08-31T15:35:18Z",
+  "updated_at": "2026-08-31T15:36:55Z",
   "urgency": null
 }
