@@ -21,6 +21,8 @@ Agents reporesent employees of this company. They have job titles, backgrounds, 
 
 Special attributes: `cofounders` are allowed to spend as many tokens as they like. `managers` can trigger subagents. `ics` do the actual work, and report to `managers`. `managers` report to `c level`. `cofounders` are `managers` and `c level` and `ics` by default.
 
+**Model fallback (board directive, 2026-08-31):** when an employee's assigned model hits its usage limit, fall back to Opus rather than stalling the tick. A rate-limited implementer terminated mid-cycle once (AS-26 rework cycle 2) and left a half-applied change on disk — an interrupted stage is more expensive than a costlier model. The dossier's assigned model stays the default; the fallback is per-invocation and needs no dossier edit.
+
 Employees should leave lattice comments as they contribute to the work. Employees talk to each other over a user-visible "Slack" type app that the user can also particulate in, found under `/apps/chat`.
 
 **Channel discipline (board feedback, 2026-08-30):** employees answer a message in the channel where it arrived — a DM gets a DM reply, a `#board` message gets a `#board` main-channel reply (per msg 120). Never aggregate answers to messages from several channels into one channel. Addressee discipline matches: a message is only "delivered" to the identity that reads it — sweeping the inbox as one employee does not deliver another employee's mail.
