@@ -249,6 +249,17 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
       const m = req.method === 'GET' && /^\/api\/task\/([A-Za-z]+-\d+)$/.exec(pathname);
       if (m) return { task: resolveShortId(m[1], root) };
     }
+    {
+      // AS-26: cross-conversation msg-ref resolver. Navigation data only —
+      // no body, no author. Hidden target 404s byte-identically to a
+      // nonexistent id (store.resolveMessage enforces the parity).
+      const m = req.method === 'GET' && /^\/api\/message\/(\d+)$/.exec(pathname);
+      if (m) {
+        const me = q('me');
+        if (!me) throw new StoreError("Missing query parameter 'me'.");
+        return { message: store.resolveMessage(Number(m[1]), me) };
+      }
+    }
     throw new StoreError(`No such endpoint: ${req.method} ${pathname}`, 'not_found');
   }
 

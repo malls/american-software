@@ -861,3 +861,68 @@ test('AS-25: messagesSince returns the flat id-ordered delta (replies included) 
     assert.equal(normalize(hidden.message, board.id), normalize(missing.message, 99999));
   }
 });
+
+// --- AS-26: resolveMessage (permalink/msg-ref navigation resolver) ----------
+
+test('AS-26: resolveMessage returns navigation data only, gated on visibility', (t) => {
+  const { store } = tempStore(t);
+  const eng = store.getChannelByName('engineering');
+  const root = store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'root' });
+  const reply = store.postMessage({
+    conversation: eng.id, author: 'agent:cto-owen', body: 'reply', threadRoot: root.id,
+  });
+
+  // Top-level message: threadRootId null, conversation nav fields only.
+  assert.deepEqual(store.resolveMessage(root.id, 'human:forrest'), {
+    id: root.id,
+    conversationId: eng.id,
+    threadRootId: null,
+    conversation: { id: eng.id, type: 'channel', name: 'engineering' },
+  });
+  // Thread reply carries its root for t= navigation.
+  const r = store.resolveMessage(reply.id, 'human:forrest');
+  assert.equal(r.threadRootId, root.id);
+  // Never content: no body, no author.
+  assert.ok(!('body' in r) && !('authorId' in r));
+
+  // DM: members resolve, with name null (client renders dm:<convId>).
+  const dm = store.openDm('human:forrest', 'agent:ceo-carla');
+  const dmMsg = store.postMessage({ conversation: dm.id, author: 'human:forrest', body: 'hi' });
+  const dmResolved = store.resolveMessage(dmMsg.id, 'agent:ceo-carla');
+  assert.deepEqual(dmResolved.conversation, { id: dm.id, type: 'dm', name: null });
+
+  // Unknown viewer identity fails like every other read path.
+  assert.throws(() => store.resolveMessage(root.id, 'agent:ghost'), /Unknown identity/);
+});
+
+test('AS-26: resolveMessage — hidden and nonexistent targets fail byte-identically', (t) => {
+  const { store } = tempStore(t);
+  const N = withNonMember(store);
+  const board = store.getChannelByName('board');
+  const boardMsg = store.postMessage({
+    conversation: board.id, author: 'agent:ceo-carla', body: 'board only',
+  });
+  const dm = store.openDm('human:forrest', 'agent:ceo-carla');
+  const dmMsg = store.postMessage({ conversation: dm.id, author: 'human:forrest', body: 'private' });
+
+  const grab = (fn) => {
+    try {
+      fn();
+      assert.fail('expected a throw');
+    } catch (e) {
+      assert.ok(e instanceof StoreError);
+      return e;
+    }
+  };
+  // #board message, foreign-DM message, and made-up id: one identical error —
+  // same code, byte-same message (no id echo to normalize away).
+  const hidden = grab(() => store.resolveMessage(boardMsg.id, N));
+  const foreignDm = grab(() => store.resolveMessage(dmMsg.id, N));
+  const missing = grab(() => store.resolveMessage(99999, N));
+  for (const e of [hidden, foreignDm, missing]) {
+    assert.equal(e.code, 'not_found');
+    assert.equal(e.message, 'No such message.');
+  }
+  // The member still resolves the same board message fine.
+  assert.equal(store.resolveMessage(boardMsg.id, 'human:forrest').conversationId, board.id);
+});

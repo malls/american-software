@@ -677,3 +677,60 @@ test('api: AS-18 — dm-sort.js is served (app.js module graph must not 404)', a
   const app = await (await fetch(base + '/app.js')).text();
   assert.match(app, /from '\.\/dm-sort\.js'/, 'sidebar ordering goes through dm-sort.js');
 });
+
+// --- AS-26: message permalinks --------------------------------------------
+
+test('api: AS-26 — GET /api/message/<id> resolves navigation data; hidden = nonexistent byte-identically', async (t) => {
+  const { get, post } = await bootServer(t);
+  const convs = await get('/api/conversations?me=human:forrest');
+  const eng = convs.data.conversations.find((c) => c.name === 'engineering');
+  const board = convs.data.conversations.find((c) => c.name === 'board');
+  const root = await post('/api/messages', {
+    conversation: eng.id, author: 'human:forrest', body: 'root msg',
+  });
+  const reply = await post('/api/messages', {
+    conversation: eng.id, author: 'agent:cto-owen', body: 'reply', threadRoot: root.data.message.id,
+  });
+
+  // Top-level: exactly the navigation shape, nothing else.
+  const hit = await get(`/api/message/${root.data.message.id}?me=human:forrest`);
+  assert.equal(hit.status, 200);
+  assert.deepEqual(hit.data, {
+    message: {
+      id: root.data.message.id,
+      conversationId: eng.id,
+      threadRootId: null,
+      conversation: { id: eng.id, type: 'channel', name: 'engineering' },
+    },
+  });
+
+  // Thread reply carries its root for t= navigation.
+  const replyHit = await get(`/api/message/${reply.data.message.id}?me=human:forrest`);
+  assert.equal(replyHit.data.message.threadRootId, root.data.message.id);
+
+  // me is required, like /api/messages.
+  const noMe = await get(`/api/message/${root.data.message.id}`);
+  assert.equal(noMe.status, 400);
+  assert.match(noMe.data.error, /Missing query parameter 'me'/);
+
+  // Parity: a #board message and a made-up id 404 with byte-identical bodies
+  // for a non-member (edge case 2 — the wording carries no id echo at all).
+  await post('/api/identities', {
+    id: 'agent:developer-marcus', displayName: 'Marcus Webb (Engineer)', kind: 'agent',
+  });
+  const N = 'agent:developer-marcus';
+  const boardMsg = await post('/api/messages', {
+    conversation: board.id, author: 'agent:ceo-carla', body: 'board only',
+  });
+  const hidden = await get(`/api/message/${boardMsg.data.message.id}?me=${encodeURIComponent(N)}`);
+  const missing = await get(`/api/message/99999?me=${encodeURIComponent(N)}`);
+  assert.equal(hidden.status, 404);
+  assert.equal(missing.status, 404);
+  assert.deepEqual(hidden.data, { error: 'No such message.' });
+  assert.equal(JSON.stringify(hidden.data), JSON.stringify(missing.data));
+
+  // A member still resolves the board message (and gets no content fields).
+  const member = await get(`/api/message/${boardMsg.data.message.id}?me=human:forrest`);
+  assert.equal(member.status, 200);
+  assert.ok(!('body' in member.data.message) && !('authorId' in member.data.message));
+});
