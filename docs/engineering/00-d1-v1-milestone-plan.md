@@ -215,7 +215,7 @@ By first excluding rule: Rule 1 × 26, Rule 2 × 5, Rule 3 × 2, Rule 4 × 0 (se
 | Row | Capability | Verdict | Deciding rule | Task | Note |
 |---|---|---|---|---|---|
 | C-34 | Client payment surface | OUT | Rule 2 | — | Consumed from Stripe via `hosted_invoice_url`. Chain link 5 is satisfied entirely by a surface we do not build. |
-| C-35 | Client portal beyond Stripe's hosted pages | OUT | Rule 1 | — | |
+| C-35 | Client portal beyond Stripe's hosted pages | OUT | Rule 1 | — | The chain's client-facing need — view and pay this invoice — is fully met by Stripe (C-34). "Beyond" is by its own wording the part Stripe does *not* satisfy, so Rule 2 cannot fire on it (§2.2.6) and Rule 1 excludes it: the chain closes. |
 
 ### 3.7 Chain link 6 — freelancer sees it paid
 
@@ -237,7 +237,7 @@ By first excluding rule: Rule 1 × 26, Rule 2 × 5, Rule 3 × 2, Rule 4 × 0 (se
 | C-44 | Plan-gating flag in code, no billing UI | OUT | Rule 1 | — | Sustains the AS-31 plan §12 Q2 default. |
 | C-45 | **Live-mode operation (real client money)** | OUT | **Rule 3(b)** | — | Rule 1 *passes* — this is literally the chain's last two links. Excluded only because it needs an entity and a live-mode account. Milestone M2. |
 | C-46 | **Production deployment to Digital Ocean (+ TLS, domain)** | OUT | **Rule 3(a)(c)** | — | Rule 1 *passes* — a real freelancer needs a reachable system. Excluded because it needs a DO project, a domain, and therefore the product name. Milestone M1. |
-| C-47 | Marketing site / public pages / DNS / sender domains | OUT | Rule 1 | — | Rule 3(c) independently; naming-gated per 09 §8.2. |
+| C-47 | Marketing site / public pages / DNS / sender domains | OUT | Rule 1 | — | The chain begins at "freelancer signs up", so *finding us* is outside it and the chain closes without marketing pages. Contrast C-46: a reachable system is a prerequisite **of** signing up, so that one passes Rule 1 and falls to Rule 3. Rule 3(c) would exclude this row independently; naming-gated per 09 §8.2. |
 | C-48 | Outbound email from our own sender identity (ESP) | OUT | Rule 1 | — | Rule 3(a)(c) independently. This is the row that makes C-09 and C-22 what they are. Milestone M3. |
 
 Rules 3's two first-fire rows are C-45 and C-46, and they are exactly the two
