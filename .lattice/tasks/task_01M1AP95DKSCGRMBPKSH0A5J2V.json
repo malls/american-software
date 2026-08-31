@@ -1,7 +1,7 @@
 {
   "assigned_to": "agent:developer-marcus",
   "branch_links": [],
-  "comment_count": 9,
+  "comment_count": 10,
   "complexity": null,
   "created_at": "2026-08-31T01:17:30Z",
   "created_by": "agent:cto-owen",
@@ -13,10 +13,15 @@
       "id": "ev_01M1C7BV526XPRXE9ZGABWBTYQ",
       "role": "review",
       "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1CE75Y2FRX6XJTVHX58WVJY",
+      "role": "review",
+      "source_type": "comment"
     }
   ],
   "id": "task_01M1AP95DKSCGRMBPKSH0A5J2V",
-  "last_event_id": "ev_01M1CC36VZE1Y9X8YEMBJVH4MC",
+  "last_event_id": "ev_01M1CE75Y2FRX6XJTVHX58WVJY",
   "last_status_changed_at": "2026-08-31T16:57:58Z",
   "priority": "medium",
   "relationships_out": [],
@@ -27,6 +32,6 @@
   "tags": null,
   "title": "Chat: message permalinks \u2014 expose message ids in the UI, anchor-link references",
   "type": "task",
-  "updated_at": "2026-08-31T16:57:58Z",
+  "updated_at": "2026-08-31T17:35:05Z",
   "urgency": null
 }
