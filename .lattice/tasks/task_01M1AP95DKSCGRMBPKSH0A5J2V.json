@@ -7,7 +7,7 @@
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": null,
-  "done_at": null,
+  "done_at": "2026-08-31T17:36:51Z",
   "evidence_refs": [
     {
       "id": "ev_01M1C7BV526XPRXE9ZGABWBTYQ",
@@ -21,17 +21,17 @@
     }
   ],
   "id": "task_01M1AP95DKSCGRMBPKSH0A5J2V",
-  "last_event_id": "ev_01M1CE75Y2FRX6XJTVHX58WVJY",
-  "last_status_changed_at": "2026-08-31T16:57:58Z",
+  "last_event_id": "ev_01M1CEADA37RG65WHVXF0XH8K9",
+  "last_status_changed_at": "2026-08-31T17:36:51Z",
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-26",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "Chat: message permalinks \u2014 expose message ids in the UI, anchor-link references",
   "type": "task",
-  "updated_at": "2026-08-31T17:35:05Z",
+  "updated_at": "2026-08-31T17:36:51Z",
   "urgency": null
 }
