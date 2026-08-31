@@ -1,6 +1,13 @@
 {
   "assigned_to": "agent:designer-sofia",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-29-design-tokens",
+      "linked_at": "2026-08-31T19:10:44Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
   "comment_count": 3,
   "complexity": "medium",
   "created_at": "2026-08-31T15:01:51Z",
@@ -10,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1C5EK9EP82NFSS9DZF43V7T",
-  "last_event_id": "ev_01M1CKKACHRDN98HY4FM1CB6WQ",
+  "last_event_id": "ev_01M1CKPA9H6DGFGCK6H705YT0S",
   "last_status_changed_at": "2026-08-31T19:09:06Z",
   "priority": "high",
   "relationships_out": [],
@@ -21,6 +28,6 @@
   "tags": null,
   "title": "Design tokens + static style reference derived from BRANDING.md",
   "type": "task",
-  "updated_at": "2026-08-31T19:09:06Z",
+  "updated_at": "2026-08-31T19:10:44Z",
   "urgency": null
 }
