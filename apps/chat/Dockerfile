@@ -15,6 +15,11 @@ COPY public ./public
 # logic — the suite runs the exact bits the repo ships.
 COPY watch ./watch
 COPY test ./test
+# Deployment manifests as DATA, not as anything the runtime reads (AS-26):
+# test/deploy-shape.test.js parses these to assert that compose's repo mount
+# covers every path CHAT_REPO_ROOT + /api/file must serve. The mountless test
+# service cannot reach the host checkout, so the manifests have to ride along.
+COPY compose.yaml Dockerfile ./
 RUN mkdir -p /app/data && chown -R node:node /app
 USER node
 EXPOSE 8347

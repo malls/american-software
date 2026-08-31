@@ -515,6 +515,31 @@ export function openStore(dbPath) {
       .get(Number(id));
   }
 
+  /**
+   * Navigation resolver for message permalinks/refs (AS-26). Returns exactly
+   * enough to build c=/t= navigation — no body, no author (content is fetched
+   * through the gated getMessages by the viewer anyway). Nonexistent id and
+   * not-visible conversation throw the SAME error, byte-identically: a
+   * private-channel message must 404 exactly like a made-up id.
+   * NOTE: named resolveMessage, not the plan's getMessage(id, me) — the
+   * ungated getMessage(id) already exists with a different contract and many
+   * callers (CLI, tests); overloading it would be a footgun.
+   */
+  function resolveMessage(id, me) {
+    requireIdentity(me);
+    const row = getMessage(id);
+    if (!row || !visibleTo(row.conversationId, me)) {
+      throw new StoreError('No such message.', 'not_found');
+    }
+    const conv = getConversation(row.conversationId);
+    return {
+      id: row.id,
+      conversationId: row.conversationId,
+      threadRootId: row.threadRootId,
+      conversation: { id: conv.id, type: conv.type, name: conv.name },
+    };
+  }
+
   function postMessage({ conversation, author, body, threadRoot }) {
     requireIdentity(author);
     const conv = requireConversation(conversation);
@@ -897,6 +922,7 @@ export function openStore(dbPath) {
     listConversationsFor,
     postMessage,
     getMessage,
+    resolveMessage,
     getMessages,
     messagesSince,
     onMessage,

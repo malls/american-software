@@ -1,6 +1,8 @@
 data/
 README.md
-Dockerfile
-compose.yaml
 .dockerignore
 chat
+# Dockerfile and compose.yaml are deliberately NOT ignored (AS-26): the image
+# COPYs them in as DATA for test/deploy-shape.test.js, which asserts that the
+# compose mounts actually cover what CHAT_REPO_ROOT + /api/file must serve.
+# Nothing at runtime reads them.

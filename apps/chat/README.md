@@ -57,7 +57,8 @@ AS-10) uses it; do not invent a second one.
 /?c=dm:<conversation-id>    DM by numeric conv id      /?c=dm:7
         &t=<message-id>     open the thread rooted at that top-level message
         &m=<message-id>     scroll to + briefly highlight that message
-                            (ignored when t is present)
+                            (with t: highlights the reply inside the open
+                            thread modal — t and m compose since AS-26)
 ```
 
 Rules of the contract:
@@ -81,6 +82,68 @@ Rules of the contract:
   `public/url-state.js` (no DOM, no fetch) — unit-tested directly by
   `test/url-state.test.js`. Legacy pre-AS-9 `#msg-<id>` hash links are inert:
   no crash, no restore.
+
+## Message permalinks & "msg N" references (AS-26)
+
+Every message shows its numeric id (`#156`) in the meta row — a real anchor
+whose href is the canonical deep link (`?c=<conv>&m=<id>`, plus `t=<root>`
+for thread replies). Right-click → Copy Link yields a durable permalink;
+plain click highlights in place and pushes the permalink into the URL bar.
+
+Body text like `msg 156` / `message 156` / `msgs 218/220/221` renders as
+links (message ids are globally unique across conversations, so the
+reference is unambiguous company-wide). Clicking resolves at click time:
+same-conversation targets anchor with zero network; cross-conversation
+targets go through `GET /api/message/<id>?me=` (navigation data only — no
+body, no author) and then navigate. Nonexistent and not-visible targets fail
+with one identical neutral message — the API 404s are byte-identical by
+design. The tokenizer is the pure module `public/msg-refs.js`
+(`test/msg-refs.test.js`).
+
+## Repo file links & inline markdown (AS-26)
+
+Repo-relative `*.md` paths in message bodies (bare `README.md` or backticked
+`` `apps/chat/README.md` ``; `.lattice/…` is the only dot-leading segment
+allowed) render as links that open an in-app viewer. The viewer fetches
+through `GET /api/file?path=…` — a traversal-hardened gate: strict charset,
+segment rules, realpath-prefix containment (symlink-escape proof), regular
+file, 512 KB cap. Every rejection 404s byte-identically to a nonexistent
+file; only the size cap is a distinct 400. The endpoint has no `me` gate
+because everything under it is repo-public by construction — which is one
+more reason the AS-6 rule stays load-bearing: private-channel content must
+never be written to a `*.md` file in the repo.
+
+**What it can actually serve.** Paths resolve against `CHAT_REPO_ROOT`
+(`/repo` in the image), and the `server` service bind-mounts the **whole
+repository there read-only** (`../..:/repo:ro`). So the served scope is
+every `*.md` regular file anywhere in the checkout — `README.md`,
+`PHILOSOPHY.md`, `CLAUDE.md`, `apps/chat/README.md`, `personnel/*.md`,
+`.lattice/plans/*.md` — under 512 KB. Nothing else is reachable: the gate
+takes only `.md` regular files and rejects every dot-leading segment except
+a first `.lattice`, so `.git/`, `.claude/` and `.worktrees/` are
+unreachable by any path a client can name, even though the mount now spans
+them, and realpath containment stops a symlink from pointing out of the
+tree. One caveat on that dot rule: it is a check on the *requested* string,
+so a non-dot-named symlink pointing into a dot directory would launder it
+(`link/x.md` where `link -> .git`). Containment is unaffected — the target
+still has to resolve inside the checkout — and the repo contains no
+symlinks at all today, but do not add one into a dot directory. The
+mount is read-only at the kernel, so the container cannot write the repo
+regardless. Until AS-26 the mount was only `.lattice/` + `personnel/`,
+which meant the four headline paths above 404'd in the deployed container
+while every unit test passed — the suite injects a temp repo root and is
+blind to the mount. `test/deploy-shape.test.js` now parses `compose.yaml`
+and the `Dockerfile` and fails if the mount stops covering what this
+paragraph promises; keep the two in sync.
+
+Inline markdown in message bodies is stylized: `**bold**`, `*em*`/`_em_`,
+`` `code` ``, and `[text](https://…)` (http/https only — `javascript:` stays
+literal). Everything runs through pure tokenizers (`public/markdown.js`)
+that emit text and structure, never markup; DOM assembly is
+`textContent`-only — no raw HTML anywhere. Block markdown typed into chat
+(headings, lists) intentionally stays literal; blocks render only in the
+file viewer. The message input stays plain text: no preview pane, no `\*`
+escaping in v1 (literal asterisks belong in code spans).
 
 ## Links to Lattice (AS-10)
 
@@ -117,11 +180,13 @@ stays as the way to DM non-employee identities.
 
 Plumbing:
 
-- `personnel/` is bind-mounted read-only at `/repo/personnel` on the `server`
-  and `cli` services (same pattern as `.lattice/`). If the mount is missing
-  the roster is empty and the sidebar degrades to DM-conversations-only —
-  never a crash. **Recreate the server container (`docker compose up -d`)
-  after pulling this change or the mount won't exist yet.**
+- `personnel/` is readable read-only at `/repo/personnel` in both services:
+  `cli` binds it (and `.lattice/`) explicitly, `server` gets it as part of
+  the whole-checkout `../..:/repo:ro` mount added by AS-26. If the mount is
+  missing the roster is empty and the sidebar degrades to
+  DM-conversations-only — never a crash. **Recreate the server container
+  (`docker compose up -d`) after pulling this change or the mount won't
+  exist yet.**
 - `GET /api/roster?me=<id>` returns, per active employee: identity fields,
   `registered` (identities table), viewer-relative `dmConversationId`/`unread`,
   `self`, `work` (`{shortId, taskId, title, status, url}` or `null` = idle),
@@ -229,7 +294,7 @@ In-container values are set by the image/compose; callers only set `CHAT_ME`.
 | `CHAT_API` | compose (`cli`) | `http://server:8347` | server base URL the CLI probes/proxies through (AS-24). Beats `CHAT_DB`; on the host it defaults to `http://127.0.0.1:8347` when neither is set |
 | `CHAT_BIND` | compose | `0.0.0.0` | server bind inside the container (the app's own default stays `127.0.0.1`; loopback-only is enforced by the `127.0.0.1:8347:8347` port map) |
 | `CHAT_DB` | image | `/app/data/chat.db` | SQLite path in-container (bind-mounted to `apps/chat/data/`); used by the CLI only in direct mode — setting it explicitly (without `CHAT_API`) selects direct mode against that alternate store |
-| `CHAT_REPO_ROOT` | image | `/repo` | repo root for read-only mounts: `.lattice/` at `/repo/.lattice`, `personnel/` at `/repo/personnel` (AS-8) |
+| `CHAT_REPO_ROOT` | image | `/repo` | repo root inside the container. `server` mounts the whole checkout there read-only (AS-26) — `.lattice/`, `personnel/` (AS-8) and every other `*.md` `/api/file` may serve; `cli` mounts only `.lattice/` + `personnel/`, which is all it reads |
 | `LATTICE_DASHBOARD_URL` | caller | `http://127.0.0.1:8799` | base URL for the Lattice-dashboard deep links rendered by chat (AS-10); forwarded by compose, trailing `/` trimmed, empty = default |
 | `PORT` | — | `8347` | change only via a compose override file, not env |
 
@@ -365,7 +430,9 @@ required on `GET /api/messages`; both shipped callers already send it.)
 
 `.lattice/` is mounted **read-only** into the containers — the kernel now
 enforces what was previously a convention: chat reads task titles/statuses and
-per-task event files, never writes. Lattice remains the source of truth.
+per-task event files, never writes. Lattice remains the source of truth. Since
+AS-26 the `server` service reaches it through the whole-checkout `:ro` mount
+rather than a dedicated bind; read-only is unchanged, and so is the rule.
 
 ## Tests (in-container, no mounts)
 
@@ -377,3 +444,12 @@ DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose run --rm --build tes
 Runs `node --test` inside the image against the COPY'd `test/` and fixtures.
 The test service mounts no volumes — passing with zero mounts is itself
 evidence the suite touches no real state.
+
+That same mountlessness is a blind spot: a suite that injects its own temp
+repo root cannot see whether the *deployed* container mounts anything useful
+at `CHAT_REPO_ROOT`, which is how AS-26 cycle 1 shipped a `/api/file` that
+404'd `README.md` with 190 tests green. `test/deploy-shape.test.js` covers
+that class by parsing `compose.yaml` and the `Dockerfile` — both COPY'd into
+the image as data for exactly this reason — and asserting the mount
+projection reaches every path the app links. Change a mount or
+`CHAT_REPO_ROOT` and that test is the thing that will tell you.

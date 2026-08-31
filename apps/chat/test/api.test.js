@@ -2,7 +2,7 @@
 // repoRoot points at the fixture .lattice/ so lattice behavior is deterministic.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, cpSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, cpSync, writeFileSync, mkdirSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -676,4 +676,156 @@ test('api: AS-18 — dm-sort.js is served (app.js module graph must not 404)', a
   // The served app.js actually imports it — the whitelist entry is load-bearing.
   const app = await (await fetch(base + '/app.js')).text();
   assert.match(app, /from '\.\/dm-sort\.js'/, 'sidebar ordering goes through dm-sort.js');
+});
+
+// --- AS-26: message permalinks --------------------------------------------
+
+test('api: AS-26 — msg-refs.js and markdown.js are served; index.html ships the file modal', async (t) => {
+  const { base } = await bootServer(t);
+  for (const [path, marker] of [
+    ['/msg-refs.js', /tokenizeMsgRefs/],
+    ['/markdown.js', /tokenizeInline/],
+  ]) {
+    const mod = await fetch(base + path);
+    assert.equal(mod.status, 200, path);
+    assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+    assert.match(await mod.text(), marker);
+  }
+
+  // The served app.js actually imports both and ships the permalink affordance.
+  const app = await (await fetch(base + '/app.js')).text();
+  assert.match(app, /from '\.\/msg-refs\.js'/, 'body pipeline goes through msg-refs.js');
+  assert.match(app, /from '\.\/markdown\.js'/, 'inline styling goes through markdown.js');
+  assert.match(app, /msg-permalink/, 'meta row carries the permalink anchor');
+  assert.doesNotMatch(app, /\.innerHTML/, 'zero innerHTML use — the house rule holds');
+
+  // The served page carries the file-viewer modal skeleton.
+  const html = await (await fetch(base + '/')).text();
+  assert.match(html, /id="file-modal"/);
+  for (const id of ['file-dialog', 'file-title', 'file-body', 'file-close']) {
+    assert.match(html, new RegExp(`id="${id}"`), `viewer id ${id} present`);
+  }
+});
+
+test('api: AS-26 — GET /api/message/<id> resolves navigation data; hidden = nonexistent byte-identically', async (t) => {
+  const { get, post } = await bootServer(t);
+  const convs = await get('/api/conversations?me=human:forrest');
+  const eng = convs.data.conversations.find((c) => c.name === 'engineering');
+  const board = convs.data.conversations.find((c) => c.name === 'board');
+  const root = await post('/api/messages', {
+    conversation: eng.id, author: 'human:forrest', body: 'root msg',
+  });
+  const reply = await post('/api/messages', {
+    conversation: eng.id, author: 'agent:cto-owen', body: 'reply', threadRoot: root.data.message.id,
+  });
+
+  // Top-level: exactly the navigation shape, nothing else.
+  const hit = await get(`/api/message/${root.data.message.id}?me=human:forrest`);
+  assert.equal(hit.status, 200);
+  assert.deepEqual(hit.data, {
+    message: {
+      id: root.data.message.id,
+      conversationId: eng.id,
+      threadRootId: null,
+      conversation: { id: eng.id, type: 'channel', name: 'engineering' },
+    },
+  });
+
+  // Thread reply carries its root for t= navigation.
+  const replyHit = await get(`/api/message/${reply.data.message.id}?me=human:forrest`);
+  assert.equal(replyHit.data.message.threadRootId, root.data.message.id);
+
+  // me is required, like /api/messages.
+  const noMe = await get(`/api/message/${root.data.message.id}`);
+  assert.equal(noMe.status, 400);
+  assert.match(noMe.data.error, /Missing query parameter 'me'/);
+
+  // Parity: a #board message and a made-up id 404 with byte-identical bodies
+  // for a non-member (edge case 2 — the wording carries no id echo at all).
+  await post('/api/identities', {
+    id: 'agent:developer-marcus', displayName: 'Marcus Webb (Engineer)', kind: 'agent',
+  });
+  const N = 'agent:developer-marcus';
+  const boardMsg = await post('/api/messages', {
+    conversation: board.id, author: 'agent:ceo-carla', body: 'board only',
+  });
+  const hidden = await get(`/api/message/${boardMsg.data.message.id}?me=${encodeURIComponent(N)}`);
+  const missing = await get(`/api/message/99999?me=${encodeURIComponent(N)}`);
+  assert.equal(hidden.status, 404);
+  assert.equal(missing.status, 404);
+  assert.deepEqual(hidden.data, { error: 'No such message.' });
+  assert.equal(JSON.stringify(hidden.data), JSON.stringify(missing.data));
+
+  // A member still resolves the board message (and gets no content fields).
+  const member = await get(`/api/message/${boardMsg.data.message.id}?me=human:forrest`);
+  assert.equal(member.status, 200);
+  assert.ok(!('body' in member.data.message) && !('authorId' in member.data.message));
+});
+
+// --- AS-26 §5: /api/file — gated repo markdown reads ------------------------
+
+test('api: AS-26 — GET /api/file serves allowlisted repo markdown; every probe 404s byte-identically', async (t) => {
+  // Mutable repo root: fixture copy + markdown/symlink/oversize artifacts.
+  const root = mkdtempSync(join(tmpdir(), 'chat-file-root-'));
+  const outside = mkdtempSync(join(tmpdir(), 'chat-file-outside-'));
+  t.after(() => {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  });
+  cpSync(FIXTURE_ROOT, root, { recursive: true });
+  writeFileSync(join(root, 'README.md'), '# Hello\n\nsome **body** text\n');
+  mkdirSync(join(root, '.lattice', 'plans'), { recursive: true });
+  writeFileSync(join(root, '.lattice', 'plans', 'task_TEST.md'), 'plan body\n');
+  writeFileSync(join(root, 'big.md'), '#'.repeat(600 * 1024)); // over the 512 KB cap
+  mkdirSync(join(root, 'dir.md')); // a directory that passes the syntax gate
+  writeFileSync(join(outside, 'secret.md'), 'outside the repo\n');
+  symlinkSync(join(outside, 'secret.md'), join(root, 'escape.md')); // symlink escape
+  const { get } = await bootServer(t, root);
+
+  // Happy paths: plain repo file, nested fixture file, .lattice plan file.
+  const hit = await get('/api/file?path=README.md');
+  assert.equal(hit.status, 200);
+  assert.deepEqual(hit.data, { path: 'README.md', content: '# Hello\n\nsome **body** text\n' });
+  assert.equal((await get('/api/file?path=personnel/README.md')).status, 200);
+  const plan = await get('/api/file?path=.lattice/plans/task_TEST.md');
+  assert.equal(plan.status, 200);
+  assert.equal(plan.data.content, 'plan body\n');
+
+  // Probe battery (edge case 12 + symlink edge case 13): all 404, all with
+  // the byte-identical body of a nonexistent .md — no leaked distinctions.
+  const missing = await get('/api/file?path=no-such-file.md');
+  assert.equal(missing.status, 404);
+  assert.deepEqual(missing.data, { error: 'No such file.' });
+  const probes = [
+    '../../etc/passwd', // traversal, no .md
+    '../outside.md', // traversal
+    'foo/../../x.md', // interior traversal
+    '/etc/x.md', // absolute
+    '.env', // dotfile, no .md
+    '.env.md', // dot-leading segment
+    'personnel/.hidden.md', // dot-leading inner segment
+    'personnel/./x.md', // '.' segment
+    'a//b.md', // empty segment
+    'a'.repeat(600) + '.md', // over the 512-char path cap
+    'personnel/README.MD', // case-sensitive suffix
+    'personnel', // directory, no .md
+    'dir.md', // directory that ends in .md (fails isFile)
+    'escape.md', // repo-internal symlink pointing outside (realpath prefix)
+    'apps/chat/data/chat.db', // non-md repo file
+    encodeURIComponent('..%2f..%2fetc/passwd.md'), // double-encoded separators -> '%' fails charset
+  ];
+  for (const p of probes) {
+    const res = await get(`/api/file?path=${encodeURIComponent(p)}`);
+    assert.equal(res.status, 404, p);
+    assert.equal(JSON.stringify(res.data), JSON.stringify(missing.data), p);
+  }
+  // Missing param: same byte-identical 404.
+  const noParam = await get('/api/file');
+  assert.equal(noParam.status, 404);
+  assert.equal(JSON.stringify(noParam.data), JSON.stringify(missing.data));
+
+  // Size cap alone is a 400 with its own wording (the gate already passed).
+  const big = await get('/api/file?path=big.md');
+  assert.equal(big.status, 400);
+  assert.deepEqual(big.data, { error: 'File too large.' });
 });
