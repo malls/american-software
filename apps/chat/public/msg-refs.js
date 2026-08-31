@@ -21,17 +21,6 @@ function toId(digits) {
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 }
 
-/**
- * Tokenize a message body into text and msgref tokens.
- *
- * Every token's `text` is the exact source slice, so concatenating token
- * texts round-trips the input verbatim. The first msgref of a reference
- * carries the keyword in its text ("msg 156"); continuation ids in a list
- * are their own tokens ("218", "220", …) with the separators left as text.
- *
- * @param {string} text
- * @returns {Array<{type:'text',text:string}|{type:'msgref',text:string,id:number}>}
- */
 // Repo-relative *.md path candidate (AS-26 §5): segments of [A-Za-z0-9._-]
 // joined by '/', ending in '.md'. Boundaries: not preceded by a path
 // character (so '/etc/x.md' never yields 'etc/x.md'), not followed by more
@@ -76,6 +65,17 @@ export function tokenizeFileRefs(text) {
   return tokens;
 }
 
+/**
+ * Tokenize a message body into text and msgref tokens.
+ *
+ * Every token's `text` is the exact source slice, so concatenating token
+ * texts round-trips the input verbatim. The first msgref of a reference
+ * carries the keyword in its text ("msg 156"); continuation ids in a list
+ * are their own tokens ("218", "220", …) with the separators left as text.
+ *
+ * @param {string} text
+ * @returns {Array<{type:'text',text:string}|{type:'msgref',text:string,id:number}>}
+ */
 export function tokenizeMsgRefs(text) {
   const src = String(text ?? '');
   const tokens = [];
