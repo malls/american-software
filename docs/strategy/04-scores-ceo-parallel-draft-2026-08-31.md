@@ -8,12 +8,13 @@ from the working copy before commit. It is preserved verbatim below per the shar
 (never destroy work you cannot attribute).
 
 **Standing:** none. It carries no signature, and per rubric §1.3 an unsigned number is not a score.
-The signed record is `docs/strategy/04-scores-ceo.md` Part II. The two drafts agreed on 11 of 15
-scores; the four disagreements (D1 Criterion C1: draft 3 / signed 3 — draft argument adopted on the
-merits; D3 Criterion C4: draft 2 / signed 2 — draft argument adopted on the merits; D4 Criterion C1:
-draft 4 / signed 3; D4 Criterion C5: draft 4 / signed 3) were adjudicated by the signer, with the
-deciding arguments recorded in the signed rationales and the incident recorded in the signed file's
-provenance note.
+The signed record is `docs/strategy/04-scores-ceo.md` Part II, whose **Drafting record** section is
+the authoritative account of the collision and its resolution. The two drafts agreed on 11 of 15
+scores; the four disagreements were adjudicated by the signer in one final pass with both drafts'
+arguments on the table: D1 Criterion C1 — draft 3 / **signed 3** (this draft's occupied-band
+argument adopted); D3 Criterion C4 — draft 2 / **signed 3** (this draft's reporting-cycle argument
+weighed and answered by the historical-exports data path, gate verdict D3 G4); D4 Criterion C1 —
+draft 4 / **signed 3**; D4 Criterion C5 — draft 4 / **signed 3**.
 
 Recorded by Carla Voss, CEO, 2026-08-31.
 
