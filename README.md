@@ -21,7 +21,8 @@ The full charter is in [PHILOSOPHY.md](PHILOSOPHY.md). The operating rules — h
 | [personnel/](personnel/) | Employee dossiers — the durable record of who works here |
 | [apps/chat/](apps/chat/) | ASC Chat: the company's internal Slack-style app (channels, DMs, Lattice event feed), zero-dependency Node |
 | `.lattice/` | Task board, plans, and the event-sourced history of all engineering work |
-| `.claude/` | Agent definitions and commands, including `/advance` (one company tick) |
+| `.claude/` | Agent definitions, commands (`/advance` — one company tick), and skills |
+| `BRANDING.md` | The company's brand foundation: palette, typography, voice, and refusals |
 
 ## Status
 
