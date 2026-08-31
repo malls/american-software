@@ -5,6 +5,7 @@ import { parseChatUrl, serializeChatUrl, resolveConversation } from './url-state
 import { renderPreservingScroll } from './scroll.js';
 import { shouldCloseOnEscape, shouldCloseOnBackdropGesture } from './thread-modal.js';
 import { applyMessage, maxLoadedId } from './live.js';
+import { rosterOrder, dmOrder, togglePin, sanitizePins } from './dm-sort.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -22,7 +23,29 @@ const state = {
   anchorMsg: null, // m= message anchor currently reflected in the URL (AS-9)
   anchorApplied: false, // one-shot: a push re-render must never re-scroll/re-highlight
   lastReadSent: 0, // AS-25: highest read watermark POSTed for currentConv (keeps /api/read cheap)
+  pins: new Set(), // AS-18: pinned roster actor ids for state.me (localStorage-backed)
 };
+
+// --- pins (AS-18) -----------------------------------------------------------
+// A pin is a per-viewer, per-identity UI preference: localStorage only
+// (key 'chat.pins.<me>'), never the chat DB, never the URL. Reads and writes
+// are try/catch-wrapped (house pattern, see 'chat.me'); corrupt or missing
+// storage degrades to "no pins", never a crash.
+
+function loadPins(me) {
+  if (!me) return new Set();
+  let raw = null;
+  try { raw = localStorage.getItem(`chat.pins.${me}`); } catch {}
+  if (raw == null) return new Set();
+  let parsed = null;
+  try { parsed = JSON.parse(raw); } catch {}
+  return new Set(sanitizePins(parsed));
+}
+
+function savePins(me, pins) {
+  if (!me) return;
+  try { localStorage.setItem(`chat.pins.${me}`, JSON.stringify([...pins])); } catch {}
+}
 
 // --- URL state (AS-9) -------------------------------------------------------
 // The query string is a projection of actual view state: c=<channel|dm:id>,
@@ -168,6 +191,7 @@ async function loadIdentities() {
   // Deliberately NOT persisted: a default is not a choice. Only an explicit
   // pick (the change handler in init()) writes localStorage['chat.me'].
   state.me = picker.value || null;
+  state.pins = loadPins(state.me); // AS-18: pins are per-identity
 }
 
 // --- sidebar --------------------------------------------------------------
@@ -197,9 +221,10 @@ function renderSidebar() {
   // Non-roster DMs render below the roster: DMs whose other member has no
   // active dossier (human:forrest, departed employees — history never disappears).
   const rosterIds = new Set(state.roster.map((r) => r.actorId));
+  const otherOf = (c) => (c.members || []).find((m) => m !== state.me) || '';
   const dms = conversations
     .filter((c) => c.type === 'dm')
-    .filter((c) => !rosterIds.has((c.members || []).find((m) => m !== state.me)));
+    .filter((c) => !rosterIds.has(otherOf(c)));
   const li = (conv) => {
     const item = el('li');
     // Private channels get a lock marker (members are the only ones who ever
@@ -215,8 +240,13 @@ function renderSidebar() {
     return item;
   };
   $('#channel-list').replaceChildren(...channels.map(li));
-  $('#roster-list').replaceChildren(...state.roster.map(rosterRow));
-  $('#dm-list').replaceChildren(...dms.map(li));
+  // AS-18: ordering is a pure function of (roster, conversations, pins) —
+  // push-frame badge bumps and the 60s reconcile re-sort identically, so
+  // rows only move when pins or headcount change.
+  $('#roster-list').replaceChildren(...rosterOrder(state.roster, state.pins).map(rosterRow));
+  $('#dm-list').replaceChildren(
+    ...dmOrder(dms, otherOf, (c) => displayName(otherOf(c) || '?')).map(li)
+  );
 }
 
 // --- roster rows (AS-8) -----------------------------------------------------
@@ -266,6 +296,21 @@ function rosterRow(emp) {
     item.addEventListener('click', () => {
       openRosterDm(emp).catch((err) => alert(err.message));
     });
+    // AS-18: always-visible pin toggle (hover-reveal is invisible on touch).
+    // Self row gets none — you cannot DM yourself, so pinning it is noise.
+    const pinned = state.pins.has(emp.actorId);
+    if (pinned) item.classList.add('pinned');
+    const pin = el('button', 'pin-toggle', pinned ? '★' : '☆');
+    pin.type = 'button';
+    pin.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+    pin.setAttribute('aria-label', `${pinned ? 'Unpin' : 'Pin'} ${emp.name}`);
+    pin.addEventListener('click', (e) => {
+      e.stopPropagation(); // toggling never opens the DM (ref-link pattern)
+      state.pins = new Set(togglePin(state.pins, emp.actorId));
+      savePins(state.me, state.pins);
+      renderSidebar(); // pure re-render from state, no fetch (AS-25 style)
+    });
+    top.appendChild(pin);
   }
   return item;
 }
@@ -773,6 +818,7 @@ async function init() {
   $('#identity-picker').addEventListener('change', async (e) => {
     state.me = e.target.value;
     try { localStorage.setItem('chat.me', state.me); } catch {}
+    state.pins = loadPins(state.me); // AS-18: pins follow the identity
     resetMainPane();
     syncUrl('replace'); // identity switch clears the URL — never a history entry
     connectStream(); // AS-25: the stream is per-identity — tear down, reconnect

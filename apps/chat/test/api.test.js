@@ -665,3 +665,15 @@ test('api: AS-25 — live.js is served (app.js module graph must not 404); the 5
   assert.doesNotMatch(sendFn, /selectConversation|\/api\/messages\?conversation/, 'send does not refetch');
   assert.match(sendFn, /applyMessage/, 'send merges its own POST response');
 });
+
+test('api: AS-18 — dm-sort.js is served (app.js module graph must not 404)', async (t) => {
+  const { base } = await bootServer(t);
+  const mod = await fetch(base + '/dm-sort.js');
+  assert.equal(mod.status, 200);
+  assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  assert.match(await mod.text(), /rosterOrder/);
+
+  // The served app.js actually imports it — the whitelist entry is load-bearing.
+  const app = await (await fetch(base + '/app.js')).text();
+  assert.match(app, /from '\.\/dm-sort\.js'/, 'sidebar ordering goes through dm-sort.js');
+});

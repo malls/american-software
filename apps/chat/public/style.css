@@ -89,8 +89,25 @@ body {
 }
 #roster-list li.roster-row.self { cursor: default; }
 #roster-list li.roster-row.self:hover { background: transparent; }
-.roster-top { display: flex; justify-content: space-between; align-items: center; }
+.roster-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+/* AS-18: name flexes so the badge + pin toggle sit together at the right
+   edge (with space-between alone, three children would spread apart). */
+.roster-top .roster-name { flex: 1 1 auto; min-width: 0; }
 .roster-name { font-weight: 600; }
+/* AS-18: pin toggle — always visible (touch-first; hover-reveal is invisible
+   on phones), glyph carries the state: ☆ unpinned at reduced opacity, ★
+   pinned at full. #roster-list prefix outranks the #sidebar button chrome. */
+#roster-list .pin-toggle {
+  flex: none; background: none; border: none; padding: 0 2px;
+  font-size: 14px; line-height: 1; color: inherit; cursor: pointer;
+  opacity: .4;
+}
+#roster-list .pin-toggle:hover { background: none; opacity: .8; }
+#roster-list .pin-toggle[aria-pressed="true"],
+#roster-list .pin-toggle[aria-pressed="true"]:hover { opacity: 1; }
+/* Pinned row: subtle left accent; the filled glyph is the primary indicator.
+   box-shadow, not background — composes with :hover and .active. */
+#roster-list li.roster-row.pinned { box-shadow: inset 3px 0 0 #bfa8c0; }
 .roster-status { font-size: 11px; color: #bfa8c0; }
 #roster-list li.roster-row.active .roster-status { color: #d7e6f2; }
 .roster-status .ref-link { color: inherit; text-decoration: underline dotted; }
@@ -240,6 +257,8 @@ body {
   /* Touch targets: >=40px rows and hit areas. */
   #sidebar li { padding: 10px 16px; }
   #roster-list li.roster-row { padding: 10px 16px; }
+  /* AS-18: pin toggle hit target >=32px square on touch. */
+  #roster-list .pin-toggle { min-width: 32px; min-height: 32px; padding: 6px; font-size: 16px; }
   .message .actions button, .thread-link { padding: 11px 8px; }
   #thread-dialog header button, #task-panel header button {
     padding: 8px 14px; font-size: 20px;
