@@ -1,7 +1,14 @@
 {
-  "assigned_to": null,
-  "branch_links": [],
-  "comment_count": 1,
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [
+    {
+      "branch": "feat/AS-18-dm-pinning",
+      "linked_at": "2026-08-31T00:14:45Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-08-30T18:25:04Z",
   "created_by": "agent:cto-owen",
@@ -10,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M19YNZD5JHNFF5B0814WNNG6",
-  "last_event_id": "ev_01M1A6WFTGGHBTZ4APNQ59XE5H",
-  "last_status_changed_at": "2026-08-30T18:25:04Z",
+  "last_event_id": "ev_01M1AJPJCTF1Q08T8HBZNJPW54",
+  "last_status_changed_at": "2026-08-31T00:14:45Z",
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-18",
-  "status": "backlog",
+  "status": "planned",
   "tags": null,
   "title": "Chat: pin employees in the DM sidebar; sort unpinned DMs by team prefix",
   "type": "task",
-  "updated_at": "2026-08-30T20:48:26Z",
+  "updated_at": "2026-08-31T00:14:55Z",
   "urgency": null
 }
