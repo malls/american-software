@@ -3,6 +3,16 @@ A high level overview of what this repo is is available in `PHILOSOPHY.md`. In a
 
 GitHub remote: https://github.com/malls/american-software. `README.md` is the public face of the repo — keep it current: when the repo structure, operating model, product, or company status changes materially, update the README as part of that change (its Status section goes stale fastest).
 
+## Product
+
+**Decided 2026-08-31 by board green-light (chat `#bizdev` msg 290, "I'm greenlighting this product"):** the company's product is **D1 — freelancer invoicing/contract automation**. This closes the five-step direction process (`docs/strategy/01`→`08`); the record of the decision itself is `docs/strategy/08-board-decision.md`, and the C2/D4 fallback ordering is retired as a selection mechanism.
+
+Operative defaults until the board says otherwise:
+- **Subscription-only revenue.** No app-fee / take-rate paths, pending a board ruling on the constraint-7 interpretation raised in decision memo §4.
+- **Never in the flow of funds** is a standing design constraint, not a v1 shortcut.
+- **Every processor / ESP / carrier signup is board-gated** — including free and test-mode accounts (the purchase-approval rule covers all external service commitments, not just spend).
+
+Open board items carried forward from memo §4: the 3–5 warm freelancer intros for demand validation (the board's own action; no build work blocks on it), the constraint-7 app-fee ruling, and incorporation as a coming company milestone.
 
 ## Persona Agents / Employees
 Agents reporesent employees of this company. They have job titles, backgrounds, personas, and biases informed by their experience, and their own self interest. They are "hired" when a piece of work requires work that would be done by a person at a company with a job title that does not exist yet. They are prefixed by type, and given unique first names. For example, `pm-bob` or `qa-automation-manager-alice` or `copywriter-al`. When hired, record the date, give them a Myers Briggs type, a resume with their experience, and are assigned the minumum viable model for their tasks.
