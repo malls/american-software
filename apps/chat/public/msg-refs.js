@@ -32,6 +32,50 @@ function toId(digits) {
  * @param {string} text
  * @returns {Array<{type:'text',text:string}|{type:'msgref',text:string,id:number}>}
  */
+// Repo-relative *.md path candidate (AS-26 §5): segments of [A-Za-z0-9._-]
+// joined by '/', ending in '.md'. Boundaries: not preceded by a path
+// character (so '/etc/x.md' never yields 'etc/x.md'), not followed by more
+// word characters ('README.mdx' never matches; a trailing sentence period is
+// fine). Candidates are validated segment-wise below — an invalid candidate
+// stays literal text in full, never partially linkified.
+const FILE_RE = /(?<![A-Za-z0-9._/-])((?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.md)(?![A-Za-z0-9_-])/g;
+
+/** Segment gate: no '.'-leading segments except a FIRST segment '.lattice'
+ *  (plan/note files are legitimately cited in chat); '..' is dot-leading and
+ *  therefore rejected too. Mirrors the server's /api/file gate. */
+function validFileRefPath(path) {
+  const segs = path.split('/');
+  for (let i = 0; i < segs.length; i++) {
+    if (segs[i].startsWith('.') && !(i === 0 && segs[i] === '.lattice')) return false;
+  }
+  return true;
+}
+
+/**
+ * Tokenize body text into text and fileref tokens for repo markdown paths.
+ * Token `text` is the exact source slice (`path` is identical); the caller
+ * runs this pass on plain-text leaves INCLUDING code-span inners, because
+ * `apps/chat/README.md` is the dominant idiom in chat history.
+ *
+ * @param {string} text
+ * @returns {Array<{type:'text',text:string}|{type:'fileref',text:string,path:string}>}
+ */
+export function tokenizeFileRefs(text) {
+  const src = String(text ?? '');
+  const tokens = [];
+  let last = 0;
+  FILE_RE.lastIndex = 0;
+  let m;
+  while ((m = FILE_RE.exec(src)) !== null) {
+    if (!validFileRefPath(m[1])) continue; // whole candidate stays literal
+    if (m.index > last) tokens.push({ type: 'text', text: src.slice(last, m.index) });
+    tokens.push({ type: 'fileref', text: m[1], path: m[1] });
+    last = m.index + m[1].length;
+  }
+  if (last < src.length) tokens.push({ type: 'text', text: src.slice(last) });
+  return tokens;
+}
+
 export function tokenizeMsgRefs(text) {
   const src = String(text ?? '');
   const tokens = [];

@@ -1,7 +1,7 @@
 // Unit tests for public/msg-refs.js — pure tokenizers, no DOM (AS-26).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tokenizeMsgRefs } from '../public/msg-refs.js';
+import { tokenizeMsgRefs, tokenizeFileRefs } from '../public/msg-refs.js';
 
 /** Concatenated token texts must reproduce the input byte-for-byte. */
 function assertRoundTrip(tokens, input) {
@@ -92,4 +92,60 @@ test('msg-refs: junk-tolerant on non-strings and empty input', () => {
   assert.deepEqual(tokenizeMsgRefs(''), []);
   assert.deepEqual(tokenizeMsgRefs(null), []);
   assert.deepEqual(tokenizeMsgRefs(undefined), []);
+});
+
+// --- tokenizeFileRefs (AS-26 §5) --------------------------------------------
+
+const fileRefs = (tokens) => tokens.filter((t) => t.type === 'fileref');
+
+test('file-refs: bare filenames, nested paths, and .lattice paths match', () => {
+  for (const [input, path] of [
+    ['read README.md first', 'README.md'],
+    ['per PHILOSOPHY.md rule 6', 'PHILOSOPHY.md'],
+    ['see apps/chat/README.md for the contract', 'apps/chat/README.md'],
+    ['plan at .lattice/plans/task_X.md covers it', '.lattice/plans/task_X.md'],
+    ['dossier personnel/developer-marcus-webb.md updated', 'personnel/developer-marcus-webb.md'],
+  ]) {
+    const tokens = tokenizeFileRefs(input);
+    assertRoundTrip(tokens, input);
+    assert.deepEqual(fileRefs(tokens), [{ type: 'fileref', text: path, path }], input);
+  }
+});
+
+test('file-refs: trailing punctuation and backtick context stay outside the token', () => {
+  const dot = tokenizeFileRefs('read README.md.');
+  assertRoundTrip(dot, 'read README.md.');
+  assert.deepEqual(fileRefs(dot).map((r) => r.path), ['README.md']);
+  // Backticks are not path chars: the pass runs on code-span inners upstream,
+  // but a raw backtick-wrapped path still tokenizes cleanly here.
+  const ticked = tokenizeFileRefs('`apps/chat/README.md`');
+  assertRoundTrip(ticked, '`apps/chat/README.md`');
+  assert.deepEqual(fileRefs(ticked).map((r) => r.path), ['apps/chat/README.md']);
+});
+
+test('file-refs: traversal, absolute, dot-leading, and non-md candidates stay literal', () => {
+  for (const input of [
+    'foo/../../x.md is a probe',
+    '../x.md relative escape',
+    'see /etc/x.md there', // absolute: 'etc/x.md' blocked by the / lookbehind
+    'personnel/./x.md current-dir segment',
+    'hidden personnel/.secret.md dotfile',
+    'a/.lattice/x.md — .lattice only as FIRST segment',
+    'not markdown README.mdx',
+    'code chat.db or app.js never match',
+    '.env has no md suffix',
+  ]) {
+    const tokens = tokenizeFileRefs(input);
+    assertRoundTrip(tokens, input);
+    assert.deepEqual(fileRefs(tokens), [], input);
+  }
+});
+
+test('file-refs: multiple refs in one body, junk-tolerant input', () => {
+  const input = 'compare README.md with apps/chat/README.md';
+  const tokens = tokenizeFileRefs(input);
+  assertRoundTrip(tokens, input);
+  assert.deepEqual(fileRefs(tokens).map((r) => r.path), ['README.md', 'apps/chat/README.md']);
+  assert.deepEqual(tokenizeFileRefs(''), []);
+  assert.deepEqual(tokenizeFileRefs(null), []);
 });
