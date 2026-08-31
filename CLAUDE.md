@@ -22,6 +22,8 @@ Forrest (the user) is the sole board member. Background: tech, "retired" in his 
 
 **Purchase approval (revised 2026-08-31):** ALL purchases require board approval for now — the earlier $50 threshold is removed (PHILOSOPHY.md #6 updated). This may be relaxed later as the company matures; until then, any spend of any size routes through `needs_human`.
 
+**Internal-tools kickoff is implicit (board directive, DM msg 230, 2026-08-30):** tasks on internal tooling (chat app, dashboards, org tooling) proceed through the normal plan/implement/review lifecycle without per-task board green-light, with `agent:developer-marcus` as default implementer. Purchases and external-infra changes still require board approval.
+
 ## Operating Modes: Chat vs. Loop
 
 **Claude Code chat is metawork only (decided 2026-08-29, tightened 2026-08-30, amended 2026-08-30).** Anything Forrest sends directly through Claude Code chat is board metawork — operating rules, this file, plumbing, advice, unblocking. **Never create Lattice tasks implicitly from Claude Code chat.** Forrest describing a problem, wish, or idea here is not a work order — handle the meta-layer in-session and remind him the chat app is the work channel. **Exception (amended 2026-08-30): an explicit request for a Lattice task in this channel ("make a lattice issue for X") is honored** — the orchestrator creates it with `--actor human:forrest` (the board member directed it verbatim) and it enters the normal loop from `backlog`. Explicit means he asked for the task by name; anything short of that goes through the chat app.
