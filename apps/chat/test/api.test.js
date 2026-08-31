@@ -2,7 +2,7 @@
 // repoRoot points at the fixture .lattice/ so lattice behavior is deterministic.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, cpSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, cpSync, writeFileSync, mkdirSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -746,4 +746,72 @@ test('api: AS-26 — GET /api/message/<id> resolves navigation data; hidden = no
   const member = await get(`/api/message/${boardMsg.data.message.id}?me=human:forrest`);
   assert.equal(member.status, 200);
   assert.ok(!('body' in member.data.message) && !('authorId' in member.data.message));
+});
+
+// --- AS-26 §5: /api/file — gated repo markdown reads ------------------------
+
+test('api: AS-26 — GET /api/file serves allowlisted repo markdown; every probe 404s byte-identically', async (t) => {
+  // Mutable repo root: fixture copy + markdown/symlink/oversize artifacts.
+  const root = mkdtempSync(join(tmpdir(), 'chat-file-root-'));
+  const outside = mkdtempSync(join(tmpdir(), 'chat-file-outside-'));
+  t.after(() => {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  });
+  cpSync(FIXTURE_ROOT, root, { recursive: true });
+  writeFileSync(join(root, 'README.md'), '# Hello\n\nsome **body** text\n');
+  mkdirSync(join(root, '.lattice', 'plans'), { recursive: true });
+  writeFileSync(join(root, '.lattice', 'plans', 'task_TEST.md'), 'plan body\n');
+  writeFileSync(join(root, 'big.md'), '#'.repeat(600 * 1024)); // over the 512 KB cap
+  mkdirSync(join(root, 'dir.md')); // a directory that passes the syntax gate
+  writeFileSync(join(outside, 'secret.md'), 'outside the repo\n');
+  symlinkSync(join(outside, 'secret.md'), join(root, 'escape.md')); // symlink escape
+  const { get } = await bootServer(t, root);
+
+  // Happy paths: plain repo file, nested fixture file, .lattice plan file.
+  const hit = await get('/api/file?path=README.md');
+  assert.equal(hit.status, 200);
+  assert.deepEqual(hit.data, { path: 'README.md', content: '# Hello\n\nsome **body** text\n' });
+  assert.equal((await get('/api/file?path=personnel/README.md')).status, 200);
+  const plan = await get('/api/file?path=.lattice/plans/task_TEST.md');
+  assert.equal(plan.status, 200);
+  assert.equal(plan.data.content, 'plan body\n');
+
+  // Probe battery (edge case 12 + symlink edge case 13): all 404, all with
+  // the byte-identical body of a nonexistent .md — no leaked distinctions.
+  const missing = await get('/api/file?path=no-such-file.md');
+  assert.equal(missing.status, 404);
+  assert.deepEqual(missing.data, { error: 'No such file.' });
+  const probes = [
+    '../../etc/passwd', // traversal, no .md
+    '../outside.md', // traversal
+    'foo/../../x.md', // interior traversal
+    '/etc/x.md', // absolute
+    '.env', // dotfile, no .md
+    '.env.md', // dot-leading segment
+    'personnel/.hidden.md', // dot-leading inner segment
+    'personnel/./x.md', // '.' segment
+    'a//b.md', // empty segment
+    'a'.repeat(600) + '.md', // over the 512-char path cap
+    'personnel/README.MD', // case-sensitive suffix
+    'personnel', // directory, no .md
+    'dir.md', // directory that ends in .md (fails isFile)
+    'escape.md', // repo-internal symlink pointing outside (realpath prefix)
+    'apps/chat/data/chat.db', // non-md repo file
+    encodeURIComponent('..%2f..%2fetc/passwd.md'), // double-encoded separators -> '%' fails charset
+  ];
+  for (const p of probes) {
+    const res = await get(`/api/file?path=${encodeURIComponent(p)}`);
+    assert.equal(res.status, 404, p);
+    assert.equal(JSON.stringify(res.data), JSON.stringify(missing.data), p);
+  }
+  // Missing param: same byte-identical 404.
+  const noParam = await get('/api/file');
+  assert.equal(noParam.status, 404);
+  assert.equal(JSON.stringify(noParam.data), JSON.stringify(missing.data));
+
+  // Size cap alone is a 400 with its own wording (the gate already passed).
+  const big = await get('/api/file?path=big.md');
+  assert.equal(big.status, 400);
+  assert.deepEqual(big.data, { error: 'File too large.' });
 });

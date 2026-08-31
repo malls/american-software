@@ -3,8 +3,8 @@
 // plumbing; all domain behavior lives in lib/store.js (and lib/lattice.js).
 
 import { createServer } from 'node:http';
-import { readFileSync } from 'node:fs';
-import { resolve, dirname, join } from 'node:path';
+import { readFileSync, realpathSync, statSync } from 'node:fs';
+import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openStore, StoreError } from './lib/store.js';
 import { ingestNewEvents, resolveRefs, resolveShortId, latticeRoot, assignmentsByActor } from './lib/lattice.js';
@@ -32,6 +32,55 @@ const INGEST_THROTTLE_MS = 10_000;
 // connection and surfaces dead sockets as write errors. Uniform to all
 // connections (no information content).
 const HEARTBEAT_MS = 25_000;
+
+// --- AS-26 §5: gated repo markdown reads for the in-app file viewer ---------
+// No 'me' gate and no store involvement: everything servable under this gate
+// is repo-public by construction. Load-bearing invariant (AS-6): nobody may
+// ever write private-channel content to a *.md file in the repo.
+
+const FILE_MAX_BYTES = 512 * 1024;
+const FILE_PATH_RE = /^[A-Za-z0-9._/-]+$/; // rejects %-escapes surviving decode, whitespace, backslashes
+
+/**
+ * Read a repo-relative markdown file through the traversal-hardened path
+ * gate. Checks, in order: (1) syntax — present, ≤512 chars, charset, '.md'
+ * suffix (case-sensitive), no leading '/', no '//'; (2) segments — no
+ * empty/'.'/'..' segments, no dot-leading segment except a first segment
+ * exactly '.lattice'; (3) realpath prefix — the target's RESOLVED path must
+ * sit under the repo root's resolved path, which defeats symlink escape;
+ * (4) regular file. Checks 1–4 throw ONE byte-identical not_found — a probe
+ * cannot distinguish "outside the gate" from "doesn't exist". Check (5),
+ * size cap, alone is a 400: the file already passed the gate, nothing leaks.
+ */
+function readRepoMarkdown(root, path) {
+  const fail = () => new StoreError('No such file.', 'not_found');
+  // 1. Syntax.
+  if (typeof path !== 'string' || path.length === 0 || path.length > 512) throw fail();
+  if (!FILE_PATH_RE.test(path)) throw fail();
+  if (!path.endsWith('.md')) throw fail();
+  if (path.startsWith('/') || path.includes('//')) throw fail();
+  // 2. Segments.
+  const segs = path.split('/');
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    if (s === '' || s === '.' || s === '..') throw fail();
+    if (s.startsWith('.') && !(i === 0 && s === '.lattice')) throw fail();
+  }
+  // 3. Realpath containment (symlink-escape proof) + 4. regular file.
+  let real, rootReal, st;
+  try {
+    rootReal = realpathSync(root);
+    real = realpathSync(join(root, path));
+    st = statSync(real);
+  } catch {
+    throw fail();
+  }
+  if (!real.startsWith(rootReal + sep)) throw fail();
+  if (!st.isFile()) throw fail();
+  // 5. Size cap — distinct error by design (the gate already passed).
+  if (st.size > FILE_MAX_BYTES) throw new StoreError('File too large.');
+  return { path, content: readFileSync(real, 'utf8') };
+}
 
 /** StoreError -> HTTP status (one mapping for the JSON API and /api/stream). */
 function storeErrorStatus(e) {
@@ -249,6 +298,10 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
     {
       const m = req.method === 'GET' && /^\/api\/task\/([A-Za-z]+-\d+)$/.exec(pathname);
       if (m) return { task: resolveShortId(m[1], root) };
+    }
+    if (req.method === 'GET' && pathname === '/api/file') {
+      // AS-26 §5: in-app viewer for repo markdown. The gate does all the work.
+      return readRepoMarkdown(root, q('path'));
     }
     {
       // AS-26: cross-conversation msg-ref resolver. Navigation data only —
