@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 1,
+  "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-08-30T22:11:09Z",
   "created_by": "human:forrest",
@@ -17,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1ABKYR610RPZ643E7KX7RNB",
-  "last_event_id": "ev_01M1AH8M3FRTCERVDJA02SX6MP",
-  "last_status_changed_at": "2026-08-30T23:49:49Z",
+  "last_event_id": "ev_01M1AJ06VRZC5AZKG0DZY2H9V9",
+  "last_status_changed_at": "2026-08-31T00:02:42Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-25",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Chat: push message delivery (websockets/SSE) \u2014 replace the 5s full-refetch poll",
   "type": "task",
-  "updated_at": "2026-08-30T23:49:49Z",
+  "updated_at": "2026-08-31T00:02:42Z",
   "urgency": null
 }
