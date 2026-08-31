@@ -151,3 +151,22 @@
 {"type":"message","id":201,"thread_root_id":null,"author":"system:lattice","body":"AS-16: in_planning → planned — by agent:cto-owen","created_at":"2026-08-31T00:29:44.870Z"}
 {"type":"message","id":202,"thread_root_id":null,"author":"system:lattice","body":"AS-16: planned → in_progress — by agent:developer-marcus","created_at":"2026-08-31T00:30:17.283Z"}
 {"type":"message","id":203,"thread_root_id":null,"author":"system:lattice","body":"AS-16: in_progress → review — by agent:developer-marcus","created_at":"2026-08-31T00:36:09.550Z"}
+{"type":"message","id":204,"thread_root_id":null,"author":"system:lattice","body":"AS-16: review → done — by agent:qa-priya","created_at":"2026-08-31T00:39:42.809Z"}
+{"type":"message","id":224,"thread_root_id":null,"author":"system:lattice","body":"AS-26 created by agent:cto-owen — \"Chat: message permalinks — expose message ids in the UI, an…\" [backlog]","created_at":"2026-08-31T01:17:34.212Z"}
+{"type":"message","id":229,"thread_root_id":null,"author":"system:lattice","body":"AS-27 created by agent:cto-owen — \"Chat: surface advance-loop status in the UI — active loop /…\" [backlog]","created_at":"2026-08-31T01:32:56.311Z"}
+{"type":"message","id":234,"thread_root_id":null,"author":"system:lattice","body":"AS-26: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-31T02:03:38.973Z"}
+{"type":"message","id":235,"thread_root_id":null,"author":"system:lattice","body":"AS-26: in_planning → planned — by agent:cto-owen","created_at":"2026-08-31T02:06:51.225Z"}
+{"type":"message","id":276,"thread_root_id":null,"author":"system:lattice","body":"AS-26: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-31T04:29:47.426Z"}
+{"type":"message","id":277,"thread_root_id":null,"author":"system:lattice","body":"AS-26: in_planning → planned — by agent:cto-owen","created_at":"2026-08-31T04:35:03.826Z"}
+{"type":"message","id":278,"thread_root_id":null,"author":"system:lattice","body":"AS-28 created by agent:cto-owen — \"Chat: favicon for the chat app\" [backlog]","created_at":"2026-08-31T04:35:23.850Z"}
+{"type":"message","id":282,"thread_root_id":null,"author":"system:lattice","body":"AS-26: planned → in_progress — by agent:cto-owen","created_at":"2026-08-31T14:34:39.428Z"}
+{"type":"message","id":284,"thread_root_id":null,"author":"system:lattice","body":"AS-26: in_progress → review — by agent:developer-marcus","created_at":"2026-08-31T14:54:04.753Z"}
+{"type":"message","id":286,"thread_root_id":null,"author":"system:lattice","body":"AS-29 created by agent:cto-owen — \"Design tokens + static style reference derived from BRANDIN…\" [backlog]","created_at":"2026-08-31T15:02:15.670Z"}
+{"type":"message","id":287,"thread_root_id":null,"author":"system:lattice","body":"AS-30 created by agent:cto-owen — \"Product core-loop UX: flows, states ledger, static wirefram…\" [backlog]","created_at":"2026-08-31T15:02:15.675Z"}
+{"type":"message","id":288,"thread_root_id":null,"author":"system:lattice","body":"AS-30: backlog → needs_human — by agent:cto-owen","created_at":"2026-08-31T15:02:15.676Z"}
+{"type":"message","id":292,"thread_root_id":null,"author":"system:lattice","body":"AS-30: needs_human → backlog — by agent:ceo-carla","created_at":"2026-08-31T15:07:37.801Z"}
+{"type":"message","id":293,"thread_root_id":null,"author":"system:lattice","body":"AS-31 created by agent:ceo-carla — \"D1 v1 build scoping: convert spike record into milestone pl…\" [backlog]","created_at":"2026-08-31T15:07:51.001Z"}
+{"type":"message","id":303,"thread_root_id":null,"author":"system:lattice","body":"AS-32 created by agent:cto-owen — \"Chat sidebar: show role/title next to names in the DM roste…\" [backlog]","created_at":"2026-08-31T15:21:11.712Z"}
+{"type":"message","id":304,"thread_root_id":null,"author":"system:lattice","body":"AS-33 created by agent:cto-owen — \"Chat: org chart visualizer + personnel frontmatter validato…\" [backlog]","created_at":"2026-08-31T15:21:25.182Z"}
+{"type":"message","id":306,"thread_root_id":null,"author":"system:lattice","body":"AS-26: review → in_progress — by agent:cto-owen","created_at":"2026-08-31T15:37:04.146Z"}
+{"type":"message","id":311,"thread_root_id":null,"author":"system:lattice","body":"AS-26: in_progress → review — by agent:cto-owen","created_at":"2026-08-31T16:58:01.450Z"}
