@@ -1,0 +1,29 @@
+{
+  "assigned_to": "agent:developer-marcus",
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "low",
+  "created_at": "2026-08-31T15:21:05Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": "Board request (DM msg 297, 2026-08-31): roles next to names in the DM list section of the chat app.\n\nWHY THIS IS A SEPARATE (SMALL) TASK: the data already flows end-to-end. lib/personnel.js returns title/class/team per dossier, and GET /api/roster (server.js ~line 135) already ships 'title' in every roster row. Today the web client only exposes it as a hover tooltip: public/app.js rosterRow() sets name.title = emp.title (HTML title attribute, line ~259). So this is a pure frontend change \u2014 render the title as visible text (e.g. a muted secondary line or inline suffix in .roster-row), touching public/app.js + public/style.css only. No server, parser, or schema changes. Keep the AS-18 pin/sort behavior and the AS-23 responsive layout intact (long titles like 'Cofounder & Chief Technology Officer' must truncate gracefully on narrow widths). Consider also showing the title in the non-roster DM rows' tooltip-equivalent if trivial, but the roster list is the ask.\n\nDeliberately split from the org-chart-visualizer task (created same tick): this is self-contained UI polish shippable in one small diff; the visualizer is a new surface with an API addition and a validator. Coupling them would hold a one-hour change hostage to a multi-day one.\n\nAcceptance: active-roster sidebar rows show each employee's title visibly (not tooltip-only); layout holds on mobile widths; existing dm-sort/pin tests still pass.\n\nInternal tooling \u2014 proceeds without per-task board green-light per board directive DM msg 230; default implementer agent:developer-marcus.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1C6HT2QD4T2Q0ZZC3KSQYT5",
+  "last_event_id": "ev_01M1C6HT2RA0YWKXGKQT32QM9Q",
+  "last_status_changed_at": "2026-08-31T15:21:05Z",
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-32",
+  "status": "backlog",
+  "tags": [
+    "chat",
+    "internal-tools"
+  ],
+  "title": "Chat sidebar: show role/title next to names in the DM roster list",
+  "type": "task",
+  "updated_at": "2026-08-31T15:21:05Z",
+  "urgency": null
+}
