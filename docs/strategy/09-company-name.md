@@ -187,6 +187,146 @@ name as permanent, so the canonical form is now stable: going forward, all
 agent commits use `@agents.american-software.local` exactly, per the CLAUDE.md
 git-methodology example. History stays as-is — no rewrite, per 8.1.
 
+## 9. Name-availability and trademark assessment (2026-08-31, board msg 307)
+
+**Recorded by:** Carla Voss, CEO, in response to the board's question in #board
+msg 307: "Can we use The American Software Company? there are a few similarly
+named entities." This is an evidentiary addendum — it changes no conclusion of
+§1–§8, so no re-signature is required. **Dissent slot:** Owen may append a
+§9.6 dissent or amendment; absent one within a working day, this addendum
+stands as recorded. **Not legal advice:** no one involved is a lawyer; a real
+clearance opinion is counsel work at the incorporation milestone (§5).
+
+### 9.1 "Can we use it" is three separate questions
+
+1. **Entity-name availability (state corporate registry).** Purely
+   state-by-state and string-exact: the chosen state's registry must find our
+   name "distinguishable upon the record" from entities already registered
+   *there*. This is the only one of the three that can hard-block us, and it
+   blocks only in a given state — the cure is a styling variant or a different
+   state, not a rebrand. Already assigned to the lawyer-agent in §5.1,
+   including the "American" restricted-word check.
+2. **Trademark rights (federal/common-law).** Two directions: can others stop
+   us (likelihood of confusion with senior marks), and can we stop others
+   (registrability/strength of our name). See §9.3.
+3. **Domain / practical brand collision.** What a customer typing or searching
+   the name actually finds. See §9.2 findings and §9.4 for why our structure
+   mostly moots this.
+
+### 9.2 Evidence gathered (verified live 2026-08-31; sources cited)
+
+1. **The most prominent "similarly named entity" has abandoned the name.**
+   American Software, Inc. — the Atlanta supply-chain software company,
+   historically NASDAQ: AMSWA — **renamed itself "Logility Supply Chain
+   Solutions, Inc." effective 2024-10-01** (SEC EDGAR, CIK 0000713425: former
+   name "AMERICAN SOFTWARE INC" 1995-09-12 → 2024-10-01; incorporated in
+   Georgia, Atlanta HQ). It then filed **Form 15-12G on 2025-04-14**
+   (securities deregistration; EDGAR now lists no ticker or exchange), and
+   operates as "Logility — An Aptean Company" (logility.com masthead).
+   Sources: https://data.sec.gov/submissions/CIK0000713425.json ;
+   https://www.logility.com/ . So the name's strongest historical holder no
+   longer trades, markets, or files under it — though the Georgia entity of
+   record still exists under the Logility name, and any residual trademark
+   registrations it holds could not be verified from here (§9.2.4).
+2. **Domains (RDAP, 2026-08-31):** `americansoftware.com` registered since
+   1996-04-13; `amsoftware.com` (Logility's historical domain) since
+   1995-08-19; `americansoftwarecompany.com` registered 2025-09-10 by an
+   unknown party; **`theamericansoftwarecompany.com` is unregistered** as of
+   today (rdap.org returns no registration). Recorded as fact only — any
+   registration, even defensive, is board-gated spend and premature before
+   product naming. Source: https://rdap.org/domain/&lt;domain&gt;.
+3. **Other small entities:** state registries almost certainly contain other
+   "American Software"-adjacent LLCs/corps (the board saw "a few"). State
+   corporate registries are not programmatically searchable from this
+   environment; enumeration is part of the counsel clearance in §5.1. Not
+   fabricating a list.
+4. **USPTO register: NOT verified.** Live TESS/TSDR search is API-key-gated
+   and was not reachable from this environment; per house rules I assert no
+   registration numbers, no class coverage (IC 009/042), and no live/dead
+   status for any "AMERICAN SOFTWARE" mark. That lookup is minutes of counsel
+   work and is added to the §5 checklist as item 4 (§9.5).
+
+### 9.3 The trademark reality: the name is weak, and that cuts both ways
+
+"The American Software Company" is **primarily geographically descriptive** —
+arguably generic — for software made by an American company. Under 15 U.S.C.
+§1052(e)(2) (Lanham Act §2(e)(2)) such marks are refused registration on the
+Principal Register absent acquired distinctiveness (§2(f)); see TMEP §1210
+(geographic refusals). Sources: https://www.law.cornell.edu/uscode/text/15/1052 ;
+https://tmep.uspto.gov/ (TMEP §1210.02(a)).
+
+Consequences, stated honestly:
+
+1. **We will likely never own this name.** No meaningful federal registration
+   without years of acquired distinctiveness we have no plan to build (the
+   parent stays quiet by design). We could not stop a third "American
+   Software"-ish entity from existing. Anyone choosing this umbrella must be
+   comfortable sharing the phrase forever. We are — that is the §1 model.
+2. **Symmetrically, weak marks are hard to wield against us.** A
+   likelihood-of-confusion claim needs a protectable senior mark and
+   confusing *use in commerce* before overlapping consumers. Our use is
+   entity-layer only — incorporation papers, contracts, footers, a repo —
+   never product marketing (§1, §8.2). Descriptive-phrase exposure at that
+   layer, in a different vertical from any known senior user, is about as low
+   as trademark exposure gets. Not zero: a footer is still use, and this
+   paragraph is exactly the kind of judgment counsel must bless, not me.
+
+### 9.4 Does the quiet-parent structure actually mitigate — or is that motivated reasoning?
+
+Checked deliberately, because I wrote §1 and would like it to be right. The
+mitigation holds, for three reasons that do not depend on wanting it to:
+
+1. Every customer-facing surface that creates real confusion risk — product
+   name, domain, sender domain, app chrome — carries a *separately cleared*
+   product brand (§3.3, §8.2). The parent name never meets a consumer.
+2. The dominant historical user of the name rebranded away from it and went
+   private (§9.2.1). The collision the board noticed is mostly with an entity
+   that no longer uses the name as a brand.
+3. The residual risks concentrate exactly where we already have gates: the
+   state-registry exact-string check (§5.1) and counsel clearance (§9.5).
+
+Where it does NOT hold, said plainly: if §6(b) ever fires — the umbrella
+becomes customer-facing — this entire assessment is void and naming reopens.
+The weak-name discount only applies while the parent stays quiet.
+
+### 9.5 Recommendation and board gates
+
+**Recommendation: Option 1+2 combined — keep the name, and treat the exact
+legal string as flexible at incorporation.** Keep "The American Software
+Company" as the operating umbrella per §1, accepting it as an unprotectable
+generic; empower the lawyer-agent at incorporation to recommend a
+distinguishable legal styling if the chosen state's registry requires one
+(that is already the §5.2/§6(a) machinery — a styling variant is not a
+rename). **Do not rename now**: Owen's §8.1 pricing stands (25 files, 3
+hardcoded paths, watcher/worktree/settings breakage, one board action for the
+GitHub remote — re-verified against the record, not re-measured), the
+append-only history makes any rename a permanent identity bifurcation, and
+§9.2–9.4 show the collision risk is concentrated in layers where we have
+gates, not in layers where we operate.
+
+§5 lawyer-agent checklist, item added: **(4) USPTO clearance search on
+"AMERICAN SOFTWARE" and variants in IC 009/042 (including any residual
+Logility/Aptean registrations), plus state-registry conflict enumeration —
+delivered as a written clearance memo before the incorporation filing.**
+
+Board decisions surfaced (none taken here; ALL spend is board-gated per
+PHILOSOPHY.md #6):
+
+1. **Now or at-incorporation:** engage counsel for the clearance search — this
+   is spend; my recommendation is to bundle it into the incorporation
+   milestone rather than spend now, since nothing customer-facing depends on
+   the parent name in the interim.
+2. **Optional, board's call:** defensive registration of
+   `theamericansoftwarecompany.com` (unregistered today, ~$10–15/yr) — spend,
+   and arguably premature before product naming; I am neutral and surface it
+   only because availability is a fact that can change.
+3. **Standing:** incorporation itself (state choice, styling) remains a
+   board-level milestone; nothing here accelerates or commits it.
+
+### 9.6 CTO dissent / amendment slot
+
+(Open. Absent an entry within one working day of recording, §9 stands.)
+
 ## Proposed metawork edits
 
 For the orchestrator to apply verbatim (employees do not edit top-level
