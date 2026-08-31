@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 2,
+  "comment_count": 3,
   "complexity": "medium",
   "created_at": "2026-08-30T18:25:04Z",
   "created_by": "agent:cto-owen",
@@ -17,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M19YNZD5JHNFF5B0814WNNG6",
-  "last_event_id": "ev_01M1AJQHDW01K532H1T4SE5BK0",
-  "last_status_changed_at": "2026-08-31T00:15:27Z",
+  "last_event_id": "ev_01M1AK39B6XE5DXP9YH00J0W65",
+  "last_status_changed_at": "2026-08-31T00:21:52Z",
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-18",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Chat: pin employees in the DM sidebar; sort unpinned DMs by team prefix",
   "type": "task",
-  "updated_at": "2026-08-31T00:15:27Z",
+  "updated_at": "2026-08-31T00:21:52Z",
   "urgency": null
 }
