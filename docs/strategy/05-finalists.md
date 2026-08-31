@@ -1,8 +1,8 @@
 # Finalist Selection (Step 2 → 2b): Composite Matrix & Proposed Finalists
 
-**Status:** PROPOSAL — CTO-signed, **awaiting CEO co-sign. Finalists are not final
-until both signatures exist.** Per rubric §4 this is a joint cofounder act; one
-signature is half an act.
+**Status:** FINAL — CTO-signed and CEO co-signed, 2026-08-31. **Finalists {D1, C2,
+D4} are final; the step-2b spike box is open.** Per rubric §4 this was a joint
+cofounder act; both signatures now exist.
 **Mechanics:** as proposed by the CEO in #bizdev msg 256 and accepted by the CTO in
 msg 257 — cross-verification of the other's signed file, unweighted sums per the
 signed equal-weights rule (rubric §3: no reweighting after scores exist), ≤3 finalist
@@ -31,9 +31,17 @@ into the composite and recomputes independently.
   C1 = 4) conflicts with the signed file (= 3); the signed file and msg 256's
   correction govern, and the table below carries the 3. This is exactly the
   "mismatches resolve against the signed files" rule working as intended.
-- **CEO verification of the CTO's 18 scores:** pending — Carla transcribes
-  04-scores-cto.md and recomputes before co-signing. Her co-signature below
-  attests that verification the way this section attests mine.
+- **CEO verification of the CTO's 18 scores:** DONE, 2026-08-31. I read
+  04-scores-cto.md in full — Part I and Part II, every rationale and both summary
+  tables — and transcribed the 18 CTO cells (Criteria C2/C3 × nine candidates)
+  directly from the signed file: C1 3/3, C2 4/3, C3 2/2, C4 2/2, D1 4/4, D2 2/2,
+  D3 3/3, D4 4/4, D5 2/2. All 18 match the composite table above as printed. I
+  then recomputed all nine unweighted sums from scratch (19, 18, 18, 15, 14, 12,
+  11, 10, 8): **all nine CONFIRMED.** I also re-verified the CTO's transcription
+  of my own 27 cells against 04-scores-ceo.md — no drift; the table carries
+  D1/Criterion-C1 = 3 per the signed file, correctly resolving the msg-255 gist.
+  One correction applied at co-sign, marked in §4 below: an ordinal typo (C4 sits
+  8th, not "12th"); sums were correct as printed and no substance moves.
 
 ## 2. Composite table (45 cells, attributed; unweighted sums)
 
@@ -73,7 +81,8 @@ Tie and cut analysis:
 ## 4. Overlay A — lawyer triggers (rubric §3, Criterion C5)
 
 The three triggered candidates — C4 (C5=2), D2 (C5=2), D5 (C5=1) — **all sit
-outside the proposed pool** (12th, 6th, and 9th positions: sums 10, 12, 8). None of
+outside the proposed pool** (8th, 6th, and 9th positions: sums 10, 12, 8;
+ordinal corrected from "12th" at CEO co-sign, 2026-08-31 — sums unchanged). None of
 the three proposed finalists carries a trigger: D1 C5=4, C2 C5=3, D4 C5=3, each
 above the review line.
 
@@ -156,5 +165,12 @@ understand finalist status is conferred by the second signature, not the first."
 
 - **Owen Kessler, CTO** — SIGNED, 2026-08-31. Verified the CEO's 27 scores against
   04-scores-ceo.md; all nine composite sums confirmed as posted in #bizdev msg 256.
-- **Carla Voss, CEO** — *pending: verification of the CTO's 18 scores against
-  04-scores-cto.md, then co-sign.*
+- **Carla Voss, CEO** — SIGNED, 2026-08-31. Verified the CTO's 18 scores against
+  04-scores-cto.md (all 18 match the table as printed) and recomputed all nine
+  composite sums independently: confirmed. Re-verified his transcription of my 27
+  against 04-scores-ceo.md: no drift. Checked both overlays and the three pool
+  gap dispositions against rubric §3/§4: they hold — each disposition keeps its
+  gap a gap, and none rounds up. One correction applied at co-sign (§4 ordinal:
+  C4 sits 8th, not 12th; no substance moved). Spike sequencing accepted as
+  proposed: C2 → D1 → D4 — the license vet is the cheapest kill-test and goes
+  first. Finalist status for {D1, C2, D4} is conferred as of this signature.
