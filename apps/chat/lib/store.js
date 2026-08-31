@@ -465,6 +465,44 @@ export function openStore(dbPath) {
     }
   }
 
+  // --- post-commit message hook (AS-25) -------------------------------------
+  // The push-delivery event source. Subscribers are invoked AFTER the write
+  // transaction commits, from both message-creating paths (postMessage and
+  // ingestEvent) — since AS-24 the server process is the single live writer,
+  // so an in-process hook observes every message while stream clients exist.
+  // Same swallow-discipline as the AS-7 sentinel: a subscriber throw must
+  // never fail the write.
+
+  const messageSubscribers = [];
+
+  function onMessage(cb) {
+    messageSubscribers.push(cb);
+  }
+
+  function emitMessage(msg) {
+    for (const cb of messageSubscribers) {
+      try {
+        cb(msg);
+      } catch {
+        // A broken subscriber must never fail (or appear to fail) the post.
+      }
+    }
+  }
+
+  /**
+   * Delivery-time visibility predicate (AS-25): may `identityId` see messages
+   * in `conversationId`? Same logic requireVisible/listConversationsFor apply,
+   * as a boolean for the stream fan-out — evaluated per frame at delivery
+   * time, never cached, so membership changes take effect immediately.
+   * Unknown conversation is false (deliver nothing), never a throw.
+   */
+  function visibleTo(conversationId, identityId) {
+    const conv = getConversation(Number(conversationId));
+    if (!conv) return false;
+    if (conv.visibility === 'public') return true;
+    return isMember(conv.id, identityId);
+  }
+
   // --- messages / threads -------------------------------------------------
 
   function getMessage(id) {
@@ -517,6 +555,7 @@ export function openStore(dbPath) {
     // only. The registerIdentity regex guarantees the id prefix matches the
     // stored kind, so the prefix test is authoritative — no extra query.
     if (author.startsWith('human:')) writeHumanSentinel(msg);
+    emitMessage(msg); // AS-25: push-delivery hook, post-commit
     return msg;
   }
 
@@ -550,6 +589,36 @@ export function openStore(dbPath) {
       (threads[r.threadRootId] ??= []).push(r);
     }
     return { conversation: conv, messages: topLevel, threads };
+  }
+
+  /**
+   * Delta read (AS-25): every message — top-level AND replies, flat — in the
+   * conversation with id > sinceId, ordered by id. The reconnect catch-up
+   * path; the client merges rows through the same applyMessage used for
+   * stream frames. Gates exactly like getMessages (a hidden channel 404s
+   * byte-identically to a nonexistent one), and the gate runs BEFORE since
+   * validation so a malformed since can't distinguish hidden from missing.
+   * No replyCount on rows: a reply's id always exceeds its root's, so a root
+   * in the delta has all its replies in the delta — the client counts them.
+   */
+  function messagesSince(conversation, me, sinceId) {
+    requireIdentity(me);
+    const conv = requireConversation(conversation);
+    requireVisible(conv, me, conversation);
+    const since = Number(sinceId);
+    if (!Number.isInteger(since) || since < 0) {
+      throw new StoreError(`Invalid since '${sinceId}'.`);
+    }
+    const messages = db
+      .prepare(
+        `SELECT id, conversation_id AS conversationId, thread_root_id AS threadRootId,
+                author_id AS authorId, body, created_at AS createdAt
+         FROM messages
+         WHERE conversation_id = ? AND id > ?
+         ORDER BY id`
+      )
+      .all(conv.id, since);
+    return { conversation: conv, messages };
   }
 
   function maxMessageId(conversationId) {
@@ -657,7 +726,7 @@ export function openStore(dbPath) {
   function ingestEvent(eventId, body) {
     if (hasIngested(eventId)) return false;
     const chan = getChannelByName(EVENTS_CHANNEL);
-    tx(() => {
+    const msg = tx(() => {
       db.prepare('INSERT INTO ingested_events (event_id, ingested_at) VALUES (?, ?)').run(
         eventId,
         nowIso()
@@ -666,7 +735,10 @@ export function openStore(dbPath) {
         `INSERT INTO messages (conversation_id, thread_root_id, author_id, body, created_at)
          VALUES (?, NULL, ?, ?, ?)`
       ).run(chan.id, SYSTEM_IDENTITY, body, nowIso());
+      const id = db.prepare('SELECT last_insert_rowid() AS id').get().id;
+      return getMessage(Number(id));
     });
+    emitMessage(msg); // AS-25: same post-commit hook as postMessage
     return true;
   }
 
@@ -826,6 +898,9 @@ export function openStore(dbPath) {
     postMessage,
     getMessage,
     getMessages,
+    messagesSince,
+    onMessage,
+    visibleTo,
     maxMessageId,
     markRead,
     catchupAll,

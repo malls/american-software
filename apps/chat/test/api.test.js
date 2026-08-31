@@ -587,3 +587,81 @@ test('api: malformed JSON body is a 400 with a clear message', async (t) => {
   assert.equal(res.status, 400);
   assert.match((await res.json()).error, /valid JSON/);
 });
+
+test('api: AS-25 — GET /api/messages?since= returns the flat delta; hidden-channel parity holds for since=', async (t) => {
+  const { get, post } = await bootServer(t);
+  const ch = await post('/api/channels', { name: 'delta', actor: 'human:forrest' });
+  const convId = ch.data.conversation.id;
+  const m1 = await post('/api/messages', { conversation: convId, author: 'human:forrest', body: 'm1 re AS-7' });
+  const m2 = await post('/api/messages', { conversation: convId, author: 'agent:cto-owen', body: 'm2' });
+  const r1 = await post('/api/messages', {
+    conversation: convId, author: 'human:forrest', body: 'r1', threadRoot: m1.data.message.id,
+  });
+  const me = 'human:forrest';
+
+  // Delta: exactly id > since, flat (replies inline), id-ordered, annotated,
+  // and NO threads key — the client merges.
+  const delta = await get(`/api/messages?conversation=${convId}&me=${me}&since=${m1.data.message.id}`);
+  assert.equal(delta.status, 200);
+  assert.deepEqual(delta.data.messages.map((m) => m.id), [m2.data.message.id, r1.data.message.id]);
+  assert.equal(delta.data.messages[1].threadRootId, m1.data.message.id, 'replies included, inline');
+  assert.ok(!('threads' in delta.data), 'delta shape has no threads key');
+  assert.ok(delta.data.messages.every((m) => Array.isArray(m.refs)), 'delta rows are annotated');
+  assert.equal(delta.data.conversation.id, convId);
+
+  // since = max -> empty; since=0 -> everything; without since -> unchanged
+  // structured shape (threads key present).
+  const empty = await get(`/api/messages?conversation=${convId}&me=${me}&since=${r1.data.message.id}`);
+  assert.deepEqual(empty.data.messages, []);
+  const all = await get(`/api/messages?conversation=${convId}&me=${me}&since=0`);
+  assert.equal(all.data.messages.length, 3);
+  const cold = await get(`/api/messages?conversation=${convId}&me=${me}`);
+  assert.ok('threads' in cold.data, 'cold-load shape unchanged');
+
+  // Bad since on a visible channel: 400 (bare Number() coercion, store rejects).
+  const bad = await get(`/api/messages?conversation=${convId}&me=${me}&since=abc`);
+  assert.equal(bad.status, 400);
+  assert.match(bad.data.error, /Invalid since/);
+
+  // Hidden channel with since=: byte-identical 404 to a nonexistent id — even
+  // with a malformed since (the gate runs before validation).
+  await post('/api/identities', {
+    id: 'agent:developer-marcus', displayName: 'Marcus Webb (Engineer)', kind: 'agent',
+  });
+  const N = 'agent:developer-marcus';
+  const convs = await get('/api/conversations?me=human:forrest');
+  const board = convs.data.conversations.find((c) => c.name === 'board');
+  const norm = (body, id) => JSON.stringify(body).replaceAll(`'${id}'`, "'<id>'");
+  for (const since of ['0', 'abc']) {
+    const hidden = await get(`/api/messages?conversation=${board.id}&me=${encodeURIComponent(N)}&since=${since}`);
+    const missing = await get(`/api/messages?conversation=99999&me=${encodeURIComponent(N)}&since=${since}`);
+    assert.equal(hidden.status, 404, 'never 400/403 for the hidden channel');
+    assert.equal(missing.status, 404);
+    assert.equal(norm(hidden.data, board.id), norm(missing.data, 99999));
+  }
+});
+
+test('api: AS-25 — live.js is served (app.js module graph must not 404); the 5s poll is retired', async (t) => {
+  const { base } = await bootServer(t);
+  const mod = await fetch(base + '/live.js');
+  assert.equal(mod.status, 200);
+  assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  assert.match(await mod.text(), /applyMessage/);
+
+  // Poll retirement (acceptance criterion 5), pinned against the served
+  // app.js — the exact bits the browser runs:
+  const app = await (await fetch(base + '/app.js')).text();
+  assert.match(app, /new EventSource\(`\/api\/stream\?me=/, 'push transport wired');
+  assert.match(app, /from '\.\/live\.js'/, 'frames/catch-up merge through live.js');
+  assert.doesNotMatch(app, /,\s*5000\)/, 'no 5s interval remains');
+  const intervals = [...app.matchAll(/setInterval\([\s\S]*?,\s*([\d_]+)\)/g)].map((m) =>
+    Number(m[1].replaceAll('_', ''))
+  );
+  assert.equal(intervals.length, 1, 'exactly one reconcile interval');
+  assert.ok(intervals[0] >= 30_000, `reconcile cadence >= 30s (got ${intervals[0]})`);
+  // sendMessage applies the POST response locally — no full-history refetch.
+  const sendFn = app.slice(app.indexOf('async function sendMessage'), app.indexOf('function wireComposer'));
+  assert.ok(sendFn.length > 0, 'sendMessage found');
+  assert.doesNotMatch(sendFn, /selectConversation|\/api\/messages\?conversation/, 'send does not refetch');
+  assert.match(sendFn, /applyMessage/, 'send merges its own POST response');
+});
