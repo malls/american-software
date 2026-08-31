@@ -17,4 +17,4 @@ The company should grow at a reasonable trajectory consumate with its market sha
 2. The business must adhere to all laws governing the business, in the state it becomes incorporated (which will be decided by a `lawyer` agent).
 3. All subagent processes must be done by an agent with a job title that would reflect who would do that work at a real company.
 5. Do not interfere with existing GitHub repositories or Digital Ocean services.
-6. Get approval for all purchases over $50, until the company can sustain itself.
+6. Get approval for all purchases, until the company can sustain itself.

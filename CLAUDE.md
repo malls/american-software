@@ -16,9 +16,11 @@ Employees should leave lattice comments as they contribute to the work. Employee
 **Acknowledge before acting (board feedback, 2026-08-30):** when a message asks for work, the receiving employee's FIRST action is a prompt one-line reply saying what they are about to do ("I'll get started on X — filing the task now"), sent BEFORE any Lattice updates, planning, or sub-agent work. The heavy lifting comes after the ack, and the substantive reply (task ids, decisions, outcomes) follows when it's done. Silence while working is a failure mode: the board should never have to wonder whether a message was heard.
 
 ## Board
-Forrest (the user) is the sole board member. Background: tech, "retired" in his 30s, pivoted to investing. Communicate with him at full technical depth — no dumbing down. He expects to greenlight most decisions rather than veto them; keep approval gates lightweight but still surface them (especially spend >$50 per PHILOSOPHY.md). Recorded 2026-08-29 from his own words.
+Forrest (the user) is the sole board member. Background: tech, "retired" in his 30s, pivoted to investing. Communicate with him at full technical depth — no dumbing down. He expects to greenlight most decisions rather than veto them; keep approval gates lightweight but still surface them. Recorded 2026-08-29 from his own words.
 
-**Standing grant (2026-08-30, chat msg 53):** cofounders may hire without per-hire board approval ("feel free to hire if needed"). Hires still follow the personnel conventions above; spend gates are unaffected.
+**Standing grant (2026-08-30, chat msg 53):** cofounders may hire without per-hire board approval ("feel free to hire if needed"). Hires still follow the personnel conventions above; the purchase-approval rule is unaffected.
+
+**Purchase approval (revised 2026-08-31):** ALL purchases require board approval for now — the earlier $50 threshold is removed (PHILOSOPHY.md #6 updated). This may be relaxed later as the company matures; until then, any spend of any size routes through `needs_human`.
 
 ## Operating Modes: Chat vs. Loop
 

@@ -38,7 +38,7 @@ candidates from them, not to start from pet ideas.
 | G1. No physical inventory | The business requires holding zero physical inventory. | PHILOSOPHY.md #1 |
 | G2. No physical space | The business requires no physical premises; delivery is all-digital. | PHILOSOPHY.md #1 |
 | G3. Lawful and licensable | We can comply with all applicable law, and the business does not require a license, certification, or regulated status an agent workforce cannot legitimately hold (fail examples: practicing law or medicine, custody of client funds). | PHILOSOPHY.md #2 |
-| G4. Spend-gate survivable | A credible v1 path exists within the $50-per-purchase board-approval regime; no gate-breaking mandatory spend before first revenue. | PHILOSOPHY.md #6 |
+| G4. Spend-gate survivable | A credible v1 path exists within the all-purchases-require-board-approval regime; no gate-breaking mandatory spend before first revenue. | PHILOSOPHY.md #6 |
 | G5. Non-interference | Requires no interference with existing GitHub repositories or Digital Ocean services. | PHILOSOPHY.md #5 |
 
 A gate verdict is recorded as PASS/FAIL with one sentence of justification. FAIL
@@ -59,7 +59,7 @@ reachable channel; 1 = "someone would surely pay for this."
 
 **C2. Cost to build v1** — *Definition:* total effort, calendar ticks, and
 dollars from zero to a first revenue-capable release, built by our agent
-workforce under current constraints (token budget, no capital, $50 spend gate).
+workforce under current constraints (token budget, no capital, every purchase board-approved).
 5 = v1 within a handful of ticks and ~$0; 1 = months of build and/or
 gate-breaking spend before anything can be sold.
 *Signed by: CTO. Evidence: researchers + CTO assessment; validated by spike for finalists.*
@@ -149,3 +149,13 @@ scoring begins except through a written, jointly-agreed amendment."
   scoring, failure terminal (§1.1, §2); time-boxes, candidate caps, and default
   outcomes binding both cofounders, including me (§4). No wording objections;
   nothing reserved for the step-3 debate from this document.
+
+## Amendments
+
+- **2026-08-31 (board-directed, applied by the metawork layer):** PHILOSOPHY.md #6
+  revised by the board — the $50 threshold is removed; ALL purchases require board
+  approval for now (may be relaxed later). G4's wording and the C2 constraint list
+  were updated to reference the new regime. No gate or scoring semantics changed;
+  the cofounders' signatures above cover the criteria as amended (the change makes
+  G4 marginally stricter in letter, identical in practice — every spend already
+  routed through the board at current company scale).
