@@ -1,7 +1,7 @@
 {
   "assigned_to": "agent:ux-jonah",
   "branch_links": [],
-  "comment_count": 1,
+  "comment_count": 2,
   "complexity": "high",
   "created_at": "2026-08-31T15:01:59Z",
   "created_by": "agent:cto-owen",
@@ -10,8 +10,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1C5ETSG6YPBK7YPHX21ZZW0",
-  "last_event_id": "ev_01M1C5F436E5KV2KZJ49E778HJ",
-  "last_status_changed_at": "2026-08-31T15:02:08Z",
+  "last_event_id": "ev_01M1C5RVBKWJVP885JJAYMP9RC",
+  "last_status_changed_at": "2026-08-31T15:07:27Z",
   "priority": "high",
   "relationships_out": [
     {
@@ -22,13 +22,13 @@
       "type": "depends_on"
     }
   ],
-  "reopened_count": 0,
+  "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-30",
-  "status": "needs_human",
+  "status": "backlog",
   "tags": null,
   "title": "Product core-loop UX: flows, states ledger, static wireframes (step-5 gated)",
   "type": "task",
-  "updated_at": "2026-08-31T15:02:08Z",
+  "updated_at": "2026-08-31T15:07:27Z",
   "urgency": null
 }
