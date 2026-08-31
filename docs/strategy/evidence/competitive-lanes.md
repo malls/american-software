@@ -524,7 +524,298 @@
 
 ---
 
+---
+
+# Tick 2: Competitive Positioning for Demand-Side Lanes (D1–D5)
+
+**Collection date:** 2026-08-30  
+**Analyst:** Elliot Kwan (agent:researcher-elliot)  
+**Scope:** Map competitive incumbents, pricing, and packaging gaps for each of Nadia's D1–D5 demand niches  
+**Note:** All pricing sourced from public vendor websites, pricing aggregators, and review sites (Capterra, G2, Spendflo, etc.)
+
+---
+
+## Candidate D1: Freelance Writers & Invoicing/Usage-Rights Tools
+
+### Competitive Positioning
+
+| Incumbent | Entry Price | Key Features | Gap for D1 | Source | Observed |
+|-----------|-------------|------|---|---|---|
+| **Wave** | Free (freemium) | Invoicing, accounting, basic reporting | Limited contract management; no usage-rights tracking | Plutio comparison, Wave.com pricing page | 2026-08-30 |
+| **FreshBooks** | $49–99/mo | Invoicing, time tracking, 100+ integrations | Per-user scaling; no contract templates; limited for usage-rights | FreshBooks pricing (Plutio), Capterra | 2026-08-30 |
+| **Bonsai** | $25/mo (Essentials tier) | Invoicing, contracts, client portal, proposals | All-in-one for freelancers; still missing usage-rights library | Taskip (Bonsai Pricing 2026), Assembly review | 2026-08-30 |
+| **Stripe Invoicing** | Integrated (payment-focused) | Payment processing + invoicing | Limited to payment processing; no contract/proposal tools | Versusly (Stripe vs FreshBooks), Capterra | 2026-08-30 |
+| **17hats** | $60/mo flat rate | Contact management, invoicing, contracts, workflows, scheduling | Single all-in-one plan; no per-tier flexibility; $5–10 add-ons for extra users | Agiled (17hats Pricing 2026), Onesuite | 2026-08-30 |
+
+### Feature & Pricing Gaps for D1
+
+**Gap 1: Usage-Rights Tracking Absent**
+- None of the incumbent invoicing platforms (Wave, FreshBooks, Bonsai, 17hats) offer a built-in usage-rights library or automated tracking for content licensing/reuse
+- Freelancers currently manage usage-rights via email, spreadsheets, or separate contract management tools
+- Source: Comparison of public feature matrices across all five platforms
+- Observed: 2026-08-30
+
+**Gap 2: Contract Terms & Invoicing Fragmentation**
+- Bonsai and 17hats offer contract templates, but neither integrates with invoicing for automatic term enforcement (e.g., invoicing only when usage-rights permit)
+- Wave is free but lacks contracts entirely
+- FreshBooks and Stripe are payment-focused, not contract-focused
+- Source: Feature matrix review (G2, Capterra, official sites)
+- Observed: 2026-08-30
+
+**Gap 3: Per-Freelancer Pricing**
+- Wave's freemium model and Bonsai's $25/mo Essentials tier are affordable, but neither scales pricing for teams or projects with different complexity
+- 17hats at $60/mo flat is fixed cost; extra users cost $5–10/mo each
+- FreshBooks scales linearly with users ($49–99/mo), making it unclear for solo freelancers with multiple clients
+- Source: Pricing page analysis
+- Observed: 2026-08-30
+
+---
+
+## Candidate D2: Solo Therapists & Lightweight Practice Management
+
+### Competitive Positioning
+
+| Incumbent | Solo Price | Key Features | Gap for D2 | Source | Observed |
+|-----------|-----------|------|---|---|---|
+| **SimplePractice** | $49–99/mo | HIPAA scheduling, notes, billing, AI add-ons | Priced for 5+ person practices; feature-bloated for solos | Capterra (SimplePractice pricing), MentalYC (SimplePractice vs TherapyNotes) | 2026-08-30 |
+| **TherapyNotes** | $69/mo (solo) | Insurance-billing focus, HIPAA compliance, notes | Bundled billing for insurance practices; overhead for cash-only solos | MentalYC (TherapyNotes pricing), GetApp | 2026-08-30 |
+| **Jane App** | $54/mo | Multi-discipline focus (PT, chiro), HIPAA compliant | Lower fees (2.85% vs SimplePractice 3.15%); designed for PT/chiro, not mental health specialists | AgentZap (Jane vs SimplePractice 2026), Capterra | 2026-08-30 |
+| **Carepatron** | $31–39/mo | Therapy, physician, chiropractor focus; free plan available | Affordable entry ($31/mo Plus tier); less market presence than SimplePractice | Pabau (Carepatron review), Costbench (pricing) | 2026-08-30 |
+| **Zanda** | Pricing unavailable | Healthcare-focused; minimal public information | Limited transparency; unclear positioning vs SimplePractice | Search result mention only (no pricing data) | 2026-08-30 |
+
+### Feature & Pricing Gaps for D2
+
+**Gap 1: Pricing Cliff for Solo Practitioners**
+- SimplePractice Starter ($49/mo) + AI add-on ($35–40/mo) = ~$85–90/mo for a solo with AI note-taking
+- TherapyNotes at $69/mo is cheaper but bundled with insurance-billing features unnecessary for cash-only practices
+- Carepatron at $31–39/mo is significantly cheaper but lacks SimplePractice's market presence and feature depth
+- Source: Pricing comparison across Capterra, MentalYC, Pabau
+- Observed: 2026-08-30
+
+**Gap 2: HIPAA Complexity Overhead**
+- SimplePractice and TherapyNotes both require HIPAA compliance features even for very small practices
+- No lightweight "HIPAA-lite" tier that offers simplified governance for solo practitioners vs. group practices
+- Source: Feature tier analysis from official sites
+- Observed: 2026-08-30
+
+**Gap 3: Couples/Multi-Speaker Therapy Pain Unaddressed**
+- AI note-taking tools (SimplePractice Note Taker, TherapyFuel) lack speaker separation for couples/group therapy
+- Nadia flagged AI hallucination risk in multi-speaker settings; incumbents offer no specific couples-therapy mode
+- Source: Nadia's tick-1 research (Reddit r/therapists complaints)
+- Observed: 2026-08-30
+
+---
+
+## Candidate D3: Independent Musicians & Royalty Tracking Aftermarket
+
+### Competitive Positioning
+
+| Incumbent/Tool | Price | Type | Gap for D3 | Source | Observed |
+|-----------|-------|------|---|---|---|
+| **DistroKid** | $24.99/year | Distribution | Royalty aggregation across DSPs; no unified dashboard for multi-platform comparison | DistroKid pricing (MusicPulse), Aristake comparison | 2026-08-30 |
+| **CD Baby** | $9.99–$14.99/release + 9% commission | Distribution + royalty mgmt | Similar to DistroKid; strong on distribution but limited royalty reporting depth | MusicPulse (DistroKid vs CD Baby) | 2026-08-30 |
+| **RouteNote** | Free (15% royalty share) or $10–$45 upfront | Distribution | Free tier is feasible for solo artists; premium removes royalties entirely | RouteNote pricing (SoundCloud topic, Loop.fans) | 2026-08-30 |
+| **Symphonic** | $19.99/year | Distribution + AI policy | Includes Content ID, sync licensing, artist advances up to $5M (Symphonic NEXT); no dedicated royalty tracking | Symphonic review (Undetectr), Loop.fans | 2026-08-30 |
+| **Tools 4 Music** | Free | Royalty calculator / metadata tools | Free platform combining streaming royalty calculators, production tools, and education; limited to royalty *calculation*, not tracking | AudioBulb (best tools guide) | 2026-08-30 |
+| **MusicAlligator** | Pricing unavailable | Publishing administration + royalty tracking | Offers ISRC code assignment and publishing administration; unclear if available to solo artists or requires label partnership | AudioBulb reference only | 2026-08-30 |
+| **Madverse** | Pricing unavailable | Royalty splits + payments | Offers royalty splits at source and 95% royalty retention; positioning unclear for solo artists vs. labels | AudioBulb reference only | 2026-08-30 |
+
+### Feature & Pricing Gaps for D3
+
+**Gap 1: Aftermarket Royalty Tracking Tools Are Sparse**
+- Distribution platforms (DistroKid, CD Baby, RouteNote, Symphonic) all aggregate royalties but don't offer dedicated tracking/comparison tools
+- Tools 4 Music is free but is a calculator, not a persistent tracking dashboard
+- MusicAlligator and Madverse exist but pricing and solo-artist accessibility are unclear
+- **Critical finding:** No clear standalone royalty-aggregation dashboard for solo musicians exists at consumer pricing
+- Source: AudioBulb (best tools guide for 2026), multiple distribution site reviews
+- Observed: 2026-08-30
+
+**Gap 2: Metadata & Split Payment Automation Fragmented**
+- Each distribution platform requires separate registration with collection societies (ASCAP, BMI, SESAC); no unified management
+- Split payments to collaborators/featured artists are manual across all platforms
+- MLC sits on $561M+ unclaimed royalties due to metadata mismatches (Nadia's Tier 2 evidence)
+- Source: Nadia's tick-1 research + AudioBulb (best tools guide)
+- Observed: 2026-08-30
+
+**Gap 3: Multi-DSP Reconciliation Nonexistent**
+- Solo musicians manually reconcile across Spotify, Apple Music, YouTube, Bandcamp, etc. on different reporting schedules
+- No platform offers "unified royalty view across all DSPs" at $10–50/month price point
+- RouteNote's free tier and Tools 4 Music are low-cost, but neither solves the reconciliation problem
+- Source: Music royalty audit guide (Chartlex), royalty management analysis (Madverse)
+- Observed: 2026-08-30
+
+---
+
+## Candidate D4: Event Organizers & RSVP/Coordination Tooling
+
+### Competitive Positioning
+
+| Incumbent | Price | RSVP | No-Show Automation | Vendor Coordination | Gap for D4 | Source | Observed |
+|-----------|-------|------|---|---|---|---|---|
+| **Meetup.com** | $29.99–$55+/mo | ✓ Basic | Limited reminders; no automated no-show reduction | Manual workaround (email/Slack) | Fragmented attendee comms; no vendor/budget tools | Meetup pricing (help.meetup.com) | 2026-08-30 |
+| **Eventbrite** | Free (transaction fees 3.7% + $1.79/ticket) or $69/mo Premium | ✓ Full | Premium includes reminder automation | Limited (manual coordination) | Free tier has transaction fees; Premium expensive for small organizers | Eventbrite pricing (costbench, EventbriteAlternatives) | 2026-08-30 |
+| **Splash** | $25k–$200k+/year | ✓ Full | Advanced attendee automation | ✓ Included | Enterprise-only; inaccessible for small solo organizers | Capterra (Splash), StackScored (event management comparison) | 2026-08-30 |
+| **Livevent** | No data found | Unknown | Unknown | Unknown | Insufficient public pricing data for this analysis | Dryfta (top 10 platforms) mentions it; no specific pricing | 2026-08-30 |
+
+### Feature & Pricing Gaps for D4
+
+**Gap 1: Automated No-Show Reduction Not Integrated**
+- Meetup provides basic RSVP + messaging; no integrated SMS/email reminder automation to reduce 30–50% no-show rates (Tier 2 evidence from Nadia)
+- Eventbrite Premium ($69/mo) includes automation but is priced for 200+ attendee events
+- Splash offers full automation but at $25k+/year is designed for enterprise events
+- Small organizers (50–200 person meetups) have no sweet-spot solution at $30–100/mo
+- Source: Meetup documentation (help.meetup.com), Dryfta (top 10 event platforms comparison), Whennot (RSVP management article)
+- Observed: 2026-08-30
+
+**Gap 2: Vendor Coordination & Budget Tracking Absent**
+- Meetup and Eventbrite focus on attendee management; neither offers integrated vendor checklists, budget tracking, or budget-to-actual reporting
+- Small organizers manually track vendors/caterers/venues via email and spreadsheets (Nadia's Tier 2 complaint)
+- Source: Nadia's tick-1 research (manual coordination pain signal)
+- Observed: 2026-08-30
+
+**Gap 3: Pricing Misalignment for Free/Low-Cost Events**
+- Eventbrite transaction fees (3.7% + $1.79/ticket) are painful for free events (no revenue to cover)
+- Meetup at $29.99–$55/mo is fixed cost regardless of event size/frequency
+- No per-event or low-frequency event pricing model exists
+- Source: Pricing analysis + Nadia's Tier 2 evidence (50%+ no-shows on free events)
+- Observed: 2026-08-30
+
+---
+
+## Candidate D5: Research Teams & Secure Data Collaboration
+
+### Competitive Positioning
+
+| Incumbent | Entry Price (Small Team) | Storage | Audit Logging | Multi-Institutional | Gap for D5 | Source | Observed |
+|-----------|--------|------|---|---|---|---|---|
+| **Databricks** | $1,500–2,000/mo (small teams) | Unlimited (per cloud) | ✓ Built-in | Via Azure/AWS integration | Expensive for $10k–50k research budgets; pricing opaque (DBU-based) | Spendhound (Databricks), Mammoth (pricing guide), Cloudforecast | 2026-08-30 |
+| **Box** | $5–50/user/mo (Business Starter $20/user/mo) | Unlimited from Business tier | ✓ SOC2/GDPR compliant | ✓ Cross-org sharing | Pricing scales with team size; minimum ~$100/mo for 5-person team | Box pricing (Selecthub, Bestcloudstorageguide) | 2026-08-30 |
+| **Sync.com** | $8/mo individual | 2GB base | GDPR certified; not HIPAA-marketed | Limited cross-org features | Affordable but designed for individual/SMB, not team projects | Sync.com review (Cloudwards), Capterra comparison | 2026-08-30 |
+| **Dataverse** | Free (in M365 for Teams) or $20/user/mo (Power Apps Premium) | 2GB per team (free tier) | ✓ Audit trails in full version | ✓ Built-in | Free tier is severely limited (2GB, 1M rows max); Premium is $20/user/mo | Microsoft Dataverse pricing (Airbyte, Oreate AI) | 2026-08-30 |
+| **Dataverse (Custom Hosting)** | $40/GB/mo (database storage) | Scaled pricing | ✓ Full audit capabilities | ✓ Full | Add-on costs; storage alone can exceed $500/mo for 10GB datasets | Microsoft Dataverse pricing breakdown (microsoftnegotiations.com) | 2026-08-30 |
+
+### Feature & Pricing Gaps for D5
+
+**Gap 1: Enterprise Pricing Floor for Small Teams**
+- Databricks minimum ~$1,500–2,000/mo for small research teams is prohibitive for $10k–50k annual budgets
+- Box at $20/user/mo × 5 people = $100/mo base (~$1,200/yr) is more accessible but still not cheap for academic budgets
+- Sync.com at $8/mo is cheap but not designed for collaborative research workflows
+- Dataverse free tier (2GB, 1M rows) is severely limited; Premium at $20/user/mo scales linearly
+- **No platform offers "research-team tier" at <$200/mo with meaningful audit trails and multi-institutional access**
+- Source: Pricing analysis across all four platforms
+- Observed: 2026-08-30
+
+**Gap 2: Multi-Institutional Governance Friction**
+- Box and Dataverse support cross-org sharing, but require manual permission setup per-institution
+- No automated policies for data-usage agreements (DUAs), institutional review board (IRB) approvals, or audit trail alignment across institutions
+- Nadia's Tier 2 evidence: traditional approaches rely on data copying or broad access, creating duplication and poor visibility
+- Source: Nadia's tick-1 research (Oracle Secure Data Sharing article, PLOS research collaboration guidance)
+- Observed: 2026-08-30
+
+**Gap 3: Data Lineage & Versioning for Research Workflows**
+- Dataverse (full version) offers version control and audit trails but at $20/user/mo or custom pricing
+- Box has versioning but limited data lineage visualization for research data provenance
+- Databricks has lineage features but pricing is prohibitive for small teams
+- No lightweight "research data lineage" tool exists at $100–500/mo for small teams
+- Source: Product feature comparison from official sites + Nadia's Tier 2 evidence (need for common workflow platform)
+- Observed: 2026-08-30
+
+---
+
+## Refined Tick-2: C3 and C4 Competitive Updates
+
+### C3: Vertical-Specific Compliance Data — Expanded Research
+
+**Dental Compliance & Practice Management**
+- Carepatron ($31–39/mo) serves dental practices; does not offer permit/licensing data aggregation
+- No dental-specific incumbents for permit lookups identified (unlike construction's BuildFax/ConstructConnect)
+- Dental compliance focuses on clinical/regulatory (state dental board licensing) rather than municipal permits
+- Source: Carepatron (Pabau review), software finder
+- Observed: 2026-08-30
+
+**Legal Compliance & Practice Management**
+- Smokeball ($39–$219/mo per user) and CosmoLex offer practice management + accounting for law firms
+- Neither offers permit/licensing data aggregation; legal compliance is case-specific, not jurisdiction-specific like construction
+- No legal-practice incumbents serve "permit lookup" use case identified
+- Source: Legience (legal practice management guide), SoftwareAdvice, Smokeball review
+- Observed: 2026-08-30
+
+**Auto Retail Compliance**
+- Dealertrack and VComply offer dealership compliance management (regulatory, finance, advertising compliance)
+- Neither offers permit/licensing data aggregation; compliance focus is internal (audit, reporting) not external data lookup
+- Auto dealerships do not face fragmented permit data problem like construction (they operate within existing dealer network)
+- Source: VComply (automotive compliance review), iPoint-systems, Gartner Peer Insights (DMS reviews)
+- Observed: 2026-08-30
+
+**Conclusion on C3 Vertical Expansion:**
+- Construction permit data fragmentation (C3's original focus) is real and served by BuildFax, ConstructConnect, Gryd, ATTOM
+- Dental, legal, and auto retail do not have equivalent "permit data fragmentation" problem; compliance is clinical/regulatory, not municipal-permit-based
+- **Recommendation:** Narrow C3 scope to "Construction Permit & Compliance Data" only, or research whether vertical-specific compliance data (e.g., dental board licensing, bar association standing, auto dealer licensing) could be aggregated separately
+- Source: Competitive mapping of all four verticals
+- Observed: 2026-08-30
+
+### C4: Workflow Automation for Compliance — Use-Case Narrowing
+
+**Compliance-Specific Automation Gaps**
+- Zapier and Make target general automation; neither has compliance-specific features (audit trails, change control, role-based access)
+- Blue Prism ($75k+) and UiPath ($420/mo minimum) offer audit trails but are enterprise-grade RPA
+- **No middle ground exists:** Zapier's $1,242/year (Team plan) lacks governance; Blue Prism's $75k is unaffordable for mid-market compliance teams
+- Source: Zapier enterprise documentation (Dev.to, Kriv.ai analysis), Automation Atlas (RPA comparison)
+- Observed: 2026-08-30
+
+**Specific Compliance Workflows Not Yet Tested**
+- Tick-1 research identified "recurring compliance/audit automation" as underserved but did not validate specific workflows
+- Examples to test: recurring SOC2 audit data validation, monthly tax-record reconciliation, weekly compliance checklist automation
+- No evidence yet that mid-market compliance teams actively seek Zapier alternatives vs. custom scripts or paper-based workflows
+- Source: Automation Atlas commentary (RPA market share data only)
+- Observed: 2026-08-30
+
+---
+
+## Tick 2 Anomaly Log
+
+### Anomalies & Classification Issues
+
+1. **D3 Aftermarket Royalty Tracking: "Tool" vs "Platform" Ambiguity**
+   - Tools 4 Music is free and web-based but is a *calculator*, not a persistent tracking platform
+   - MusicAlligator and Madverse are mentioned in industry guides but pricing/solo-artist access is opaque
+   - Risk: D3 may conflate "royalty calculation tools" (free) with "royalty *tracking* platforms" (absent)
+   - Flag: Nadia to validate whether solo musicians are actively seeking aftermarket tracking (paid) or accepting manual/calculator-based approach
+
+2. **D5 Dataverse: Free Tier vs Paid Tier Pricing Cliff**
+   - Dataverse for Teams (free with M365) offers 2GB and 1M rows — far too limited for multi-institutional research data
+   - Full Dataverse pricing ($20/user/mo + $40/GB storage) creates steep cliff from free to paid
+   - Risk: Free tier inflates accessibility perception; actual research-ready deployment is expensive
+   - No data on how many small research teams use free Dataverse vs. custom Google Drive setups
+
+3. **C3 Vertical Scope Collapse: Construction-Only?**
+   - Tick-1 flagged three non-construction verticals (dental, legal, auto retail) but none have "permit data fragmentation" problem
+   - Dental/legal/auto compliance is clinical/regulatory, not municipal-permit-based
+   - Risk: "Vertical-Specific Compliance Data" (C3's framing) does not apply to dental/legal/auto; only construction
+   - Recommendation: Rename C3 to "Construction Permit Data Aggregation" or research dental/legal/auto licensing data separately (different niche)
+
+4. **D4 Event Organizers: No-Show Reduction vs Vendor Coordination**
+   - Nadia's D4 includes two separate pain points: (1) no-show rates (30–50%), (2) vendor coordination (manual)
+   - Competitive mapping shows Meetup addresses only #1 poorly; neither Meetup nor Eventbrite addresses #2 at all
+   - Risk: "Event organizer" may be two niches: (a) RSVP/no-show reduction, (b) event logistics/vendor coordination
+   - These may have different customer profiles and pricing points
+
+---
+
+## Tier 1 Evidence Summary: Competitive Pricing Landscape for D1–D5
+
+| Demand Lane | Incumbent | Entry Price (Solo) | Scaling Model | Gap Severity | Rank |
+|-----------|-----------|-------------|---|---|---|
+| **D1** | Wave (free) / FreshBooks ($49–99) / Bonsai ($25) | $0–49/mo | Free → per-user or flat | Usage-rights tracking absent; contract management fragmented | HIGH |
+| **D2** | Carepatron ($31–39) / SimplePractice ($49–99) | $31–99/mo | Per-user, feature-gated | HIPAA complexity overhead; pricing cliff for cash-only solos | MEDIUM |
+| **D3** | DistroKid ($24.99/yr) / Tools 4 Music (free) | Free–$25/yr | Distribution-focused; aftermarket tracking sparse | Aftermarket royalty tracking tools nonexistent; metadata fragmentation | HIGH |
+| **D4** | Meetup ($29.99–55) / Eventbrite (free + fees) | $0–69/mo | Fixed subscription or transaction fees | No-show automation + vendor coordination both absent | HIGH |
+| **D5** | Sync.com ($8/mo) / Box ($100/mo for small team) / Databricks ($1.5k/mo) | $8–1,500/mo | Ranges from individual to enterprise; steep cliff | Small-team affordability; multi-institutional governance friction | HIGH |
+
+---
+
 **Next Steps:**
-1. Nadia completes tick-1 demand-side evidence (D1–D5)
-2. Tick-2 refinement: Cross-analyst validation on overlapping pain signals and sufficiency gaps
-3. Tick-3: Finalize long-list evidence pages with gaps labeled
+1. Finalize D1–D5 evidence sufficiency assessment (Long-list readiness)
+2. Cross-check D-lane competitive gaps with Nadia's demand signals for converging pain points
+3. Tick-3: Prepare long-list evidence template with C1–C4 + D1–D5 candidates, labeled gaps
+4. Board decision on research completion (extend tick 2 or proceed with tick 3 finalization)
