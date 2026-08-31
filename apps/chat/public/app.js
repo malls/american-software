@@ -6,7 +6,8 @@ import { renderPreservingScroll } from './scroll.js';
 import { shouldCloseOnEscape, shouldCloseOnBackdropGesture } from './thread-modal.js';
 import { applyMessage, maxLoadedId } from './live.js';
 import { rosterOrder, dmOrder, togglePin, sanitizePins } from './dm-sort.js';
-import { tokenizeMsgRefs } from './msg-refs.js';
+import { tokenizeMsgRefs, tokenizeFileRefs } from './msg-refs.js';
+import { tokenizeInline, parseBlocks } from './markdown.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -64,6 +65,7 @@ const isModifiedClick = (e) => e.metaKey || e.ctrlKey || e.shiftKey || e.altKey 
 // AS-26: one neutral wording for every msg-ref failure — nonexistent and
 // not-visible targets must be indistinguishable (parity invariant).
 const MSG_UNAVAILABLE = "That message isn't available.";
+const FILE_UNAVAILABLE = "That file isn't available.";
 
 function syncUrl(mode /* 'push' | 'replace' | 'none' */) {
   if (mode === 'none') return;
@@ -163,7 +165,21 @@ function msgRefLink(tok) {
   return a;
 }
 
-/** Append a plain-text leaf with every ref pass applied, in order. */
+/** Repo markdown reference (AS-26 §5): plain click opens the in-app viewer.
+ *  No href in v1 — there is no standalone page for a file. */
+function fileRefLink(tok) {
+  const a = el('a', 'ref-link file-ref', tok.text);
+  a.title = tok.path;
+  a.addEventListener('click', (e) => {
+    if (isModifiedClick(e)) return;
+    e.preventDefault();
+    openFile(tok.path).catch(() => alert(FILE_UNAVAILABLE));
+  });
+  return a;
+}
+
+/** Append a plain-text leaf with every ref pass applied, in order:
+ *  AS-refs, then msg-refs, then file-refs (the AS-first invariant). */
 function appendRefLeaf(parent, text, refs) {
   for (const seg of tokenizeAsRefs(text, refs)) {
     if (seg.type === 'asref') {
@@ -171,17 +187,47 @@ function appendRefLeaf(parent, text, refs) {
       continue;
     }
     for (const tok of tokenizeMsgRefs(seg.text)) {
-      if (tok.type === 'msgref') parent.appendChild(msgRefLink(tok));
-      else parent.appendChild(document.createTextNode(tok.text));
+      if (tok.type === 'msgref') {
+        parent.appendChild(msgRefLink(tok));
+        continue;
+      }
+      for (const f of tokenizeFileRefs(tok.text)) {
+        if (f.type === 'fileref') parent.appendChild(fileRefLink(f));
+        else parent.appendChild(document.createTextNode(f.text));
+      }
     }
   }
 }
 
-/** Body text with AS-n refs and msg refs turned into safe link elements. */
+/**
+ * Body text as a structure-first pipeline (AS-26 §6): tokenizeInline over the
+ * whole body, then the ref passes over every plain-text leaf — top-level text
+ * tokens AND the inner of strong/em/code/link tokens (so `**see msg 5**` is a
+ * bold span containing a working link, and a backticked path is a code span
+ * containing a working file ref). Zero innerHTML anywhere — tokenizers emit
+ * text and structure, never markup.
+ */
 function bodyNode(message) {
   const div = el('div', 'body');
   const refs = (message.refs || []).filter((r) => r.exists);
-  appendRefLeaf(div, message.body, refs);
+  for (const tok of tokenizeInline(message.body)) {
+    if (tok.type === 'text') {
+      appendRefLeaf(div, tok.text, refs);
+      continue;
+    }
+    if (tok.type === 'link') {
+      const a = el('a', 'md-link');
+      a.href = tok.href; // http/https only — the tokenizer's scheme allowlist
+      a.target = '_blank';
+      a.rel = 'noopener';
+      appendRefLeaf(a, tok.inner, refs);
+      div.appendChild(a);
+      continue;
+    }
+    const wrap = el(tok.type === 'strong' ? 'strong' : tok.type === 'em' ? 'em' : 'code');
+    appendRefLeaf(wrap, tok.inner, refs);
+    div.appendChild(wrap);
+  }
   return div;
 }
 
@@ -654,6 +700,64 @@ async function goToMessage(id) {
   syncUrl('push'); // one history entry for the whole navigation
 }
 
+// --- in-app file viewer (AS-26 §5) ------------------------------------------
+// Repo markdown only, through the gated /api/file endpoint. View-local state:
+// never in the URL (f= is explicitly out of scope in v1), never persisted.
+
+/** Inline token -> DOM, styling only (viewer content gets no ref passes). */
+function appendInlineToken(parent, tok) {
+  if (tok.type === 'text') {
+    parent.appendChild(document.createTextNode(tok.text));
+  } else if (tok.type === 'link') {
+    const a = el('a', 'md-link', tok.inner);
+    a.href = tok.href;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    parent.appendChild(a);
+  } else {
+    parent.appendChild(el(tok.type === 'strong' ? 'strong' : tok.type === 'em' ? 'em' : 'code', null, tok.inner));
+  }
+}
+
+function renderFileViewer(path, content) {
+  $('#file-title').textContent = path;
+  const nodes = [];
+  for (const b of parseBlocks(content)) {
+    if (b.type === 'heading') {
+      // Styled divs, not real h1s — a viewed file must not outrank the app's
+      // own document structure.
+      nodes.push(el('div', `md-h${b.level}`, b.text));
+    } else if (b.type === 'code') {
+      const pre = el('pre', 'md-code-block');
+      pre.appendChild(el('code', null, b.text));
+      nodes.push(pre);
+    } else {
+      // Paragraph: hard line breaks preserved (pre-wrap), list lines render
+      // as plain lines with their bullet characters intact (v1).
+      const p = el('div', 'md-para');
+      for (const tok of tokenizeInline(b.text)) appendInlineToken(p, tok);
+      nodes.push(p);
+    }
+  }
+  $('#file-body').replaceChildren(...nodes);
+  $('#file-modal').hidden = false;
+}
+
+async function openFile(path) {
+  let data;
+  try {
+    data = await api(`/api/file?path=${encodeURIComponent(path)}`);
+  } catch {
+    alert(FILE_UNAVAILABLE); // 404 and failure: byte-identical wording
+    return;
+  }
+  renderFileViewer(data.path, data.content);
+}
+
+function closeFileModal() {
+  $('#file-modal').hidden = true;
+}
+
 // --- DM typeahead (AS-6) ----------------------------------------------------
 // Inline combobox over the already-loaded identity map — no new endpoint.
 // Rendering stays textContent-only, like everything else in this file.
@@ -1027,10 +1131,19 @@ async function init() {
     threadPointerDown = null; // one gesture, one answer
     if (shouldCloseOnBackdropGesture(e, down)) closeThread();
   });
+  // AS-26 §5: file viewer close wiring (button + Esc; no backdrop gesture —
+  // the plan scopes dismissal to those two).
+  $('#file-close').addEventListener('click', () => closeFileModal());
   // AS-19: document-level Escape, live only while the modal is visible.
   // defaultPrevented is respected so the DM typeahead's own Escape (which
   // preventDefaults on its input before the event reaches document) wins.
+  // AS-26: the file viewer stacks above the thread modal — Esc closes the
+  // top-most one only.
   document.addEventListener('keydown', (e) => {
+    if (shouldCloseOnEscape(e, $('#file-modal').hidden)) {
+      closeFileModal();
+      return;
+    }
     if (shouldCloseOnEscape(e, $('#thread-modal').hidden)) closeThread();
   });
   $('#task-panel-close').addEventListener('click', () => ($('#task-panel').hidden = true));

@@ -100,6 +100,28 @@ with one identical neutral message — the API 404s are byte-identical by
 design. The tokenizer is the pure module `public/msg-refs.js`
 (`test/msg-refs.test.js`).
 
+## Repo file links & inline markdown (AS-26)
+
+Repo-relative `*.md` paths in message bodies (bare `README.md` or backticked
+`` `apps/chat/README.md` ``; `.lattice/…` is the only dot-leading segment
+allowed) render as links that open an in-app viewer. The viewer fetches
+through `GET /api/file?path=…` — a traversal-hardened gate: strict charset,
+segment rules, realpath-prefix containment (symlink-escape proof), regular
+file, 512 KB cap. Every rejection 404s byte-identically to a nonexistent
+file; only the size cap is a distinct 400. The endpoint has no `me` gate
+because everything under it is repo-public by construction — which is one
+more reason the AS-6 rule stays load-bearing: private-channel content must
+never be written to a `*.md` file in the repo.
+
+Inline markdown in message bodies is stylized: `**bold**`, `*em*`/`_em_`,
+`` `code` ``, and `[text](https://…)` (http/https only — `javascript:` stays
+literal). Everything runs through pure tokenizers (`public/markdown.js`)
+that emit text and structure, never markup; DOM assembly is
+`textContent`-only — no raw HTML anywhere. Block markdown typed into chat
+(headings, lists) intentionally stays literal; blocks render only in the
+file viewer. The message input stays plain text: no preview pane, no `\*`
+escaping in v1 (literal asterisks belong in code spans).
+
 ## Links to Lattice (AS-10)
 
 The outbound direction: resolvable `AS-n` refs in any message (including

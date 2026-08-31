@@ -73,6 +73,21 @@
       </div>
     </div>
 
+    <!-- AS-26 §5: in-app file viewer, patterned on the thread modal. Title
+         bar shows the repo-relative path; close button + Esc dismiss. Body
+         content is rendered by the safe block renderer in app.js — headings,
+         fenced code, inline styles, everything via textContent. -->
+    <div id="file-modal" hidden>
+      <div id="file-dialog" role="dialog" aria-modal="true"
+           aria-labelledby="file-title" tabindex="-1">
+        <header>
+          <span id="file-title"></span>
+          <button id="file-close" title="Close file">×</button>
+        </header>
+        <div id="file-body"></div>
+      </div>
+    </div>
+
     <div id="task-panel" hidden>
       <header>
         <span id="task-panel-code"></span>

@@ -680,17 +680,31 @@ test('api: AS-18 — dm-sort.js is served (app.js module graph must not 404)', a
 
 // --- AS-26: message permalinks --------------------------------------------
 
-test('api: AS-26 — msg-refs.js is served (app.js module graph must not 404)', async (t) => {
+test('api: AS-26 — msg-refs.js and markdown.js are served; index.html ships the file modal', async (t) => {
   const { base } = await bootServer(t);
-  const mod = await fetch(base + '/msg-refs.js');
-  assert.equal(mod.status, 200);
-  assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
-  assert.match(await mod.text(), /tokenizeMsgRefs/);
+  for (const [path, marker] of [
+    ['/msg-refs.js', /tokenizeMsgRefs/],
+    ['/markdown.js', /tokenizeInline/],
+  ]) {
+    const mod = await fetch(base + path);
+    assert.equal(mod.status, 200, path);
+    assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+    assert.match(await mod.text(), marker);
+  }
 
-  // The served app.js actually imports it and ships the permalink affordance.
+  // The served app.js actually imports both and ships the permalink affordance.
   const app = await (await fetch(base + '/app.js')).text();
   assert.match(app, /from '\.\/msg-refs\.js'/, 'body pipeline goes through msg-refs.js');
+  assert.match(app, /from '\.\/markdown\.js'/, 'inline styling goes through markdown.js');
   assert.match(app, /msg-permalink/, 'meta row carries the permalink anchor');
+  assert.doesNotMatch(app, /\.innerHTML/, 'zero innerHTML use — the house rule holds');
+
+  // The served page carries the file-viewer modal skeleton.
+  const html = await (await fetch(base + '/')).text();
+  assert.match(html, /id="file-modal"/);
+  for (const id of ['file-dialog', 'file-title', 'file-body', 'file-close']) {
+    assert.match(html, new RegExp(`id="${id}"`), `viewer id ${id} present`);
+  }
 });
 
 test('api: AS-26 — GET /api/message/<id> resolves navigation data; hidden = nonexistent byte-identically', async (t) => {
