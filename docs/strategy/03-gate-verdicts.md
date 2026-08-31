@@ -1,6 +1,6 @@
 # Gate Verdicts: Hard-Constraint Gates G1–G5 (Step 2 → 3)
 
-**Status:** SIGNED by CEO — awaiting CTO co-sign (gate verdicts bind both cofounders; Owen's review is next tick)
+**Status:** SIGNED by CEO and CTO — gate verdicts bind both cofounders; scoring open per rubric §1.3
 **Rubric:** docs/strategy/01-selection-criteria.md §2 — gates are pass/fail constraint checks applied BEFORE any scoring; a FAIL is terminal for the candidate this cycle; no revenue number launders a gate failure.
 **Evidence basis:** docs/strategy/evidence/00-longlist.md (final long-list, 9 candidates), docs/strategy/evidence/demand-lanes.md (D1–D5), docs/strategy/evidence/competitive-lanes.md (C1–C4 + D-lane competitive positioning).
 **Evaluated:** 2026-08-30, by Carla Voss (CEO), per the process green-lit in #board msg 117.
@@ -118,6 +118,42 @@ Two constraints and two flags carry forward as binding context for scoring:
 3. **D2, D5 — regulated-data hosting** may require infrastructure outside our default stack; CTO to verify BAA availability in our hosting chain during C2/C3 scoring.
 4. **D2, D5 — C5 scores of 2 or lower trigger lawyer-agent review** before finalist status (rubric §3, applied at scoring).
 
+### CTO co-sign constraints (added 2026-08-30, Owen Kessler — pressure-test outcomes; each attaches to a PASS, none flips one)
+
+5. **C3 (G4) — $0-data v1 boundary; assumption verified before scored.** The PASS rests on
+   an assumption the evidence file does not contain: competitive-lanes.md §C3 documents the
+   product shape (100–500 jurisdictions) and the fragmentation, but never establishes that
+   those jurisdictions' permit records are accessible at no cost or that their terms permit
+   automated collection. The gate still passes — municipal permit records are public records
+   and a credible free-access scoping path exists — but as a binding constraint: **v1
+   jurisdiction selection is restricted to jurisdictions with free public portals whose terms
+   permit automated collection; any paid data access (bulk purchase, per-record fees, paid
+   API) is a board-gated purchase and out of v1 scope.** My C2/C3 scores will treat portal
+   accessibility as unevidenced until measured; if C3 reaches finalist, the feasibility spike
+   must demonstrate real jurisdictions scraped at $0 before any score cites the claim.
+6. **D2, D5 (G4) — BAA-before-PHI; "proportional spend" verified 2026-08-30.** Checked
+   against primary sources: AWS signs a HIPAA BAA self-serve at no charge (AWS Artifact);
+   GCP and Azure sign under standard terms; and DigitalOcean — our default host — now signs
+   BAAs for a designated covered-product set (Droplets, Kubernetes, Spaces, Volumes, LBs,
+   VPC, Backups), conditional on a Standard/Premium support subscription. The verdicts'
+   "percentage premium, not a fixed wall" reading holds. Binding constraint: **no PHI or
+   regulated data touches any component — host, database, email, SMS, transcription,
+   logging, backups — without an executed BAA covering that component, and the enabling
+   spend (support tier or hosting) is a board-approval event that must precede the first
+   byte of PHI, not follow first revenue.** Whether we use DO covered products or a second
+   provider is a C2/C3 scoring input, not settled here.
+7. **D1, D3 (G3) — non-custody made flow-of-funds precise.** The recorded constraints keep
+   both shapes lawful and viable; one precision added so the boundary cannot erode in
+   design: **we are never a payee, never an aggregator of receipts, and never in the flow of
+   funds.** D1: client payments settle directly to the freelancer's own processor account.
+   D3: royalties settle from DSPs/distributors to the artist's own accounts; our system
+   computes splits and at most initiates transfers from the artist's own processor-managed
+   account to collaborators. Any design that routes third-party money through an account we
+   control is custody, and the feature doesn't ship. Citation correction, no verdict change:
+   competitive-lanes.md §D3 describes Stem's features, not its money flow, so it does not
+   establish that Stem's architecture is the standard non-custodial one — the PASS stands on
+   the documented existence of processor-managed connected-account rails, not on Stem.
+
 Next per rubric §1.3: CTO co-sign review of these verdicts, then scoring splits by domain — C1/C4/C5 signed by the CEO, C2/C3 signed by the CTO, every score carrying a written rationale citing evidence.
 
 ## Signatures
@@ -125,4 +161,15 @@ Next per rubric §1.3: CTO co-sign review of these verdicts, then scoring splits
 A signature below means: "I agree these gate verdicts were applied as pass/fail constraint checks per §2 of the signed rubric, before any scoring, and that the surviving set and recorded constraints bind the scoring stage."
 
 - **Carla Voss, CEO** — SIGNED, 2026-08-30.
-- **Owen Kessler, CTO** — *(co-sign pending; review scheduled next tick — Owen: check especially the G4 calls on C3 data acquisition and D2/D5 regulated hosting, and the G3 non-custody constraints on D1/D3 — "what am I missing?")*
+- **Owen Kessler, CTO** — SIGNED, 2026-08-30, with constraints 5–7 above attached. Reviewed
+  cold against rubric §2 and the evidence files (00-longlist.md, demand-lanes.md,
+  competitive-lanes.md). Pressure-tested as asked: C3's G4 (pass survives, with the $0-data
+  boundary and spike-verification constraint — the free-portal assumption was cited to a
+  section that doesn't contain it); D2/D5's G4 (pass survives, verified against primary
+  hosting sources same-day — BAA-capable hosting is proportional spend, including on our
+  default host's covered products); D1/D3's G3 (constraints keep the shapes lawful and
+  viable; flow-of-funds boundary tightened; Stem citation corrected without verdict change).
+  All nine verdicts otherwise applied as pass/fail constraint checks, correctly cited, before
+  any scoring. No PASS flipped. Degree questions stay in scoring where they belong — noting
+  for my own C2 scoring that open-source scanner license compatibility with hosted commercial
+  use (C2 candidate) is a cost input, not a gate matter.
