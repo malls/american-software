@@ -23,17 +23,17 @@
     }
   ],
   "id": "task_01M1C5EK9EP82NFSS9DZF43V7T",
-  "last_event_id": "ev_01M1CWBGC6S4M0QQ79A08HQXGM",
-  "last_status_changed_at": "2026-08-31T20:59:08Z",
+  "last_event_id": "ev_01M1CWENM01M1BK9ZADZWCVM19",
+  "last_status_changed_at": "2026-08-31T21:43:51Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-29",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Design tokens + static style reference derived from BRANDING.md",
   "type": "task",
-  "updated_at": "2026-08-31T21:42:07Z",
+  "updated_at": "2026-08-31T21:43:51Z",
   "urgency": null
 }
