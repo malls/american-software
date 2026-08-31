@@ -28,10 +28,23 @@ services:
       - LATTICE_DASHBOARD_URL # dashboard link base (AS-10); unset -> app default
     volumes:
       - ./data:/app/data
-      - ../../.lattice:/repo/.lattice:ro
-      # AS-8: read-only roster source. Missing mount degrades to an empty
-      # roster (DM-only sidebar) — never a crash.
-      - ../../personnel:/repo/personnel:ro
+      # AS-26 cycle 2: the WHOLE repo, read-only, at the baked CHAT_REPO_ROOT.
+      # /api/file serves any repo-relative *.md that passes its gate — the
+      # top-level README/PHILOSOPHY/CLAUDE idioms included — so the mount must
+      # cover the same scope the tokenizer links; the previous narrow
+      # .lattice+personnel pair left those headline paths 404ing in the only
+      # supported deployment (cycle-1 blocking finding). Narrower alternatives
+      # were weighed and lose: per-file binds pin inodes (git checkout
+      # replaces top-level .md files -> stale content/ENOENT), and a directory
+      # allowlist regrows this bug on the next cited path. Boundaries that
+      # remain: :ro at the kernel, and the server's gate (only .md regular
+      # files; every dot-leading segment except a first '.lattice' 404s, so
+      # .git/.claude/.worktrees are categorically unreachable; realpath
+      # containment defeats symlink escape). This mount also carries .lattice
+      # and personnel, so AS-8's missing-mount degradation (empty roster,
+      # never a crash) is unchanged in kind. Pinned by
+      # test/deploy-shape.test.js — update both together.
+      - ../..:/repo:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8347/api/identities').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
