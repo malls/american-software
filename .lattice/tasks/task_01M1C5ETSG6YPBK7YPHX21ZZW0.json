@@ -8,13 +8,13 @@
       "repo": null
     }
   ],
-  "comment_count": 19,
+  "comment_count": 27,
   "complexity": "high",
   "created_at": "2026-08-31T15:01:59Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Phase B1 of the front-end design plan (docs/design/00-frontend-design-plan.md, board msg 283). HARD GATE: starts only after the board's explicit step-5 green-light on the decision memo (docs/strategy/07-decision-memo.md \u00a74) \u2014 the memo recommends D1 (freelancer invoicing/contract automation) but the recommendation is not a decision, and its named falsifier (demand validation via warm intros) is still open. Held at needs_human until the board answers step 5. After the gate, for the green-lit product: numbered user flows for the core loop (if D1: onboard \u2192 connect payments \u2192 contract \u2192 invoice \u2192 get paid \u2192 reminders), screen inventory under a hard screen budget agreed with the CTO at kickoff, complete states ledger per screen (loading/empty/error/permission-denied/abandonment), and low-fidelity static HTML wireframes under docs/design/wireframes/ consuming the AS-29 tokens (depends_on AS-29). Acceptance: handoff contract in plan doc section 5 \u2014 a developer-agent can implement without asking a design question. No framework/stack commitment is implied by this task; stack choice is a separate later decision.",
-  "done_at": null,
+  "done_at": "2026-09-01T20:13:51Z",
   "evidence_refs": [
     {
       "id": "ev_01M1F08RHK51RA9FBBJRFFDBFC",
@@ -60,11 +60,46 @@
       "id": "ev_01M1F693K11FH0REY47PTM1ZTB",
       "role": "review",
       "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1F8GGFAM471G27GW50CA7W6",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1F8W1XAGDNTHPKH6WRAZPWV",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1F8X13HYTKTDYHZ6B7R5DQR",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1F994WYXGYWPGF2FJCF52ZD",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1F9BTK1637ZG532V0DVBR4T",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1F9HPT6DFRTDBJNBZZ31SS1",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1F9JKJTG0XRCA07M61JJHN8",
+      "role": "review",
+      "source_type": "comment"
     }
   ],
   "id": "task_01M1C5ETSG6YPBK7YPHX21ZZW0",
-  "last_event_id": "ev_01M1F81WHKZBKJ3J2KRV9SQF89",
-  "last_status_changed_at": "2026-09-01T19:45:03Z",
+  "last_event_id": "ev_01M1F9PM1960WXQC08PF2X5GY7",
+  "last_status_changed_at": "2026-09-01T20:13:51Z",
   "priority": "high",
   "relationships_out": [
     {
@@ -78,10 +113,10 @@
   "reopened_count": 3,
   "schema_version": 1,
   "short_id": "AS-30",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "Product core-loop UX: flows, states ledger, static wireframes (step-5 gated)",
   "type": "task",
-  "updated_at": "2026-09-01T19:45:04Z",
+  "updated_at": "2026-09-01T20:13:52Z",
   "urgency": null
 }
