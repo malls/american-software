@@ -69,11 +69,14 @@ body {
 }
 
 .visually-hidden {
+  /* The standard clip-to-nothing accessibility idiom needs a non-zero box; the
+     nearest named token is --border-width-hairline (1px), reused here rather than
+     writing a literal — see the file header note on tracing every value to a token. */
   position: absolute;
-  width: 1px;
-  height: 1px;
+  width: var(--border-width-hairline);
+  height: var(--border-width-hairline);
   padding: 0;
-  margin: -1px;
+  margin: calc(var(--border-width-hairline) * -1);
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
@@ -567,8 +570,14 @@ tbody tr:last-child td {
 }
 
 .line-item-row .field {
-  flex: 1 1 10rem;
+  flex: 1 1 100%; /* structural: mobile-first, one field per line at the 375px floor */
   margin: 0;
+}
+
+@media (min-width: 480px) { /* --breakpoint-sm */
+  .line-item-row .field {
+    flex: 1 1 0; /* structural: distribute evenly once there's room to sit side-by-side */
+  }
 }
 
 /* ---------------------------------------------------------------------------------
