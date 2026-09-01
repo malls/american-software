@@ -9,3 +9,4 @@
 {"actor":"agent:cto-owen","data":{"from":"backlog","to":"in_planning"},"id":"ev_01M1ET6JMC5V9H37SGMXASAEW5","schema_version":1,"task_id":"task_01M1C5ETSG6YPBK7YPHX21ZZW0","ts":"2026-09-01T15:42:57Z","type":"status_changed"}
 {"actor":"agent:cto-owen","data":{"from":"in_planning","to":"planned"},"id":"ev_01M1ETFJ9GZGTNYHC56FZWV4DA","schema_version":1,"task_id":"task_01M1C5ETSG6YPBK7YPHX21ZZW0","ts":"2026-09-01T15:47:52Z","type":"status_changed"}
 {"actor":"agent:cto-owen","data":{"branch":"feat/AS-30-core-loop-ux"},"id":"ev_01M1ETFPNSXCPQK9C4YGP6JTSQ","schema_version":1,"task_id":"task_01M1C5ETSG6YPBK7YPHX21ZZW0","ts":"2026-09-01T15:47:56Z","type":"branch_linked"}
+{"actor":"agent:cto-owen","data":{"from":"planned","to":"in_progress"},"id":"ev_01M1EWV5H430XX5T4XCRP8VBG3","schema_version":1,"task_id":"task_01M1C5ETSG6YPBK7YPHX21ZZW0","ts":"2026-09-01T16:29:09Z","type":"status_changed"}
