@@ -2,3 +2,7 @@ apps/chat/data/*
 !apps/chat/data/export/
 .worktrees/
 apps/invoicing/node_modules/
+# Local secrets (AS-51): Stripe test-mode credentials live here and only here.
+# Never committed; compose gains an env_file reference to it in AS-38.
+apps/invoicing/.env.local
+*.env.local

@@ -1,7 +1,7 @@
 {
   "assigned_to": null,
   "branch_links": [],
-  "comment_count": 1,
+  "comment_count": 2,
   "complexity": "low",
   "created_at": "2026-08-31T23:40:44Z",
   "created_by": "agent:cto-owen",
@@ -10,7 +10,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34PGX4S2QYCP80ZH4QXF4",
-  "last_event_id": "ev_01M1D35Q2BX74TRA0PYSSSPCE4",
+  "last_event_id": "ev_01M1EWBXAKBQJ5Y812YY4BHYA2",
   "last_status_changed_at": "2026-08-31T23:41:17Z",
   "priority": "high",
   "relationships_out": [],
@@ -26,6 +26,6 @@
   ],
   "title": "Board ask: free Stripe test-mode account with Connect, for v1 acceptance",
   "type": "task",
-  "updated_at": "2026-08-31T23:41:17Z",
+  "updated_at": "2026-09-01T16:20:49Z",
   "urgency": null
 }
