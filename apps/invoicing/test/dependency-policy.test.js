@@ -170,7 +170,10 @@ function stripComments(source, { ejs = false } = {}) {
 }
 
 test('the comment stripper works, in both directions', () => {
-  assert.equal(stripComments('a // no fetch( here\nb').trim(), 'a\nb');
+  // Note the retained space before the stripped `//`: the stripper removes the
+  // comment, not the whitespace around it. Asserting the exact output keeps
+  // this honest rather than trimming until it agrees.
+  assert.equal(stripComments('a // no fetch( here\nb'), 'a \nb');
   assert.equal(stripComments('a /* no stripe */ b'), 'a  b');
   assert.equal(stripComments('<%# a comment %>x', { ejs: true }), 'x');
   // It must NOT strip a comment-looking sequence inside a string, or a real
@@ -179,12 +182,19 @@ test('the comment stripper works, in both directions', () => {
   assert.ok(stripComments('fetch("/a") // comment').includes('fetch("/a")'));
 });
 
-/** Every app source file — deliberately NOT test/, where the helper legitimately
- *  fetches its own loopback listener. */
+/** Every app source file.
+ *
+ *  Deliberately NOT test/, where the helper legitimately fetches its own
+ *  loopback listener. Deliberately NOT vendor/ either: those bytes are consumed
+ *  from outside this app and are not ours to hold to app rules — and vendor/
+ *  exists only inside the image, so including it would make this scan's file
+ *  set differ between a host checkout and the container. What lands in vendor/
+ *  is bounded instead by VENDOR_ASSETS, whose cardinality assets.test.js pins
+ *  at exactly one. */
 function appSourceFiles(dir = APP_DIR) {
   const found = [];
   for (const entry of readdirSync(dir).sort()) {
-    if (entry === 'node_modules' || entry === 'test') continue;
+    if (entry === 'node_modules' || entry === 'test' || entry === 'vendor') continue;
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) {
       found.push(...appSourceFiles(path));

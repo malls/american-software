@@ -132,8 +132,16 @@ const IGNORE_PATTERNS = DOCKERIGNORE_TEXT.split('\n')
   .map((line) => line.trim())
   .filter((line) => line !== '' && !line.startsWith('#'));
 
+/** The Dockerfile's INSTRUCTIONS, with comment lines removed. The Dockerfile
+ *  documents itself heavily — including the sentence "npm ci — NEVER npm
+ *  install" — so a scan of the raw text would count its own prose as code and
+ *  report a violation that is not there. Comments are stripped once, here. */
+const DOCKERFILE_CODE = DOCKERFILE.split('\n')
+  .filter((line) => !/^\s*#/.test(line))
+  .join('\n');
+
 /** Every COPY instruction, as { sources: string[], dest: string }. */
-const COPIES = DOCKERFILE.split('\n')
+const COPIES = DOCKERFILE_CODE.split('\n')
   .map((line) => line.trim())
   .filter((line) => /^COPY\s/.test(line))
   .map((line) => {
@@ -151,7 +159,11 @@ test('deploy-shape: the parsers read the manifests they are about to assert on',
   assert.deepEqual(Object.keys(SERVICES), ['web', 'test']);
   assert.equal(COPIES.length, 9, `expected 9 COPY instructions, found ${COPIES.length}`);
   assert.equal(IGNORE_PATTERNS.length, 5, `expected 5 .dockerignore patterns, found ${IGNORE_PATTERNS.length}`);
-  assert.match(DOCKERFILE, /^FROM /m);
+  assert.match(DOCKERFILE_CODE, /^FROM /m);
+  // The comment stripper must not have eaten the instructions it is filtering
+  // for — a stripper that returned nothing would make every scan below vacuous.
+  assert.ok(DOCKERFILE_CODE.includes('npm ci'), 'stripping comments left the instructions intact');
+  assert.ok(DOCKERFILE.includes('NEVER npm install'), 'the raw file DOES contain the phrase the scan must not trip on');
 });
 
 test('deploy-shape: the parser rejects shapes it does not understand', () => {
@@ -247,7 +259,7 @@ test('deploy-shape: the amd64 platform pin is set where it actually takes effect
 // --- the Dockerfile ----------------------------------------------------------
 
 test('deploy-shape: the base image is pinned to an exact patch, not a floating tag', () => {
-  const from = /^FROM\s+(\S+)/m.exec(DOCKERFILE);
+  const from = /^FROM\s+(\S+)/m.exec(DOCKERFILE_CODE);
   assert.ok(from, 'Dockerfile has a FROM');
   assert.equal(from[1], 'node:24.20.0-slim');
   assert.match(from[1], /^node:\d+\.\d+\.\d+-slim$/, 'exact patch pin — a floating tag is how a runtime changes under us');
@@ -256,8 +268,8 @@ test('deploy-shape: the base image is pinned to an exact patch, not a floating t
 test('deploy-shape: dependencies are installed with npm ci, never npm install', () => {
   // npm install can rewrite the lockfile mid-build, which would silently
   // un-pin the 65 transitive packages the lockfile is there to pin.
-  assert.match(DOCKERFILE, /npm ci\b/);
-  assert.ok(!/npm\s+install/.test(DOCKERFILE), 'npm install must not appear in the Dockerfile');
+  assert.match(DOCKERFILE_CODE, /npm ci\b/);
+  assert.ok(!/npm\s+install/.test(DOCKERFILE_CODE), 'npm install must not appear in the Dockerfile');
   assert.equal(COPIES.filter((c) => c.sources.some((s) => s.endsWith('package-lock.json'))).length, 1, 'the lockfile is COPY\'d before the install');
 });
 
