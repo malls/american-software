@@ -637,7 +637,12 @@ tbody tr:last-child td {
  * Print — Screen 7 only, scoped by [data-print-doc] on <body> (01-screens.md; plan
  * file §5.3). Chrome, labels, and navigation furniture hide on every page when
  * printed; a page carrying [data-print-doc] additionally collapses to just the state
- * section marked .state--printable, so the printed sheet is the document alone.
+ * section marked .state--printable, so the printed sheet carries one state, not six.
+ * It is NOT the document alone (corrected in review cycle 3 — the previous wording
+ * claimed it was, and the print-media check disproves it): the page <h1>, the
+ * page-level [data-wf-note] route annotation, and the Print/Download actions all sit
+ * outside .doc-region and still print. This file is a design-doc artifact and its
+ * print block previews the document region; it is not a production print stylesheet.
  * The placeholder-body warning and the CC BY 4.0 line are inside .doc-region and are
  * never targeted by any rule below, so both survive into print (plan file §3, §7.10).
  * ------------------------------------------------------------------------------- */
