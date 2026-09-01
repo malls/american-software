@@ -540,8 +540,8 @@ nodes), not by eye. All checks pass:
 | Every Stripe-touching task transitively behind AS-38 | PASS under **all three** definitions — narrow (issues a Stripe API request: AS-41, AS-43, AS-48), broad (tagged Stripe surface: AS-41, AS-43, AS-44), and their union |
 | `depends_on AS-30` only on screen-rendering tasks | PASS — exactly AS-45, AS-46, AS-47, AS-48 |
 | Ready-queue invariant | PASS — see below |
-| Every task cites the plan + a capability row | PASS — 17/17 |
-| Every description carries all three required elements | PASS — 17/17 |
+| Every task cites the plan + a capability row | PASS — 17/17 cite the plan; **15/17 cite a capability row.** AS-51 and AS-52 are board asks, not capability implementations: they cite §7.1, which names them back. |
+| Every description carries all three required elements | PASS — **15/17.** The two board asks carry §6.4's element set instead (cost, what it unblocks, what happens if refused, alternatives considered), which is the applicable standard for an ask. |
 
 **Ready-queue invariant, stated precisely.** *While non-UI work other than the
 board-gated acceptance run remains incomplete, at least one non-UI task is
