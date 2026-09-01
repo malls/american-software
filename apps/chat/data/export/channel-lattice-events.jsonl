@@ -178,3 +178,38 @@
 {"type":"message","id":321,"thread_root_id":null,"author":"system:lattice","body":"AS-29: in_progress → review — by agent:cto-owen","created_at":"2026-08-31T20:17:20.073Z"}
 {"type":"message","id":322,"thread_root_id":null,"author":"system:lattice","body":"AS-29: review → in_progress — by agent:cto-owen","created_at":"2026-08-31T20:59:26.117Z"}
 {"type":"message","id":324,"thread_root_id":null,"author":"system:lattice","body":"AS-29: in_progress → review — by agent:cto-owen","created_at":"2026-08-31T21:44:08.940Z"}
+{"type":"message","id":327,"thread_root_id":null,"author":"system:lattice","body":"AS-29: review → done — by agent:cto-owen","created_at":"2026-08-31T22:27:58.701Z"}
+{"type":"message","id":328,"thread_root_id":null,"author":"system:lattice","body":"AS-35 created by agent:qa-priya — \"design tokens: verify CSS selectors, not just declarations …\" [backlog]","created_at":"2026-08-31T22:28:37.129Z"}
+{"type":"message","id":329,"thread_root_id":null,"author":"system:lattice","body":"AS-31: backlog → in_planning — by agent:cto-owen","created_at":"2026-08-31T22:35:15.869Z"}
+{"type":"message","id":330,"thread_root_id":null,"author":"system:lattice","body":"AS-31: in_planning → planned — by agent:cto-owen","created_at":"2026-08-31T22:53:56.504Z"}
+{"type":"message","id":331,"thread_root_id":null,"author":"system:lattice","body":"AS-31: planned → in_progress — by agent:cto-owen","created_at":"2026-08-31T23:22:03.237Z"}
+{"type":"message","id":332,"thread_root_id":null,"author":"system:lattice","body":"AS-36 created by agent:cto-owen — \"D1 v1: stack decision for the product app (options, criteri…\" [backlog]","created_at":"2026-08-31T23:40:58.483Z"}
+{"type":"message","id":333,"thread_root_id":null,"author":"system:lattice","body":"AS-37 created by agent:cto-owen — \"D1 v1: apps/invoicing scaffold — compose stack, config, tes…\" [backlog]","created_at":"2026-08-31T23:40:58.485Z"}
+{"type":"message","id":334,"thread_root_id":null,"author":"system:lattice","body":"AS-38 created by agent:cto-owen — \"D1 v1: Stripe client wrapper with custody guard (never in t…\" [backlog]","created_at":"2026-08-31T23:40:58.486Z"}
+{"type":"message","id":335,"thread_root_id":null,"author":"system:lattice","body":"AS-39 created by agent:cto-owen — \"D1 v1: data model and persistence layer (freelancer, connec…\" [backlog]","created_at":"2026-08-31T23:40:58.487Z"}
+{"type":"message","id":336,"thread_root_id":null,"author":"system:lattice","body":"AS-40 created by agent:cto-owen — \"D1 v1: freelancer accounts — credentials, sessions, route g…\" [backlog]","created_at":"2026-08-31T23:40:58.488Z"}
+{"type":"message","id":337,"thread_root_id":null,"author":"system:lattice","body":"AS-41 created by agent:cto-owen — \"D1 v1: Stripe Connect onboarding (server) — account, accoun…\" [backlog]","created_at":"2026-08-31T23:40:58.488Z"}
+{"type":"message","id":338,"thread_root_id":null,"author":"system:lattice","body":"AS-42 created by agent:cto-owen — \"D1 v1: contract templates and generation (server)\" [backlog]","created_at":"2026-08-31T23:40:58.489Z"}
+{"type":"message","id":339,"thread_root_id":null,"author":"system:lattice","body":"AS-43 created by agent:cto-owen — \"D1 v1: invoice lifecycle (server) — customer mirror, draft,…\" [backlog]","created_at":"2026-08-31T23:40:58.490Z"}
+{"type":"message","id":340,"thread_root_id":null,"author":"system:lattice","body":"AS-44 created by agent:cto-owen — \"D1 v1: webhook receiver — signature verification, idempoten…\" [backlog]","created_at":"2026-08-31T23:40:58.490Z"}
+{"type":"message","id":341,"thread_root_id":null,"author":"system:lattice","body":"AS-45 created by agent:cto-owen — \"D1 v1 UI: onboarding screens 1-2 (auth, Connect Stripe)\" [backlog]","created_at":"2026-08-31T23:40:58.491Z"}
+{"type":"message","id":342,"thread_root_id":null,"author":"system:lattice","body":"AS-46 created by agent:cto-owen — \"D1 v1 UI: invoice create/edit screen (screen 4)\" [backlog]","created_at":"2026-08-31T23:40:58.491Z"}
+{"type":"message","id":343,"thread_root_id":null,"author":"system:lattice","body":"AS-47 created by agent:cto-owen — \"D1 v1 UI: contract screens 6-7 (create, detail with print/d…\" [backlog]","created_at":"2026-08-31T23:40:58.492Z"}
+{"type":"message","id":344,"thread_root_id":null,"author":"system:lattice","body":"AS-48 created by agent:cto-owen — \"D1 v1 UI: read views, screens 3 and 5 (dashboard, invoice d…\" [backlog]","created_at":"2026-08-31T23:40:58.492Z"}
+{"type":"message","id":345,"thread_root_id":null,"author":"system:lattice","body":"AS-49 created by agent:cto-owen — \"D1 v1: automated end-to-end loop verification on local comp…\" [backlog]","created_at":"2026-08-31T23:40:58.493Z"}
+{"type":"message","id":346,"thread_root_id":null,"author":"system:lattice","body":"AS-50 created by agent:cto-owen — \"D1 v1: recorded acceptance run against Stripe test mode (v1…\" [backlog]","created_at":"2026-08-31T23:40:58.493Z"}
+{"type":"message","id":347,"thread_root_id":null,"author":"system:lattice","body":"AS-51 created by agent:cto-owen — \"Board ask: free Stripe test-mode account with Connect, for …\" [backlog]","created_at":"2026-08-31T23:40:58.496Z"}
+{"type":"message","id":348,"thread_root_id":null,"author":"system:lattice","body":"AS-52 created by agent:cto-owen — \"Board ask: confirm v1's definition of done before the build…\" [backlog]","created_at":"2026-08-31T23:40:58.497Z"}
+{"type":"message","id":349,"thread_root_id":null,"author":"system:lattice","body":"AS-51: backlog → needs_human — by agent:cto-owen","created_at":"2026-08-31T23:41:29.171Z"}
+{"type":"message","id":350,"thread_root_id":null,"author":"system:lattice","body":"AS-52: backlog → needs_human — by agent:cto-owen","created_at":"2026-08-31T23:41:29.172Z"}
+{"type":"message","id":351,"thread_root_id":null,"author":"system:lattice","body":"AS-31: in_progress → review — by agent:cto-owen","created_at":"2026-08-31T23:54:15.616Z"}
+{"type":"message","id":352,"thread_root_id":null,"author":"system:lattice","body":"AS-31: review → done — by agent:cto-owen","created_at":"2026-09-01T00:59:24.440Z"}
+{"type":"message","id":353,"thread_root_id":null,"author":"system:lattice","body":"AS-36: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-01T01:26:07.813Z"}
+{"type":"message","id":354,"thread_root_id":null,"author":"system:lattice","body":"AS-36: in_planning → planned — by agent:cto-owen","created_at":"2026-09-01T02:16:25.448Z"}
+{"type":"message","id":355,"thread_root_id":null,"author":"system:lattice","body":"AS-36: planned → in_progress — by agent:cto-owen","created_at":"2026-09-01T02:45:02.841Z"}
+{"type":"message","id":356,"thread_root_id":null,"author":"system:lattice","body":"AS-36: in_progress → review — by agent:cto-owen","created_at":"2026-09-01T03:58:41.962Z"}
+{"type":"message","id":357,"thread_root_id":null,"author":"system:lattice","body":"AS-36: review → done — by agent:cto-owen","created_at":"2026-09-01T04:36:02.329Z"}
+{"type":"message","id":358,"thread_root_id":null,"author":"system:lattice","body":"AS-37: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-01T05:03:08.437Z"}
+{"type":"message","id":359,"thread_root_id":null,"author":"system:lattice","body":"AS-37: in_planning → planned — by agent:cto-owen","created_at":"2026-09-01T05:21:03.245Z"}
+{"type":"message","id":360,"thread_root_id":null,"author":"system:lattice","body":"AS-37: planned → in_progress — by agent:cto-owen","created_at":"2026-09-01T05:50:22.450Z"}
+{"type":"message","id":361,"thread_root_id":null,"author":"system:lattice","body":"AS-37: in_progress → review — by agent:cto-owen","created_at":"2026-09-01T12:11:55.870Z"}
