@@ -1,0 +1,23 @@
+# Repo-root .dockerignore (AS-37).
+#
+# WHY THIS FILE EXISTS AT THE REPO ROOT. apps/invoicing builds with
+# `context: ../..` (the repo root) so the Dockerfile can COPY the single
+# source of visual truth, docs/design/tokens/tokens.css, without checking a
+# second copy of it into the app (plan §5.3). Docker resolves .dockerignore
+# against the build context, so a repo-root context means THIS file — and
+# there was none before this task.
+#
+# This is a correctness file, not a speed file: the raw context is only ~10 MB.
+# The line that matters is apps/chat/data — without it, the company's LIVE
+# internal chat database is baked into the product image.
+#
+# apps/chat is unaffected: apps/chat/compose.yaml builds with `context: .`
+# (= apps/chat), so it keeps using apps/chat/.dockerignore. Nothing else in
+# the repo builds from the repo root.
+#
+# Pinned by apps/invoicing/test/deploy-shape.test.js — update both together.
+.git
+.worktrees
+**/node_modules
+apps/chat/data
+.claude

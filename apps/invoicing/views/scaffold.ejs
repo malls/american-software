@@ -1,0 +1,48 @@
+<%#
+  scaffold.ejs — the ONE non-budgeted page (AS-37, plan §7.5).
+
+  It exists to prove the whole chain in a browser and not just in an assertion:
+  EJS is wired, views/ reached the image, /tokens.css resolves, and the cascade
+  applies. It is NOT one of the seven budgeted screens.
+
+  AS-45 OBLIGATION: delete or replace this file when screen 1 lands, and drop
+  its row from lib/views.js.
+
+  Locals: { heading: string, swatches: string[] }. lib/views.js carries the
+  sampleLocals the health check renders this with — keep the two in step.
+-%>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>apps/invoicing — scaffold</title>
+    <%# The vendored single source of visual truth, served byte-identical by
+        routes/assets.js. Never a local copy. %>
+    <link rel="stylesheet" href="/tokens.css" />
+    <%# App-owned styles, served from public/ by express.static. %>
+    <link rel="stylesheet" href="/scaffold.css" />
+  </head>
+  <body>
+    <main class="scaffold">
+      <h1><%= heading %></h1>
+      <p>
+        This page is the scaffold's end-to-end proof: the template rendered, the
+        vendored stylesheet resolved, and the tokens below are reading their
+        values from <code>/tokens.css</code> through <code>var()</code>. It is
+        not one of the seven budgeted screens, and AS-45 replaces it.
+      </p>
+      <ul class="swatches">
+        <% for (const token of swatches) { %>
+          <li class="swatch">
+            <span class="swatch__chip" style="background: var(--<%= token %>)"></span>
+            <code class="swatch__name">--<%= token %></code>
+          </li>
+        <% } %>
+      </ul>
+      <p class="meta">
+        <a href="/healthz">/healthz</a> · <a href="/tokens.css">/tokens.css</a>
+      </p>
+    </main>
+  </body>
+</html>
