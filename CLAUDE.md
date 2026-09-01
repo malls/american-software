@@ -194,6 +194,8 @@ This is the **QA employee's** job (a `qa-*`). Spawn that employee as a sub-agent
 
 **The test:** If the same employee that wrote the code also reviewed it without a fresh context boundary, the review gate is not doing its job. The whole point is independent verification — no company lets the developer approve their own release.
 
+**Do not brief the answer into the reviewer (learned 2026-09-01, AS-36).** A fresh context boundary is worthless if the orchestrator's tasking message hands over the conclusion. Reviewing AS-36, Priya was asked to independently re-derive a stack ranking — and the prompt had already given her the recommendation, the ranking, and the three decisive byte counts before she opened a file. She flagged it herself: *"My re-derivation was anchored, not blind, and I couldn't un-read it"*, and correctly filed it as a finding against the tick rather than the document. **When a review step asks the reviewer to derive something independently, the tasking message must not contain that thing.** Give the reviewer the deliverable's location, the criteria, and what to check — never the verdict, the ranking, or the numbers that decide it. Context the reviewer genuinely needs (constraints, prior findings, do-not-redo lists) is fine; the answer is not. The anchoring is invisible afterward — a matching independent result is indistinguishable from an anchored one, so the damage is silent and the only defense is not leaking it in the first place.
+
 ### Review Rework Loop
 
 When the QA employee evaluates work, it produces one of three outcomes:
