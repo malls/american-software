@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 11,
+  "comment_count": 16,
   "complexity": "high",
   "created_at": "2026-08-31T15:01:59Z",
   "created_by": "agent:cto-owen",
@@ -40,11 +40,31 @@
       "id": "ev_01M1F11E7P5TQT65F0A9DKVY4T",
       "role": "review",
       "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1F5TC6165PWHR12SHBBY6QD",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1F60NTHG81Y5X92QSYDXA4P",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1F64NV94S0M4T0MJSAJC9JF",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "ev_01M1F693K11FH0REY47PTM1ZTB",
+      "role": "review",
+      "source_type": "comment"
     }
   ],
   "id": "task_01M1C5ETSG6YPBK7YPHX21ZZW0",
-  "last_event_id": "ev_01M1F3WR60C3FGBQ512PVA7P7K",
-  "last_status_changed_at": "2026-09-01T18:32:21Z",
+  "last_event_id": "ev_01M1F6FMC8BSW615HGPS2532MA",
+  "last_status_changed_at": "2026-09-01T19:16:16Z",
   "priority": "high",
   "relationships_out": [
     {
@@ -55,13 +75,13 @@
       "type": "depends_on"
     }
   ],
-  "reopened_count": 2,
+  "reopened_count": 3,
   "schema_version": 1,
   "short_id": "AS-30",
-  "status": "review",
+  "status": "in_progress",
   "tags": null,
   "title": "Product core-loop UX: flows, states ledger, static wireframes (step-5 gated)",
   "type": "task",
-  "updated_at": "2026-09-01T18:32:21Z",
+  "updated_at": "2026-09-01T19:17:37Z",
   "urgency": null
 }
