@@ -46,7 +46,7 @@ acceptance run exercises.
 7. Freelancer selects "New contract" → **Screen 6** (Contract create), `S6-DEFAULT`.
 8. Freelancer has no clients yet → inline client creation (Flow 3, branch "create new").
    - **8a. Validation failure**, contract fields or the inline client fields →
-     `S6-ERROR-VALIDATION` / `S6-ERROR-VALIDATION-CLIENT`; submitted values preserved.
+     `S6-ERROR-VALIDATION` / `S6-CLIENT-ERROR-VALIDATION`; submitted values preserved.
      Corrects, resubmits → continue.
 9. Contract generates → redirect to **Screen 7** (Contract detail), `S7-DEFAULT`. The
    placeholder-body warning and the CC BY 4.0 attribution line are both visible and both
