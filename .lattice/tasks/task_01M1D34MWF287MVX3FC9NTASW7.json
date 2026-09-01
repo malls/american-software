@@ -1,7 +1,14 @@
 {
   "assigned_to": "agent:developer-marcus",
-  "branch_links": [],
-  "comment_count": 0,
+  "branch_links": [
+    {
+      "branch": "feat/AS-37-invoicing-scaffold",
+      "linked_at": "2026-09-01T05:21:10Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:42Z",
   "created_by": "agent:cto-owen",
@@ -10,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34MWF287MVX3FC9NTASW7",
-  "last_event_id": "ev_01M1DPKF04ZMF1FX56MAWJE32R",
+  "last_event_id": "ev_01M1DPN5YQG1QC6N0VTNMM3CPN",
   "last_status_changed_at": "2026-09-01T05:20:51Z",
   "priority": "high",
   "relationships_out": [
@@ -34,6 +41,6 @@
   ],
   "title": "D1 v1: apps/invoicing scaffold \u2014 compose stack, config, test harness, health check",
   "type": "task",
-  "updated_at": "2026-09-01T05:20:51Z",
+  "updated_at": "2026-09-01T05:21:47Z",
   "urgency": null
 }
