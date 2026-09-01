@@ -10,8 +10,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1C5ETSG6YPBK7YPHX21ZZW0",
-  "last_event_id": "ev_01M1D3Q7VCF818Z5911K97CCJ5",
-  "last_status_changed_at": "2026-08-31T15:07:27Z",
+  "last_event_id": "ev_01M1ETFJ9GZGTNYHC56FZWV4DA",
+  "last_status_changed_at": "2026-09-01T15:47:52Z",
   "priority": "high",
   "relationships_out": [
     {
@@ -25,10 +25,10 @@
   "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-30",
-  "status": "backlog",
+  "status": "planned",
   "tags": null,
   "title": "Product core-loop UX: flows, states ledger, static wireframes (step-5 gated)",
   "type": "task",
-  "updated_at": "2026-08-31T23:50:52Z",
+  "updated_at": "2026-09-01T15:47:52Z",
   "urgency": null
 }
