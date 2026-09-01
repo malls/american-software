@@ -134,16 +134,39 @@ not the class, that an implementer — or a script — checks.
 A single element never carries both. Where a control or a sentence is genuinely mixed
 with a note about it (screen 1's mode-switch line originally read "New here? Create an
 account — in the real app this link carries `?mode=signup`…"; screen 4's Finalize
-sentence originally ended "...We do not see or store that email (C-28, C-48)."), the two
-are split into sibling elements — one plain, one `data-wf-note` — never merged into one
-string.
+sentence originally ended "...We do not see or store that email (C-28, C-48)."; screens
+6 and 7's legal-gate banner originally ended "...pending a lawyer-agent review of the
+adapted source template (C-17)…", and screen 7's copy additionally carried a sentence
+about the wireframe's own print behaviour), the two are split into sibling elements —
+one plain, one `data-wf-note` — never merged into one string.
+
+**Product copy may not embed internal citations** (added in review cycle 3, closing QA
+finding H1-R — the unclosed remainder of H1, found on screens 6 and 7). Capability-row
+ids (`C-17`), task ids, ledger-row ids, and process/status language — including who or
+what performs an internal review and whether it has cleared — are, by definition, notes
+about the wireframe or about the company's own process, never a string the product
+renders to a user. Any such token belongs only inside a `data-wf-note` sibling. This
+binds even where the plain element already reads correctly on its own and a citation
+would only be *appended* to it: the citation still gets its own sibling, never a
+tacked-on clause at the end of the product sentence.
 
 **Exempt by construction:** states whose entire content is behavioral narration because
 nothing actually renders to a user in that state — the recurring DENIED-SIGNEDOUT /
-REFRESH / ABANDON banners that describe a redirect or a no-op — are not marked
-sentence-by-sentence. Their governing `<h2>` already says "No … renders" (or equivalent);
-there is no rendered product string in that state to disambiguate in the first place.
-Likewise the pre-existing, already-unambiguous wireframe furniture
+REFRESH / ABANDON banners that describe a redirect, a no-op, or the consequence of
+leaving a form — are not marked sentence-by-sentence. **The test is categorical, not
+textual**: a state whose id contains `DENIED`, `REFRESH`, or `ABANDON` is, by
+construction, describing something that happens *instead of* or *around* rendering,
+never a page a user reads on screen — so there is no rendered product string in that
+state to disambiguate from annotation in the first place. (Reworded in review cycle 3,
+closing N1: the earlier wording claimed every such state's `<h2>` literally says
+"No … renders", which holds for 12 of the 16 but not for `S2-REFRESH`, `S4-ABANDON`,
+`S4-CLIENT-ABANDON`, or `S6-CLIENT-ABANDON` — their headings narrate a specific redirect
+or a specific loss instead, e.g. "What's lost depends on create vs. edit". That variety
+is fine; retrofitting four working headings into one template sentence would trade a
+real reader's clarity for an incidental grep pattern the exemption never actually ran
+on. The id-substring test above is what exempts a state and is what the mechanical
+check below keys on — the heading text was only ever a description of the effect, not
+the mechanism.) Likewise the pre-existing, already-unambiguous wireframe furniture
 (`.wireframe-notice`, `.state-label`, `.state-toc`) needs no attribute — it was never in
 question.
 
@@ -151,6 +174,21 @@ question.
 `grep -c 'data-wf-note' docs/design/wireframes/screen-*.html` counts every annotation
 span per file. A script can additionally confirm the stronger invariant — that no
 `data-wf-note` element contains a `<button>`, `<input>`, `<select>`, `<textarea>`,
-`<label>`, or a `.btn`-classed `<a>` — so a required control can never be accidentally
-marked removable; this was run across all seven screens after the cycle-2 edits and
-found zero violations (recorded in this task's Lattice comment).
+`<label>`, or an `<a>` — so a required control can never be accidentally marked
+removable; this was run across all seven screens after the cycle-2 edits and found zero
+violations (recorded in this task's Lattice comment).
+
+**Widened in review cycle 3 (closing N4):** the invariant above originally exempted
+`.btn`-classed anchors only, which does not cover a required control that happens to be
+a plain, unclassed `<a>` — screen 1's mode-switch link is exactly this, and QA proved by
+mutation that marking its paragraph as annotation produced zero hits under the old
+invariant. The convention also deliberately allows `data-wf-note` elements to contain
+genuine in-document cross-reference links (e.g. screen 4's
+`<a href="#S4-DEFAULT-CREATE">`, pointing a reader at another state) — those are
+annotation about the spec, not a product control, and forbidding them outright would be
+wrong. The fix separates the two kinds of anchor instead of conflating them: any `<a>`
+inside a `data-wf-note` element must now carry the `wf-xref` class to be permitted; an
+`<a>` inside a `data-wf-note` element without it is flagged exactly like an unmarked
+button or input. `wf-xref` carries no styling of its own — typographically identical to
+plain annotation text — it exists solely as the checker's marker, so an implementer or
+a script reads intent from one signal, not two.

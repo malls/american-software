@@ -21,22 +21,24 @@
  * and the reason this is called out explicitly rather than silently: the style
  * reference's own generated contrast matrix (docs/design/style-reference/index.html
  * #contrast) records --color-accent-solid-hover and --color-danger-solid-hover as
- * failing WCAG 1.4.11 non-text contrast against EVERY background in dark mode (all 4
- * of their rows fail). That is a known, already-labeled token-layer gap (not this
- * task's to fix — tokens.css is read-only here, plan file §5.2) and not styling
- * :hover at all is how this file avoids reproducing that pair, rather than silently
- * working around it with an invented fix.
+ * failing WCAG 1.4.11 non-text contrast against EVERY background in dark mode (all 6
+ * of their rows fail — 2 tokens x 3 backgrounds). That is a known, already-labeled
+ * token-layer gap (not this task's to fix — tokens.css is read-only here, plan file
+ * §5.2) and not styling :hover at all is how this file avoids reproducing that pair,
+ * rather than silently working around it with an invented fix.
  *
  * Full accounting against all 12 known dark-mode failures in that matrix (review
- * cycle 2, correcting an overclaim QA found here): 4 are the hover-fill pair above,
- * avoided by defining no :hover rules at all; 7 more never trigger because the exact
- * failing pairing (that token on that specific background) doesn't occur anywhere in
- * this file; the remaining 1 IS reproduced here, correctly — .field--invalid's
- * border-color (danger-solid on bg-surface, 2.97:1) is the same pairing
- * reference.css:428 itself establishes, per plan file §5.4's instruction to use the
- * semantic token pairs as the style reference pairs them. This file avoids 11 of 12 and
- * correctly inherits the 12th; it does not avoid all 12. See this task's Lattice comment
- * for the full per-pairing accounting.
+ * cycle 2, correcting an overclaim QA found here; split corrected again in cycle 3 —
+ * see this task's Lattice comment for the row-by-row re-derivation): 6 are the
+ * hover-fill pair above (accent-solid-hover and danger-solid-hover, each failing on
+ * all 3 backgrounds), avoided by defining no :hover rules at all; 5 more never trigger
+ * because the exact failing pairing (that token on that specific background) doesn't
+ * occur anywhere in this file; the remaining 1 IS reproduced here, correctly —
+ * .field--invalid's border-color (danger-solid on bg-surface, 2.97:1) is the same
+ * pairing reference.css:428 itself establishes, per plan file §5.4's instruction to
+ * use the semantic token pairs as the style reference pairs them. This file avoids 11
+ * of 12 and correctly inherits the 12th; it does not avoid all 12. See this task's
+ * Lattice comment for the full per-pairing accounting.
  */
 
 *, *::before, *::after {
@@ -312,12 +314,6 @@ main {
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
   margin: var(--space-4) 0 var(--space-2) 0;
-}
-
-.state--na {
-  background: var(--color-bg-surface-sunken);
-  border-style: dashed;
-  color: var(--color-text-muted);
 }
 
 /* ---------------------------------------------------------------------------------
@@ -670,5 +666,17 @@ tbody tr:last-child td {
     border: none;
     padding: 0;
     max-width: none;
+  }
+
+  /* Review cycle 3 (H1-R): the legal-gate banner's data-wf-note sibling sits inside
+     .doc-region for spec adjacency, but a data-wf-note element is never built into the
+     product (01-screens.md §6) — so it must not survive into this block's "document
+     alone" simulation either. Without this rule the print preview of this wireframe
+     file would show the (C-17)/lawyer-agent annotation on the same printed sheet as
+     the plain warning it was split away from, reproducing H1-R's harm one element
+     over. Scoped to .doc-region rather than globally: nothing outside the printable
+     document region is claimed to represent "the document" in the first place. */
+  .doc-region [data-wf-note] {
+    display: none;
   }
 }
