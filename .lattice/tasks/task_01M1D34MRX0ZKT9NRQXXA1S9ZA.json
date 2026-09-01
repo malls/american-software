@@ -10,14 +10,14 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34MRX0ZKT9NRQXXA1S9ZA",
-  "last_event_id": "ev_01M1DHT4X3YYY3P5Y4G7ZF20KC",
-  "last_status_changed_at": "2026-09-01T02:44:27Z",
+  "last_event_id": "ev_01M1DHWZ3MN4TR4J60JTNGH6JR",
+  "last_status_changed_at": "2026-09-01T03:58:39Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-36",
-  "status": "in_progress",
+  "status": "review",
   "tags": [
     "d1",
     "v1",
@@ -26,6 +26,6 @@
   ],
   "title": "D1 v1: stack decision for the product app (options, criteria, recommendation)",
   "type": "task",
-  "updated_at": "2026-09-01T03:57:07Z",
+  "updated_at": "2026-09-01T03:58:39Z",
   "urgency": null
 }
