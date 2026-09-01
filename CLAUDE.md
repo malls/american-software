@@ -311,12 +311,13 @@ Decided 2026-08-29; **revised 2026-08-31 (board decision): board-on-master + wor
 ### Commits
 
 - **Every commit belongs to a task.** Message format: `AS-<n>: <imperative summary>` (board-state commits: `AS-<n>: board — <what>`). Exceptions that commit directly to master without a task code: board/chat-channel metawork, and operational record commits (below).
-- **Commit as the employee.** Each stage commits under its persona's identity so `git blame` shows who at the company wrote what:
+- **Commit as the employee.** Each stage commits under its persona's identity so `git blame` shows who at the company wrote what. `user.name` is the employee id exactly as it appears in the Lattice actor id (`agent:developer-marcus` → `developer-marcus`), so blame joins to the event log on one key; the email is that id at `agents.american-software.local`:
   ```
-  git -c user.name="developer-marcus-webb" \
-      -c user.email="developer-marcus-webb@agents.american-software.local" \
+  git -c user.name="developer-marcus" \
+      -c user.email="developer-marcus@agents.american-software.local" \
       commit -m "AS-7: ..."
   ```
+  (Settled 2026-09-01 from a QA convention finding on AS-53: history carried both `developer-marcus` and `developer-marcus-webb`. The actor-id form wins; older commits are not rewritten.)
 
 ### Task lifecycle in git
 
