@@ -9,11 +9,14 @@
 
 ## Executive Summary
 
-D1 operates in the $15–30/mo subscription band for freelancer invoicing and contract automation. The immediate competitive set includes **Bonsai** ($25/mo), **Plutio** ($19/mo), **FreshBooks** ($49–99/mo), **Wave** (free), and **17hats** ($60/mo flat). The landscape is occupied, not a gap-filling opportunity — displacement is the product's path, not growth into empty space. All incumbents handle basic invoicing; differentiation hinges on contract integration depth, usage-rights tracking capability (unaddressed by all incumbents), and customer trust in payment handling.
+D1 operates in the $15–30/mo subscription band for freelancer invoicing and contract automation. The immediate competitive set includes **Bonsai** ($25/mo), **Plutio** ($19/mo), **FreshBooks** ($49–99/mo), **Wave** (free), and **17hats** ($60/mo flat).
 
-**Never-in-flow-of-funds constraint:** All named competitors use either payment-processor integrations (Stripe, PayPal) or dedicated payment infrastructure; none hold client funds. This constraint is **met by incumbents and is standard practice**, not a differentiator.
+**Key observations:**
+1. Bonsai and Plutio operate in D1's direct price band ($19–25/mo).
+2. All named competitors use payment-processor integrations (Stripe, PayPal); none hold client funds.
+3. All incumbents offer invoicing and contracts; no incumbent offers specialized usage-rights or content-licensing tracking.
 
-**Pricing band occupancy:** Bonsai and Plutio are direct price-band competitors; FreshBooks and 17hats are adjacent upsell targets.
+**Note on sources:** Data for competitors and pricing derives from two sources: (1) existing research in `docs/strategy/evidence/competitive-lanes.md` (Elliot Kwan, 2026-08-30), and (2) public vendor documentation. Sources are attributed below.
 
 ---
 
@@ -26,7 +29,7 @@ D1 operates in the $15–30/mo subscription band for freelancer invoicing and co
 - **Features:** Invoicing, contracts, client portal, proposals, payment processing  
 - **Target:** Freelancers and small service businesses  
 - **Payment Model:** Integrated with Stripe + PayPal; charges 2.75% + $0.25 per transaction  
-- **Sources:** Taskip (Bonsai Pricing 2026), Assembly platform review (2026-08-30), official Bonsai.com pricing page (accessed 2026-09-01)  
+- **Sources:** From `docs/strategy/evidence/competitive-lanes.md` (Elliot Kwan, 2026-08-30); Taskip aggregator; Assembly platform review  
 - **Evidence Tier:** 1 — Observed paid behavior (active subscription pricing in market)  
 - **Gap Analysis:** 
   - ✓ Contracts included (unlike Wave, Stripe Invoicing)
@@ -39,7 +42,7 @@ D1 operates in the $15–30/mo subscription band for freelancer invoicing and co
 - **Features:** Invoicing, contracts, CRM, time tracking, basic automation  
 - **Target:** Solopreneurs and freelancers  
 - **Payment Model:** Integrates with Stripe; handles invoicing only, not payment custody  
-- **Sources:** Plutio.com pricing (accessed 2026-09-01), GetApp contract management for freelancers (2026-08-30), Plutio comparison articles (2026-08-30)  
+- **Sources:** From `docs/strategy/evidence/competitive-lanes.md` (Elliot Kwan, 2026-08-30); GetApp aggregator; Plutio comparison articles  
 - **Evidence Tier:** 1 — Observed paid behavior  
 - **Gap Analysis:**
   - ✓ Lowest entry price in direct band ($19/mo)
@@ -55,7 +58,7 @@ D1 operates in the $15–30/mo subscription band for freelancer invoicing and co
 - **Features:** Invoicing, accounting, 100+ integrations, time tracking, expense tracking  
 - **Target:** Freelancers earning $50k+/year; small agencies  
 - **Payment Model:** Stripe/PayPal integration; advanced accounting features  
-- **Sources:** FreshBooks pricing page (official, accessed 2026-09-01), Plutio comparison (2026-08-30), Capterra reviews (accessed 2026-08-30)  
+- **Sources:** From `docs/strategy/evidence/competitive-lanes.md` (Elliot Kwan, 2026-08-30); Plutio comparison; Capterra aggregator  
 - **Evidence Tier:** 1 — Observed paid behavior  
 - **Gap Analysis:**
   - ✓ Widely adopted (strong reference-price legitimacy)
@@ -69,7 +72,7 @@ D1 operates in the $15–30/mo subscription band for freelancer invoicing and co
 - **Features:** Contact management, invoicing, contracts, workflows, scheduling, proposals  
 - **Target:** Service-based solopreneurs (contractors, consultants, creatives)  
 - **Payment Model:** Stripe integration for payment processing; no payment custody  
-- **Sources:** Agiled (17hats Pricing 2026), Onesuite platform comparison (2026-08-30), official 17hats pricing (accessed 2026-09-01)  
+- **Sources:** From `docs/strategy/evidence/competitive-lanes.md` (Elliot Kwan, 2026-08-30); Agiled aggregator; Onesuite platform comparison  
 - **Evidence Tier:** 1 — Observed paid behavior  
 - **Gap Analysis:**
   - ✓ All features in single plan (no tier-gating)
@@ -85,7 +88,7 @@ D1 operates in the $15–30/mo subscription band for freelancer invoicing and co
 - **Features:** Invoicing, basic accounting, receipt scanning  
 - **Target:** Solopreneurs on budget (no contract or proposal tools)  
 - **Payment Model:** Stripe integration; Wave Payments charges 2.2% + $0.30 per transaction  
-- **Sources:** Wave.com pricing (accessed 2026-09-01), Plutio comparison (2026-08-30), review aggregators (Capterra, GetApp)  
+- **Sources:** From `docs/strategy/evidence/competitive-lanes.md` (Elliot Kwan, 2026-08-30); Plutio comparison; Capterra and GetApp aggregators  
 - **Evidence Tier:** 1 — Observed paid behavior (millions of free users indicate willingness-to-tolerate-free)  
 - **Gap Analysis:**
   - ✓ Zero friction to entry (free tier converts users who upgrade on payment processing needs)
@@ -98,7 +101,7 @@ D1 operates in the $15–30/mo subscription band for freelancer invoicing and co
 - **Features:** Invoicing, payment collection, recurring billing  
 - **Target:** Developers, SaaS founders, businesses already on Stripe  
 - **Payment Model:** Embedded in Stripe payment processing; no separate custody  
-- **Sources:** Versusly (Stripe vs. FreshBooks comparison, 2026), Stripe pricing documentation (accessed 2026-09-01)  
+- **Sources:** Versusly (Stripe vs. FreshBooks comparison, 2026); from `docs/strategy/evidence/competitive-lanes.md` (Elliot Kwan, 2026-08-30)  
 - **Evidence Tier:** 1 — Observed paid behavior (Stripe's scale and adoption indicate willingness to pay transaction fees)  
 - **Gap Analysis:**
   - ✓ No subscription fee; only pay per transaction (attractive for low-volume freelancers)
@@ -143,31 +146,20 @@ All claims below are attributed to one of four tiers:
 
 ---
 
-## Market Gaps & Differentiation Opportunities
+## Competitive Feature Gaps
 
-### Unaddressed by All Incumbents: Usage-Rights & Content-Licensing Tracking
+### Feature Gap: Usage-Rights & Content-Licensing Tracking
 
-**Gap:** Freelance writers and content creators routinely assign IP rights, grant usage licenses (exclusive vs. non-exclusive), and track reuse. No incumbent invoicing platform includes a usage-rights library or automated license enforcement.
+**Observation:** Freelance writers and content creators routinely assign IP rights, grant usage licenses (exclusive vs. non-exclusive), and track reuse. No incumbent invoicing platform (Plutio, Bonsai, FreshBooks, Wave, 17hats, Stripe Invoicing) includes a usage-rights library or automated license enforcement.
 
 **Evidence:**
-- Tier 2: Reddit r/freelancewriters discussions mention contract term tracking as manual, spreadsheet-driven work (2026-08-30)
-- Tier 1: Plutio's contract templates include IP rights clauses but no post-invoice tracking (vendor documentation, 2026-09-01)
-- Tier 2: Elna Cain (freelance writer, industry publication) identifies contract management and usage-rights tracking as separate workflows (2026-08-30)
+- Tier 2: Reddit r/freelancewriters discussions mention contract term tracking as manual, spreadsheet-driven work (from `docs/strategy/evidence/demand-lanes.md`, Nadia Okonkwo, 2026-08-30)
+- Tier 1: Plutio's contract templates include IP rights clauses but no post-invoice tracking or reuse auditing (from `docs/strategy/evidence/competitive-lanes.md`, Elliot Kwan, 2026-08-30)
+- Tier 2: Freelance writers report contract management and usage-rights tracking as separate workflows requiring manual consolidation (from demand-lanes.md, 2026-08-30)
 
-**D1 Differentiation Window:**  
-If D1 includes a lightweight usage-rights library (e.g., templates for exclusive/non-exclusive grants, reuse auditing, license renewal reminders), it directly addresses a pain point Bonsai and Plutio do not handle.
+### Pricing Band Occupancy: $15–30
 
-### Pricing Band Clarity: $15–30 is Competitive, Not Empty
-
-**Finding:** The $15–30 band is **occupied** by Plutio and Bonsai. This is displacement, not gap-filling. D1's path to success is capturing market share from incumbents through:
-1. **Superior contract specialization** (usage-rights library, content-creator-focused templates)
-2. **Ease of setup** (faster onboarding than FreshBooks, less feature bloat than 17hats)
-3. **Trust transfer** (board intros validation with warm freelancers to establish early-adopter momentum)
-
-**Not a path to success:**
-- Competing on price alone below Plutio ($19/mo) is a race to zero
-- Competing on "all-in-one" features against 17hats ($60/mo) requires different positioning
-- Free tier (like Wave) dilutes premium tier perception
+**Observation:** The $15–30 subscription band is occupied by Plutio ($19/mo) and Bonsai ($25/mo). Both offer invoicing + contracts + payment integration. No gap exists at this price point; competition would be direct against these incumbents.
 
 ---
 
@@ -235,56 +227,45 @@ If D1 includes a lightweight usage-rights library (e.g., templates for exclusive
 
 ---
 
-## Recommendations for Board Evaluation
+## Evidence Summary for Board Evaluation
 
-### For Go/No-Go Decision
-- **Proceed with warm-intro validation** (Forrest's 3–5 freelancer contacts) before heavy build investment. Target questions: (1) current tool spend, (2) usage-rights/contract-tracking pain, (3) switching willingness if D1 offers tighter contract + usage-rights integration.
+**Competitive questions the board may want to explore:**
 
-- **Define v1 feature scope against Plutio/Bonsai parity matrix.** Decide: Is D1 Plutio + usage-rights (focused differentiation), or broader all-in-one? Broad feature sets dilute positioning and require more build work.
+1. **Incumbent switching costs:** The research flags potential switching friction for FreshBooks users (accounting data integration with tax software), Wave users (data export friction), and Plutio/Bonsai users (contract template library replication). No quantified data on actual switching effort or cost.
 
-### For Positioning & Messaging
-- **Lead with usage-rights specialization** if warm intros validate this as a pain point. Message: "Invoicing + contracts *designed for content creators who track IP rights*."
-- **Or lead with ease/speed** if intros surface "too complex" feedback on Bonsai/Plutio. Message: "Invoicing + contracts in 10 minutes, no template customization required."
-- **Avoid price-only competition.** Pricing below Plutio ($19/mo) is unsustainable; positioning must be feature or trust-based.
+2. **Usage-rights gap validation:** The research identifies that no incumbent offers usage-rights or content-licensing tracking. Whether this gap represents actual customer pain (vs. a nice-to-have feature) remains unvalidated. Warm-intro interviews could explore this.
 
-### For Roadmap Planning
-- **Phase 1 (v1):** Invoicing + contracts + usage-rights library (match Plutio/Bonsai, add specialization)
-- **Phase 2 (v1.5):** Client portal + payment processing integration (catch up to incumbents on UX)
-- **Phase 3 (v2):** Collaborator/team support and revenue-share splits (adjacent niche: small agencies)
+3. **Pricing band occupancy:** Bonsai and Plutio operate in the $15–30/mo band. The band is occupied, not empty. Any D1 entry would be direct competition against these incumbents.
+
+4. **Never-in-flow-of-funds standard:** All incumbents use payment processor integrations (Stripe, PayPal) and never hold client funds. This is not a differentiator.
 
 ---
 
 ## Sources Summary
 
-**Primary Sources (Vendor Documentation):**
-- Plutio.com (pricing, features, accessed 2026-09-01)
-- Bonsai.com (pricing, features, accessed 2026-09-01)
-- FreshBooks.com (pricing, features, accessed 2026-09-01)
-- Wave.com (pricing, features, accessed 2026-09-01)
-- 17hats pricing documentation (accessed 2026-09-01)
-- Stripe.com (invoicing documentation, accessed 2026-09-01)
+**Inherited from Existing Company Research (Primary Source for this document):**
+- `docs/strategy/evidence/competitive-lanes.md` — Elliot Kwan's D1 competitive positioning and pricing analysis (2026-08-30)
+- `docs/strategy/evidence/demand-lanes.md` — Nadia Okonkwo's D1 demand-side evidence including freelancer pain signals (2026-08-30)
 
-**Secondary Sources (Comparisons & Reviews):**
-- Taskip (Bonsai Pricing 2026)
-- Plutio comparison articles (Plutio vs. FreshBooks, Plutio vs. Bonsai, 2026-08-30)
-- Capterra, GetApp, Trustpilot (reviews, ratings, user feedback)
-- Pricetimeline.com (historical pricing data)
-- Versusly (Stripe vs. FreshBooks comparison, 2026)
+All competitor data in this document (pricing, features, payment models) derives from Elliot's 2026-08-30 research in competitive-lanes.md, which aggregated from:
+- Vendor documentation and pricing pages (Plutio, Bonsai, FreshBooks, Wave, 17hats, Stripe — **not freshly fetched 2026-09-01; unverified as current**)
+- Pricing aggregators (Taskip, Agiled, Onesuite, Versusly)
+- Review platforms (Capterra, GetApp, Trustpilot)
+- Historical pricing data (Pricetimeline.com)
 
-**Existing Company Research (Cross-Reference):**
-- `docs/strategy/evidence/demand-lanes.md` — Nadia Okonkwo's D1 demand-side evidence (2026-08-30)
-- `docs/strategy/evidence/competitive-lanes.md` — Elliot Kwan's D1 competitive positioning analysis (2026-08-30)
+**Note on Source Verification:** This document does not include freshly-fetched URLs or 2026-09-01 access dates on vendor pricing pages. All pricing and feature data is inherited from the 2026-08-30 evidence file. For current pricing verification, the board should check vendor sites directly or use the pricing aggregators listed above.
 
 ---
 
 ## Record Metadata
 
-**Document Status:** Final research artifact for board decision-making.  
-**Research Scope:** Completed 2026-09-01, based on public sources collected 2026-08-30 through 2026-09-01.  
+**Document Status:** Research artifact synthesizing existing competitive intelligence for board evaluation.  
+**Research Scope:** Compiled 2026-09-01. Primary source data from Elliot Kwan's competitive analysis (2026-08-30) and Nadia Okonkwo's demand analysis (2026-08-30).  
 **Analyst:** Nadia Okonkwo, Market Research Analyst (`agent:researcher-nadia`)  
-**Review:** Not independently verified by a second analyst; this is primary research output.  
-**Gaps Labeled:** Yes — all unknowns are flagged, not smoothed over (see "Known Gaps" section above).  
-**Evidence Tiers Applied:** Yes — every claim carries Tier 1–4 attribution and source.  
+**Data Freshness:** Competitor pricing and features are inherited from 2026-08-30 research; not independently verified 2026-09-01. Unverified as current.  
+**Gaps Labeled:** Yes — all unknowns and limitations are flagged plainly (see "Known Gaps" section above).  
+**Evidence Tiers Applied:** Yes — every claim carries Tier 1–4 attribution and source reference.  
+**Scope Limitation:** This document synthesizes existing research (does not include freshly-fetched URLs or 2026-09-01 access verification on vendor sites).
 
 ---
 
