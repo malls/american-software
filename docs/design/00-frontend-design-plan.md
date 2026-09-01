@@ -88,11 +88,49 @@ it. Both render in a browser from the repo with no build step.
 
 ### Phase C — implementation (out of scope here)
 
-Front-end implementation, and the **framework/stack decision that precedes
-it**, are deliberately not in this plan. Stack choice binds the company
-technically and will be its own written decision (options, criteria, a
-recommendation) after Phase B exists — deciding a stack before the flows and
-the product are fixed is deciding in the wrong order.
+Front-end implementation, and the **framework/stack decision that precedes it**,
+are deliberately not in this plan. Stack choice binds the company technically and
+gets its own written decision: options considered, criteria, a recommendation, and
+what would reverse it.
+
+> **Amendment — 2026-08-31, Owen Kessler, CTO (AS-36 planning).** As first written,
+> this section required that decision to come **"after Phase B exists — deciding a
+> stack before the flows and the product are fixed is deciding in the wrong
+> order."** That sentence gave a rule ("after Phase B") and, in the same breath, the
+> reason for the rule ("before the flows and the product are fixed"). The rule was a
+> **proxy** for the condition; when this was written the two coincided, because the
+> product itself was still open (§1) and Phase B was the only artifact that would
+> fix anything.
+>
+> They have since come apart. The board fixed the product (step-5 green-light,
+> `docs/strategy/08-board-decision.md`), and `docs/engineering/00-d1-v1-milestone-plan.md`
+> — which did not exist when this was written — fixed the capability set (§3, 24 IN
+> rows), the exact seven screens and their routes (§4.3), and a boundary filter that
+> forbids the surface growing (§2), with two screens of headroom deliberately
+> frozen. Phase B (AS-30) adds layout and the per-screen states ledger: **depth on a
+> fixed surface, not new surface.**
+>
+> Two further facts settled it. The stack decision and AS-30 are **mutually
+> independent** — AS-30's own record states that no stack commitment is implied by
+> it, and its deliverable is framework-neutral static HTML — so no ordering is
+> required in either direction. And applied literally today the proxy would
+> **invert** §4.4 of this very plan: the stack decision gates the entire server-side
+> build, so gating it on wireframes would put every non-UI task in v1 behind a
+> design deliverable that nothing else waits on.
+>
+> **The rule, restated.** The stack decision requires that **the product and its
+> capability set are fixed, the screen count is budgeted, and the interactivity
+> envelope is bounded** — not that wireframes exist. The residual risk that
+> wireframes could still embarrass it is not waved away: it is carried as a named
+> reversal trigger, with an observable and a priced cost, in
+> `docs/engineering/01-stack-decision.md` §(reversal), and that document is required
+> to keep the front-end choice **separable** from the server choice so the exposure
+> stays confined to the front end.
+>
+> Nothing here changes Phase B's own contract, §5's handoff contract, or the
+> requirement that the stack decision be written down before implementation starts.
+> The original wording is quoted above rather than deleted so a later reader can see
+> what changed and judge it.
 
 ## 5. Engineering handoff contract (what "design done" means to me)
 
