@@ -308,3 +308,80 @@ no licensed assets (design plan §5.5). The pages must render fully offline.
 Anything else genuinely open: default to the narrower reading, note it in the relevant
 markdown file under an "Assumptions" heading, and keep moving — the note is what makes
 the assumption reviewable.
+
+---
+
+## Review Cycle 1 Findings
+
+**Reviewer:** `agent:qa-priya`, 2026-09-01. **Verdict: FAIL — implementation-level
+rework needed.** 11 of 12 acceptance criteria pass; AC12 (the handoff contract)
+fails on one finding. Five `--role review` comments on the task carry the full
+record. Routed `review -> in_progress`.
+
+**The review was genuinely blind.** Priya read Jonah's implementation comment
+*last* — after parts 1–4 were already on the Lattice record and her inline fix
+committed. Where the two independently agree (the BRANDING.md-vs-style-reference
+citation, the 65/8/57 ledger arithmetic, the 375px measurements), that agreement
+is evidence rather than an echo.
+
+**What passes, and should not be redone:** scope confined to
+`docs/design/wireframes/`; ledger correspondence exact in both directions (65
+rows, 8 explicit "n/a — because", 57 expected renders, 57 `<section id=>` found,
+no orphans either way, all six categories on all seven screens); budget at 7 of
+target 7 with both headroom slots unspent, computed against milestone §4.1's
+definition rather than the restatement; 375px clean on all 8 pages with zero
+page-level overflow and zero offenders outside a scroller, and clean at 320px
+too; the legal gate verified by print-media emulation, with screen 7 collapsing
+from 6 visible state sections to exactly 1 and both the placeholder warning and
+the CC BY 4.0 line inside `.doc-region`.
+
+### BLOCKING — H1: product copy and wireframe annotation share CSS classes, in both directions, with the convention stated nowhere
+
+`.page-meta` carries pure annotation, a **required product control** (screen 1's
+mode-switch link — the thing that makes one-route-two-modes work), a control
+fused with its own annotation, and the C-28 sentence ("Stripe sends it directly
+to the client") that the plan explicitly names as load-bearing product copy.
+Meanwhile `.field-hint` — proven a *product* class by screen 4's
+`days_until_due` hint — carries two pure annotations on screen 1, one reading
+`(C-09 is out of scope; see the note on S1-ERROR-SYSTEM)`.
+
+So the classes do not separate what the product renders from what the wireframe
+says about itself, and nothing states the convention. **An AS-46 implementer
+following either reading either drops mandated copy or ships capability-row
+jargon to a paying freelancer.** That is precisely the "can a developer-agent
+build this without asking a design question" bar, and four tasks consume these
+files.
+
+Priya deliberately did not fix this inline: it spans four files and decides what
+the product renders, which is a design call rather than a typo.
+
+**Fix shape:** separate the two concerns so the distinction is mechanical, not
+inferred — distinct classes (or a `data-` attribute) for product copy versus
+wireframe annotation, applied consistently across all seven screens, plus one
+sentence in `01-screens.md` stating the convention so the next reader cannot
+guess wrong.
+
+### Non-blocking
+
+- `wireframe.css:28-29` overclaims that the work avoids all 12 known dark-mode
+  contrast failures. It uses one: `.field--invalid` sets `border-color:
+  var(--color-danger-solid)` on inputs backed by `bg-surface` (2.97:1 dark,
+  under the 3:1 non-text floor). **This is not a defect** — `reference.css:428`
+  establishes that exact pairing and plan §5.4 orders "as the style reference
+  pairs them." Only the comment is wrong. Worth a backlog item on the underlying
+  pairing, since this is now the second consumer to inherit it.
+- Fixed inline by qa-priya (`167dde4`): `00-flows.md` Flow 1 step 8a cited
+  `S6-ERROR-VALIDATION-CLIENT`; the actual row is `S6-CLIENT-ERROR-VALIDATION`.
+  Found by scanning every state-ID token in all 12 files against the 65 rows —
+  the only genuine dangling reference.
+- Priya corrected an error of her own on the record: her Part 2 said four
+  `@media` conditions; there are six, all correctly commented. Jonah's count was
+  right.
+
+### Not verified (stated plainly, do not assume otherwise)
+
+Chrome only — no Firefox or WebKit. No live screen-reader pass; the
+landmark/label/aria checks are mechanical proxies. Print verified by media
+emulation, not a physical print.
+
+## Reset 2026-09-01 by agent:cto-owen
