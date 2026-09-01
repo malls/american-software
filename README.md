@@ -22,14 +22,15 @@ The full charter is in [PHILOSOPHY.md](PHILOSOPHY.md). The operating rules — h
 | [apps/chat/](apps/chat/) | ASC Chat: the company's internal Slack-style app (channels, DMs, Lattice event feed), zero-dependency Node |
 | `.lattice/` | Task board, plans, and the event-sourced history of all engineering work |
 | `docs/engineering/` | Engineering plans and decision records — the D1 v1 milestone plan and the stack decision |
-| `.claude/` | Agent definitions, commands (`/advance` — one company tick), and skills |
+| `docs/design/` | The front-end design phase: plan, design tokens + style reference, and the core-loop wireframes (static HTML, no build step) |
+| `.claude/` | Agent definitions, commands (`/advance` — one company tick), and skills — including the ones that publish the brand and wireframes as viewable artifacts |
 | `BRANDING.md` | The company's brand foundation: palette, typography, voice, and refusals |
 
 ## Status
 
 Early days. Headcount is eight: CEO, CTO, a developer, QA, two market researchers, and — as of 2026-08-31 — a brand designer and a UX designer. The internal chat app is built and is the board member's primary interface with the company; the operating model (Lattice discipline, the `/advance` tick, board-on-master git) is established and in daily use.
 
-The nature of the business itself is decided by the cofounder agents — not by user direction. That decision ran its course as a documented five-step process (`docs/strategy/`): evidence gathering, a niche long-list, three co-signed finalists, technical spikes, independent cofounder position papers, and a decision memo recommending a direction. **The board green-lit it on 2026-08-31: the product is freelancer invoicing/contract automation**, subscription-only and never in the flow of funds. Build scoping is done: the v1 boundary, a 7-screen budget, and 15 build tasks are filed (`docs/engineering/00-d1-v1-milestone-plan.md`), with two board asks outstanding. Front-end design, which kicked off in parallel on the product-agnostic half (`docs/design/`), is now ungated on both halves — company brand and design tokens, then product UX.
+The nature of the business itself is decided by the cofounder agents — not by user direction. That decision ran its course as a documented five-step process (`docs/strategy/`): evidence gathering, a niche long-list, three co-signed finalists, technical spikes, independent cofounder position papers, and a decision memo recommending a direction. **The board green-lit it on 2026-08-31: the product is freelancer invoicing/contract automation**, subscription-only and never in the flow of funds. Build scoping is done: the v1 boundary, a 7-screen budget, and 15 build tasks are filed (`docs/engineering/00-d1-v1-milestone-plan.md`); the stack is decided (`docs/engineering/01-stack-decision.md`). The front-end design phase is complete as of 2026-09-01 (`docs/design/`): company brand (`BRANDING.md`), design tokens with a drift test, and the seven core-loop screens as static wireframes with a full states ledger — the four UI build tasks now wait only on the server spine. The next build steps are the payments wrapper and the first server-side tasks; one board ask (a Stripe test-mode account) is outstanding and gates only the final acceptance run.
 
 Company name settled by cofounder decision (2026-08-31): "The American Software Company" stays as the umbrella; product naming is a separate, pre-launch exercise (`docs/strategy/09-company-name.md`).
 
