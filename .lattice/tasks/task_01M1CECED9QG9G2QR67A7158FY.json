@@ -1,7 +1,7 @@
 {
-  "assigned_to": null,
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [],
-  "comment_count": 2,
+  "comment_count": 3,
   "complexity": null,
   "created_at": "2026-08-31T17:37:58Z",
   "created_by": "agent:qa-priya",
@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1CECED9QG9G2QR67A7158FY",
-  "last_event_id": "ev_01M1CWNWFC93NPJ86ZZM94NJ1F",
+  "last_event_id": "ev_01M1EYT8HHFDJZCZQ9VR20YHRV",
   "last_status_changed_at": "2026-08-31T17:37:58Z",
-  "priority": "medium",
+  "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
@@ -21,6 +21,6 @@
   "tags": null,
   "title": "chat /api/file: re-check dot-segment rule after realpath \u2014 non-dot symlink can launder a dot directory",
   "type": "task",
-  "updated_at": "2026-08-31T21:47:47Z",
+  "updated_at": "2026-09-01T17:03:37Z",
   "urgency": null
 }
