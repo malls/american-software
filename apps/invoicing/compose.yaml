@@ -1,0 +1,62 @@
+# apps/invoicing compose (AS-37). Per CLAUDE.md ## Infra this is the only way
+# the app runs — no bare node on the host, and no supported host-side test run.
+#
+# Loopback exposure note: the server binds 0.0.0.0 INSIDE the container (the
+# port map is dead otherwise); loopback-only is enforced on the HOST side of the
+# mapping ("127.0.0.1:8348:8348"). The app's own default bind stays 127.0.0.1,
+# so a misconfigured run fails closed.
+#
+# Port 8348: measured free on this host on 2026-09-01. 8347 is asc-chat-server-1
+# and must not be disturbed; 8348 is adjacent so the pair is memorable.
+#
+# platform is pinned to linux/amd64 on every service to match the eventual
+# Digital Ocean target. Measured at scaffold size (three runs each): emulated
+# amd64 1.58/1.47/1.49 s vs native arm64 1.63/1.59/1.56 s — no tax; the suite is
+# container-startup-dominated. Re-measure if the suite ever exceeds ~10 s.
+#
+# BuildKit note (inherited from apps/chat/compose.yaml, and live on this host):
+# the shell exports DOCKER_BUILDKIT=0 and COMPOSE_DOCKER_CLI_BUILD=0, under
+# which compose ignores platform at build time and produces a native image that
+# then refuses to start against the amd64 pin. Every documented invocation in
+# README.md therefore forces DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1.
+#
+# Parsed as data by test/deploy-shape.test.js (strictly — the parser throws on
+# any shape it does not recognise). Keep to the subset used below: 2-space
+# indent, no anchors, no multi-line scalars, comments on their own lines.
+name: asc-invoicing
+
+services:
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/invoicing/Dockerfile
+      platforms:
+        - linux/amd64
+    platform: linux/amd64
+    ports:
+      - "127.0.0.1:8348:8348"
+    environment:
+      - INVOICING_BIND=0.0.0.0
+      - INVOICING_PORT=8348
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8348/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+
+  # No mounts, no ports, no network. The suite passing HERE is the proof of
+  # gate (c): no accounts, no external services, no egress. Reversal trigger T3
+  # — a future test that wants egress is a decision against the stack decision,
+  # not a convenience. profiles: tools keeps `compose up` from starting it.
+  test:
+    build:
+      context: ../..
+      dockerfile: apps/invoicing/Dockerfile
+      platforms:
+        - linux/amd64
+    platform: linux/amd64
+    profiles: ["tools"]
+    network_mode: none
+    command: ["node", "--test"]

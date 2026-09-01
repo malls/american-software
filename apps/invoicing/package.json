@@ -1,0 +1,15 @@
+{
+  "name": "@american-software-company/invoicing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Product app scaffold (AS-37): server-rendered invoicing app. Two direct dependencies, exact pins only.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "ejs": "6.0.1",
+    "express": "5.2.1"
+  }
+}
