@@ -68,3 +68,41 @@ services:
     network_mode: none
     command: ["node", "--test"]
 
+  # stripe-mock (AS-38): Stripe's public request-shape validator, pinned to the
+  # tag whose bundled OpenAPI spec (2026-08-26.dahlia) the client's Stripe-Version
+  # constant names. Pulling a public image is not a signup: it creates no
+  # account, no credential and no relationship with Stripe — the board-gated act
+  # is opening an account (AS-51), and this needs none. No ports: only the
+  # contract service reaches it, over an internal network with no egress.
+  # -strict-version-check turns a wrong Stripe-Version header into a 400.
+  stripe-mock:
+    image: stripe/stripe-mock:v0.203.0
+    platform: linux/amd64
+    profiles: ["tools"]
+    command: ["-strict-version-check"]
+    networks:
+      - stripe-mock
+
+  # contract (AS-38): the same image and the same bare `node --test` as `test`,
+  # attached to stripe-mock. ASC_STRIPE_MOCK_URL is what un-skips the stripe-mock
+  # cases; `test` never sets it, so the offline half stays offline.
+  contract:
+    build:
+      context: ../..
+      dockerfile: apps/invoicing/Dockerfile
+      platforms:
+        - linux/amd64
+    platform: linux/amd64
+    profiles: ["tools"]
+    depends_on:
+      - stripe-mock
+    networks:
+      - stripe-mock
+    environment:
+      - ASC_STRIPE_MOCK_URL=http://stripe-mock:12111
+    command: ["node", "--test"]
+
+networks:
+  # internal: no default gateway — nothing attached can reach the internet.
+  stripe-mock:
+    internal: true

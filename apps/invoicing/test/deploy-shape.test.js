@@ -156,7 +156,8 @@ test('deploy-shape: the parsers read the manifests they are about to assert on',
   // Guards against the AS-31 failure: a checker that silently read nothing and
   // "passed" every rule on an empty corpus. Exact counts, not `> 0`.
   assert.equal(COMPOSE.name, 'asc-invoicing', 'distinct project name so `compose down` cannot take asc-chat with it');
-  assert.deepEqual(Object.keys(SERVICES), ['web', 'test']);
+  assert.deepEqual(Object.keys(SERVICES), ['web', 'test', 'stripe-mock', 'contract']);
+  assert.deepEqual(Object.keys(COMPOSE.networks), ['stripe-mock']);
   assert.equal(COPIES.length, 9, `expected 9 COPY instructions, found ${COPIES.length}`);
   assert.equal(IGNORE_PATTERNS.length, 6, `expected 6 .dockerignore patterns, found ${IGNORE_PATTERNS.length}`);
   assert.match(DOCKERFILE_CODE, /^FROM /m);
@@ -180,11 +181,14 @@ test('deploy-shape: the parser rejects shapes it does not understand', () => {
 
 // --- the build context is the repo root (the tokens mechanism) --------------
 
-/** The services that BUILD this app's image, exactly. */
+/** The services that BUILD this app's image, exactly. stripe-mock is the one
+ *  service that does not: it is a pulled public image (asserted below). */
 const BUILT = Object.entries(SERVICES).filter(([, service]) => service.build !== undefined);
 
 test('deploy-shape: every built service builds from the REPO ROOT with this app Dockerfile', () => {
-  assert.deepEqual(BUILT.map(([name]) => name), ['web', 'test']);
+  assert.deepEqual(BUILT.map(([name]) => name), ['web', 'test', 'contract']);
+  assert.equal(SERVICES['stripe-mock'].build, undefined, 'stripe-mock is pulled, not built');
+  assert.equal(typeof SERVICES['stripe-mock'].image, 'string');
   for (const [name, service] of BUILT) {
     assert.equal(service.image, undefined, `${name}: a built service names no image`);
     assert.equal(service.build.context, '../..', `${name}: build context`);
@@ -248,9 +252,11 @@ test('deploy-shape: no credential VALUE appears in compose.yaml, and every secre
     'INVOICING_PORT=8348',
     'INVOICING_STRIPE_SECRET_KEY=${INVOICING_STRIPE_SECRET_KEY:-}',
   ]);
+  assert.deepEqual(SERVICES.contract.environment, ['ASC_STRIPE_MOCK_URL=http://stripe-mock:12111']);
   assert.equal(SERVICES.test.environment, undefined, 'the test service sets nothing — the offline half stays offline');
+  assert.equal(SERVICES['stripe-mock'].environment, undefined);
   const env = Object.values(SERVICES).flatMap((s) => s.environment ?? []);
-  assert.equal(env.length, 3, `expected exactly 3 environment entries, found ${env.length}: ${env.join(', ')}`);
+  assert.equal(env.length, 4, `expected exactly 4 environment entries, found ${env.length}: ${env.join(', ')}`);
   // Any variable whose NAME looks like a credential must be an interpolated
   // pass-through of the same name with an empty default: `${NAME:-}` and
   // nothing else. A literal value here would be a committed secret.
@@ -266,7 +272,7 @@ test('deploy-shape: no credential VALUE appears in compose.yaml, and every secre
   assert.equal(secretShaped, 1, 'exactly one secret-shaped variable is passed through (the Stripe key)');
   // A credential VALUE has a recognisable shape; none of those shapes is here.
   // (The old whole-text word test — "no `stripe`, no `secret`" — is retired: the
-  // variable name legitimately carries both words.)
+  // service `stripe-mock` and the variable name legitimately carry both words.)
   assert.ok(!/\b(sk|rk)_(test|live)_[A-Za-z0-9]+|whsec_[A-Za-z0-9]+/.test(COMPOSE_TEXT), 'compose.yaml carries a credential value');
   // The strict parser must have read the interpolation literally, or the
   // pass-through assertion above was made against something else.
@@ -279,16 +285,57 @@ test('deploy-shape: the amd64 platform pin is set where it actually takes effect
   // silently ignored it, and the image then differs from the deploy target.
   // `build.platforms` is what makes it take, and it works under both
   // DOCKER_BUILDKIT=1 and DOCKER_BUILDKIT=0. Both are asserted so a future edit
-  // cannot drop the half that does the work. The runtime pin is on every
-  // service; the BUILD pin on every service that builds.
-  assert.equal(Object.keys(SERVICES).length, 2);
+  // cannot drop the half that does the work. The runtime pin is on all four
+  // services (the pulled stripe-mock included); the BUILD pin on the three that
+  // build.
+  assert.equal(Object.keys(SERVICES).length, 4);
   for (const [name, service] of Object.entries(SERVICES)) {
     assert.equal(service.platform, 'linux/amd64', `${name}: runtime platform pin`);
   }
-  assert.equal(BUILT.length, 2);
+  assert.equal(BUILT.length, 3);
   for (const [name, service] of BUILT) {
     assert.deepEqual(service.build.platforms, ['linux/amd64'], `${name}: BUILD platform pin`);
   }
+});
+
+// --- stripe-mock and the contract service (AS-38) ----------------------------
+
+test('deploy-shape: stripe-mock is the pinned public image with no ports', () => {
+  const svc = SERVICES['stripe-mock'];
+  // Exact tag: the bundled OpenAPI spec is what the client's Stripe-Version
+  // constant was validated against. `latest` or a bare `stripe/stripe-mock`
+  // would let the spec drift under the contract tests.
+  assert.equal(svc.image, 'stripe/stripe-mock:v0.203.0');
+  assert.equal(svc.ports, undefined, 'the mock publishes nothing to the host');
+  assert.equal(svc.volumes, undefined);
+  assert.deepEqual(svc.profiles, ['tools'], '`compose up` must not start the mock');
+  assert.deepEqual(svc.command, ['-strict-version-check'], 'a wrong Stripe-Version header must be a 400, not a silent pass');
+  assert.deepEqual(svc.networks, ['stripe-mock']);
+  assert.equal(svc.restart, undefined);
+});
+
+test('deploy-shape: the contract service is the test service attached to stripe-mock', () => {
+  const svc = SERVICES.contract;
+  assert.deepEqual(svc.build, SERVICES.test.build, 'same image as the test service');
+  assert.deepEqual(svc.profiles, ['tools']);
+  assert.deepEqual(svc.depends_on, ['stripe-mock']);
+  assert.deepEqual(svc.networks, ['stripe-mock']);
+  assert.deepEqual(svc.command, ['node', '--test'], 'the same bare `node --test` — one suite, two halves');
+  assert.equal(svc.ports, undefined);
+  assert.equal(svc.volumes, undefined);
+  assert.equal(svc.network_mode, undefined, 'the contract service is on a network — the internal one');
+  assert.equal(svc.restart, undefined);
+});
+
+test('deploy-shape: the stripe-mock network has no egress and web is not on it', () => {
+  // `internal: true` — no default gateway, so nothing attached can reach the
+  // internet: test-time egress is impossible on both halves of the suite.
+  // (The strict parser returns scalars as strings, so `true` is 'true'.)
+  assert.equal(COMPOSE.networks['stripe-mock'].internal, 'true');
+  assert.equal(SERVICES.web.networks, undefined, 'web stays on the default network and never sees the mock');
+  assert.equal(SERVICES.web.depends_on, undefined);
+  assert.equal(SERVICES.test.network_mode, 'none');
+  assert.equal(SERVICES.test.networks, undefined);
 });
 
 // --- the Dockerfile ----------------------------------------------------------
