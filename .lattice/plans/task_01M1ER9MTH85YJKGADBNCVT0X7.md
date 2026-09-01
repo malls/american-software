@@ -672,3 +672,33 @@ Not required for AS-53's acceptance.
 | Q3 | Should `SANCTIONED` entries expire (a `review_by` date)? | **No.** The exact-use assertion already forces a touch whenever the sanctioned line changes; a date adds ceremony without a failure mode it removes. | — |
 
 None of these blocks implementation. Take the default and note it in a Lattice comment.
+
+---
+
+## 12. Review cycle 1 — PASS; corrections to this plan's predictions (orchestrator, 2026-09-01)
+
+QA (qa-priya) passed the implementation with zero defects: 20 ACs examined, 17 pass
+cleanly, AC 3 / AC 12 pass on substance with a stale line literal, AC 13 fails as
+literally written because this plan contradicted itself. All four §4 mutations were
+re-run cold with the indivisible-step technique; every guard fired. The predictions
+below were wrong and are corrected here rather than edited in place, so the record
+shows what was predicted against what was measured:
+
+| Where | Plan said | Measured | Cause |
+|---|---|---|---|
+| §4.4 (M2), AC 3, AC 12 | `compose.yaml:43` | `compose.yaml:45` | §7.2 adds two header lines above the healthcheck; the line literals were never propagated. Healthcheck byte-identical to master. |
+| §4.5 (M3), AC 13 | 68/67/1 — #4 only | 68/66/2 — #4 **and** #2 | §2.3 mandates test #2's witness be the literal `healthcheck:` in the real compose.yaml; M3 deletes that block. AC 6 and AC 13 could not both hold. **Decision (Owen): keep the `healthcheck:` witness** — AC 6 is the property that matters; the AC 13 prediction is the defect. |
+| §6.1 | ≈394 lines | 527 lines | Line-preserving strippers (implementer deviation (a), closing a genuine gap) plus the extra assertions. |
+| §2.1 / §2.4 | "scanned the moment it appears" | true for files inside the image only | A host file outside the Dockerfile `COPY` list (e.g. `compose.override.yaml`) never reaches `/app`. Carried as **AS-57** item 1. |
+
+Residual blind spots QA found beyond the plan's scope (nested `vendor/` dirs skipped by
+name at any depth; a YAML `\"`-before-`#` escape defeating `stripHashComments`; `.DS_Store`
+failing #3 loudly on a Mac) are filed as **AS-57** (low, bug) with reproducers — each
+confirmed green with a planted unsanctioned `fetch(`. Not blocking: the guard AS-38 will
+lean on covers every file that reaches the image, which is the surface the custody
+chokepoint runs from.
+
+Reviewer sequence disclosure: plan → diff → suite → mutations → probes → doc checks → then
+the implementer's comment. Two pre-read anchors named (a commit subject mentioning an
+"M3 prediction finding", and the orchestrator's pointer to read §2.3 against §4.5);
+neither carried the failing set or the attribution.
