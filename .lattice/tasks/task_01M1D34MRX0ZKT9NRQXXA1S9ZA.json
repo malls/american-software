@@ -1,7 +1,7 @@
 {
   "assigned_to": "agent:cto-owen",
   "branch_links": [],
-  "comment_count": 0,
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:42Z",
   "created_by": "agent:cto-owen",
@@ -10,14 +10,14 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34MRX0ZKT9NRQXXA1S9ZA",
-  "last_event_id": "ev_01M1D9515KHAWQ062T4WMQRX31",
-  "last_status_changed_at": "2026-09-01T01:25:46Z",
+  "last_event_id": "ev_01M1DC2AP32QZSP900JABDKXAJ",
+  "last_status_changed_at": "2026-09-01T02:16:09Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-36",
-  "status": "in_planning",
+  "status": "planned",
   "tags": [
     "d1",
     "v1",
@@ -26,6 +26,6 @@
   ],
   "title": "D1 v1: stack decision for the product app (options, criteria, recommendation)",
   "type": "task",
-  "updated_at": "2026-09-01T01:25:46Z",
+  "updated_at": "2026-09-01T02:16:43Z",
   "urgency": null
 }
