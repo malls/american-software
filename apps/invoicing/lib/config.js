@@ -8,15 +8,16 @@
 // testable (plan §3.3b, §7.1).
 //
 // The schema is DATA, not a pile of `||` defaults. Adding a setting is one row.
-// AS-38 (Stripe) and AS-40 (sessions) add their own rows; the `secret` and
-// `required` machinery below exists and is tested NOW, against a fixture
-// schema, so those tasks inherit a tested mechanism rather than an untested one
-// (plan §7.3). No credential is named here on purpose: there is no Stripe
-// account (AS-51 is an open board ask) and declaring a key would encode exactly
-// the assumption this scaffold must not encode.
+// The `secret` and `required` machinery below was built and tested at AS-37
+// against a fixture schema, before the first real secret existed (plan §7.3).
+// AS-38 added the first one: the Stripe secret key, as a NAME only — optional,
+// defaulting to null, redacted from every log line and health body. No value is
+// committed anywhere; see apps/invoicing/README.md § Giving the app a key.
+// AS-40 (sessions) adds its own row the same way.
 
 /** The live schema. Every row: { key, envVar, type, default, required, secret }.
- *  At AS-37 nothing is `required` and nothing is `secret` — deliberately. */
+ *  Nothing is `required`: the app boots and serves /healthz from a completely
+ *  empty environment. Exactly one row is `secret` (AS-38). */
 export const SCHEMA = Object.freeze([
   { key: 'port', envVar: 'INVOICING_PORT', type: 'integer', default: 8348, min: 1, max: 65535 },
   { key: 'bind', envVar: 'INVOICING_BIND', type: 'string', default: '127.0.0.1' },
@@ -25,6 +26,7 @@ export const SCHEMA = Object.freeze([
   { key: 'vendorDir', envVar: 'INVOICING_VENDOR_DIR', type: 'path', default: '/app/vendor' },
   { key: 'viewsDir', envVar: 'INVOICING_VIEWS_DIR', type: 'path', default: '/app/views' },
   { key: 'publicDir', envVar: 'INVOICING_PUBLIC_DIR', type: 'path', default: '/app/public' },
+  { key: 'stripeSecretKey', envVar: 'INVOICING_STRIPE_SECRET_KEY', type: 'string', default: null, required: false, secret: true },
 ].map(Object.freeze));
 
 /** Config errors are read from a container log by someone with no debugger and
@@ -100,8 +102,11 @@ export function loadConfig(env = process.env, schema = SCHEMA) {
 
   Object.defineProperty(resolved, 'redacted', {
     value: () => {
+      // A configured secret is masked; an UNCONFIGURED one stays null, so the
+      // startup line and /healthz say honestly which it is (AS-38, plan §2.8)
+      // without ever saying what it is.
       const out = {};
-      for (const row of schema) out[row.key] = row.secret ? '[redacted]' : resolved[row.key];
+      for (const row of schema) out[row.key] = row.secret && resolved[row.key] !== null ? '[redacted]' : resolved[row.key];
       return out;
     },
     enumerable: false,

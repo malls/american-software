@@ -16,8 +16,13 @@
 # the repo builds from the repo root.
 #
 # Pinned by apps/invoicing/test/deploy-shape.test.js — update both together.
+#
+# **/.env.local (AS-38): the optional, gitignored file a developer keeps a Stripe
+# test key in. It is read by `docker compose --env-file`, never by a Dockerfile;
+# a build context is the one place it could be copied into an image by accident.
 .git
 .worktrees
 **/node_modules
 apps/chat/data
 .claude
+**/.env.local

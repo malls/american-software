@@ -37,9 +37,14 @@ services:
     platform: linux/amd64
     ports:
       - "127.0.0.1:8348:8348"
+    # INVOICING_STRIPE_SECRET_KEY is a PASS-THROUGH (AS-38): the value comes from
+    # the host shell or `docker compose --env-file .env.local`, never from this
+    # file, and an unset host variable arrives as '' — which config.js treats as
+    # unconfigured (null). README.md § Giving the app a key.
     environment:
       - INVOICING_BIND=0.0.0.0
       - INVOICING_PORT=8348
+      - INVOICING_STRIPE_SECRET_KEY=${INVOICING_STRIPE_SECRET_KEY:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8348/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
@@ -62,3 +67,4 @@ services:
     profiles: ["tools"]
     network_mode: none
     command: ["node", "--test"]
+

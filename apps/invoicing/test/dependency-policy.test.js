@@ -6,13 +6,16 @@
 // range, or reaching for an HTTP client turns this suite RED — before anyone
 // reads the diff.
 //
-// TWO THINGS THIS FILE MUST NOT FORECLOSE (plan §11). AS-38 makes the Stripe
-// client the single custody chokepoint, and the stack decision chose a
-// hand-rolled client precisely because "the only bypass is a second HTTP
-// client, and node:http/fetch call sites are greppable". A generic HTTP helper
-// shipped in this scaffold would leak that chokepoint before AS-38 exists. So
-// the source scan below is not decoration either: it is AS-38's guard, held
-// open until AS-38 can close it.
+// THE CHOKEPOINT IS NOW CLOSED (AS-38). The Stripe client is the single custody
+// chokepoint, and the stack decision chose a hand-rolled client precisely
+// because "the only bypass is a second HTTP client, and node:http/fetch call
+// sites are greppable". The product has exactly ONE outbound HTTP call
+// (lib/stripe/transport.js) and exactly ONE importer of it (lib/stripe/client.js);
+// both are sanctioned below by file, construct, and the whole line, and a second
+// hit anywhere is a second HTTP client and a red test. The scan is lexical: it
+// cannot see `process.binding`, `createRequire` tricks, or a dependency that
+// phones home — the dependency budget (2) and node_modules being unscanned by
+// design answer the latter; the former are review-visible (plan §2.9 item 5).
 //
 // THE SCAN IS CLOSED-WORLD OVER THIS DIRECTORY (AS-53). It reads app source AND
 // the manifests — Dockerfile, compose.yaml, package.json — because a manifest
@@ -368,11 +371,14 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 11, `expected 11 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 14, `expected 14 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/config.js',
     'lib/health.js',
+    'lib/stripe/client.js',
+    'lib/stripe/custody.js',
+    'lib/stripe/transport.js',
     'lib/vendor.js',
     'lib/views.js',
     'public/scaffold.css',
@@ -396,13 +402,28 @@ test('the scan examines exactly the files it is supposed to — source, manifest
  *  `RUN curl` or `CMD wget`. The only curl/wget token in the scanned set is a
  *  `//` comment in routes/assets.js, which stripComments removes first; if
  *  either pattern ever reports a hit there, the stripper regressed — do not
- *  loosen the pattern. */
+ *  loosen the pattern.
+ *
+ *  `fetch` is matched as a bare TOKEN, not a call (AS-38, plan §2.9 item 1):
+ *  `const f = fetch; f(url)`, `globalThis.fetch` and `const { fetch } =
+ *  globalThis` are all a second HTTP client, and `/\bfetch\s*\(/` saw none of
+ *  them. `fetchTransport` is one word and does not match. The import rows catch
+ *  dynamic `import(...)` and the un-prefixed `'http'` spelling; the sockets, http2
+ *  and child_process rows are here because a raw socket, an h2 session, or a
+ *  shelled-out curl is an HTTP client wearing a different coat. The transport
+ *  import is itself a guarded construct, so a route that reaches past the
+ *  client to the transport is a finding, not a style issue. */
 const OUTBOUND_CLIENTS = [
-  { name: 'fetch(', pattern: /\bfetch\s*\(/ },
-  { name: 'http.request(', pattern: /\bhttps?\s*\.\s*request\s*\(/ },
-  { name: "import 'node:http'", pattern: /(from|require\s*\()\s*['"]node:https?['"]/ },
-  { name: 'axios', pattern: /(from|require\s*\()\s*['"]axios['"]/ },
-  { name: 'undici', pattern: /(from|require\s*\()\s*['"]undici['"]/ },
+  { name: 'fetch', pattern: /\bfetch\b/ },
+  { name: 'http.request(', pattern: /\bhttps?\s*\.\s*(request|get)\s*\(/ },
+  { name: "import 'node:http'", pattern: /(from|require\s*\(|import\s*\()\s*['"](node:)?https?['"]/ },
+  { name: "import 'node:http2'", pattern: /(from|require\s*\(|import\s*\()\s*['"](node:)?http2['"]/ },
+  { name: "import 'node:net' / 'node:tls'", pattern: /(from|require\s*\(|import\s*\()\s*['"](node:)?(net|tls)['"]/ },
+  { name: "import 'node:child_process'", pattern: /(from|require\s*\(|import\s*\()\s*['"](node:)?child_process['"]/ },
+  { name: 'WebSocket', pattern: /\bWebSocket\b/ },
+  { name: 'stripe transport import', pattern: /['"][^'"]*\btransport\.js['"]/ },
+  { name: 'axios', pattern: /(from|require\s*\(|import\s*\()\s*['"]axios['"]/ },
+  { name: 'undici', pattern: /(from|require\s*\(|import\s*\()\s*['"]undici['"]/ },
   { name: 'curl', pattern: /\bcurl\b/ },
   { name: 'wget', pattern: /\bwget\b/ },
 ];
@@ -411,12 +432,13 @@ const OUTBOUND_CLIENTS = [
  *  + how many hits it may absorb — never a bare file exclusion. Every entry
  *  must be used exactly `count` times (asserted below): a sanction that
  *  sanctions nothing is a hole waiting for a tenant, so the allowlist cannot
- *  outlive what it sanctions. AS-38 adds its legitimate call sites here, each
- *  with a reason, and the entry count literal in the test moves with it. */
+ *  outlive what it sanctions. The two AS-38 entries pin the product's only
+ *  egress and its only importer byte-for-byte; the falsification recipes in the
+ *  AS-38 plan (§6 M5, M6) rewrite exactly those lines. */
 const SANCTIONED = [
   {
     file: 'compose.yaml',
-    construct: 'fetch(',
+    construct: 'fetch',
     count: 1,
     line: /^\s+test: \["CMD", "node", "-e", "fetch\('http:\/\/127\.0\.0\.1:8348\/healthz'\)/,
     reason:
@@ -424,6 +446,22 @@ const SANCTIONED = [
       'compose can learn the container is alive. It is a self-probe, not an outbound ' +
       'client: the target is pinned to 127.0.0.1:8348 by the line shape, so pointing it ' +
       'anywhere else, or moving the fetch( to another key, un-sanctions it.',
+  },
+  {
+    file: 'lib/stripe/transport.js',
+    construct: 'fetch',
+    count: 1,
+    line: /^  const response = await fetch\(request\.url, init\);$/,
+    reason:
+      'AS-38: the one outbound HTTP call in the product (stack decision §11 chokepoint ' +
+      'corollary, §12). A second hit anywhere is a second HTTP client.',
+  },
+  {
+    file: 'lib/stripe/client.js',
+    construct: 'stripe transport import',
+    count: 1,
+    line: /^import \{ fetchTransport \} from '\.\/transport\.js';$/,
+    reason: 'AS-38: only the client may reach the transport; routes and services call the client.',
   },
 ];
 
@@ -465,7 +503,7 @@ function scanForbidden(patterns) {
 test('every sanctioned construct is present exactly where it is declared', () => {
   // Cardinality first: adding a sanction is a deliberate two-line change — the
   // entry, and this literal.
-  assert.equal(SANCTIONED.length, 1, `expected 1 SANCTIONED entry, found ${SANCTIONED.length}`);
+  assert.equal(SANCTIONED.length, 3, `expected 3 SANCTIONED entries, found ${SANCTIONED.length}`);
   const { seen } = scanForbidden(OUTBOUND_CLIENTS);
   SANCTIONED.forEach((entry, i) => {
     const key = `SANCTIONED entry ${entry.file} / ${entry.construct}`;
@@ -482,34 +520,41 @@ test('every sanctioned construct is present exactly where it is declared', () =>
 });
 
 test('no app source or manifest outside test/ contains an outbound HTTP client', () => {
-  // The custody chokepoint AS-38 will build depends on there being exactly one
-  // place that talks to the wire. Every unsanctioned hit here is a finding.
+  // The custody chokepoint depends on there being exactly one place that talks
+  // to the wire, and exactly one place that reaches it. Every unsanctioned hit
+  // here is a finding, reported as `file:line: construct`.
   const { findings } = scanForbidden(OUTBOUND_CLIENTS);
   assert.deepEqual(findings, [], `outbound HTTP client in app source or manifest: ${findings.join('; ')}`);
 });
 
-test('nothing AS-38 or AS-39 owns has leaked into the scaffold', () => {
-  const forbidden = [
-    { name: 'stripe module', pattern: /(from|require\s*\()\s*['"]stripe['"]/ },
-    { name: 'STRIPE_ config key', pattern: /STRIPE_[A-Z_]+/ },
-    { name: 'application_fee', pattern: /application_fee/ },
-    { name: '/webhook route', pattern: /['"]\/webhook/ },
-    { name: 'node:sqlite', pattern: /(from|require\s*\()\s*['"]node:sqlite['"]/ },
-  ];
-  const hits = [];
-  for (const path of SCANNED) {
-    const code = strippedText(path);
-    for (const { name, pattern } of forbidden) {
-      if (pattern.test(code)) hits.push(`${relative(APP_DIR, path)}: ${name}`);
-    }
-  }
-  assert.deepEqual(hits, [], `AS-38/AS-39 concepts in the scaffold: ${hits.join('; ')}`);
-  // Money is AS-39's: integer minor units with an explicit currency column. A
-  // scaffold that guessed a representation would have to be undone.
-  assert.deepEqual(
-    SCANNED.filter((p) => /amount|currency|money/i.test(readFileSync(p, 'utf8'))).map((p) => relative(APP_DIR, p)),
-    [],
-  );
+/** Where a concept is allowed to appear, it must appear there (V2: an unused
+ *  exemption is a hole waiting for a tenant) and nowhere else. */
+function scanConcept(name, pattern, allowed, { raw = false } = {}) {
+  const hits = SCANNED
+    .filter((p) => pattern.test(raw ? readFileSync(p, 'utf8') : strippedText(p)))
+    .map((p) => relative(APP_DIR, p))
+    .sort();
+  assert.deepEqual(hits, [...allowed].sort(), `${name}: found in [${hits.join(', ')}], allowed in exactly [${allowed.join(', ')}]`);
+}
+
+test('the Stripe concepts live exactly where AS-38 put them, and nothing AS-39 or AS-44 owns has leaked in', () => {
+  // The `stripe` npm module is banned everywhere, permanently: `new Stripe(key)`
+  // is the documented bypass of the custody guard (stack decision §8.1).
+  scanConcept('stripe module import', /(from|require\s*\(|import\s*\()\s*['"]stripe['"]/, []);
+  // The key's NAME appears in exactly three places: where compose passes it
+  // through, where config resolves it, and where the client says it is missing.
+  scanConcept('STRIPE_ config key', /STRIPE_[A-Z_]+/, ['compose.yaml', 'lib/config.js', 'lib/stripe/client.js']);
+  // The forbidden-parameter table is the only place the fee rail is even named.
+  scanConcept('application_fee', /application_fee/, ['lib/stripe/custody.js']);
+  // AS-44's webhook route and AS-39's database are not here yet.
+  scanConcept('/webhook route', /['"]\/webhook/, []);
+  scanConcept('node:sqlite', /(from|require\s*\(|import\s*\()\s*['"]node:sqlite['"]/, []);
+  // Money is AS-39's: integer minor units with an explicit currency column. The
+  // custody table is exempt because its citations quote Stripe's own parameter
+  // names (application_fee_amount) and reasons — and it MUST match there, or the
+  // exemption is stale. Everything else, client.js and transport.js included,
+  // stays clear of the words even in comments (RAW text, not stripped).
+  scanConcept('money representation', /amount|currency|money/i, ['lib/stripe/custody.js'], { raw: true });
 });
 
 test('no file in apps/invoicing exceeds 1,200 lines', () => {
