@@ -17,8 +17,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34MWF287MVX3FC9NTASW7",
-  "last_event_id": "ev_01M1DPN5YQG1QC6N0VTNMM3CPN",
-  "last_status_changed_at": "2026-09-01T05:20:51Z",
+  "last_event_id": "ev_01M1DR8Y6NKN6HKZQE53QQZAAG",
+  "last_status_changed_at": "2026-09-01T05:50:03Z",
   "priority": "high",
   "relationships_out": [
     {
@@ -32,7 +32,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-37",
-  "status": "planned",
+  "status": "in_progress",
   "tags": [
     "d1",
     "v1",
@@ -41,6 +41,6 @@
   ],
   "title": "D1 v1: apps/invoicing scaffold \u2014 compose stack, config, test harness, health check",
   "type": "task",
-  "updated_at": "2026-09-01T05:21:47Z",
+  "updated_at": "2026-09-01T05:50:03Z",
   "urgency": null
 }
