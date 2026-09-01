@@ -24,9 +24,19 @@
  * failing WCAG 1.4.11 non-text contrast against EVERY background in dark mode (all 4
  * of their rows fail). That is a known, already-labeled token-layer gap (not this
  * task's to fix — tokens.css is read-only here, plan file §5.2) and not styling
- * :hover at all is how this file avoids reproducing it, rather than silently working
- * around it with an invented fix. See this task's Lattice comment for the full
- * accounting of all 12 known dark-mode failures and how this file avoids each one.
+ * :hover at all is how this file avoids reproducing that pair, rather than silently
+ * working around it with an invented fix.
+ *
+ * Full accounting against all 12 known dark-mode failures in that matrix (review
+ * cycle 2, correcting an overclaim QA found here): 4 are the hover-fill pair above,
+ * avoided by defining no :hover rules at all; 7 more never trigger because the exact
+ * failing pairing (that token on that specific background) doesn't occur anywhere in
+ * this file; the remaining 1 IS reproduced here, correctly — .field--invalid's
+ * border-color (danger-solid on bg-surface, 2.97:1) is the same pairing
+ * reference.css:428 itself establishes, per plan file §5.4's instruction to use the
+ * semantic token pairs as the style reference pairs them. This file avoids 11 of 12 and
+ * correctly inherits the 12th; it does not avoid all 12. See this task's Lattice comment
+ * for the full per-pairing accounting.
  */
 
 *, *::before, *::after {
@@ -355,6 +365,11 @@ legend {
 .field--invalid input,
 .field--invalid select,
 .field--invalid textarea {
+  /* border-color intentionally reproduces the one dark-mode contrast pairing this file
+     doesn't avoid (danger-solid on bg-surface, 2.97:1) — see the file header note above
+     and reference.css:428, which establishes the same pairing (plan file §5.4). Not the
+     sole cue: the adjacent .field-error text and aria-invalid/aria-describedby carry the
+     error independently of this border. */
   border-color: var(--color-danger-solid);
   border-width: var(--focus-ring-width);
 }

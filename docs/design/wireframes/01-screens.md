@@ -113,3 +113,44 @@ Contract generation (C-19) has no Stripe dependency at all — it produces a sto
 and a rendered document, nothing else. Gating (C-11) is scoped to invoicing specifically
 ("an account that cannot charge blocks invoicing"). `02-states-ledger.md` §6 carries the
 explicit "n/a — because" row this decision requires.
+
+## 6. Marking convention: product copy vs. wireframe annotation
+
+**Added in review cycle 2**, closing QA finding H1 (AC12): `.page-meta` and `.field-hint`
+were each carrying both product copy and notes about the wireframe itself (route/ledger
+citations, capability-row references, "in the real app…" asides), in both directions,
+with the distinction stated nowhere — exactly the "design question an implementer has to
+ask" this handoff contract exists to prevent.
+
+The distinction is now marked mechanically, not left to be inferred from which class
+wraps a span: **any element carrying the `data-wf-note` attribute is wireframe
+annotation and must not be built into the product; any element without it is copy the
+product renders, verbatim.** The attribute is deliberately orthogonal to visual
+styling — `.page-meta` and `.field-hint` remain purely typographic (small, muted text at
+two different layout positions: a page/state-level note block, or an inline note under a
+field) and are used for both kinds of content depending on context. It is the attribute,
+not the class, that an implementer — or a script — checks.
+
+A single element never carries both. Where a control or a sentence is genuinely mixed
+with a note about it (screen 1's mode-switch line originally read "New here? Create an
+account — in the real app this link carries `?mode=signup`…"; screen 4's Finalize
+sentence originally ended "...We do not see or store that email (C-28, C-48)."), the two
+are split into sibling elements — one plain, one `data-wf-note` — never merged into one
+string.
+
+**Exempt by construction:** states whose entire content is behavioral narration because
+nothing actually renders to a user in that state — the recurring DENIED-SIGNEDOUT /
+REFRESH / ABANDON banners that describe a redirect or a no-op — are not marked
+sentence-by-sentence. Their governing `<h2>` already says "No … renders" (or equivalent);
+there is no rendered product string in that state to disambiguate in the first place.
+Likewise the pre-existing, already-unambiguous wireframe furniture
+(`.wireframe-notice`, `.state-label`, `.state-toc`) needs no attribute — it was never in
+question.
+
+**Mechanically checkable**, so this convention doesn't rot the way the unstated one did:
+`grep -c 'data-wf-note' docs/design/wireframes/screen-*.html` counts every annotation
+span per file. A script can additionally confirm the stronger invariant — that no
+`data-wf-note` element contains a `<button>`, `<input>`, `<select>`, `<textarea>`,
+`<label>`, or a `.btn`-classed `<a>` — so a required control can never be accidentally
+marked removable; this was run across all seven screens after the cycle-2 edits and
+found zero violations (recorded in this task's Lattice comment).
