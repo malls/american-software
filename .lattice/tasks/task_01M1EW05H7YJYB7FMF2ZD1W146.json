@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1EW05H7YJYB7FMF2ZD1W146",
-  "last_event_id": "ev_01M1EW0N576PT77YX0ZB5C6PTS",
+  "last_event_id": "ev_01M1EWCS5R93YKSQ0V3M7775GX",
   "last_status_changed_at": "2026-09-01T16:14:24Z",
-  "priority": "medium",
+  "priority": "low",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
@@ -21,6 +21,6 @@
   "tags": null,
   "title": "Watcher ticks cannot do web research: WebFetch/WebSearch denied by headless --allowedTools grant set",
   "type": "task",
-  "updated_at": "2026-09-01T16:14:40Z",
+  "updated_at": "2026-09-01T16:21:18Z",
   "urgency": null
 }
