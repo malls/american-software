@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screen 5 — Invoice detail + status — AS-30 wireframes</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="wireframe.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to states</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <span class="app-label">Invoicing</span>
+    </div>
+    <div class="container">
+      <nav class="site-nav" aria-label="Primary">
+        <a class="site-nav__link" href="screen-3-dashboard.html">Dashboard</a>
+        <a class="site-nav__link" href="screen-4-invoice-create.html">New invoice</a>
+        <a class="site-nav__link" href="screen-6-contract-create.html">New contract</a>
+        <form class="site-nav__signout" action="#" method="post">
+          <button type="submit" class="btn-link">Sign out</button>
+        </form>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <h1 class="page-title">Screen 5 — Invoice detail + status</h1>
+    <p class="page-meta" data-wf-note>
+      Route (provisional): <code>GET /invoices/:id</code>. Capability C-38. Surfaces
+      Stripe's <code>hosted_invoice_url</code> and <code>invoice_pdf</code> as labeled
+      outbound links (placeholder <code>href="#"</code> — the real values are Stripe's).
+      This is the freelancer's entire window on "did the client pay" (C-36). Ledger:
+      <code>02-states-ledger.md</code> §5.
+    </p>
+    <p class="wireframe-notice">
+      Design-doc artifact — all 10 ledger rows for Screen 5 on one page, zero JavaScript.
+    </p>
+
+    <nav class="state-toc" aria-label="States on this page">
+      <p class="state-toc__title">States in this file</p>
+      <ul>
+        <li><a href="#S5-DEFAULT-DRAFT">S5-DEFAULT-DRAFT</a></li>
+        <li><a href="#S5-DEFAULT-OPEN">S5-DEFAULT-OPEN</a></li>
+        <li><a href="#S5-DEFAULT-PAID">S5-DEFAULT-PAID</a></li>
+        <li><a href="#S5-LOADING">S5-LOADING</a></li>
+        <li class="state-toc__na">S5-EMPTY — n/a, no section rendered (see 02-states-ledger.md §5)</li>
+        <li><a href="#S5-ERROR-NOTFOUND">S5-ERROR-NOTFOUND</a></li>
+        <li><a href="#S5-ERROR-SYSTEM">S5-ERROR-SYSTEM</a></li>
+        <li><a href="#S5-DENIED-SIGNEDOUT">S5-DENIED-SIGNEDOUT</a></li>
+        <li><a href="#S5-DENIED-NOTOWNER">S5-DENIED-NOTOWNER</a></li>
+        <li class="state-toc__na">S5-ABANDON — n/a, no section rendered (see 02-states-ledger.md §5)</li>
+      </ul>
+    </nav>
+
+    <section id="S5-DEFAULT-DRAFT" class="state" aria-labelledby="S5-DEFAULT-DRAFT-h">
+      <p class="state-label">
+        <span class="state-label__id">S5-DEFAULT-DRAFT</span>
+        <span class="state-label__category">Default</span>
+        <span class="state-label__desc">Invoice exists, not yet finalized</span>
+      </p>
+      <h2 id="S5-DEFAULT-DRAFT-h" class="state__title">Invoice to Cy Testcase</h2>
+      <p><span class="badge badge-neutral">Draft</span></p>
+      <p>Amount: $80.00 · Due in 14 days once sent</p>
+      <p class="page-meta">No Stripe links yet — none exist until this invoice is finalized.</p>
+      <div class="form-actions">
+        <a href="screen-4-invoice-create.html" class="btn btn-secondary">Edit</a>
+        <button type="button" class="btn btn-primary">Finalize &amp; send</button>
+      </div>
+    </section>
+
+    <section id="S5-DEFAULT-OPEN" class="state" aria-labelledby="S5-DEFAULT-OPEN-h">
+      <p class="state-label">
+        <span class="state-label__id">S5-DEFAULT-OPEN</span>
+        <span class="state-label__category">Default</span>
+        <span class="state-label__desc">Finalized and sent, not yet paid. Honest but can be stale during the webhook interval — see the note below, not S5-LOADING (00-flows.md Flow 7)</span>
+      </p>
+      <h2 id="S5-DEFAULT-OPEN-h" class="state__title">Invoice to Bea Sample</h2>
+      <p><span class="badge badge-accent">Sent — awaiting payment</span></p>
+      <p>Amount: $450.00 · Due Sep 15, 2026</p>
+      <ul>
+        <li><a href="#">View hosted invoice page (Stripe)</a></li>
+        <li><a href="#">Download invoice PDF (Stripe)</a></li>
+      </ul>
+      <p class="page-meta" data-wf-note>Both links are Stripe's own pages — placeholder <code>href="#"</code> in this wireframe; the real values come from Stripe's API response.</p>
+    </section>
+
+    <section id="S5-DEFAULT-PAID" class="state" aria-labelledby="S5-DEFAULT-PAID-h">
+      <p class="state-label">
+        <span class="state-label__id">S5-DEFAULT-PAID</span>
+        <span class="state-label__category">Default</span>
+        <span class="state-label__desc">Webhook-confirmed payment — the loop's terminal state (00-flows.md Flow 1 step 17, Flow 7)</span>
+      </p>
+      <h2 id="S5-DEFAULT-PAID-h" class="state__title">Invoice to Ada Example</h2>
+      <div class="banner banner-success">
+        <p><span class="badge badge-success">Paid</span> — paid in full on Aug 30, 2026.</p>
+      </div>
+      <p>Amount: $1,200.00</p>
+      <ul>
+        <li><a href="#">View hosted invoice page (Stripe)</a></li>
+        <li><a href="#">Download invoice PDF (Stripe)</a></li>
+      </ul>
+      <p class="page-meta" data-wf-note>No further action is offered here — there is no reminder, re-send, or next step in v1 (rows C-39, C-40, both OUT).</p>
+    </section>
+
+    <section id="S5-LOADING" class="state" aria-labelledby="S5-LOADING-h">
+      <p class="state-label">
+        <span class="state-label__id">S5-LOADING</span>
+        <span class="state-label__category">Loading</span>
+        <span class="state-label__desc">Initial fetch of the invoice record only — NOT used for the payment-pending interval (see S5-DEFAULT-OPEN's note; 00-flows.md Flow 7 step 3)</span>
+      </p>
+      <h2 id="S5-LOADING-h" class="state__title">Loading invoice…</h2>
+    </section>
+
+    <section id="S5-ERROR-NOTFOUND" class="state" aria-labelledby="S5-ERROR-NOTFOUND-h">
+      <p class="state-label">
+        <span class="state-label__id">S5-ERROR-NOTFOUND</span>
+        <span class="state-label__category">Error</span>
+        <span class="state-label__desc">Invoice ID does not exist</span>
+      </p>
+      <h2 id="S5-ERROR-NOTFOUND-h" class="state__title">Invoice not found</h2>
+      <div class="banner banner-error">
+        <p>We couldn't find that invoice.</p>
+      </div>
+      <p><a href="screen-3-dashboard.html">Back to Dashboard</a></p>
+    </section>
+
+    <section id="S5-ERROR-SYSTEM" class="state" aria-labelledby="S5-ERROR-SYSTEM-h">
+      <p class="state-label">
+        <span class="state-label__id">S5-ERROR-SYSTEM</span>
+        <span class="state-label__category">Error — system</span>
+        <span class="state-label__desc">Fetch fails for a reason other than nonexistence</span>
+      </p>
+      <h2 id="S5-ERROR-SYSTEM-h" class="state__title">Couldn't load this invoice</h2>
+      <div class="banner banner-error">
+        <p>Something went wrong loading this invoice.</p>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary">Retry</button>
+      </div>
+    </section>
+
+    <section id="S5-DENIED-SIGNEDOUT" class="state" aria-labelledby="S5-DENIED-SIGNEDOUT-h">
+      <p class="state-label">
+        <span class="state-label__id">S5-DENIED-SIGNEDOUT</span>
+        <span class="state-label__category">Permission-denied / gated</span>
+        <span class="state-label__desc">No session</span>
+      </p>
+      <h2 id="S5-DENIED-SIGNEDOUT-h" class="state__title">No invoice renders</h2>
+      <div class="banner banner-info">
+        <p>Redirects to <a href="screen-1-signin.html">Screen 1</a> (00-flows.md Flow 4).</p>
+      </div>
+    </section>
+
+    <section id="S5-DENIED-NOTOWNER" class="state" aria-labelledby="S5-DENIED-NOTOWNER-h">
+      <p class="state-label">
+        <span class="state-label__id">S5-DENIED-NOTOWNER</span>
+        <span class="state-label__category">Permission-denied / gated</span>
+        <span class="state-label__desc">Signed in as a different freelancer, requests an invoice ID they don't own</span>
+      </p>
+      <h2 id="S5-DENIED-NOTOWNER-h" class="state__title">Renders identically to "not found"</h2>
+      <div class="banner banner-info">
+        <p>Deliberate: this state uses the exact same rendering as
+        <a href="#S5-ERROR-NOTFOUND">S5-ERROR-NOTFOUND</a>. Confirming "this ID exists but
+        isn't yours" leaks more than confirming nothing. Listed as its own row because the
+        <em>reason</em> differs even though the <em>rendering</em> doesn't — a reviewer
+        should be able to see that was a choice, not a missed case.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
