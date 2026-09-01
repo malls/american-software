@@ -1,6 +1,13 @@
 {
   "assigned_to": "agent:developer-marcus",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-53-dependency-scan-manifests",
+      "linked_at": "2026-09-01T20:48:22Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
   "comment_count": 3,
   "complexity": "medium",
   "created_at": "2026-09-01T15:09:41Z",
@@ -10,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1ER9MTH85YJKGADBNCVT0X7",
-  "last_event_id": "ev_01M1FBHCJD6359442RD98P8F5R",
+  "last_event_id": "ev_01M1FBNT4XMPES3H28HDR18Z9M",
   "last_status_changed_at": "2026-09-01T20:45:16Z",
   "priority": "medium",
   "relationships_out": [],
@@ -21,6 +28,6 @@
   "tags": null,
   "title": "invoicing: dependency-policy scan has a manifest-shaped blind spot \u2014 close it before AS-38 relies on the chokepoint guard",
   "type": "task",
-  "updated_at": "2026-09-01T20:45:57Z",
+  "updated_at": "2026-09-01T20:48:22Z",
   "urgency": null
 }
