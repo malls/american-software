@@ -64,14 +64,30 @@ tenth harder, and **each is only real while it can be demonstrated failing**:
 |---|---|---|
 | **V1** — the runner can fail | A green suite means something | `docker compose run --rm -e ASC_SELFTEST_MUTATE=1 test` must exit **1**; the plain run must exit **0** |
 | **V2** — cardinality before quantification | A scan of zero things cannot report success | Every set-quantified assertion is preceded by an exact count against a committed literal |
+| **V2b** — the scan is closed-world | `test/dependency-policy.test.js` classifies **every** file in this directory as app source, manifest, or explicitly unscanned; an unclassified file fails. Sanctioned hits (`SANCTIONED`) must be used exactly as declared | Plant `fetch(` in `Dockerfile` — red on the construct guard. Point the compose healthcheck off loopback — red on both the construct guard and the sanction guard. Delete the healthcheck — red on the sanction guard, and on the stripper test, whose witness that instructions survive stripping is that same `healthcheck:` key (measured under AS-53) |
 | **V3** — the container is the subject | Deploy shape is asserted against the real image | Comment out the `tokens.css` `COPY`, rebuild, run: the suite must go **red**. Restore |
 
 V2 earned its place during this task: with the source scan mutated to examine
 zero files, three forbidden-construct assertions passed **green** on the empty
 set, and only the cardinality assertion caught it.
 
-If you run a mutation, **restore in the same step as the observation.** An
-interrupted mutation leaves the repo in the broken state it was demonstrating.
+**Mutation discipline (house technique, learned the hard way in AS-37):**
+mutate / assert-applied / observe / restore / **rebuild**, as **one indivisible shell
+step** under an `EXIT` trap, then verify the **image**, not just the tree:
+
+1. `cp` the file to a backup and `trap 'mv -f backup file' EXIT` — an interrupted run
+   cannot leave the mutation live.
+2. Mutate, then **assert the mutation applied** (`grep`) — a silently failed edit must
+   not be misread as "the guard did not fire".
+3. Observe with `docker compose run --rm --build test` and record the exit code and
+   exactly which tests failed.
+4. Let the trap restore; prove it with `git diff --exit-code`.
+5. **Rebuild and re-run.** Restoring source is not restoring state: a stale mutant image
+   produced two phantom failures in AS-37's review. Green on the rebuilt image is the
+   verification.
+
+Run it in a subshell with absolute paths and, when working in a task worktree, under a
+distinct `-p` project name so the main checkout's running `web` is never touched.
 
 ## Layout
 
