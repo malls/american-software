@@ -25,7 +25,10 @@ down` here cannot take the chat app with it.
 
 **Why the `DOCKER_BUILDKIT=1` prefix.** This host's shell exports
 `DOCKER_BUILDKIT=0`/`COMPOSE_DOCKER_CLI_BUILD=0`, which `apps/chat` documents as
-a hazard. Prefixing every documented invocation follows chat's convention. The
+a hazard. Prefixing every documented invocation follows chat's convention.
+It is **not required for correctness**: with `build.platforms` set, the legacy builder
+(`DOCKER_BUILDKIT=0`) also produces a `linux/amd64` image and the suite passes (measured
+2026-09-01, re-measured under AS-53). The
 platform pin itself is belt-and-braces: `build.platforms` is set as well as the
 service-level `platform:`, because on Docker 29.6.1 / compose v5.3.0 the
 service-level key alone silently produced a `linux/arm64` image against a
