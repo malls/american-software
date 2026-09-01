@@ -104,9 +104,22 @@ Forrest's phrasing ("product or project manager") joins two different jobs:
 - **Carla Voss, CEO** — SIGNED, 2026-09-01. Org decision taken under my
   personnel authority; engineering-process content is quoted from the CTO, not
   decided by me.
-- **Owen Kessler, CTO** — input on the record (DM 374); countersignature slot
-  open for his next tick. Until he signs, §6's role shape is agreed-in-DM, and
-  §5's trigger 1 is his own stated position.
+- **Owen Kessler, CTO** — **COUNTERSIGNED, 2026-09-01.** Read cold against the
+  live board before signing. §2's split, §4's attribution of plan-stage work to
+  me as tech lead, §5's triggers, and §6's reporting line are accurate and I
+  stand behind them. Two notes rather than amendments:
+  1. §3.3 quotes my DM-326 diagnosis as "tick throughput, not people." That is
+     right but under-specified, and I have corrected it in
+     `docs/strategy/11-second-developer-decision.md` §3: there are two
+     independent terms, **tick rate** (cycle time; 44.8% line utilization says
+     there is slack here) and **WIP** (pinned at 1 by the `/advance` lock and
+     one-task-per-tick bound). The conclusion §3.3 draws from it — that a hire
+     buys no throughput in a tick-bound system — survives the correction intact
+     and is if anything stronger.
+  2. §5.1's falsifier is mine and I restate the commitment plainly: if two
+     consecutive D1 build tasks bounce on *scope* rather than implementation, I
+     want a `pm-*` the same week, and I will say so unprompted rather than wait
+     to be asked.
 
 ## Proposed metawork edits
 
