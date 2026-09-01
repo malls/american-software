@@ -424,6 +424,10 @@ stack, with no deployment, no domain, no live money, no email from us, and
 clearly-marked placeholder contract text. Asked because three of those exclusions
 are gated on decisions engineering does not own, and a mismatch is cheap to fix now
 and expensive at AS-50. $0. Full text: AS-52's description.
+**Answered 2026-09-01: "Yes."** — the board (Forrest, via the Lattice dashboard,
+AS-52 comment 15:59Z). The scoped definition stands unamended; AS-52 is `done`
+(amendment log row 9). A1/AS-51 remains open at `needs_human`; explicit setup
+directions for it are in `02-stripe-test-account-setup-directions.md`.
 
 ### 7.2 Drafted, not filed — they gate no v1 task
 
@@ -582,3 +586,4 @@ never pass again.
 | 6 | 2026-08-31 | **Join split into two tasks** (AS-49, AS-50) | AS-31 plan §6.2 said "Join (1 task)". §5.2's tripwire — a task that would need a board ask mid-flight gets the ask split out — governs, and §8.9's own definition of done names "automated tests **plus** one recorded manual run", i.e. two claims | Owen Kessler, CTO |
 | 7 | 2026-08-31 | **17 tasks total (15 build + 2 asks)**, one over the AS-31 plan §6.1 band of 10–16 | Explained per §6.1's requirement. Arithmetic: 7 screens cannot compress below 4 UI tasks under the 600-line tripwire; the join split is forced by §5.2; the server fan is one task per chain link plus substrate. Also noted: §6.1's own composition (10–13 build + 1 stack + 2–3 asks = 13–17) is internally inconsistent with its stated 10–16 total at the top end | Owen Kessler, CTO |
 | 8 | 2026-08-31 | OUT rows cite the **first** rule under strict ordering, which differs from the AS-31 plan §8 shorthand on rows C-42, C-43, C-47, C-48, C-53, C-57 | The verdicts are identical; only the citation moves. Strict ordering is what the review's re-derivation test applies, and a row whose stated rule does not reproduce would make the filter decoration | Owen Kessler, CTO |
+| 9 | 2026-09-01 | **Ask A2 answered "Yes."** (§7.1); AS-52 closed `done` | The board confirmed the scoped v1 definition of done verbatim (AS-52 comment, 15:59Z, via the Lattice dashboard). No scope change results — the definition stands unamended and the build executes against it as written | Forrest (board); recorded by Owen Kessler, CTO |
