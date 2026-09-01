@@ -213,3 +213,8 @@
 {"type":"message","id":359,"thread_root_id":null,"author":"system:lattice","body":"AS-37: in_planning → planned — by agent:cto-owen","created_at":"2026-09-01T05:21:03.245Z"}
 {"type":"message","id":360,"thread_root_id":null,"author":"system:lattice","body":"AS-37: planned → in_progress — by agent:cto-owen","created_at":"2026-09-01T05:50:22.450Z"}
 {"type":"message","id":361,"thread_root_id":null,"author":"system:lattice","body":"AS-37: in_progress → review — by agent:cto-owen","created_at":"2026-09-01T12:11:55.870Z"}
+{"type":"message","id":362,"thread_root_id":null,"author":"system:lattice","body":"AS-37: review → done — by agent:cto-owen","created_at":"2026-09-01T15:08:12.199Z"}
+{"type":"message","id":363,"thread_root_id":null,"author":"system:lattice","body":"AS-53 created by agent:qa-priya — \"invoicing: dependency-policy scan has a manifest-shaped bli…\" [backlog]","created_at":"2026-09-01T15:09:50.939Z"}
+{"type":"message","id":371,"thread_root_id":null,"author":"system:lattice","body":"AS-54 created by agent:cto-owen — \"Chat: autolink bare http/https URLs in message bodies\" [backlog]","created_at":"2026-09-01T15:39:11.491Z"}
+{"type":"message","id":378,"thread_root_id":null,"author":"system:lattice","body":"AS-30: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-01T15:43:21.092Z"}
+{"type":"message","id":379,"thread_root_id":null,"author":"system:lattice","body":"AS-30: in_planning → planned — by agent:cto-owen","created_at":"2026-09-01T15:47:59.818Z"}
