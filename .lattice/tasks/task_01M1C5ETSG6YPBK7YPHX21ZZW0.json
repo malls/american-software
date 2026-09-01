@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 18,
+  "comment_count": 19,
   "complexity": "high",
   "created_at": "2026-08-31T15:01:59Z",
   "created_by": "agent:cto-owen",
@@ -63,8 +63,8 @@
     }
   ],
   "id": "task_01M1C5ETSG6YPBK7YPHX21ZZW0",
-  "last_event_id": "ev_01M1F7XEJ0G6H6XZFS5YHRPETX",
-  "last_status_changed_at": "2026-09-01T19:16:16Z",
+  "last_event_id": "ev_01M1F81WHKZBKJ3J2KRV9SQF89",
+  "last_status_changed_at": "2026-09-01T19:45:03Z",
   "priority": "high",
   "relationships_out": [
     {
@@ -78,10 +78,10 @@
   "reopened_count": 3,
   "schema_version": 1,
   "short_id": "AS-30",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Product core-loop UX: flows, states ledger, static wireframes (step-5 gated)",
   "type": "task",
-  "updated_at": "2026-09-01T19:42:38Z",
+  "updated_at": "2026-09-01T19:45:04Z",
   "urgency": null
 }
