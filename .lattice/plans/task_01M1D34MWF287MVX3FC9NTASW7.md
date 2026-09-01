@@ -55,6 +55,15 @@ yields a half-scaffold that cannot be verified against its own acceptance proper
 which is the one thing this task exists to establish. The file count is high because the
 module boundaries are the deliverable (§3.3), not because two subsystems were joined.
 
+> **Correction, 2026-09-01 (AS-53, from the AS-37 review):** the estimate above — *"~21
+> files / ~600 lines including tests"* — was wrong by **3.7×**. Measured at merge `9c3d965`:
+> **25 files / 3,113 inserted lines**, of which 898 is the generated `package-lock.json`;
+> **2,215 hand-written** = 651 product code + 1,280 tests + 129 README + 155 manifests and
+> ignore files. Product code alone (651) sits essentially at the ~600 tripwire; the overage
+> is the suite, which the review demonstrated is load-bearing by breaking every guard in
+> it. The keep-it-whole reasoning survives the corrected number; the number is corrected so
+> future right-sizing is not calibrated against a bad one.
+
 ---
 
 ## 2. The inputs that bind you
