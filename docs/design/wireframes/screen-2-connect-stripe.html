@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screen 2 — Connect Stripe — AS-30 wireframes</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="wireframe.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to states</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <span class="app-label">Invoicing</span>
+    </div>
+    <!-- Reduced chrome, same as Screen 1: mid-onboarding, no nav yet. -->
+  </header>
+
+  <main id="main" class="container">
+    <h1 class="page-title">Screen 2 — Connect Stripe</h1>
+    <p class="page-meta">
+      Route (provisional): <code>GET /connect-stripe</code>, plus two Stripe redirect
+      targets, <code>/connect-stripe/return</code> and <code>/connect-stripe/refresh</code>,
+      which resolve into this same screen's states rather than rendering pages of their
+      own (01-screens.md §2). Capability C-12. Connection status lives here
+      <strong>permanently</strong> — no other screen repeats it (C-41 cut). Ledger:
+      <code>02-states-ledger.md</code> §2. Full branch detail: <code>00-flows.md</code> Flow 2.
+    </p>
+    <p class="wireframe-notice">
+      Design-doc artifact — all 9 ledger rows for Screen 2 on one page, zero JavaScript,
+      nothing here is interactive.
+    </p>
+
+    <nav class="state-toc" aria-label="States on this page">
+      <p class="state-toc__title">States in this file</p>
+      <ul>
+        <li><a href="#S2-DEFAULT-NOTSTARTED">S2-DEFAULT-NOTSTARTED</a></li>
+        <li><a href="#S2-RETURN-READY">S2-RETURN-READY</a></li>
+        <li><a href="#S2-LOADING">S2-LOADING</a></li>
+        <li class="state-toc__na">S2-EMPTY — n/a, no section rendered (see 02-states-ledger.md §2)</li>
+        <li><a href="#S2-ERROR-SYSTEM">S2-ERROR-SYSTEM</a></li>
+        <li><a href="#S2-RETURN-NOTREADY">S2-RETURN-NOTREADY</a></li>
+        <li><a href="#S2-DENIED-SIGNEDOUT">S2-DENIED-SIGNEDOUT</a></li>
+        <li><a href="#S2-REFRESH">S2-REFRESH</a></li>
+        <li><a href="#S2-ABANDON">S2-ABANDON</a></li>
+      </ul>
+    </nav>
+
+    <section id="S2-DEFAULT-NOTSTARTED" class="state" aria-labelledby="S2-DEFAULT-NOTSTARTED-h">
+      <p class="state-label">
+        <span class="state-label__id">S2-DEFAULT-NOTSTARTED</span>
+        <span class="state-label__category">Default</span>
+        <span class="state-label__desc">Signed in, connected account never created</span>
+      </p>
+      <h2 id="S2-DEFAULT-NOTSTARTED-h" class="state__title">Connect your Stripe account</h2>
+      <p>You'll be taken to Stripe to verify your identity and add payout details. We
+      never hold or move your clients' money — Stripe pays you directly.</p>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary">Connect with Stripe</button>
+      </div>
+    </section>
+
+    <section id="S2-RETURN-READY" class="state" aria-labelledby="S2-RETURN-READY-h">
+      <p class="state-label">
+        <span class="state-label__id">S2-RETURN-READY</span>
+        <span class="state-label__category">Default</span>
+        <span class="state-label__desc">Stripe return redirect; requirements met, account can charge</span>
+      </p>
+      <h2 id="S2-RETURN-READY-h" class="state__title">You're connected</h2>
+      <div class="banner banner-success">
+        <p>Your Stripe account is ready to accept payments.</p>
+      </div>
+      <div class="form-actions">
+        <a href="screen-3-dashboard.html" class="btn btn-primary">Continue to Dashboard</a>
+      </div>
+    </section>
+
+    <section id="S2-LOADING" class="state" aria-labelledby="S2-LOADING-h">
+      <p class="state-label">
+        <span class="state-label__id">S2-LOADING</span>
+        <span class="state-label__category">Loading</span>
+        <span class="state-label__desc">Between clicking "Connect" (or the refresh handler firing) and Stripe's redirect — no form to fill, so this is brief and label-only</span>
+      </p>
+      <h2 id="S2-LOADING-h" class="state__title">Redirecting to Stripe…</h2>
+      <p class="page-meta">No fields render in this state — there is nothing to fill in while control hands off to Stripe.</p>
+    </section>
+
+    <section id="S2-ERROR-SYSTEM" class="state" aria-labelledby="S2-ERROR-SYSTEM-h">
+      <p class="state-label">
+        <span class="state-label__id">S2-ERROR-SYSTEM</span>
+        <span class="state-label__category">Error — system</span>
+        <span class="state-label__desc">Our call to create the account link fails, before any redirect happens</span>
+      </p>
+      <h2 id="S2-ERROR-SYSTEM-h" class="state__title">Couldn't reach Stripe</h2>
+      <div class="banner banner-error">
+        <p>Something went wrong starting Stripe setup. You haven't left this page — try again.</p>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary">Try again</button>
+      </div>
+    </section>
+
+    <section id="S2-RETURN-NOTREADY" class="state" aria-labelledby="S2-RETURN-NOTREADY-h">
+      <p class="state-label">
+        <span class="state-label__id">S2-RETURN-NOTREADY</span>
+        <span class="state-label__category">Permission-denied / gated</span>
+        <span class="state-label__desc">Stripe return redirect; requirements still outstanding (C-11) — the state that gates invoicing everywhere else in the product</span>
+      </p>
+      <h2 id="S2-RETURN-NOTREADY-h" class="state__title">Almost there — Stripe needs more information</h2>
+      <div class="banner banner-warning">
+        <p>Stripe still needs more information before you can accept payments. You can't
+        send invoices until this is finished.</p>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary">Finish setup on Stripe</button>
+      </div>
+      <p class="page-meta">This is the only state that blocks invoicing (00-flows.md Flow 5); it does not block contract creation, which has no Stripe dependency.</p>
+    </section>
+
+    <section id="S2-DENIED-SIGNEDOUT" class="state" aria-labelledby="S2-DENIED-SIGNEDOUT-h">
+      <p class="state-label">
+        <span class="state-label__id">S2-DENIED-SIGNEDOUT</span>
+        <span class="state-label__category">Permission-denied / gated</span>
+        <span class="state-label__desc">No session</span>
+      </p>
+      <h2 id="S2-DENIED-SIGNEDOUT-h" class="state__title">No form renders</h2>
+      <div class="banner banner-info">
+        <p>A request for this screen with no valid session is redirected to
+        <a href="screen-1-signin.html">Screen 1</a>, sign-in mode, with a one-line reason
+        ("Sign in to continue") — 00-flows.md Flow 4. On success, the freelancer returns
+        here rather than landing unconditionally on the Dashboard.</p>
+      </div>
+    </section>
+
+    <section id="S2-REFRESH" class="state" aria-labelledby="S2-REFRESH-h">
+      <p class="state-label">
+        <span class="state-label__id">S2-REFRESH</span>
+        <span class="state-label__category">Abandonment</span>
+        <span class="state-label__desc">Stripe invalidates the onboarding link before completion (Stripe's own timeout, not a freelancer action) — Stripe redirects here, to the refresh URL, not the return URL</span>
+      </p>
+      <h2 id="S2-REFRESH-h" class="state__title">Refreshing your setup link</h2>
+      <div class="banner banner-info">
+        <p>Transient: this handler mints a fresh account link and immediately redirects
+        back into Stripe's flow — a freelancer sees <a href="#S2-LOADING">S2-LOADING</a>
+        for a moment, not this page's own content. If minting the fresh link fails, that
+        is <a href="#S2-ERROR-SYSTEM">S2-ERROR-SYSTEM</a>, not a new state.</p>
+      </div>
+    </section>
+
+    <section id="S2-ABANDON" class="state" aria-labelledby="S2-ABANDON-h">
+      <p class="state-label">
+        <span class="state-label__id">S2-ABANDON</span>
+        <span class="state-label__category">Abandonment</span>
+        <span class="state-label__desc">Freelancer closes the tab mid-Stripe-KYC, later returns directly (not via a Stripe redirect)</span>
+      </p>
+      <h2 id="S2-ABANDON-h" class="state__title">Nothing changed on our side</h2>
+      <div class="banner banner-info">
+        <p>Renders <a href="#S2-DEFAULT-NOTSTARTED">S2-DEFAULT-NOTSTARTED</a> again — we
+        were never told anything changed, because Stripe never redirected back to us.
+        Stripe holds whatever partial progress the freelancer made on their own KYC flow;
+        clicking "Connect with Stripe" again resumes them where Stripe left off. That is
+        Stripe's behavior, not something this product controls or can surface.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

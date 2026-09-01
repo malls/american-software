@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screen 4 — Invoice create/edit — AS-30 wireframes</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="wireframe.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to states</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <span class="app-label">Invoicing</span>
+    </div>
+    <div class="container">
+      <nav class="site-nav" aria-label="Primary">
+        <a class="site-nav__link" href="screen-3-dashboard.html">Dashboard</a>
+        <a class="site-nav__link" href="screen-4-invoice-create.html">New invoice</a>
+        <a class="site-nav__link" href="screen-6-contract-create.html">New contract</a>
+        <form class="site-nav__signout" action="#" method="post">
+          <button type="submit" class="btn-link">Sign out</button>
+        </form>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <h1 class="page-title">Screen 4 — Invoice create/edit</h1>
+    <p class="page-meta">
+      Route (provisional): <code>GET /invoices/new</code>, <code>GET /invoices/:id/edit</code>.
+      Capability C-29. Carries inline client creation (00-flows.md Flow 3). Line items,
+      <code>days_until_due</code>, single currency (USD only — no selector, C-27).
+      Ledger: <code>02-states-ledger.md</code> §4 — the deepest ledger in this set (12 rows).
+    </p>
+    <p class="wireframe-notice">
+      Design-doc artifact — all 12 ledger rows for Screen 4 on one page, zero JavaScript.
+      The real app's line-item add/remove is hand-written progressive-enhancement JS
+      (<code>docs/engineering/01-stack-decision.md</code> §12); here every row count is
+      shown as a static illustration, never toggled.
+    </p>
+
+    <nav class="state-toc" aria-label="States on this page">
+      <p class="state-toc__title">States in this file</p>
+      <ul>
+        <li><a href="#S4-DEFAULT-CREATE">S4-DEFAULT-CREATE</a></li>
+        <li><a href="#S4-DEFAULT-EDIT">S4-DEFAULT-EDIT</a></li>
+        <li><a href="#S4-LOADING">S4-LOADING</a></li>
+        <li><a href="#S4-CLIENT-EMPTY">S4-CLIENT-EMPTY</a></li>
+        <li><a href="#S4-ERROR-VALIDATION">S4-ERROR-VALIDATION</a></li>
+        <li><a href="#S4-ERROR-SYSTEM">S4-ERROR-SYSTEM</a></li>
+        <li><a href="#S4-CLIENT-ERROR-VALIDATION">S4-CLIENT-ERROR-VALIDATION</a></li>
+        <li><a href="#S4-CLIENT-ERROR-DUPLICATE">S4-CLIENT-ERROR-DUPLICATE</a></li>
+        <li><a href="#S4-GATED-STRIPENOTREADY">S4-GATED-STRIPENOTREADY</a></li>
+        <li><a href="#S4-DENIED-SIGNEDOUT">S4-DENIED-SIGNEDOUT</a></li>
+        <li><a href="#S4-ABANDON">S4-ABANDON</a></li>
+        <li><a href="#S4-CLIENT-ABANDON">S4-CLIENT-ABANDON</a></li>
+      </ul>
+    </nav>
+
+    <section id="S4-DEFAULT-CREATE" class="state" aria-labelledby="S4-DEFAULT-CREATE-h">
+      <p class="state-label">
+        <span class="state-label__id">S4-DEFAULT-CREATE</span>
+        <span class="state-label__category">Default</span>
+        <span class="state-label__desc">GET /invoices/new, at least one client already exists</span>
+      </p>
+      <h2 id="S4-DEFAULT-CREATE-h" class="state__title">New invoice</h2>
+      <form>
+        <div class="client-picker">
+          <p class="client-picker__mode-toggle">Client: <a href="#S4-CLIENT-EMPTY">add a new client instead</a></p>
+          <div class="field">
+            <label for="s4-create-client">Bill to</label>
+            <select id="s4-create-client" name="client_id">
+              <option value="">Select a client…</option>
+              <option value="cl_1" selected>Ada Example (ada@example.com)</option>
+              <option value="cl_2">Bea Sample (bea@example.com)</option>
+            </select>
+          </div>
+        </div>
+
+        <fieldset>
+          <legend>Line items</legend>
+          <div class="line-items">
+            <div class="line-item-row">
+              <div class="field"><label for="s4-create-desc-1">Description</label><input type="text" id="s4-create-desc-1" value="Website redesign — phase 1"></div>
+              <div class="field"><label for="s4-create-qty-1">Qty</label><input type="number" id="s4-create-qty-1" value="1" min="1"></div>
+              <div class="field"><label for="s4-create-price-1">Unit price (USD)</label><input type="number" id="s4-create-price-1" value="1200.00" min="0" step="0.01"></div>
+            </div>
+            <div class="line-item-row">
+              <div class="field"><label for="s4-create-desc-2">Description</label><input type="text" id="s4-create-desc-2" value=""></div>
+              <div class="field"><label for="s4-create-qty-2">Qty</label><input type="number" id="s4-create-qty-2" value="1" min="1"></div>
+              <div class="field"><label for="s4-create-price-2">Unit price (USD)</label><input type="number" id="s4-create-price-2" value="" min="0" step="0.01"></div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary">Add line item</button>
+        </fieldset>
+
+        <div class="field">
+          <label for="s4-create-duedays">Due in (days)</label>
+          <input type="number" id="s4-create-duedays" name="days_until_due" value="30" min="1">
+          <span class="field-hint">Client must pay within this many days of receiving the invoice.</span>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-secondary">Save draft</button>
+          <button type="submit" class="btn btn-primary">Finalize &amp; send</button>
+        </div>
+        <p class="page-meta">Finalizing sends this invoice by email — <strong>Stripe</strong> sends it directly to the client. We do not see or store that email (C-28, C-48).</p>
+      </form>
+    </section>
+
+    <section id="S4-DEFAULT-EDIT" class="state" aria-labelledby="S4-DEFAULT-EDIT-h">
+      <p class="state-label">
+        <span class="state-label__id">S4-DEFAULT-EDIT</span>
+        <span class="state-label__category">Default</span>
+        <span class="state-label__desc">GET /invoices/:id/edit, invoice still a draft (no edit capability once finalized/sent — Screen 5 is read-only from that point)</span>
+      </p>
+      <h2 id="S4-DEFAULT-EDIT-h" class="state__title">Edit invoice — draft</h2>
+      <form>
+        <div class="client-picker">
+          <div class="field">
+            <label for="s4-edit-client">Bill to</label>
+            <select id="s4-edit-client" name="client_id">
+              <option value="cl_3" selected>Cy Testcase (cy@example.com)</option>
+              <option value="cl_1">Ada Example (ada@example.com)</option>
+              <option value="cl_2">Bea Sample (bea@example.com)</option>
+            </select>
+          </div>
+        </div>
+        <fieldset>
+          <legend>Line items</legend>
+          <div class="line-items">
+            <div class="line-item-row">
+              <div class="field"><label for="s4-edit-desc-1">Description</label><input type="text" id="s4-edit-desc-1" value="Logo concepts"></div>
+              <div class="field"><label for="s4-edit-qty-1">Qty</label><input type="number" id="s4-edit-qty-1" value="1" min="1"></div>
+              <div class="field"><label for="s4-edit-price-1">Unit price (USD)</label><input type="number" id="s4-edit-price-1" value="80.00" min="0" step="0.01"></div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary">Add line item</button>
+        </fieldset>
+        <div class="field">
+          <label for="s4-edit-duedays">Due in (days)</label>
+          <input type="number" id="s4-edit-duedays" name="days_until_due" value="14" min="1">
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-secondary">Save draft</button>
+          <button type="submit" class="btn btn-primary">Finalize &amp; send</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="S4-LOADING" class="state" aria-labelledby="S4-LOADING-h">
+      <p class="state-label">
+        <span class="state-label__id">S4-LOADING</span>
+        <span class="state-label__category">Loading</span>
+        <span class="state-label__desc">Between submit (save or finalize) and response</span>
+      </p>
+      <h2 id="S4-LOADING-h" class="state__title">New invoice — saving</h2>
+      <form>
+        <div class="field">
+          <label for="s4-loading-client">Bill to</label>
+          <select id="s4-loading-client" disabled><option>Ada Example (ada@example.com)</option></select>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" disabled>Sending…</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="S4-CLIENT-EMPTY" class="state" aria-labelledby="S4-CLIENT-EMPTY-h">
+      <p class="state-label">
+        <span class="state-label__id">S4-CLIENT-EMPTY</span>
+        <span class="state-label__category">Empty</span>
+        <span class="state-label__desc">Zero stored clients — shared sub-pattern, 00-flows.md Flow 3 / 02-states-ledger.md §0</span>
+      </p>
+      <h2 id="S4-CLIENT-EMPTY-h" class="state__title">New invoice — no clients yet</h2>
+      <form>
+        <div class="client-picker">
+          <p>No clients yet — add one below. (No "select existing" control renders: a
+          disabled control with nothing behind it is a design lie.)</p>
+          <div class="field">
+            <label for="s4-clientempty-name">Client name</label>
+            <input type="text" id="s4-clientempty-name" name="client_name">
+          </div>
+          <div class="field">
+            <label for="s4-clientempty-email">Client email</label>
+            <input type="email" id="s4-clientempty-email" name="client_email">
+          </div>
+        </div>
+        <p class="page-meta">The rest of the form (line items, due date) renders as in <a href="#S4-DEFAULT-CREATE">S4-DEFAULT-CREATE</a>; omitted here to keep this section focused on the picker's empty variant.</p>
+      </form>
+    </section>
+
+    <section id="S4-ERROR-VALIDATION" class="state" aria-labelledby="S4-ERROR-VALIDATION-h">
+      <p class="state-label">
+        <span class="state-label__id">S4-ERROR-VALIDATION</span>
+        <span class="state-label__category">Error — validation</span>
+        <span class="state-label__desc">Missing/invalid line item, non-positive days_until_due, or no client selected — this is the row the stack decision's re-render test asserts (docs/engineering/01-stack-decision.md §10.4 item 3)</span>
+      </p>
+      <h2 id="S4-ERROR-VALIDATION-h" class="state__title">New invoice — fix the highlighted fields</h2>
+      <div class="banner banner-error">
+        <p>2 fields need attention. Everything else you entered is unchanged below.</p>
+      </div>
+      <form>
+        <div class="client-picker">
+          <div class="field">
+            <label for="s4-errval-client">Bill to</label>
+            <select id="s4-errval-client"><option value="cl_1" selected>Ada Example (ada@example.com)</option></select>
+          </div>
+        </div>
+        <fieldset>
+          <legend>Line items</legend>
+          <div class="line-items">
+            <div class="line-item-row">
+              <div class="field"><label for="s4-errval-desc-1">Description</label><input type="text" id="s4-errval-desc-1" value="Website redesign — phase 1"></div>
+              <div class="field"><label for="s4-errval-qty-1">Qty</label><input type="number" id="s4-errval-qty-1" value="1" min="1"></div>
+              <div class="field field--invalid">
+                <label for="s4-errval-price-1">Unit price (USD)</label>
+                <input type="number" id="s4-errval-price-1" value="0" min="0" step="0.01" aria-invalid="true" aria-describedby="s4-errval-price-1-err">
+                <span class="field-error" id="s4-errval-price-1-err">Enter a price greater than $0.</span>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+        <div class="field field--invalid">
+          <label for="s4-errval-duedays">Due in (days)</label>
+          <input type="number" id="s4-errval-duedays" value="0" min="1" aria-invalid="true" aria-describedby="s4-errval-duedays-err">
+          <span class="field-error" id="s4-errval-duedays-err">Enter at least 1 day.</span>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Finalize &amp; send</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="S4-ERROR-SYSTEM" class="state" aria-labelledby="S4-ERROR-SYSTEM-h">
+      <p class="state-label">
+        <span class="state-label__id">S4-ERROR-SYSTEM</span>
+        <span class="state-label__category">Error — system</span>
+        <span class="state-label__desc">Validation passes but the Stripe call fails (e.g. creating the invoice on the connected account) — distinct from a field-level error</span>
+      </p>
+      <h2 id="S4-ERROR-SYSTEM-h" class="state__title">Invoice not sent</h2>
+      <div class="banner banner-error">
+        <p>Something went wrong sending this invoice. Nothing was charged and the client
+        was not notified. Your draft is unchanged — try again.</p>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary">Try again</button>
+      </div>
+    </section>
+
+    <section id="S4-CLIENT-ERROR-VALIDATION" class="state" aria-labelledby="S4-CLIENT-ERROR-VALIDATION-h">
+      <p class="state-label">
+        <span class="state-label__id">S4-CLIENT-ERROR-VALIDATION</span>
+        <span class="state-label__category">Error — validation</span>
+        <span class="state-label__desc">Inline client name/email invalid — shared sub-pattern, 02-states-ledger.md §0</span>
+      </p>
+      <h2 id="S4-CLIENT-ERROR-VALIDATION-h" class="state__title">New invoice — new client needs a valid email</h2>
+      <form>
+        <div class="client-picker">
+          <div class="field">
+            <label for="s4-clienterr-name">Client name</label>
+            <input type="text" id="s4-clienterr-name" value="Dee Newclient">
+          </div>
+          <div class="field field--invalid">
+            <label for="s4-clienterr-email">Client email</label>
+            <input type="email" id="s4-clienterr-email" value="dee-at-example" aria-invalid="true" aria-describedby="s4-clienterr-email-err">
+            <span class="field-error" id="s4-clienterr-email-err">Enter a complete email address.</span>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section id="S4-CLIENT-ERROR-DUPLICATE" class="state" aria-labelledby="S4-CLIENT-ERROR-DUPLICATE-h">
+      <p class="state-label">
+        <span class="state-label__id">S4-CLIENT-ERROR-DUPLICATE</span>
+        <span class="state-label__category">Error — validation</span>
+        <span class="state-label__desc">New client's email exactly matches an existing client (case-insensitive) — shared sub-pattern, 02-states-ledger.md §0. Non-blocking.</span>
+      </p>
+      <h2 id="S4-CLIENT-ERROR-DUPLICATE-h" class="state__title">New invoice — this looks like an existing client</h2>
+      <form>
+        <div class="client-picker">
+          <div class="field">
+            <label for="s4-clientdup-name">Client name</label>
+            <input type="text" id="s4-clientdup-name" value="Ada E.">
+          </div>
+          <div class="field">
+            <label for="s4-clientdup-email">Client email</label>
+            <input type="email" id="s4-clientdup-email" value="ada@example.com">
+          </div>
+          <div class="banner banner-warning">
+            <p>This matches an existing client: <strong>Ada Example (ada@example.com)</strong>.</p>
+            <p><button type="button" class="btn btn-secondary">Use this client instead</button> <button type="button" class="btn-link">Create a new client anyway</button></p>
+          </div>
+        </div>
+        <p class="page-meta">Match rule is exact, case-insensitive email match only — no fuzzy name matching (00-flows.md Flow 3, step 3b).</p>
+      </form>
+    </section>
+
+    <section id="S4-GATED-STRIPENOTREADY" class="state" aria-labelledby="S4-GATED-STRIPENOTREADY-h">
+      <p class="state-label">
+        <span class="state-label__id">S4-GATED-STRIPENOTREADY</span>
+        <span class="state-label__category">Permission-denied / gated</span>
+        <span class="state-label__desc">Stripe account not ready, screen reached directly (typed URL, stale bookmark) — a true server-side refusal, not a disabled button (00-flows.md Flow 5)</span>
+      </p>
+      <h2 id="S4-GATED-STRIPENOTREADY-h" class="state__title">Connect Stripe before invoicing</h2>
+      <div class="banner banner-warning">
+        <p>You need to finish connecting Stripe before you can create an invoice.</p>
+      </div>
+      <div class="form-actions">
+        <a href="screen-2-connect-stripe.html" class="btn btn-primary">Finish setup on Stripe</a>
+      </div>
+      <p class="page-meta">No form renders below this banner — the route itself refuses to serve a working invoice form to an unready account.</p>
+    </section>
+
+    <section id="S4-DENIED-SIGNEDOUT" class="state" aria-labelledby="S4-DENIED-SIGNEDOUT-h">
+      <p class="state-label">
+        <span class="state-label__id">S4-DENIED-SIGNEDOUT</span>
+        <span class="state-label__category">Permission-denied / gated</span>
+        <span class="state-label__desc">No session</span>
+      </p>
+      <h2 id="S4-DENIED-SIGNEDOUT-h" class="state__title">No form renders</h2>
+      <div class="banner banner-info">
+        <p>Redirects to <a href="screen-1-signin.html">Screen 1</a> (00-flows.md Flow 4).
+        The header/nav at the top of this page represent authenticated chrome and do not
+        apply to this state.</p>
+      </div>
+    </section>
+
+    <section id="S4-ABANDON" class="state" aria-labelledby="S4-ABANDON-h">
+      <p class="state-label">
+        <span class="state-label__id">S4-ABANDON</span>
+        <span class="state-label__category">Abandonment</span>
+        <span class="state-label__desc">Freelancer leaves the parent invoice form before submitting</span>
+      </p>
+      <h2 id="S4-ABANDON-h" class="state__title">What's lost depends on create vs. edit</h2>
+      <div class="banner banner-info">
+        <p><strong>New, never-saved invoice</strong> (<code>/invoices/new</code>): nothing
+        persists — returning starts blank at <a href="#S4-DEFAULT-CREATE">S4-DEFAULT-CREATE</a>.</p>
+        <p><strong>Editing an existing draft</strong> (<code>/invoices/:id/edit</code>):
+        only the <em>unsaved</em> changes are lost. The draft as it was last explicitly
+        saved still exists and reappears at <a href="#S4-DEFAULT-EDIT">S4-DEFAULT-EDIT</a>.
+        There is no autosave in v1 — no capability row asks for one.</p>
+      </div>
+    </section>
+
+    <section id="S4-CLIENT-ABANDON" class="state" aria-labelledby="S4-CLIENT-ABANDON-h">
+      <p class="state-label">
+        <span class="state-label__id">S4-CLIENT-ABANDON</span>
+        <span class="state-label__category">Abandonment</span>
+        <span class="state-label__desc">Freelancer leaves the nested client form specifically, distinct from S4-ABANDON — shared sub-pattern, 02-states-ledger.md §0</span>
+      </p>
+      <h2 id="S4-CLIENT-ABANDON-h" class="state__title">Only the new-client attempt is lost</h2>
+      <div class="banner banner-info">
+        <p>No client record is created. The invoice form itself (line items, due date) is
+        unaffected by this specifically — see <a href="#S4-ABANDON">S4-ABANDON</a> for
+        what happens to the invoice draft itself when the whole form is abandoned.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

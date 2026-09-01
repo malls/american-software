@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screen 3 — Dashboard — AS-30 wireframes</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="wireframe.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to states</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <span class="app-label">Invoicing</span>
+    </div>
+    <div class="container">
+      <nav class="site-nav" aria-label="Primary">
+        <a class="site-nav__link" href="screen-3-dashboard.html">Dashboard</a>
+        <a class="site-nav__link" href="screen-4-invoice-create.html">New invoice</a>
+        <a class="site-nav__link" href="screen-6-contract-create.html">New contract</a>
+        <form class="site-nav__signout" action="#" method="post">
+          <button type="submit" class="btn-link">Sign out</button>
+        </form>
+      </nav>
+    </div>
+    <!-- Full chrome, shown once per page in its default (Stripe-ready) form. The
+         S3-GATED-STRIPENOTREADY section below illustrates how "New invoice" changes;
+         it is not re-rendered as a second <nav> landmark (01-screens.md §3). -->
+  </header>
+
+  <main id="main" class="container">
+    <h1 class="page-title">Screen 3 — Dashboard</h1>
+    <p class="page-meta">
+      Route (provisional): <code>GET /dashboard</code>. Capability C-37. Invoices and
+      contracts, one screen, two tables. Ledger: <code>02-states-ledger.md</code> §3.
+    </p>
+    <p class="wireframe-notice">
+      Design-doc artifact — all 7 ledger rows for Screen 3 on one page, zero JavaScript,
+      nothing here is interactive.
+    </p>
+
+    <nav class="state-toc" aria-label="States on this page">
+      <p class="state-toc__title">States in this file</p>
+      <ul>
+        <li><a href="#S3-DEFAULT-POPULATED">S3-DEFAULT-POPULATED</a></li>
+        <li><a href="#S3-LOADING">S3-LOADING</a></li>
+        <li><a href="#S3-EMPTY-FIRSTRUN">S3-EMPTY-FIRSTRUN</a></li>
+        <li><a href="#S3-ERROR-SYSTEM">S3-ERROR-SYSTEM</a></li>
+        <li><a href="#S3-GATED-STRIPENOTREADY">S3-GATED-STRIPENOTREADY</a></li>
+        <li><a href="#S3-DENIED-SIGNEDOUT">S3-DENIED-SIGNEDOUT</a></li>
+        <li class="state-toc__na">S3-ABANDON — n/a, no section rendered (see 02-states-ledger.md §3)</li>
+      </ul>
+    </nav>
+
+    <section id="S3-DEFAULT-POPULATED" class="state" aria-labelledby="S3-DEFAULT-POPULATED-h">
+      <p class="state-label">
+        <span class="state-label__id">S3-DEFAULT-POPULATED</span>
+        <span class="state-label__category">Default</span>
+        <span class="state-label__desc">At least one contract or invoice exists</span>
+      </p>
+      <h2 id="S3-DEFAULT-POPULATED-h" class="state__title">Your work</h2>
+
+      <h3 class="state__subtitle">Contracts</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Client</th><th scope="col">Created</th><th scope="col"></th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Ada Example</td><td>Aug 28, 2026</td><td><a href="screen-7-contract-detail.html">View</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="state__subtitle">Invoices</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Client</th><th scope="col">Amount</th><th scope="col">Status</th><th scope="col"></th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Ada Example</td><td>$1,200.00</td><td><span class="badge badge-success">Paid</span></td><td><a href="screen-5-invoice-detail.html">View</a></td></tr>
+            <tr><td>Bea Sample</td><td>$450.00</td><td><span class="badge badge-accent">Sent</span></td><td><a href="screen-5-invoice-detail.html">View</a></td></tr>
+            <tr><td>Cy Testcase</td><td>$80.00</td><td><span class="badge badge-neutral">Draft</span></td><td><a href="screen-4-invoice-create.html">Edit</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="S3-LOADING" class="state" aria-labelledby="S3-LOADING-h">
+      <p class="state-label">
+        <span class="state-label__id">S3-LOADING</span>
+        <span class="state-label__category">Loading</span>
+        <span class="state-label__desc">Initial fetch of both lists</span>
+      </p>
+      <h2 id="S3-LOADING-h" class="state__title">Your work — loading</h2>
+      <div class="banner banner-info">
+        <p>Loading contracts and invoices…</p>
+      </div>
+    </section>
+
+    <section id="S3-EMPTY-FIRSTRUN" class="state" aria-labelledby="S3-EMPTY-FIRSTRUN-h">
+      <p class="state-label">
+        <span class="state-label__id">S3-EMPTY-FIRSTRUN</span>
+        <span class="state-label__category">Empty</span>
+        <span class="state-label__desc">Zero contracts and zero invoices — the post-onboarding landing (always true immediately after Screen 2)</span>
+      </p>
+      <h2 id="S3-EMPTY-FIRSTRUN-h" class="state__title">Let's get your first client paid</h2>
+      <p>You're connected to Stripe. The next step is a contract or an invoice for your first client.</p>
+      <div class="form-actions">
+        <a href="screen-6-contract-create.html" class="btn btn-primary">Create your first contract</a>
+        <a href="screen-4-invoice-create.html" class="btn btn-secondary">Or create an invoice directly</a>
+      </div>
+      <p class="page-meta">Points at the loop's actual next action, per the plan file §4 row 3 — not a generic empty state. A contract is not required before an invoice (00-flows.md Flow 1a), so the invoice path is offered too, as a secondary action.</p>
+    </section>
+
+    <section id="S3-ERROR-SYSTEM" class="state" aria-labelledby="S3-ERROR-SYSTEM-h">
+      <p class="state-label">
+        <span class="state-label__id">S3-ERROR-SYSTEM</span>
+        <span class="state-label__category">Error — system</span>
+        <span class="state-label__desc">List fetch fails</span>
+      </p>
+      <h2 id="S3-ERROR-SYSTEM-h" class="state__title">Couldn't load your work</h2>
+      <div class="banner banner-error">
+        <p>Something went wrong loading your contracts and invoices.</p>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary">Retry</button>
+      </div>
+    </section>
+
+    <section id="S3-GATED-STRIPENOTREADY" class="state" aria-labelledby="S3-GATED-STRIPENOTREADY-h">
+      <p class="state-label">
+        <span class="state-label__id">S3-GATED-STRIPENOTREADY</span>
+        <span class="state-label__category">Permission-denied / gated</span>
+        <span class="state-label__desc">Stripe account not ready — layers on top of whichever list state (populated or empty) is otherwise active; scoped to invoicing only (00-flows.md Flow 5)</span>
+      </p>
+      <h2 id="S3-GATED-STRIPENOTREADY-h" class="state__title">Nav change: "New invoice" disabled</h2>
+      <p>The two list states above render unchanged. What changes is the nav shown at the
+      top of this page — illustrated here as a snippet, not a second <code>&lt;nav&gt;</code>
+      landmark:</p>
+      <div class="line-items">
+        <div class="line-item-row">
+          <span class="site-nav__item--disabled">
+            New invoice
+            <span class="site-nav__note">Connect Stripe before invoicing — <a href="screen-2-connect-stripe.html">finish setup</a></span>
+          </span>
+        </div>
+      </div>
+      <p class="page-meta">"New contract" is unaffected — contract creation has no Stripe dependency (01-screens.md §5).</p>
+    </section>
+
+    <section id="S3-DENIED-SIGNEDOUT" class="state" aria-labelledby="S3-DENIED-SIGNEDOUT-h">
+      <p class="state-label">
+        <span class="state-label__id">S3-DENIED-SIGNEDOUT</span>
+        <span class="state-label__category">Permission-denied / gated</span>
+        <span class="state-label__desc">No session</span>
+      </p>
+      <h2 id="S3-DENIED-SIGNEDOUT-h" class="state__title">No dashboard renders</h2>
+      <div class="banner banner-info">
+        <p>Redirects to <a href="screen-1-signin.html">Screen 1</a> (00-flows.md Flow 4).
+        The header and nav shown at the top of this page represent the authenticated
+        chrome for this screen's other states — a signed-out visitor never sees them;
+        they see Screen 1's reduced chrome instead.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

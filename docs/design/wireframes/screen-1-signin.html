@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screen 1 — Sign up / sign in — AS-30 wireframes</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="wireframe.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to states</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <span class="app-label">Invoicing</span>
+    </div>
+    <!-- Reduced chrome: no nav. Screen 1 is reachable signed-out; there is nowhere
+         authenticated to navigate to yet (01-screens.md §3). -->
+  </header>
+
+  <main id="main" class="container">
+    <h1 class="page-title">Screen 1 — Sign up / sign in</h1>
+    <p class="page-meta">
+      Route (provisional): <code>GET /signin</code>, <code>GET /signin?mode=signup</code>.
+      Capability C-08. One route, two modes — the mode switch below is a state, not a
+      second screen. Ledger: <code>02-states-ledger.md</code> §1.
+    </p>
+    <p class="wireframe-notice">
+      Design-doc artifact. This page renders all 8 ledger rows for Screen 1 as labeled
+      sections on one page — it is not the product, and nothing here is interactive
+      (no JavaScript anywhere in this file set, plan file §5.5).
+    </p>
+
+    <nav class="state-toc" aria-label="States on this page">
+      <p class="state-toc__title">States in this file</p>
+      <ul>
+        <li><a href="#S1-DEFAULT-SIGNIN">S1-DEFAULT-SIGNIN</a></li>
+        <li><a href="#S1-DEFAULT-SIGNUP">S1-DEFAULT-SIGNUP</a></li>
+        <li><a href="#S1-LOADING">S1-LOADING</a></li>
+        <li class="state-toc__na">S1-EMPTY — n/a, no section rendered (see 02-states-ledger.md §1)</li>
+        <li><a href="#S1-ERROR-VALIDATION">S1-ERROR-VALIDATION</a></li>
+        <li><a href="#S1-ERROR-SYSTEM">S1-ERROR-SYSTEM</a></li>
+        <li><a href="#S1-DENIED-AUTHENTICATED">S1-DENIED-AUTHENTICATED</a></li>
+        <li><a href="#S1-ABANDON">S1-ABANDON</a></li>
+      </ul>
+    </nav>
+
+    <section id="S1-DEFAULT-SIGNIN" class="state" aria-labelledby="S1-DEFAULT-SIGNIN-h">
+      <p class="state-label">
+        <span class="state-label__id">S1-DEFAULT-SIGNIN</span>
+        <span class="state-label__category">Default</span>
+        <span class="state-label__desc">No session, sign-in mode (default when <code>mode</code> is absent)</span>
+      </p>
+      <h2 id="S1-DEFAULT-SIGNIN-h" class="state__title">Sign in</h2>
+      <form>
+        <div class="field">
+          <label for="s1-default-signin-email">Email</label>
+          <input type="email" id="s1-default-signin-email" name="email" autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="s1-default-signin-password">Password</label>
+          <input type="password" id="s1-default-signin-password" name="password" autocomplete="current-password">
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Sign in</button>
+        </div>
+      </form>
+      <p class="page-meta">New here? <a href="#S1-DEFAULT-SIGNUP">Create an account</a> — in the real app this link carries <code>?mode=signup</code> and reloads the page (01-screens.md §2).</p>
+    </section>
+
+    <section id="S1-DEFAULT-SIGNUP" class="state" aria-labelledby="S1-DEFAULT-SIGNUP-h">
+      <p class="state-label">
+        <span class="state-label__id">S1-DEFAULT-SIGNUP</span>
+        <span class="state-label__category">Default</span>
+        <span class="state-label__desc">No session, sign-up mode (<code>?mode=signup</code>)</span>
+      </p>
+      <h2 id="S1-DEFAULT-SIGNUP-h" class="state__title">Create your account</h2>
+      <form>
+        <div class="field">
+          <label for="s1-default-signup-name">Name</label>
+          <input type="text" id="s1-default-signup-name" name="name" autocomplete="name">
+        </div>
+        <div class="field">
+          <label for="s1-default-signup-email">Email</label>
+          <input type="email" id="s1-default-signup-email" name="email" autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="s1-default-signup-password">Password</label>
+          <input type="password" id="s1-default-signup-password" name="password" autocomplete="new-password">
+          <span class="field-hint">No password-reset flow exists in v1 — choose one you'll remember (C-09 is out of scope; see the note on S1-ERROR-SYSTEM).</span>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Create account</button>
+        </div>
+      </form>
+      <p class="page-meta">Already have an account? <a href="#S1-DEFAULT-SIGNIN">Sign in</a>.</p>
+    </section>
+
+    <section id="S1-LOADING" class="state" aria-labelledby="S1-LOADING-h">
+      <p class="state-label">
+        <span class="state-label__id">S1-LOADING</span>
+        <span class="state-label__category">Loading</span>
+        <span class="state-label__desc">Between submit and the server's redirect/response — shown here in sign-in mode; sign-up mode behaves identically</span>
+      </p>
+      <h2 id="S1-LOADING-h" class="state__title">Sign in — submitting</h2>
+      <form>
+        <div class="field">
+          <label for="s1-loading-email">Email</label>
+          <input type="email" id="s1-loading-email" name="email" value="ada@example.com" disabled>
+        </div>
+        <div class="field">
+          <label for="s1-loading-password">Password</label>
+          <input type="password" id="s1-loading-password" name="password" value="••••••••" disabled>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" disabled>Signing in…</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="S1-ERROR-VALIDATION" class="state" aria-labelledby="S1-ERROR-VALIDATION-h">
+      <p class="state-label">
+        <span class="state-label__id">S1-ERROR-VALIDATION</span>
+        <span class="state-label__category">Error — validation</span>
+        <span class="state-label__desc">Malformed email / short password / missing field — submitted values re-render (00-flows.md Flow 6)</span>
+      </p>
+      <h2 id="S1-ERROR-VALIDATION-h" class="state__title">Create your account — fix the highlighted fields</h2>
+      <div class="banner banner-error">
+        <p class="banner__title">2 fields need attention</p>
+      </div>
+      <form>
+        <div class="field">
+          <label for="s1-error-validation-name">Name</label>
+          <input type="text" id="s1-error-validation-name" name="name" value="Ada">
+        </div>
+        <div class="field field--invalid">
+          <label for="s1-error-validation-email">Email</label>
+          <input type="email" id="s1-error-validation-email" name="email" value="ada@example" aria-invalid="true" aria-describedby="s1-error-validation-email-err">
+          <span class="field-error" id="s1-error-validation-email-err">Enter a complete email address.</span>
+        </div>
+        <div class="field field--invalid">
+          <label for="s1-error-validation-password">Password</label>
+          <input type="password" id="s1-error-validation-password" name="password" value="" aria-invalid="true" aria-describedby="s1-error-validation-password-err">
+          <span class="field-error" id="s1-error-validation-password-err">Password must be at least 8 characters.</span>
+          <span class="field-hint">Password is never re-populated on error, on either mode of this screen — a deliberate exception to the re-render rule (00-flows.md Flow 6, step 2).</span>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Create account</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="S1-ERROR-SYSTEM" class="state" aria-labelledby="S1-ERROR-SYSTEM-h">
+      <p class="state-label">
+        <span class="state-label__id">S1-ERROR-SYSTEM</span>
+        <span class="state-label__category">Error — system</span>
+        <span class="state-label__desc">Two distinct triggers, one ledger row — both illustrated below</span>
+      </p>
+      <h2 id="S1-ERROR-SYSTEM-h" class="state__title">Sign-up / sign-in — account errors</h2>
+
+      <h3 class="state__subtitle">Sign-up: email already registered</h3>
+      <div class="banner banner-error">
+        <p>An account already exists for <strong>ada@example.com</strong>. <a href="#S1-DEFAULT-SIGNIN">Sign in instead</a>, or use a different email.</p>
+      </div>
+
+      <h3 class="state__subtitle">Sign-in: no matching account, or wrong password</h3>
+      <div class="banner banner-error">
+        <p>Email or password is incorrect.</p>
+      </div>
+      <p class="page-meta">
+        Deliberately the same message for "no account with this email" and "wrong
+        password" — naming which one it was would confirm to an attacker which emails
+        have accounts. There is no password-reset link to offer instead (C-09 is
+        <code>OUT</code> of v1 — no affordance is shown, disabled or otherwise; a dead
+        control is a design lie).
+      </p>
+    </section>
+
+    <section id="S1-DENIED-AUTHENTICATED" class="state" aria-labelledby="S1-DENIED-AUTHENTICATED-h">
+      <p class="state-label">
+        <span class="state-label__id">S1-DENIED-AUTHENTICATED</span>
+        <span class="state-label__category">Permission-denied / gated</span>
+        <span class="state-label__desc">An already-signed-in freelancer requests this screen</span>
+      </p>
+      <h2 id="S1-DENIED-AUTHENTICATED-h" class="state__title">No form renders</h2>
+      <div class="banner banner-info">
+        <p>This state has no visible sign-in form. A signed-in freelancer who requests
+        <code>/signin</code> is redirected immediately to the Dashboard (Screen 3) —
+        the redirect happens before any of the markup above is served. Recorded here so
+        "what happens if a signed-in user hits /signin" is a decision, not a gap a
+        developer has to guess at.</p>
+      </div>
+    </section>
+
+    <section id="S1-ABANDON" class="state" aria-labelledby="S1-ABANDON-h">
+      <p class="state-label">
+        <span class="state-label__id">S1-ABANDON</span>
+        <span class="state-label__category">Abandonment</span>
+        <span class="state-label__desc">Freelancer starts either mode, navigates away before submitting</span>
+      </p>
+      <h2 id="S1-ABANDON-h" class="state__title">Nothing is lost</h2>
+      <div class="banner banner-info">
+        <p>No server-side state is created until a submit succeeds, so leaving mid-form
+        costs nothing. Returning to <code>/signin</code> renders a blank
+        <a href="#S1-DEFAULT-SIGNIN">S1-DEFAULT-SIGNIN</a> or
+        <a href="#S1-DEFAULT-SIGNUP">S1-DEFAULT-SIGNUP</a> again, never a resumed
+        draft — there is no draft concept on this screen.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
