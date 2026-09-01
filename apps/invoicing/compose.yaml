@@ -15,10 +15,12 @@
 # container-startup-dominated. Re-measure if the suite ever exceeds ~10 s.
 #
 # BuildKit note (inherited from apps/chat/compose.yaml, and live on this host):
-# the shell exports DOCKER_BUILDKIT=0 and COMPOSE_DOCKER_CLI_BUILD=0, under
-# which compose ignores platform at build time and produces a native image that
-# then refuses to start against the amd64 pin. Every documented invocation in
-# README.md therefore forces DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1.
+# the shell exports DOCKER_BUILDKIT=0 and COMPOSE_DOCKER_CLI_BUILD=0. The
+# service-level `platform:` key ALONE was measured producing a native image
+# against the amd64 pin (Docker 29.6.1 / compose v5.3.0); `build.platforms` below
+# is what makes the pin take, and it does so under BOTH builders (legacy builder,
+# DOCKER_BUILDKIT=0: linux/amd64, suite green — measured 2026-09-01). README.md
+# keeps the DOCKER_BUILDKIT=1 prefix as repo convention, not as a requirement.
 #
 # Parsed as data by test/deploy-shape.test.js (strictly — the parser throws on
 # any shape it does not recognise). Keep to the subset used below: 2-space
