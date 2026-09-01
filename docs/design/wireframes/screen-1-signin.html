@@ -20,7 +20,7 @@
 
   <main id="main" class="container">
     <h1 class="page-title">Screen 1 — Sign up / sign in</h1>
-    <p class="page-meta">
+    <p class="page-meta" data-wf-note>
       Route (provisional): <code>GET /signin</code>, <code>GET /signin?mode=signup</code>.
       Capability C-08. One route, two modes — the mode switch below is a state, not a
       second screen. Ledger: <code>02-states-ledger.md</code> §1.
@@ -65,7 +65,8 @@
           <button type="submit" class="btn btn-primary">Sign in</button>
         </div>
       </form>
-      <p class="page-meta">New here? <a href="#S1-DEFAULT-SIGNUP">Create an account</a> — in the real app this link carries <code>?mode=signup</code> and reloads the page (01-screens.md §2).</p>
+      <p class="page-meta">New here? <a href="#S1-DEFAULT-SIGNUP">Create an account</a>.</p>
+      <p class="page-meta" data-wf-note>In the real app this link carries <code>?mode=signup</code> and reloads the page (01-screens.md §2).</p>
     </section>
 
     <section id="S1-DEFAULT-SIGNUP" class="state" aria-labelledby="S1-DEFAULT-SIGNUP-h">
@@ -87,7 +88,7 @@
         <div class="field">
           <label for="s1-default-signup-password">Password</label>
           <input type="password" id="s1-default-signup-password" name="password" autocomplete="new-password">
-          <span class="field-hint">No password-reset flow exists in v1 — choose one you'll remember (C-09 is out of scope; see the note on S1-ERROR-SYSTEM).</span>
+          <span class="field-hint" data-wf-note>No password-reset flow exists in v1 — choose one you'll remember (C-09 is out of scope; see the note on S1-ERROR-SYSTEM).</span>
         </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">Create account</button>
@@ -142,7 +143,7 @@
           <label for="s1-error-validation-password">Password</label>
           <input type="password" id="s1-error-validation-password" name="password" value="" aria-invalid="true" aria-describedby="s1-error-validation-password-err">
           <span class="field-error" id="s1-error-validation-password-err">Password must be at least 8 characters.</span>
-          <span class="field-hint">Password is never re-populated on error, on either mode of this screen — a deliberate exception to the re-render rule (00-flows.md Flow 6, step 2).</span>
+          <span class="field-hint" data-wf-note>Password is never re-populated on error, on either mode of this screen — a deliberate exception to the re-render rule (00-flows.md Flow 6, step 2).</span>
         </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary">Create account</button>
@@ -167,7 +168,7 @@
       <div class="banner banner-error">
         <p>Email or password is incorrect.</p>
       </div>
-      <p class="page-meta">
+      <p class="page-meta" data-wf-note>
         Deliberately the same message for "no account with this email" and "wrong
         password" — naming which one it was would confirm to an attacker which emails
         have accounts. There is no password-reset link to offer instead (C-09 is

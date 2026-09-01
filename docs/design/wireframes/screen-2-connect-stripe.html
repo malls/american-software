@@ -19,7 +19,7 @@
 
   <main id="main" class="container">
     <h1 class="page-title">Screen 2 — Connect Stripe</h1>
-    <p class="page-meta">
+    <p class="page-meta" data-wf-note>
       Route (provisional): <code>GET /connect-stripe</code>, plus two Stripe redirect
       targets, <code>/connect-stripe/return</code> and <code>/connect-stripe/refresh</code>,
       which resolve into this same screen's states rather than rendering pages of their
@@ -83,7 +83,7 @@
         <span class="state-label__desc">Between clicking "Connect" (or the refresh handler firing) and Stripe's redirect — no form to fill, so this is brief and label-only</span>
       </p>
       <h2 id="S2-LOADING-h" class="state__title">Redirecting to Stripe…</h2>
-      <p class="page-meta">No fields render in this state — there is nothing to fill in while control hands off to Stripe.</p>
+      <p class="page-meta" data-wf-note>No fields render in this state — there is nothing to fill in while control hands off to Stripe.</p>
     </section>
 
     <section id="S2-ERROR-SYSTEM" class="state" aria-labelledby="S2-ERROR-SYSTEM-h">
@@ -115,7 +115,7 @@
       <div class="form-actions">
         <button type="button" class="btn btn-primary">Finish setup on Stripe</button>
       </div>
-      <p class="page-meta">This is the only state that blocks invoicing (00-flows.md Flow 5); it does not block contract creation, which has no Stripe dependency.</p>
+      <p class="page-meta" data-wf-note>This is the only state that blocks invoicing (00-flows.md Flow 5); it does not block contract creation, which has no Stripe dependency.</p>
     </section>
 
     <section id="S2-DENIED-SIGNEDOUT" class="state" aria-labelledby="S2-DENIED-SIGNEDOUT-h">

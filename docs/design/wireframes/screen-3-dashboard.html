@@ -31,7 +31,7 @@
 
   <main id="main" class="container">
     <h1 class="page-title">Screen 3 — Dashboard</h1>
-    <p class="page-meta">
+    <p class="page-meta" data-wf-note>
       Route (provisional): <code>GET /dashboard</code>. Capability C-37. Invoices and
       contracts, one screen, two tables. Ledger: <code>02-states-ledger.md</code> §3.
     </p>
@@ -112,7 +112,7 @@
         <a href="screen-6-contract-create.html" class="btn btn-primary">Create your first contract</a>
         <a href="screen-4-invoice-create.html" class="btn btn-secondary">Or create an invoice directly</a>
       </div>
-      <p class="page-meta">Points at the loop's actual next action, per the plan file §4 row 3 — not a generic empty state. A contract is not required before an invoice (00-flows.md Flow 1a), so the invoice path is offered too, as a secondary action.</p>
+      <p class="page-meta" data-wf-note>Points at the loop's actual next action, per the plan file §4 row 3 — not a generic empty state. A contract is not required before an invoice (00-flows.md Flow 1a), so the invoice path is offered too, as a secondary action.</p>
     </section>
 
     <section id="S3-ERROR-SYSTEM" class="state" aria-labelledby="S3-ERROR-SYSTEM-h">
@@ -137,7 +137,7 @@
         <span class="state-label__desc">Stripe account not ready — layers on top of whichever list state (populated or empty) is otherwise active; scoped to invoicing only (00-flows.md Flow 5)</span>
       </p>
       <h2 id="S3-GATED-STRIPENOTREADY-h" class="state__title">Nav change: "New invoice" disabled</h2>
-      <p>The two list states above render unchanged. What changes is the nav shown at the
+      <p class="page-meta" data-wf-note>The two list states above render unchanged. What changes is the nav shown at the
       top of this page — illustrated here as a snippet, not a second <code>&lt;nav&gt;</code>
       landmark:</p>
       <div class="line-items">
@@ -148,7 +148,7 @@
           </span>
         </div>
       </div>
-      <p class="page-meta">"New contract" is unaffected — contract creation has no Stripe dependency (01-screens.md §5).</p>
+      <p class="page-meta" data-wf-note>"New contract" is unaffected — contract creation has no Stripe dependency (01-screens.md §5).</p>
     </section>
 
     <section id="S3-DENIED-SIGNEDOUT" class="state" aria-labelledby="S3-DENIED-SIGNEDOUT-h">

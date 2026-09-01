@@ -28,7 +28,7 @@
 
   <main id="main" class="container">
     <h1 class="page-title">Screen 4 — Invoice create/edit</h1>
-    <p class="page-meta">
+    <p class="page-meta" data-wf-note>
       Route (provisional): <code>GET /invoices/new</code>, <code>GET /invoices/:id/edit</code>.
       Capability C-29. Carries inline client creation (00-flows.md Flow 3). Line items,
       <code>days_until_due</code>, single currency (USD only — no selector, C-27).
@@ -106,7 +106,8 @@
           <button type="submit" class="btn btn-secondary">Save draft</button>
           <button type="submit" class="btn btn-primary">Finalize &amp; send</button>
         </div>
-        <p class="page-meta">Finalizing sends this invoice by email — <strong>Stripe</strong> sends it directly to the client. We do not see or store that email (C-28, C-48).</p>
+        <p>Finalizing sends this invoice by email — <strong>Stripe</strong> sends it directly to the client. We do not see or store that email.</p>
+        <p class="page-meta" data-wf-note>Capability rows C-28, C-48.</p>
       </form>
     </section>
 
@@ -177,8 +178,8 @@
       <h2 id="S4-CLIENT-EMPTY-h" class="state__title">New invoice — no clients yet</h2>
       <form>
         <div class="client-picker">
-          <p>No clients yet — add one below. (No "select existing" control renders: a
-          disabled control with nothing behind it is a design lie.)</p>
+          <p>No clients yet — add one below.</p>
+          <p class="page-meta" data-wf-note>No "select existing" control renders — a disabled control with nothing behind it is a design lie.</p>
           <div class="field">
             <label for="s4-clientempty-name">Client name</label>
             <input type="text" id="s4-clientempty-name" name="client_name">
@@ -188,7 +189,7 @@
             <input type="email" id="s4-clientempty-email" name="client_email">
           </div>
         </div>
-        <p class="page-meta">The rest of the form (line items, due date) renders as in <a href="#S4-DEFAULT-CREATE">S4-DEFAULT-CREATE</a>; omitted here to keep this section focused on the picker's empty variant.</p>
+        <p class="page-meta" data-wf-note>The rest of the form (line items, due date) renders as in <a href="#S4-DEFAULT-CREATE">S4-DEFAULT-CREATE</a>; omitted here to keep this section focused on the picker's empty variant.</p>
       </form>
     </section>
 
@@ -294,7 +295,7 @@
             <p><button type="button" class="btn btn-secondary">Use this client instead</button> <button type="button" class="btn-link">Create a new client anyway</button></p>
           </div>
         </div>
-        <p class="page-meta">Match rule is exact, case-insensitive email match only — no fuzzy name matching (00-flows.md Flow 3, step 3b).</p>
+        <p class="page-meta" data-wf-note>Match rule is exact, case-insensitive email match only — no fuzzy name matching (00-flows.md Flow 3, step 3b).</p>
       </form>
     </section>
 
@@ -311,7 +312,7 @@
       <div class="form-actions">
         <a href="screen-2-connect-stripe.html" class="btn btn-primary">Finish setup on Stripe</a>
       </div>
-      <p class="page-meta">No form renders below this banner — the route itself refuses to serve a working invoice form to an unready account.</p>
+      <p class="page-meta" data-wf-note>No form renders below this banner — the route itself refuses to serve a working invoice form to an unready account.</p>
     </section>
 
     <section id="S4-DENIED-SIGNEDOUT" class="state" aria-labelledby="S4-DENIED-SIGNEDOUT-h">

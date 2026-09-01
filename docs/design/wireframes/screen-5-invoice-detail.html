@@ -28,7 +28,7 @@
 
   <main id="main" class="container">
     <h1 class="page-title">Screen 5 — Invoice detail + status</h1>
-    <p class="page-meta">
+    <p class="page-meta" data-wf-note>
       Route (provisional): <code>GET /invoices/:id</code>. Capability C-38. Surfaces
       Stripe's <code>hosted_invoice_url</code> and <code>invoice_pdf</code> as labeled
       outbound links (placeholder <code>href="#"</code> — the real values are Stripe's).
@@ -84,7 +84,7 @@
         <li><a href="#">View hosted invoice page (Stripe)</a></li>
         <li><a href="#">Download invoice PDF (Stripe)</a></li>
       </ul>
-      <p class="page-meta">Both links are Stripe's own pages — placeholder <code>href="#"</code> in this wireframe; the real values come from Stripe's API response.</p>
+      <p class="page-meta" data-wf-note>Both links are Stripe's own pages — placeholder <code>href="#"</code> in this wireframe; the real values come from Stripe's API response.</p>
     </section>
 
     <section id="S5-DEFAULT-PAID" class="state" aria-labelledby="S5-DEFAULT-PAID-h">
@@ -102,7 +102,7 @@
         <li><a href="#">View hosted invoice page (Stripe)</a></li>
         <li><a href="#">Download invoice PDF (Stripe)</a></li>
       </ul>
-      <p class="page-meta">No further action is offered here — there is no reminder, re-send, or next step in v1 (rows C-39, C-40, both OUT).</p>
+      <p class="page-meta" data-wf-note>No further action is offered here — there is no reminder, re-send, or next step in v1 (rows C-39, C-40, both OUT).</p>
     </section>
 
     <section id="S5-LOADING" class="state" aria-labelledby="S5-LOADING-h">
