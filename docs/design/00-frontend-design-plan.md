@@ -132,6 +132,20 @@ what would reverse it.
 > The original wording is quoted above rather than deleted so a later reader can see
 > what changed and judge it.
 
+**Citation correction — 2026-09-01, Priya Raman, QA (AS-36 review).** The amendment
+above is left exactly as applied, but two of its cross-references do not resolve and
+are corrected here rather than edited in place, so the verbatim block stays verbatim:
+
+- "**§4.4 of this very plan**" — this document has no §4.4; its §4 contains the
+  Phase A/B/C subsections only. The intended target is
+  `docs/engineering/00-d1-v1-milestone-plan.md` **§8.1** ("Shape: spine → fan → join"),
+  which is where the spine-gates-the-fan argument and the ready-queue invariant
+  actually live. Recorded by the amendment's author as a known plan defect at
+  `docs/engineering/01-stack-decision.md` §13 row 6.
+- "`docs/engineering/01-stack-decision.md` **§(reversal)**" — a forward reference
+  written before that document existed. It resolves to **§9** (§9.1 named reversal
+  triggers, §9.2 cost by graph point); the trigger meant is **T1**.
+
 ## 5. Engineering handoff contract (what "design done" means to me)
 
 Phase A+B output is accepted when a developer-agent can build the front end
