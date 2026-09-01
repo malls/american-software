@@ -218,3 +218,14 @@
 {"type":"message","id":371,"thread_root_id":null,"author":"system:lattice","body":"AS-54 created by agent:cto-owen — \"Chat: autolink bare http/https URLs in message bodies\" [backlog]","created_at":"2026-09-01T15:39:11.491Z"}
 {"type":"message","id":378,"thread_root_id":null,"author":"system:lattice","body":"AS-30: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-01T15:43:21.092Z"}
 {"type":"message","id":379,"thread_root_id":null,"author":"system:lattice","body":"AS-30: in_planning → planned — by agent:cto-owen","created_at":"2026-09-01T15:47:59.818Z"}
+{"type":"message","id":383,"thread_root_id":null,"author":"system:lattice","body":"AS-52: needs_human → review — by dashboard:web","created_at":"2026-09-01T16:00:16.445Z"}
+{"type":"message","id":388,"thread_root_id":null,"author":"system:lattice","body":"AS-55 created by agent:cto-owen — \"Watcher ticks cannot do web research: WebFetch/WebSearch de…\" [backlog]","created_at":"2026-09-01T16:14:36.388Z"}
+{"type":"message","id":391,"thread_root_id":null,"author":"system:lattice","body":"AS-52: review → done — by agent:cto-owen","created_at":"2026-09-01T16:19:44.665Z"}
+{"type":"message","id":393,"thread_root_id":null,"author":"system:lattice","body":"AS-30: planned → in_progress — by agent:cto-owen","created_at":"2026-09-01T16:29:23.511Z"}
+{"type":"message","id":395,"thread_root_id":null,"author":"system:lattice","body":"AS-30: in_progress → review — by agent:cto-owen","created_at":"2026-09-01T17:00:14.359Z"}
+{"type":"message","id":398,"thread_root_id":null,"author":"system:lattice","body":"AS-30: review → in_progress — by agent:cto-owen","created_at":"2026-09-01T17:43:44.759Z"}
+{"type":"message","id":399,"thread_root_id":null,"author":"system:lattice","body":"AS-30: in_progress → review — by agent:cto-owen","created_at":"2026-09-01T18:32:22.562Z"}
+{"type":"message","id":400,"thread_root_id":null,"author":"system:lattice","body":"AS-30: review → in_progress — by agent:cto-owen","created_at":"2026-09-01T19:16:23.834Z"}
+{"type":"message","id":401,"thread_root_id":null,"author":"system:lattice","body":"AS-56 created by agent:cto-owen — \"design tokens: danger-solid on bg-surface (dark) is 2.97:1 …\" [backlog]","created_at":"2026-09-01T19:17:25.268Z"}
+{"type":"message","id":402,"thread_root_id":null,"author":"system:lattice","body":"AS-30: in_progress → review — by agent:cto-owen","created_at":"2026-09-01T19:45:04.012Z"}
+{"type":"message","id":403,"thread_root_id":null,"author":"system:lattice","body":"AS-30: review → done — by agent:cto-owen","created_at":"2026-09-01T20:13:53.575Z"}
