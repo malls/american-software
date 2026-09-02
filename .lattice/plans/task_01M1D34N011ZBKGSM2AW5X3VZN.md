@@ -898,3 +898,27 @@ agrees; nothing in this task depends on it.
    connected-account call" — correct, and stripe-mock never reads that header,
    so the mock cannot witness the requirement; only the fake-transport test (C9)
    can. Worth knowing before anyone proposes "just test it against the mock".
+
+---
+
+## 11. Review cycle 1 — PASS (34/34); corrections to this plan's predictions (orchestrator, 2026-09-01)
+
+Recorded here so the plan file stays a truthful record; the sections above are left as written. Both the implementer (Marcus) and the reviewer (Priya, cold — read order disclosed, implementer's report read last) measured the same numbers independently.
+
+| Plan claim | Measured | Disposition |
+|---|---|---|
+| §6 M2 (`FORBIDDEN_PARAMS` emptied) fails G1,G7,C2,C3,C4,C7 (6) | 7: those six **+ G9** (its `banned_parameter` sample uses `on_behalf_of`) | Plan under-counted; the detector is stronger than predicted. Real set is the truth. |
+| §6 M3 (`checkScope` removed) fails G3,G4,G5,G6,C5 (5) | 7: those five **+ G9 + C7** (C7's `missing_account` leg falls through to `ConfigError`) | Same. |
+| §6 M4 (`Stripe-Account` dropped after the guard) fails C9 (1) | 2: C9 **+ T1** (the loopback listener sees the header missing) | Same. |
+| §6 recipe scaffold backs up in-tree (`$F.as38bak`) | Under the AS-53 closed-world scan the backup file is itself an unclassified file → one spurious dependency-policy failure on every recipe run verbatim | **Recipe defect.** Back up outside `apps/invoicing/` (scratchpad), or mutate a scratch copy. Both runs did this; a cold re-run must too. |
+| §2.7 lists six custody codes | `custody.js` has seven: `unexpected_platform` (`platform: true` combined with `account`) — one class, one code per refusal, so G9 stays uniform (Marcus deviation 1) | Better design than the plan; the seventh code is canonical. |
+| §2.10 K9 expects the mock's 400 to *name* the unknown parameter | stripe-mock says `additional properties are not allowed` and names nothing; K9 pins `/^Stripe 400 invalid_request_error: /`, status, type, `req_123`, zero key leakage, exactly 1 transport call | AC 27 asks only for rejection; satisfied. |
+| §7 ≈ 14 files / ≈ 1,380 lines / ≈ 420 product | 14 files, +1,829 / −83; product code 459 (`custody` 168 + `client` 235 + `transport` 56) | Within a third; the tests grew, not the code. |
+| §3.2 / Q5 contract wall time ≤ 30 s | 7.9 s (Marcus), 5 s (Priya), incl. mock start; readiness in ~0.3 s | Within bound; no follow-up. |
+| §8 commit boundaries (three) | Three, but split as offline half / contract half / README — the harness, dependency-policy and deploy-shape literals reference the contract half, so the plan's boundaries could not each be green | Accepted deviation (Marcus 16). |
+
+Marcus's 17 recorded deviations are all visible in the diff; none touches a criterion (Priya). Beyond §6, Priya broke every new checker once on a scratch copy (X1–X11: mock-unreachable → 12 FAIL not skip; URL at `api.stripe.com` refused at load inside `network_mode: none`; 9th test file → harness red; redaction mutated → 2 red; credential value in compose → red; three planted egress constructs → all three named; six concept rows each bite; `API_VERSION` changed → 11 red under strict-version; `ports:` / web on the mock network → P1/P2's tests) and ran 22 hostile encodings against the guard (all refused, 0 transport calls; the three that pass — double-percent-encoded, NUL-suffixed, homoglyph — are unknown parameters at Stripe, not bypasses, and the mock 400s them).
+
+Residual, non-blocking findings (Priya B.4–B.7) filed as **AS-58**: T1 tautology at `test/stripe-client.test.js:625`; stale test name at `test/health.test.js:61`; raw-`;` body separator hardening for a later `custody.js` touch (unreachable through the client); `/healthz` publishes the redacted config object (pre-existing, AS-37) — to be looked at before anything is public.
+
+Follow-through in the same tick: `docs/engineering/02-stripe-test-account-setup-directions.md` told the board to write `STRIPE_SECRET_KEY`; the merged code reads `INVOICING_STRIPE_SECRET_KEY` and the mechanism is `--env-file`, not `env_file:`. Corrected on master (`c64c596`) and the board told in the DM — a file written with the old name loads nothing, silently.
