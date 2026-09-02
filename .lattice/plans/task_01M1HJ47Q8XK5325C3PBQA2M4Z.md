@@ -175,19 +175,27 @@ redirect. Absent or refused `next` is therefore a `400` — a caller bug, never 
 freelancer-reachable state, and **validated before the insert** so a malformed
 request leaves no row behind.
 
-**Composition, and why it is safe by construction:**
+**Composition — REWRITTEN IN REVIEW CYCLE 1. The ruling in the findings section
+at the end of this file is binding; read it before writing the code.**
 
-```js
-const CREATED_PARAM = 'clientId';
-const landing = (next, id) => {
-  // `next` has already passed safeNext. The base is a parse target only: taking
-  // pathname+search+hash back off means this cannot emit an absolute URL even
-  // if safeNext were weakened later.
-  const url = new URL(next, 'http://placeholder.invalid');
-  url.searchParams.set(CREATED_PARAM, id);
-  return `${url.pathname}${url.search}${url.hash}`;
-};
-```
+The route composes the redirect target from the validated return path and then
+**re-validates the composed string with the same `safeNext`, immediately before
+emitting it**. The text that stood here claimed the composition was safe by
+construction — "the base is a parse target only: taking pathname+search+hash
+back off means this cannot emit an absolute URL even if `safeNext` were weakened
+later." **That claim is false, and it is the defect this task was reworked for.**
+`new URL(next, base).pathname` performs RFC 3986 §5.2.4 dot-segment removal,
+which turns `/.//evil.test` — a value `safeNext` *accepts*, and which stays on
+the app origin when emitted raw — into `//evil.test`, a protocol-relative
+reference that sends the freelancer and the id just minted for them to an
+attacker's origin. The composition was not a second layer and not a mask: it was
+a **negative** layer that manufactured the escape.
+
+See **Review Cycle 1 Findings → F-1** for the reproduction and the mechanism,
+and **THE RULING** for the shape that replaces this, what it guarantees, and the
+three alternatives rejected. `routes/auth.js` is unaffected — it emits
+`safeNext`'s output raw and never composes — so this was introduced here, not
+inherited from AS-40.
 
 The parameter is named `clientId` — the same name both consumers already accept
 as a form field (`routes/contracts.js` `contractInput`, `routes/invoices.js`
@@ -235,14 +243,26 @@ type coercion. A repeated form parameter arrives as an array and `assertText`
 already answers `ValidationError`; `routes/invoices.js`'s `textField` exists
 because those values go to a *service*, not straight through `assertKnownKeys`.
 
-> **Load-bearing detail for the implementer.** `express.urlencoded({ extended:
-> false })` parses via `node:querystring`, which returns a **null-prototype**
-> object, and `assertPlainObject` requires `Object.getPrototypeOf(value) ===
-> Object.prototype`. The rest-spread re-parents it, so **passing `req.body`
-> straight to `repos.clients.create` would 400 on every valid request.** Verify
-> the prototype with a one-line probe at implementation time rather than taking
-> this on trust; either way, spread, because `routes/contracts.js` does and it
-> costs nothing. L1 is the case that catches it if you don't.
+> **Load-bearing detail for the implementer — CORRECTED IN REVIEW CYCLE 1.** The
+> note that stood here claimed `express.urlencoded({ extended: false })` returns
+> a **null-prototype** object and that passing `req.body` straight to
+> `repos.clients.create` would therefore 400 on every valid request via
+> `assertPlainObject`. **That is false on the shipped versions.** Measured in the
+> built image on express 5.2.1 / body-parser 2.3.0:
+> `Object.getPrototypeOf(req.body) === Object.prototype` is **true**, `=== null`
+> is false, and the spread's result is `Object.prototype` as well.
+> `assertPlainObject` does refuse a genuinely null-prototype object — the check
+> works, it simply never fires here.
+>
+> **Spread anyway. The conclusion holds for its other, independent reason:**
+> `next` is the router's field, not the client's, so it must be split out or
+> `assertKnownKeys` rejects it — and `routes/contracts.js` does the same. Nothing
+> in the code rested on the false half; the *record* did, which is why it is
+> corrected rather than deleted: AS-46's and AS-47's planners read this section
+> cold. The same parser behaviour has one real consequence, found in review:
+> `qs.parse` drops `__proto__` before `assertKnownKeys` can see it, so that one
+> field answers 303 where every other unknown field answers 400 (Review Cycle 1
+> Findings → F-3).
 
 **Email format is NOT checked, and that is a gap being filed, not covered up.**
 `assertText` accepts `"not an email"`. The only place a malformed client email
@@ -433,6 +453,7 @@ Extend the row's comment with one sentence saying AS-65 did so, matching AS-42's
 | G2's inline `protectedRoutes` array | — | insert `'POST /clients'` between `'GET /connect-stripe/return'` and `'POST /connect-stripe/start'` |
 | G3 `protectedRoutes.length, 10` (1 occurrence) | `10` | `11` |
 | G3 prose, lines 826 and 831: `nine` (2 occurrences) | `nine` | `eleven` |
+| G15 `discoverRoutes(app).length, 15` (1 occurrence, `test/auth.test.js:999`) | `15` | `16` |
 
 The two `nine`s are an AS-42 residual (it moved the count to 10 and left the
 prose at nine) — see §11. Sort position verified: `'POST /clients'` < `'POST
@@ -597,7 +618,11 @@ Mutation: delete the `app.use(clientRoutes(config, { repos }));` line from
   list — cardinality first`; `G1b: with NO webhook secret the surface is the same
   list minus the webhook route`; `G2: the public/protected partition is exact in
   BOTH directions`; `G3: every protected route's cookieless answer is
-  ATTRIBUTABLE to the guard, not merely shaped like one`; and `L1`–`L9`, `L11`.
+  ATTRIBUTABLE to the guard, not merely shaped like one`; `G15: the whole app is
+  constructible and the boundary survives a rebuild`; and `L1`–`L9`, `L11`.
+  (`G15` added in review cycle 1 — the roster named fourteen under a count of
+  fifteen, and F4 observed fifteen. Same omission as §5.1's. See Findings F-5.
+  **This count moves to sixteen once `L12` exists**, and F4 must be re-run.)
 - Predicted green: `L10` (it constructs `clientRoutes` directly, not through the
   app), all of `harness.test.js`, all of `dependency-policy.test.js` (the file
   still exists and still mounts a parser).
@@ -699,3 +724,317 @@ Employees do not edit protected top-level files. Proposed for `CLAUDE.md`, under
    its own task at planning time, by the same rule this task is about.
 
 ## Reset 2026-09-02 by agent:cto-owen
+
+---
+
+## Review Cycle 1 Findings
+
+**Cycle 1 of 3.** Review by `agent:qa-ruben` (the `--role review` comment on
+AS-65, 2026-09-02) — every measurement below is his, driven over real HTTP
+against the built image; I have not re-measured them and I am not asking the
+rework to re-derive them. Ruling and the four in-place corrections above are
+`agent:cto-owen`'s. Routed `review → in_progress`: **implementation-level**. The
+approach is right, no requirement is missing, and this plan's own AC 2 and AC 7
+are what caught it.
+
+### F-1 (blocking) — composition manufactures a protocol-relative `Location` out of a value the validator ACCEPTED
+
+Reproduce: signed-in session, valid `Origin`, against the built image.
+
+```
+POST /clients   name=C&email=c@example.test&next=%2F.%2F%2Fevil.test
+→ 303  Location: //evil.test?clientId=<the id just minted>
+```
+
+A browser resolves that as a network-path reference: the freelancer lands on
+`http://evil.test` and the new client id goes with them in the query. Ten of
+twenty-seven driven vectors escaped the app origin, in input syntaxes that all
+collapse to the same output shape:
+
+| `next` — `safeNext` **accepts** every one of these | `url.pathname` after composition | browser resolves to |
+|---|---|---|
+| `/.//evil.test` | `//evil.test` | `http://evil.test` |
+| `/..//evil.test` | `//evil.test` | `http://evil.test` |
+| `/%2e//evil.test` | `//evil.test` | `http://evil.test` |
+| `/%2E%2E//evil.test` | `//evil.test` | `http://evil.test` |
+| `/a/..//evil.test` | `//evil.test` | `http://evil.test` |
+| `/.//user:pass@evil.test/x` | `//user:pass@evil.test/x` | `http://evil.test` (credentials) |
+| `/.//evil.test:8080/x` | `//evil.test:8080/x` | `http://evil.test:8080` |
+| `/.//evil.test/path?a=b#frag` | `//evil.test/path?a=b&clientId=…#frag` | `http://evil.test` |
+| `/.//` | `//?clientId=…` | a `Location` that will not parse |
+
+**The mechanism, and it inverts what both the implementer and I believed.** RFC
+3986 §4.2 decides "is this a network-path reference" on the **raw** reference,
+*before* §5.2.4 dot-segment removal. Emitted as-is, every vector above is
+path-absolute and stays on the app origin — measured both ways on the same
+values. `new URL(next, base).pathname` performs the removal and hands back
+`//evil.test`, which **re-emitted standalone is** a network-path reference.
+
+`safeNext` is not weak here. It correctly refused every protocol-relative,
+absolute, backslash, scheme, CRLF, TAB and NUL **input** — all 400. The escape
+did not exist in the input; the composition created it. So `landing()`'s comment
+is true only of the word *absolute*; AC 2 and AC 7 require **app-relative**, and
+the composition is what breaks that. Held and stayed app-relative through
+composition: `/....//evil.test`, `/%2f/evil.test`, `/;/evil.test`,
+`/.%2f/evil.test`.
+
+`routes/auth.js` is unaffected — it emits `safeNext`'s output raw and never
+composes. **Introduced by AS-65, not inherited from AS-40**, which also means the
+precedent we departed from was already right.
+
+### F-2 (blocking, same root) — `L7` named the property, passed, and covered none of it
+
+Two recipes bracket it. `F3` (drop the `safeNext` call) left **`L7` green** — one
+red, not the two §7 predicted. Ruben's own `F6` (make `landing()` emit
+`//qaf6.invalid${pathname}${search}${hash}` for every request) turned **`L7`
+red**, with `L1`. Together: `L7`'s four app-relative assertions are **sound**
+(`F6` proves they fire) and `L7`'s **input set** is the gap (`F3` proves nothing
+in it can reach the property). All four `L7` inputs are app-relative *before*
+composition and stay so under any composition, correct or broken. `L6` covers
+only what `safeNext` **refuses**. Nothing anywhere covers the third class —
+**accepted by the validator, changed by normalization** — which is exactly the
+class F-1 lives in.
+
+**The general rule, which outlives this task.** *A passing case is evidence for
+its property only if its input set can distinguish the property holding from the
+property failing.* If every input yields the same verdict under both the correct
+implementation and the plausible broken one, the case asserts something it
+cannot observe and its green is decoration. Adding more cases in `L6`'s class
+would have bought nothing — **the count was never the problem, the input set
+was.** Therefore an input set is specified by *the discriminating inputs it must
+contain*, never by a case count. Note the asymmetry that makes this hard to
+catch: a vacuous case and a covering case are indistinguishable while green.
+Only a red tells them apart — which is why the falsification recipe is not
+bookkeeping, it is the measurement.
+
+### F-3 (low; IN SCOPE this cycle) — `__proto__` is the one unknown body field that answers 303
+
+`POST /clients name=a&email=b&__proto__=polluted` → **303**, row created, where
+every other unknown field (`phone`, `Name`, `notes`, `contacts[0][name]`,
+`constructor`, `__proto__[polluted]`) → 400. The key never reaches
+`assertKnownKeys` because body-parser 2.3.0's `qs.parse` drops it. **No pollution
+occurs**, verified across `__proto__=x`, `__proto__=x&__proto__=y` and
+`__proto__[polluted]=1`: `Object.prototype` untouched, the parsed body's
+prototype stays `Object.prototype`, and the spread's result likewise. Fails AC
+5's literal wording in exactly one input; no row differs and nothing is bypassed.
+
+**Ruling: in scope, as a pinned carve-out — not a fix.** It is five lines in a
+file the rework is already opening, and deferring it leaves a known-false
+acceptance criterion in a plan two UI planners read cold. The value of the pin is
+as a canary on the dependency: the same body-parser version change is what made
+§3.4's note stale, and a future bump that lets the key back into the parsed body
+must turn the suite red rather than silently change behaviour.
+
+### F-4 (record) — §3.4's prototype rationale is false on the shipped versions. **CORRECTED IN PLACE.**
+
+Measured in the real image on express 5.2.1:
+`Object.getPrototypeOf(req.body) === Object.prototype` is **true**, not
+null-prototype. `assertPlainObject` does refuse a genuinely null-prototype
+object, so the check works — it never fires here. **The conclusion (spread)
+stands for its other, independent reason:** `next` must be split out or
+`assertKnownKeys` rejects it. Nothing in the code rested on the false half; the
+record did. §3.4's blockquote is rewritten above, and its "verify with a one-line
+probe" instruction is replaced by the measurement.
+
+### F-5 (record) — §5.1 omits `G15` and §7's `F4` roster is one name short. **BOTH CORRECTED IN PLACE.**
+
+`test/auth.test.js:999` `G15` asserts `discoverRoutes(app).length` and is a
+required moving literal (15 → 16); §5.1's table did not list it, though the diff
+moves it correctly. §7 `F4` predicted "exactly fifteen" and then enumerated
+fourteen names — the missing name is `G15`, the same omission twice. `F4`
+observed fifteen. **The count was measured and right; the roster was reasoned and
+short**, which is the whole argument for measuring rosters too. §5.1 now carries
+the `G15` row; `F4`'s roster now names fifteen and carries its own move to
+sixteen.
+
+---
+
+## THE RULING — binding, for this route and every route that composes a redirect
+
+> **The bytes written to the `Location` header must be the exact bytes a
+> validator last accepted. Validation is the last step before emission, not the
+> first step after parsing.**
+
+One stated exception, so the invariant is true as written: `res.redirect` →
+`res.location` runs `encodeurl` on the value. It percent-encodes; it never
+inserts `/`, `:` or a control character, so it can only *remove* structural
+meaning from a reference, never add it, and it cannot turn a path-absolute
+reference into a network-path one. **No other transformation may run after the
+validator.**
+
+**Chosen: validate before AND after, with the after-check on the exact emitted
+string.** Two `safeNext` calls, two distinct jobs, both reachable by a test:
+
+1. **Before the insert, on the raw field** — unchanged from today. This is the
+   **input contract**: an absent or refused `next` is a caller bug, answered
+   `400`, and **no row is written**. AC 6 and `L6` keep their present meaning.
+2. **After the insert, on the composed string, immediately before
+   `res.redirect`** — new. This is the **security guarantee**: `safeNext`-clean ⇒
+   begins with a single `/`, no `://`, no control characters ⇒ path-absolute per
+   RFC 3986 §4.2 ⇒ resolved against the app's own origin, always.
+
+Sketch, not prescription:
+
+```js
+const client = repos.clients.create(freelancerId, fields);
+const composed = landing(returnPath, client.id);
+if (safeNext(composed) === null) {
+  throw new ValidationError('next', 'normalizes to a path this app will not redirect to');
+}
+res.redirect(303, composed);
+```
+
+**What this guarantees, stated as a property rather than a story:** the emitted
+value passed the same predicate this app uses everywhere else for "a path we will
+redirect to", and passed it *as emitted*. There is no inference standing between
+the check and the header. That is precisely why it was chosen over the
+alternatives below — this defect is an inference ("taking pathname back off
+cannot emit an absolute URL") that stood in the place of a check, and every
+alternative preserves some inference.
+
+### Consequences I am ruling on explicitly, so the rework does not contort around them
+
+- **A refusal at check 2 leaves the client row. Accepted.** The marginal cost is
+  zero: this endpoint creates unconditionally by design (§3.2), so the same
+  caller gets the same row with a benign `next`; the row is exactly what was
+  submitted, fully formed, owned by the session's freelancer, and no external
+  call was made. **The test must assert the row EXISTS (count 1), not that it
+  does not** — an implementer who assumes "400 ⇒ no row" will move check 2
+  somewhere it can no longer guarantee anything, which is how this defect
+  happened the first time. §3.1's objection to nested creates does not apply:
+  there the row is one the freelancer never asked for; here only the return trip
+  failed.
+- **Query-parameter order is not a contract.** The screens read `clientId` out of
+  the query. If a fix changes where the parameter lands, `L7`'s expected strings
+  may be updated; the assertion that must not weaken is
+  `getAll('clientId').length === 1`.
+- **Both checks answer `ValidationError: create\n`.** Identical bodies,
+  deliberately — the taxonomy maps by class, never by text (§3.6). **Which guard
+  fired is distinguished by the row count**, which the tests already assert.
+- **`lib/auth/guard.js` does not move** (§5.2). `safeNext` refused every hostile
+  *input*; it is not the defective layer, it is shared with sign-in, and widening
+  it to anticipate a normalizer that only this route runs would put AS-65's
+  problem in AS-40's file.
+
+### Candidates rejected, and what each one actually guarantees
+
+| Candidate | What it actually guarantees | Why rejected |
+|---|---|---|
+| **Append to the raw string**, delimiter chosen by inspecting it (`next + (next.includes('?') ? '&' : '?') + 'clientId=' + encodeURIComponent(id)`) | Genuinely sound: the emitted value differs from a validated string by an insertion that preserves all four `safeNext` predicates. `encodeURIComponent`'s output plus `?`/`&` contains no `/`, `:` or control character, so no new `://` can be formed (a straddling triple would need a character the insert cannot supply) and the first two characters are unchanged. | It is a **proof, not a check** — one inferential step, and inference is exactly what failed here. It also has to hand-roll what the parser was doing: the parameter must go **before** the fragment (naive append puts `clientId` inside `#…`, where the server never sees it), and a stale `clientId` from a previous round trip must be **replaced**, not duplicated (`L7` case 4) — which means splitting the query by hand. Rejected: it removes the parser from the trusted path at the price of re-implementing it. |
+| **Validate only after composition** (drop check 1) | The same output property as the chosen shape. Not weaker on security. | It **silently rewrites refused input**: `https://evil.test/x` and `//evil.test/x` normalize to `/x` and would answer `303`. A caller bug becomes an invisible rewrite, `L6`'s refusals become acceptances, the endpoint stops telling AS-46/AS-47 that they built `next` wrong, and every one of those writes a row. Rejected on the input contract, not on safety. |
+| **Validate both, requiring the two to AGREE as strings** (normalization must be a no-op: `url.pathname === next.split('#')[0].split('?')[0]`) | Strictly more than the chosen shape: that the parser changed nothing about the path — path fidelity on top of origin safety. | Adds **no security property**: any escape must show up as a `safeNext` refusal of the output, because `safeNext`-clean ⇒ path-absolute ⇒ same-origin. What it adds is a **second definition** of "a path this app will redirect to", differently shaped from `safeNext`, whose failure mode is refusing legitimate input (`/a/../b`; and query re-serialization, where `?a` → `?a=`). A second source of truth that 400s real screens is how a check gets weakened under integration pressure — §3.4's argument, applied to itself. Rejected. Note the chosen shape *is* "validate both" in the useful sense: **the same validator, on both ends of the step.** |
+| **Move the id out of the URL** (session flash, or a response body) | The strongest structural property: composition ceases to exist and the `Location` is `safeNext`'s output verbatim, exactly like `routes/auth.js`. | A response body has no consumer — `303` means the browser follows the redirect and never renders it, and the screens are server-rendered with no client-side JS (§3.3). A session flash introduces server-side state with its own lifecycle: when is it consumed, what happens with two tabs, what happens on the double submit §3.2 explicitly permits. It also moves `lib/auth/session.js`, which §5.2 says does not move. Rejected: it trades a three-line check for a stateful mechanism with concurrency semantics, in a task whose complexity is *low*. **Recorded, not dismissed** — if a future route must hand back more than an id, this is the shape to revisit, as a task of its own. |
+
+---
+
+## What the rework must include, beyond the code change
+
+**1. A new case `L12`, whose input set spans the discriminator.** Not an
+extension of `L7` — `L7` keeps its four cases as the regression on query
+preservation, fragment placement and set-not-append. `L12` carries all three
+normalization classes in one case, cardinality asserted first, every input driven
+over real HTTP against the built app (**not** by calling `landing()` directly:
+the defect lives in the value that reaches the header):
+
+| Class | Inputs (minimum) | Required answer |
+|---|---|---|
+| **(a) accepted by `safeNext`, normalization makes it hostile** | `/.//evil.test`, `/..//evil.test`, `/%2e//evil.test`, `/%2E%2E//evil.test`, `/a/..//evil.test`, `/.//user:pass@evil.test/x`, `/.//evil.test:8080/x`, `/.//evil.test/path?a=b#frag`, `/.//` | `400`, one-line `text/plain` body, **no `Location` header**, and **exactly one row per input** — the accepted cost, pinned |
+| **(b) accepted, normalization changes it, result benign** | `/a/../invoices/new`, `/invoices/./new` | `303` to the **normalized** path carrying `clientId`, one row |
+| **(c) accepted, normalization changes nothing** | at least one plain path — the control | `303`, one row |
+
+**Class (b) is not optional, and it is why this is a list of classes rather than
+"add hostile inputs".** Without it, "refuse anything normalization touched"
+passes `L12` — and that is a different, more brittle ruling than the one above
+(third rejected candidate). Class (b) is the input that tells the chosen
+implementation apart from that one. Class (c) is what tells a working route apart
+from one that refuses everything.
+
+**2. `__proto__` pinned in `L5` as a documented carve-out — and the pin must
+assert the safety property, not just the status.** A row pinning only "303" would
+stay green if a future body-parser reintroduced the key into the parsed body,
+which is the exact failure it exists to catch — it would be vacuous in precisely
+the way F-2 is about. Assert all three: the request answers `303`, **and**
+`Object.prototype` is unpolluted afterwards, **and** `constructor` and
+`__proto__[polluted]` still `400`. `test/webhooks.test.js:589` (AS-44's
+inherited-key list, cardinality first) is the in-house shape to follow. **No
+route-level field allowlist** — §3.4 refuses it and that refusal stands.
+
+**3. The recipes.** §7's discipline applies unchanged (assert applied on disk
+*and* in the built image, occurrence-accurate `grep -oF … | wc -l` and never
+`grep -c`, predicted case names verified to exist first, restore, prove
+restoration, rebuild before re-running). Two additions and one correction:
+
+- **Each recipe must assert on a marker string the mutation INTRODUCES, with a
+  measured tree-wide baseline of 0 — not on a decrease in the `safeNext` count.**
+  Measured on `feat/AS-65-clients` at `4762eb2`, from `apps/invoicing/`:
+  `grep -roF 'safeNext(' . --exclude-dir=node_modules --exclude-dir=vendor | wc -l`
+  = **5** (`lib/auth/guard.js` 1, `routes/auth.js` 1, `routes/clients.js` 1,
+  `test/auth.test.js` 2). After the fix `routes/clients.js` holds **two** call
+  sites, so "2 → 1" no longer identifies *which* one was removed, and a recipe
+  that cannot name its own mutation is not a measurement. Baselines measured for
+  the marker convention: `grep -roF 'AS65MUT' …` = **0**;
+  `grep -roF 'const returnPath = next;' …` = **0**.
+- **`F3a` — drop check 1** (the input validation): use the raw field where
+  `safeNext(next)` was called. **Predicted red: `L6` alone.** `L12` stays green,
+  and that is the point — check 2 still catches class (a) whether or not check 1
+  ran. Observing `L12` red here would mean the two checks are not independent and
+  is a finding.
+- **`F3b` — drop check 2** (the output validation). **Predicted red: `L12`
+  alone**; `L1`, `L6`, `L7` stay green. This is the recipe that proves the fix is
+  load-bearing: if `L12` does not redden, the fix is not what catches the defect.
+- **Ruben's recommendation that a re-run of `F3` should redden BOTH `L6` and
+  `L7` is superseded.** With two independent guards, a recipe that removes one
+  must predict only that guard's cases. A wide predicted set would hide which
+  check carries which property — the same conflation that produced this defect.
+- **`F4` must be re-run**, because its predicted roster changes: add `L12`, and
+  `G15` per F-5. Its count moves **15 → 16**. A roster carried forward on paper
+  is a reasoned baseline and §7 takes measured ones.
+- **`F1` and `F2` re-confirmed** — they mutate `routes/clients.js`, which the
+  rework edits; their markers and predicted sets (`L8`, `L3`) are unchanged.
+  **`F5` need not be re-run**: it mutates `lib/db/migrations/0001-initial.js`,
+  which the rework does not touch, and its predicted set (`X5`) is unaffected.
+
+**4. Correct `landing()`'s comment in `routes/clients.js`.** The claim that
+taking `pathname+search+hash` back off makes the emission safe is the false
+belief this cycle exists to remove; it must not survive in the file that carries
+the fix. State instead what check 2 guarantees and why check 1 does not suffice.
+
+**5. Acceptance criteria amended.** §6 is not rewritten; these amendments govern
+where they differ:
+
+- **AC 2 and AC 7:** every `Location` this route emits passed `safeNext` **as
+  emitted**; a `next` that `safeNext` accepts but normalization turns hostile
+  answers `400` and leaves **exactly one** row; a `next` whose normalization is
+  benign redirects to the **normalized** path.
+- **AC 5:** every unknown body field **that reaches the parsed body** answers
+  `400` and creates nothing; `__proto__` is dropped by the parser before the
+  route sees it, answers `303`, and is pinned in `L5` together with a
+  no-pollution assertion.
+- **AC 6:** unchanged, and must stay literally true — an absent or
+  `safeNext`-refused `next` is `400` with **no row**.
+- **AC 13:** now requires `F3a` and `F3b` each shown red, with the narrow
+  predicted sets above, plus the re-runs named in item 3.
+
+---
+
+## Out of scope for cycle 2 — stated so the rework does not grow
+
+1. `lib/auth/guard.js`, `safeNext` itself, and `routes/auth.js`. The precedent is
+   correct and this defect is local to AS-65.
+2. Any route-level field allowlist, any change to `assertKnownKeys`, any
+   body-parser option change.
+3. Email format validation (§9 Q4) — still its own filed task.
+4. The duplicate ruling (§3.2), the repository, migrations, config keys,
+   dependencies, `compose.yaml`, the `Dockerfile`.
+5. Any screen, view, template or `GET` route — AS-46's and AS-47's.
+6. `repos.clients.update`'s zero non-test callers (§11 item 3). Mine to answer,
+   not this cycle's.
+7. The honest limit Ruben recorded against `L11` direction 2 — the reachable
+   status set is pinned from three chosen requests rather than proven exhaustive.
+   Recorded, not charged, not this cycle.
+8. Moving the id out of the URL (fourth rejected candidate). If it is ever right,
+   it is a task.
+9. Protected top-level markdown. §10's proposed `CLAUDE.md` wording is still the
+   metawork layer's to apply.
+
+Ruled by `agent:cto-owen`, 2026-09-02.
