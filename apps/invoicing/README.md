@@ -159,11 +159,24 @@ distinct `-p` project name so the main checkout's running `web` is never touched
 ## Layout
 
 ```
-server.js        entrypoint: loadConfig() -> createApp() -> listen(). Only this
-                 file and lib/config.js touch process.env
+server.js        entrypoint: loadConfig() -> prepareDatabase() -> createApp() ->
+                 listen(). Only this file and lib/config.js touch process.env
 app.js           composition root. Takes config as an ARGUMENT, never reads the
                  environment. Route registration order is load-bearing
 lib/config.js    schema-as-data; frozen settings; redacted() for secrets
+lib/db/          the persistence layer (AS-39). database.js is its front door:
+                 prepareDatabase (open + migrate, at boot), probeDatabase (the
+                 /healthz check) and createRepositories (the seven frozen keys
+                 a route module is handed)
+  connection.js    openDatabase() and transaction() — the ONE import of node:sqlite
+  migrate.js       the MIGRATIONS registry, the schema_migrations ledger, migrate()
+  migrations/      one file per schema version, never edited once shipped
+  money.js         SUPPORTED_CURRENCIES and the minor-unit validators — the one
+                   file that spells a currency code
+  errors.js        the RepositoryError classes and the input asserts
+  repositories/    freelancers, connected-accounts, clients, contracts, invoices,
+                   stripe-events — the only files that contain SQL besides the
+                   three above; owner-scoped, camelCase in and out
 lib/stripe/      the ONLY outbound HTTP in the product (AS-38):
   custody.js       the three policy tables and guardRequest() — the never-in-the-
                    flow-of-funds boundary as data, checked before the key exists
@@ -225,9 +238,28 @@ declaration count are committed literals. Update them in the same commit.
   `FORBIDDEN_ENDPOINT_PREFIXES` entry (the module refuses to load), and never a
   parameter named in `FORBIDDEN_PARAMS` — those tables change only with a board
   ruling recorded in the task that changes them.
-- **AS-39 owns data.** No database is opened, `node:sqlite` is imported nowhere,
-  and no money type is guessed at (that is integer minor units with an explicit
-  currency column, and it is AS-39's to define).
+- **AS-39 landed data: SQLite through `node:sqlite`, migrated at boot, on a
+  named volume.** The database is `/app/data/invoicing.sqlite` inside the `web`
+  container, on the compose volume **`asc-invoicing_invoicing-data`** — the one
+  volume in `compose.yaml`, and `web`'s alone (`test` still mounts nothing).
+  `docker compose down` keeps it; **`docker compose down -v` destroys it**, and the
+  next `up` starts from an empty file (`applied 1 migration(s)` in the log instead
+  of `applied 0`). Boot is `loadConfig -> prepareDatabase -> createApp -> listen`:
+  a process that cannot open or migrate its database exits non-zero naming the
+  path and never listens, so a mis-mounted volume is loud, not a silent fresh
+  database in the container layer. **Adding a table or column** is a new
+  `lib/db/migrations/NNNN-<name>.js` exporting `{ version, name, up }` plus one
+  line in `MIGRATIONS` (`lib/db/migrate.js`) — never an edit to a shipped
+  migration; the runner refuses a database that is ahead of the build or whose
+  ledger disagrees with the registry. `/healthz` runs **four** checks —
+  `config`, `vendor_assets`, `views`, `database` — and the fourth is a
+  file-level probe (file exists, directory and file writable, opens as a
+  database, schema version matches) that never creates the file it is checking.
+  Money is integer minor units with an explicit `currency` column; the allowed
+  currency set is `lib/db/money.js` and nowhere else. `INVOICING_DB_PATH`
+  overrides the path (absolute, not `:memory:`); the default is the single
+  source of truth and `test/deploy-shape.test.js` checks compose and the
+  Dockerfile against it.
 - **The dependency budget is 2.** A third turns the suite red and goes through
   all six rules in the stack decision §11 first. Install with
   `npm install --save-exact` — plain `npm install` writes a caret range, which
