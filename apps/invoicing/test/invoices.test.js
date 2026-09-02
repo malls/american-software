@@ -23,10 +23,15 @@
 // stripe-mock.test.js and connect.test.js.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createStripeClient } from '../lib/stripe/client.js';
+import { StripeCustodyError, createStripeClient } from '../lib/stripe/client.js';
 import { readinessFromAccount } from '../lib/connect/readiness.js';
 import { invoiceSnapshotFromStripe } from '../lib/invoices/mapping.js';
 import { createRepositories, prepareDatabase } from '../lib/db/database.js';
+// R26 only, and it is the whole point of R26: the invariant the dropped
+// currency comparison rests on. test/ is in the dependency-policy scan's
+// SKIPPED_DIRS, so this import moves no committed literal — verified, not
+// assumed, by the green dependency-policy suite either side of this change.
+import { SUPPORTED_CURRENCIES } from '../lib/db/money.js';
 import { configFor, freshDbPath, withServer } from './helpers/server.js';
 
 // Not key-shaped on purpose — the stripe-client.test.js convention.
@@ -156,11 +161,15 @@ const ITEMS_TOTAL = 12_500;
 /** withServer + a fixture-transport client + a freelancer, a ready connected
  *  account and one client, which is the state every finalize case starts from. */
 async function withInvoiceApp(
-  { fixture = {}, apiKey = KEY, connected = true, charges = true, due = [], customerId = null } = {},
+  { fixture = {}, apiKey = KEY, stripe: stripeOverride, connected = true, charges = true, due = [], customerId = null } = {},
   fn,
 ) {
   const { transport, calls } = fixtureTransport(fixture);
-  const stripe = createStripeClient({ apiKey, transport });
+  // `stripe` substitutes a stub for the whole client, which R24 needs to raise a
+  // custody refusal the real guard cannot be talked into raising here: every
+  // call this task makes is allowlisted and connected-scope, so the 500 row of
+  // the taxonomy is unreachable through the real pipeline by design.
+  const stripe = stripeOverride ?? createStripeClient({ apiKey, transport });
   await withServer(configFor(), async (base, app, deps) => {
     const repos = deps.repos;
     const freelancer = repos.freelancers.create({ email: 'f@example.test', displayName: 'Freda Lancer' });
@@ -953,6 +962,68 @@ test('R23: sentAt SURVIVES a later snapshot — the AS-44 interaction the mapper
   } finally {
     db.close();
   }
+});
+
+// --- R24–R26: the two taxonomy rows nothing drove through a route, and the
+// invariant the dropped currency comparison rests on (added review cycle 1) ----
+
+test('R24: a custody refusal is 500 at the route — loud, and carrying no request material', async () => {
+  // Driven through a client stub, because the REAL pipeline cannot produce this
+  // here: every call this task makes is on the allowlist as connected-scope and
+  // declares an acct_, so the guard has nothing to refuse. That is the property
+  // R6/R22 assert; this case asserts what happens if it is ever untrue —
+  // unreachable in normal operation, and therefore exactly the failure that must
+  // not be quietly mapped to a 502 and read as "Stripe's fault".
+  const stripe = Object.freeze({
+    request: async () => {
+      throw new StripeCustodyError('missing_account', { method: 'POST', path: '/v1/customers', key: 'account' });
+    },
+  });
+  await withInvoiceApp({ stripe }, async ({ base, repos, freelancer, client }) => {
+    const draft = draftOf(repos, freelancer.id, client.id);
+    for (const route of ['finalize', 'send']) {
+      const res = await post(`${base}/invoices/${draft.id}/${route}?freelancer=${freelancer.id}`);
+      assert.equal(res.status, 500, `${route}: a custody refusal is ours, not Stripe's`);
+      // The whole body, byte for byte: the class and the step, and nothing of
+      // what we sent — no path, no parameter name, no key.
+      assert.equal(await res.text(), 'StripeCustodyError: create-customer\n');
+    }
+    assert.equal(repos.invoices.getById(freelancer.id, draft.id).stripeInvoiceId, null, 'nothing was attached');
+  });
+});
+
+test('R25: an invoice shape the mapper does not understand is 502 at the route, not 500', async () => {
+  const malformed = (record) => {
+    const match = record.path.match(/^\/v1\/invoices\/([^/]+)\/finalize$/);
+    if (match === null) return undefined;
+    const invoice = invoiceObject({ id: match[1], total: ITEMS_TOTAL, open: true });
+    invoice.status = 42; // R1 proves the mapper throws on this; nothing drove one through a route
+    return json(invoice);
+  };
+  await withInvoiceApp({ fixture: { intercept: malformed } }, async ({ base, repos, freelancer, client, calls }) => {
+    const draft = draftOf(repos, freelancer.id, client.id);
+    const res = await post(`${base}/invoices/${draft.id}/finalize?freelancer=${freelancer.id}`);
+    assert.equal(res.status, 502, 'a shape this app does not understand came from Stripe, so it is a 502');
+    assert.equal(await res.text(), 'TypeError: finalize\n', 'and the body names WHICH interaction produced it');
+    assert.equal(calls.filter((call) => call.path.endsWith('/send')).length, 0);
+    const row = repos.invoices.getById(freelancer.id, draft.id);
+    assert.notEqual(row.stripeInvoiceId, null, 'the invoice was attached before the finalize was attempted');
+    assert.equal(row.status, 'draft', 'and nothing was written from a shape we could not read');
+  });
+});
+
+test('R26: SUPPORTED_CURRENCIES has exactly one member — the invariant the dropped currency comparison rests on', () => {
+  assert.equal(
+    SUPPORTED_CURRENCIES.length,
+    1,
+    'AS-43 plan §3.7, ruling by agent:cto-owen 2026-09-02: the reconciliation guard compares amounts only. '
+      + 'That is safe because "ours" and "theirs" are the same constant — one supported currency, sent '
+      + 'EXPLICITLY on POST /v1/invoices and on every POST /v1/invoiceitems, and Stripe rejects an item whose '
+      + 'currency differs from its invoice\'s. THIS TEST IS THE TRIGGER, and it is deliberately the only one: '
+      + 'the moment a second currency is supported that reasoning is false and the currency half of the guard '
+      + 'must come back — which needs a stripe_currency column on the invoice mirror (a new migration, '
+      + 'SCHEMA_VERSION 1->2, and an eleventh key in the mapper AS-44 inherits). Do not just raise this number.',
+  );
 });
 
 // --- M1–M3: the same routes against stripe-mock ---------------------------------
