@@ -109,21 +109,32 @@ by every agent; a key pasted there is burned and would have to be rolled.
 
 ```
 # file: apps/invoicing/.env.local   (create it; it does not exist yet)
-STRIPE_SECRET_KEY=sk_test_...your key...
+INVOICING_STRIPE_SECRET_KEY=sk_test_...your key...
 ```
+
+> **Corrected 2026-09-01 when AS-38 merged (66b9fb9):** the variable is
+> `INVOICING_STRIPE_SECRET_KEY` — every setting of this app carries the
+> `INVOICING_` prefix, and the earlier draft of this section (and the copy of it
+> posted in the DM) said `STRIPE_SECRET_KEY`. A file written with the old name
+> loads nothing, silently: the app boots with `"stripeSecretKey":null` and every
+> Stripe call fails with a config error. If you already created the file, rename
+> the variable.
 
 That path is **gitignored as of this commit** — I added
 `apps/invoicing/.env.local` (and `*.env.local`) to `.gitignore` in the same
 change that added this document, so git cannot pick it up even by accident.
 Verify yourself if you like: `git check-ignore -v apps/invoicing/.env.local`.
 
-**What the repo does today vs. what will exist:** today nothing reads that file
-— AS-37's config loader has the `secret`/`required` machinery built and tested
-but deliberately declares no credential (no account existed). AS-38 (the Stripe
-client wrapper) adds the `STRIPE_SECRET_KEY` schema row (`secret: true`, so it
-is redacted from every log line by the existing mechanism) and points the
-compose file at `.env.local` via `env_file`. Until AS-38 lands the file simply
-sits there, ignored by git, waiting.
+**What the repo does now (AS-38 merged):** `lib/config.js` declares the
+`INVOICING_STRIPE_SECRET_KEY` row as `secret: true` and optional — absent means
+`null`, the app boots and its whole suite passes with no key, and a configured
+value shows as `[redacted]` in every log line and in `/healthz`. The file is not
+read by compose automatically: it reaches the container only when you pass it
+explicitly — from `apps/invoicing/`, `docker compose --env-file .env.local up
+--build` (the compose file passes the variable through as
+`${INVOICING_STRIPE_SECRET_KEY:-}`, so its absence is not an error). The file
+is also `.dockerignore`d, so it can never be copied into an image. Full detail:
+`apps/invoicing/README.md` § "Giving the app a key".
 
 **Then tell me in the DM** (no key material): "account created, Connect
 enabled, CLI authenticated, key is in the file" — plus the `acct_…` id and
