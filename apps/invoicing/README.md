@@ -51,21 +51,29 @@ AS-50's acceptance question, not this app's.
 
 ### Giving the app a key
 
-The app has exactly one secret setting, `INVOICING_STRIPE_SECRET_KEY`
-(`lib/config.js`, the only `secret: true` row). It is **optional, and absent by
-default**: nothing in this repository has a Stripe key, the Stripe account itself
-is a board-gated ask (AS-51), and every command above runs without one.
+The app has exactly two secret settings, `INVOICING_STRIPE_SECRET_KEY` and
+`INVOICING_STRIPE_WEBHOOK_SECRET` (`lib/config.js`, the only two `secret: true`
+rows). Both are **optional, and absent by default**: nothing in this repository
+has a Stripe key or a signing secret, the Stripe account itself is a board-gated
+ask (AS-51), and every command above runs without either.
 
-`compose.yaml` passes the variable through as `${INVOICING_STRIPE_SECRET_KEY:-}`
-— the value comes from your shell or from an env file you name on the command
-line, never from a committed file. To run `web` with a test-mode key, keep it in
+`compose.yaml` passes both variables through as `${NAME:-}` — the values come
+from your shell or from an env file you name on the command line, never from a
+committed file. To run `web` with a test-mode key, keep it in
 `apps/invoicing/.env.local` (gitignored at the repo root, `.dockerignore`d at the
 repo root, and **not** referenced by `compose.yaml`, so its absence is not an error):
 
 ```bash
 # apps/invoicing/.env.local — never committed
 INVOICING_STRIPE_SECRET_KEY=sk_test_x
+INVOICING_STRIPE_WEBHOOK_SECRET=whsec_x
 ```
+
+The two are independent. The API key is what lets the app **call** Stripe; the
+signing secret is what lets it **believe** Stripe. A deployment with a signing
+secret and no API key still receives and applies webhooks, which is worth
+knowing during an acceptance run: "Connect onboarding works" and "state sync
+works" fail separately.
 
 ```bash
 DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose --env-file .env.local up --build
@@ -255,6 +263,110 @@ and a second finalize makes zero calls. Send is a no-op once `sent_at` is
 recorded — which is what keeps retry-safety from quietly becoming a re-send
 feature.
 
+## Receiving webhooks
+
+One route (AS-44), `POST /webhooks/stripe`, mounted **second** in `app.js` —
+immediately after `/healthz` and before every other router, because nothing
+ahead of it may parse a body.
+
+**With no signing secret configured the route does not exist.** Not "reject
+everything": `webhookRoutes` registers no handler at all and express answers
+**404**, so there is no code path from an unconfigured deployment to the
+database — not one that returns early, one that does not exist. Unconfigured is
+the normal state of this repository, of every test run and of every developer's
+stack, so it is not an error. The operator's signal lives on the authenticated
+side instead: the startup line and `/healthz` both print
+`"webhookSecret":null` (or `"[redacted]"`) via `config.redacted()`.
+
+**Verification**, in `lib/webhooks/signature.js` — pure, the only `createHmac`
+in the product, and the only thing between an unauthenticated POST and the
+mirror:
+
+- the payload is a **`Buffer`**, and a string is refused outright (`not_raw`).
+  The request bytes are never turned into a string before they are hashed, so a
+  body that has been through `JSON.parse`/`JSON.stringify` cannot verify against
+  a re-serialised payload. **Do not mount a body parser app-wide** — the
+  `body parser` row in `test/dependency-policy.test.js` turns that into a red
+  test rather than a review catch;
+- the secret is used **verbatim, `whsec_` prefix included** — that is Stripe's
+  scheme;
+- tolerance is **300 s and past-only**. A module constant, not a config row.
+  A future-dated `t` is accepted deliberately: `t` is inside the signed
+  material, so it cannot be forged without the secret, while a container clock
+  running behind would otherwise kill the endpoint;
+- unknown schemes (`v0=`, a future `v2=`) are **ignored, not rejected**; several
+  `v1=` values are tried in turn, which is what a secret rotation looks like;
+- every candidate passes a `/^[0-9a-f]{64}$/i` shape check before it is
+  converted, so `timingSafeEqual` can never throw on a length mismatch.
+
+**Eight event types are handled**, each through the mapper that already existed
+— nothing is mapped, ranked or timestamped in this feature:
+
+| Event | Effect on the mirror |
+|---|---|
+| `invoice.created` / `finalized` / `paid` / `voided` / `marked_uncollectible` | the full snapshot, via `invoiceSnapshotFromStripe` |
+| `invoice.sent` | the snapshot, plus `sentAt` from the event — **only when the mirror's is null** |
+| `invoice.payment_failed` | the snapshot, plus `lastPaymentFailedAt` from the event |
+| `account.updated` | the six readiness fields, via `readinessFromAccount`, `syncedAt` from the event |
+
+Anything else is **200 `ignored`** with **no ledger row** — a row for an event
+with no effects would be a false statement about our own history, and a trap for
+the day a handler is added for that type.
+
+**Statuses**: 400 for any signature refusal or a body that verifies but is not
+an event envelope; 500 for a well-formed envelope carrying an object shape the
+mapper does not understand (Stripe retries it, and because the failed apply
+never committed its ledger row, a deploy that fixes the mapper gets the event
+redelivered and applied); 200 for everything else, with a one-line
+`ok: <outcome>` body. **A missing local row is 200 `unknown-target`, not an
+error** — the freelancer has their own full Stripe Dashboard and will create
+invoices we never made, and answering non-2xx to a normal condition would
+eventually make Stripe disable the endpoint.
+
+**Idempotency** is `stripeEvents.recordOnce(event.id, type)`, called **first**
+inside **one** `repos.transaction` with the work second. There is no window in
+which the marker exists without its effects: die before the commit and Stripe's
+retry is processed normally; die after it and the retry answers 200 `duplicate`
+having written nothing. Honestly scoped: every handler here is a pure function
+of its event — **the receiver reads no clock** (`webhooks.test.js` G1 greps for
+it) — so removing the ledger entirely would change only `updated_at` and the
+response body. It is the audit record, a cheap early exit under a retry storm,
+and the belt that keeps a future **non-idempotent** handler honest. The moment a
+handler does anything outside the mirror — an email, a counter, a Stripe call —
+the ledger stops being a belt and becomes the mechanism, and that task must say
+so in its plan.
+
+**Ordering** converges through AS-39's rank machine and no second copy of it
+(`STATUS_RANK` occurs in exactly one file, pinned by dependency-policy). A
+`paid` event arriving before `finalized` applies, then discards the `finalized`
+snapshot as `stale` — losing nothing, because a paid Stripe invoice still
+carries both URLs and its `finalized_at`. The one non-convergence is deliberate:
+`paid` and `void` share a rank because they are the one pair with **no
+transition between them**, so a `paid` event on a `void` mirror is **200
+`conflict`**, logged at error, recorded, and writes nothing. We do not guess,
+and we do not re-read the invoice from Stripe to break the tie — that would be a
+bypass of the rank machine, not a resolution.
+
+**Zero Stripe calls.** `webhookRoutes(config, { repos })` takes no `stripe`
+dependency, so a call cannot be added without changing the signature and the
+mount line. No allowlist row was added and `lib/stripe/custody.js` is untouched.
+
+**Pointing Stripe at it.** The path is configured in a third party's system, so
+treat it as settled: `stripe listen --forward-to localhost:8348/webhooks/stripe`
+prints a `whsec_…` that goes in `.env.local` as
+`INVOICING_STRIPE_WEBHOOK_SECRET`. **Check the boot line first when no event
+lands** — a deployment with no secret silently receives nothing.
+
+**What this cannot prove, and who settles it (AS-50, gated on AS-51).** Every
+fixture in `test/webhooks.test.js` is signed by the same understanding of
+Stripe's scheme that verifies it, so the suite agrees with itself no matter what
+it computes and a *symmetric* mistake is invisible to all of it. The committed
+known-answer vector (S1) pins our algorithm against future drift; it is **not**
+evidence that Stripe computes the same bytes. Real delivery, real ordering, real
+latency, the live header shape, whether 300 s is comfortable against real clock
+skew, and poison-pill behaviour all belong to the acceptance run —
+stripe-mock emits no webhooks.
+
 ## Layout
 
 ```
@@ -295,10 +407,17 @@ lib/invoices/    the invoice lifecycle (AS-43):
   lifecycle.js     the readiness gate, the five connected-scope Stripe calls,
                    the resumable pipeline and the reconciliation guard — the
                    only file in this feature that calls Stripe
+lib/webhooks/    the inbound half (AS-44) — the only feature that calls Stripe
+                 ZERO times:
+  signature.js     the pure verifier; the ONE createHmac in the product. Takes
+                   a Buffer and refuses a string
+  receiver.js      the eight-row handler table, one transaction with
+                   recordOnce first. No async, no await, no clock
 lib/health.js    the checks, as data
 lib/vendor.js    assets consumed from outside this app (registry)
 lib/views.js     the template registry + the health check's render probe
-routes/          health.js, assets.js, pages.js, connect.js, invoices.js
+routes/          health.js, webhooks.js, assets.js, pages.js, connect.js,
+                 invoices.js — mounted in that order, which is load-bearing
 views/           one template file per screen
 public/          app-owned static assets, served by express.static
 vendor/          created by the Dockerfile — see below. Not in version control
@@ -385,26 +504,42 @@ declaration count are committed literals. Update them in the same commit.
   through `connectedAccounts.updateReadiness` only, with a snapshot freshly
   read from Stripe, mapped by `lib/connect/readiness.js` — never inferred from
   a redirect, never cached, last writer wins.
-- **AS-43 landed the invoice lifecycle server-side; three handoffs are open.**
-  **AS-44 (webhooks):** import `invoiceSnapshotFromStripe` from
-  `lib/invoices/mapping.js` for `invoice.created/finalized/paid/voided/
-  marked_uncollectible/payment_failed` — an event's `data.object` IS an invoice
-  object, and the reuse is already tested (R1). Write `paid`, `void`,
-  `uncollectible` and `lastPaymentFailedAt`; AS-43 writes only `draft` and
-  `open`, so the two sides need no coordination — both go through
-  `invoices.applyStripeSnapshot`, whose rank machine converges them. **Do not
-  mount a body parser app-wide**: the webhook needs the RAW body for signature
-  verification, which is why AS-43's parser is mounted per route. **`sentAt` and
-  `lastPaymentFailedAt` must never be emitted by the mapper** — a Stripe invoice
-  object has neither, so emitting them as null would erase a recorded fact on
-  the next snapshot (each is written by its own writer, at its own moment; R23
-  is that rule under test). **AS-46 (screen 4)** owns `/invoices/{id}/edit` and
+- **AS-43 landed the invoice lifecycle server-side; two handoffs are open.**
+  **AS-44 (webhooks) LANDED** — it imported `invoiceSnapshotFromStripe` for
+  seven `invoice.*` types (the six listed here plus `invoice.sent`, which the
+  Lattice description included and this bullet omitted) and writes `paid`,
+  `void`, `uncollectible` and `lastPaymentFailedAt`. Two rules survive as live
+  constraints on everyone: **do not mount a body parser app-wide** — the webhook
+  needs the RAW body, which is why AS-43's parser is mounted per route and why
+  `test/dependency-policy.test.js` now pins the two files that may hold one; and
+  **`sentAt` and `lastPaymentFailedAt` must never be emitted by the mapper** — a
+  Stripe invoice object has neither, so emitting them as null would erase a
+  recorded fact on the next snapshot (each is written by its own writer, at its
+  own moment; R23 is that rule under test). **AS-46 (screen 4)** owns `/invoices/{id}/edit` and
   **AS-48 (screens 3 and 5)** owns `/invoices/{id}`; both paths are already
   load-bearing in shipped `Location` headers, so treat them as settled unless
   you also change AS-43's redirects. **AS-40 (sessions):** these routes import
   `resolveFreelancerId` from `routes/connect.js` rather than copying it — one
   seam, one replacement point. A **third** consumer (AS-42) is the trigger to
   extract it to `lib/http/identity.js`.
+- **AS-44 landed the webhook receiver; two handoffs are open.** See
+  § Receiving webhooks above for what it does. **AS-48 (screens 3 and 5):** the
+  mirror row is the only thing a screen should render — `status`, `paidAt`,
+  `sentAt`, `lastPaymentFailedAt` and both URLs are all maintained by this
+  receiver, so a screen needs no Stripe call and no polling. It also adds no
+  `GET`, so a "refresh from Stripe" button would be a new allowlist row and a
+  new task. **AS-50 (acceptance run):** everything in §5.5 of this task's plan
+  is yours — real delivery, real ordering, real latency, the live
+  `Stripe-Signature` header shape at this API version, whether 300 s of
+  tolerance is comfortable against real clock skew, whether a repeated 500
+  really disables the endpoint and how fast, and whether
+  `stripe listen --forward-to localhost:8348/webhooks/stripe` reaches the
+  compose stack at all. **The cheapest confirmation that our HMAC agrees with
+  Stripe's** is to record the first real `Stripe-Signature` header verbatim
+  (minus the digest) and the first successful verification in the run record;
+  the live header shape falls out of the same line. Also worth recording for its
+  own sake: the full event sequence Stripe emits for one invoice, which settles
+  whether `invoice.sent` fires for an invoice sent by our own `/send` call.
 - **The dependency budget is 2.** A third turns the suite red and goes through
   all six rules in the stack decision §11 first. Install with
   `npm install --save-exact` — plain `npm install` writes a caret range, which
