@@ -8,16 +8,22 @@
       "repo": null
     }
   ],
-  "comment_count": 5,
+  "comment_count": 6,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "The persistence layer for the whole product: schema/migrations plus a repository layer with tests. Entities: freelancer (user), connected Stripe account (id plus readiness flags), client, contract, invoice mirror (our copy of Stripe invoice state), and a processed-webhook-event table for idempotency. No Stripe calls at all \u2014 this task is pure persistence and runs in parallel with the custody-guard task.\n\nIMPLEMENTS: docs/engineering/00-d1-v1-milestone-plan.md section 3 rows C-04 (persistence and data model) and C-15 (client records). Both IN under Rule 1.\n\nDECISION CONTEXT. Client records are IN because links 3 and 4 of the v1 chain (a contract FOR a client; an invoice ON that client) require a stored counterparty. A dedicated Clients SCREEN is OUT (row C-16, Rule 1) \u2014 clients are created inline from the invoice and contract forms \u2014 so this task owns client persistence and no screen owns client management. The Stripe customer (cus_) is created LAZILY at first invoice by the invoice task, not here, so a client the freelancer never invoices leaves no trace on their Stripe account. The connected-account readiness flags (charges_enabled, outstanding requirements) are DEFINED here and MAINTAINED by the Connect task; the invoice task reads them to gate finalize. That three-way contract is why none of those tasks needs an edge to the others beyond this one.\n\nMulti-currency, VAT, and jurisdictional invoice fields are out of v1 (row C-32, Rule 1) but the schema must not foreclose them: a currency column with a single allowed value is fine, a currency hardcoded into every query is not.\n\nVERIFICATION: migrations run from empty on docker compose up; repository tests cover create/read/update plus the uniqueness and foreign-key constraints; the suite runs with no accounts and no network.\n\nNOT IN THIS TASK: authentication or credential handling (the auth task \u2014 this task defines the user row, not the credential flow); any Stripe API call; any UI.",
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M1G5JHFRZC2359M43R5WHRY9",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M1D34N3QNCV3AWZYMHVVV77M",
-  "last_event_id": "ev_01M1G29E85PTBAX5HKDSADSGR0",
+  "last_event_id": "ev_01M1G5JHFRZC2359M43R5WHRY9",
   "last_status_changed_at": "2026-09-02T03:21:37Z",
   "priority": "high",
   "relationships_out": [
@@ -41,6 +47,6 @@
   ],
   "title": "D1 v1: data model and persistence layer (freelancer, connected account, client, contract, invoice mirror)",
   "type": "task",
-  "updated_at": "2026-09-02T03:23:34Z",
+  "updated_at": "2026-09-02T04:20:58Z",
   "urgency": null
 }
