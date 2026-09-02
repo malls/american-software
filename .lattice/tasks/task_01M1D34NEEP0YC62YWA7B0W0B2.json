@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
   "created_by": "agent:cto-owen",
@@ -17,8 +17,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34NEEP0YC62YWA7B0W0B2",
-  "last_event_id": "ev_01M1J0XMH90QVWRHDDYMWA8GXC",
-  "last_status_changed_at": "2026-09-02T21:38:07Z",
+  "last_event_id": "ev_01M1J2EHP043GSEY4S2B76QMW5",
+  "last_status_changed_at": "2026-09-02T22:04:50Z",
   "priority": "medium",
   "relationships_out": [
     {
@@ -32,7 +32,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-42",
-  "status": "in_progress",
+  "status": "review",
   "tags": [
     "d1",
     "v1",
@@ -42,6 +42,6 @@
   ],
   "title": "D1 v1: contract templates and generation (server)",
   "type": "task",
-  "updated_at": "2026-09-02T21:38:08Z",
+  "updated_at": "2026-09-02T22:04:50Z",
   "urgency": null
 }
