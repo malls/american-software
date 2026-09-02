@@ -232,12 +232,22 @@ Four things here are load-bearing and should not be "simplified":
 - **`auto_advance: false` on both calls 2 and 4.** Otherwise Stripe can finalize
   and email an invoice on our behalf about an hour later, and "who sent this"
   becomes ambiguous in a v1 whose whole email story is "Stripe does it, once".
-- **The reconciliation guard.** After finalize, Stripe's `amount_due` and
-  `currency` must equal ours, or the send is refused with **409
-  `AmountMismatchError`** — *after* the snapshot is written, because Stripe
-  really did finalize it and a mirror saying `draft` would be a lie. Resolution
-  is the freelancer's, in their own Dashboard: `/v1/invoices/{id}/void` is
-  deliberately not on the allowlist.
+- **The reconciliation guard.** A property of the **mirror row**, checked on
+  every request that could reach a send — not only the one that finalized:
+  `amountDueMinor` (Stripe's number, written only by the snapshot writer) must
+  equal `totalMinor` (ours, derived from the line items), or **both** routes
+  refuse with **409 `AmountMismatchError`** and no `/send` call is made. The
+  refusal happens *after* the snapshot is written, because Stripe really did
+  finalize it and a mirror saying `draft` would be a lie. It has **no skip
+  predicate of its own**, and that is deliberate: a guard that shared step 4's
+  predicate stopped existing for an invoice the moment it fired once, so the
+  retry — which is how a freelancer reacts to the error — sent the invoice
+  anyway. Resolution is the freelancer's, in their own Dashboard:
+  `/v1/invoices/{id}/void` is deliberately not on the allowlist.
+  Currency is **not** compared: the mirror has no column for Stripe's, and with
+  one supported currency sent explicitly on calls 2 and 3 there is only one
+  value. `SUPPORTED_CURRENCIES` growing a second member turns a test red
+  (`invoices.test.js` R26) and brings that half of the guard back.
 
 **Every step is skipped when the mirror records it done**, so re-submitting the
 form after a failure completes the run rather than duplicating Stripe objects,

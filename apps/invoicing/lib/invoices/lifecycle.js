@@ -24,9 +24,20 @@
 //   step 1  ensureCustomer   skip if client.stripeCustomerId !== null
 //   step 2  ensureInvoice    skip if invoice.stripeInvoiceId !== null
 //   step 3  pushLineItems    skip if invoice.status !== 'draft'
-//   step 4  finalize         skip if invoice.status !== 'draft'  -> reconcile -> snapshot
+//   step 4  finalize         skip if invoice.status !== 'draft'  -> snapshot
+//   guard   reconcile        ALWAYS — never skipped               else 409
 //   --------------------- finalize() stops here ---------------------
 //   step 5  send             skip if invoice.sentAt !== null      -> snapshot + sentAt
+//
+// THE GUARD HAS NO PREDICATE OF ITS OWN, and that is the fix for review cycle
+// 1's defect (plan §3.7, §3.8, "Review Cycle 1 Findings" §1). It used to live
+// inside step 4, sharing step 4's skip predicate, so on the second request —
+// which finds the invoice already `open` and skips steps 3 and 4 — it did not
+// run at all, while step 5's only precondition is `sentAt === null`. A guard
+// that fires once per invoice and then stops existing for it is not a guard:
+// re-submitting the form after the 409 emailed the client the invoice whose
+// amount we had already recorded as wrong. It now sits between step 4 and step
+// 5, in run(), on both routes and every path that can reach a send.
 //
 // Steps 3 and 4 share a predicate on purpose: a process that died after the
 // invoice was attached but before every item was pushed would otherwise finalize
@@ -57,16 +68,22 @@ export class AccountNotReadyError extends Error {
   }
 }
 
-/** Stripe finalized the invoice, and what it says the client owes is not what
- *  our line items say. The send does NOT happen (plan §3.7). Resolution belongs
- *  to the freelancer in their own Stripe Dashboard: voiding from our side would
- *  need an allowlist row this task deliberately does not add. */
+/** The mirror's recorded amount is not what our line items say. The send does
+ *  NOT happen (plan §3.7). Resolution belongs to the freelancer in their own
+ *  Stripe Dashboard: voiding from our side would need an allowlist row this task
+ *  deliberately does not add.
+ *
+ *  `theirs` is Stripe's number, written to the mirror only by
+ *  applyStripeSnapshot; `ours` is derived from the line items on every read.
+ *  There is ONE currency here, not two, because the mirror has no column for
+ *  Stripe's — see reconcile() for the ruling that dropped that comparison. */
 export class AmountMismatchError extends Error {
-  constructor({ ours, theirs }) {
-    super(`Stripe finalized ${theirs.total} ${theirs.currency}; our line items total ${ours.total} ${ours.currency}`);
+  constructor({ ours, theirs, currency }) {
+    super(`the mirror records ${theirs} ${currency} due; our line items total ${ours}`);
     this.name = 'AmountMismatchError';
     this.ours = ours;
     this.theirs = theirs;
+    this.currency = currency;
     this.step = 'reconcile';
   }
 }
@@ -237,25 +254,48 @@ export function createInvoiceLifecycle({ repos, stripe, now = () => new Date().t
       params: { auto_advance: false },
       idempotencyKey: `inv-finalize-${invoice.id}`,
     }));
-    // ORDER IS DECIDED (plan §3.7): write the snapshot FIRST, then refuse.
-    // Stripe really did finalize this invoice; a mirror that still said draft
-    // would be a lie, and AS-39's whole discipline is that it never guesses.
-    const updated = writeSnapshot(invoice.stripeInvoiceId, invoiceSnapshotFromStripe(response.data));
-    reconcile(invoice, response.data);
-    return updated;
+    // ORDER IS DECIDED (plan §3.7): write the snapshot FIRST, and let run()
+    // refuse afterwards. Stripe really did finalize this invoice; a mirror that
+    // still said draft would be a lie, and AS-39's whole discipline is that it
+    // never guesses. The refusal happens one level up, in run(), which is what
+    // makes it survive the next request.
+    return writeSnapshot(invoice.stripeInvoiceId, invoiceSnapshotFromStripe(response.data));
   }
 
-  /** The guard this task introduces. Step 3 re-pushes items on a retry and
-   *  leans on Stripe's idempotency window to deduplicate them; this is the
-   *  assertion that says so out loud. If a duplicate item ever lands, if a
-   *  pending item is swept in despite `exclude`, or if a quantity is multiplied
-   *  twice, the totals diverge and we find out BEFORE the client is emailed a
-   *  wrong invoice. One comparison; a silent money bug becomes a loud refusal. */
-  function reconcile(invoice, stripeInvoice) {
-    if (stripeInvoice.currency === invoice.currency && stripeInvoice.amount_due === invoice.totalMinor) return;
+  /** The guard this task introduces — a property of THE MIRROR ROW, checked in
+   *  run() on both routes and on every path that can reach a send.
+   *
+   *  Step 3 re-pushes items on a retry and leans on Stripe's idempotency window
+   *  to deduplicate them; this is the assertion that says so out loud. If a
+   *  duplicate item ever lands, if a pending item is swept in despite
+   *  `exclude`, or if a quantity is multiplied twice, the totals diverge and we
+   *  find out BEFORE the client is emailed a wrong invoice.
+   *
+   *  Both numbers are already on the row: `amountDueMinor` is Stripe's, written
+   *  only by applyStripeSnapshot, and `totalMinor` is ours, derived from the
+   *  line items on every read. Checking the MIRROR rather than a finalize
+   *  response is what makes the guard total — it holds on paths this task does
+   *  not own (AS-44's `invoice.finalized` writes `amountDueMinor` through the
+   *  same snapshot writer), and it catches a fault in our own persistence, which
+   *  a response-based check cannot.
+   *
+   *  A null `amountDueMinor` fails the strict equality and is therefore a
+   *  refusal, deliberately: "we cannot verify this invoice" is not a reason to
+   *  email it.
+   *
+   *  THE CURRENCY HALF IS DROPPED — ruling by agent:cto-owen, 2026-09-02, plan
+   *  §3.7. The mirror carries our currency and has no column for Stripe's, so
+   *  after a resume there is nothing to compare against; and with exactly one
+   *  member in SUPPORTED_CURRENCIES, sent explicitly on calls 2 and 3, "ours"
+   *  and "theirs" are the same constant. What carries that weight now is a test
+   *  (R26) pinned to that set's cardinality: the day a second currency is added
+   *  it goes red naming this ruling. */
+  function reconcile(invoice) {
+    if (invoice.amountDueMinor === invoice.totalMinor) return;
     throw new AmountMismatchError({
-      ours: { total: invoice.totalMinor, currency: invoice.currency },
-      theirs: { total: stripeInvoice.amount_due, currency: stripeInvoice.currency },
+      ours: invoice.totalMinor,
+      theirs: invoice.amountDueMinor,
+      currency: invoice.currency,
     });
   }
 
@@ -308,6 +348,10 @@ export function createInvoiceLifecycle({ repos, stripe, now = () => new Date().t
       await pushLineItems(invoice, acct, client);
       invoice = await finalizeInvoice(invoice, acct);
     }
+    // NO PREDICATE. The row in hand always carries a stripeInvoiceId by now
+    // (step 2 guarantees it), so the guard is unconditional — on the request
+    // that finalized AND on every request after it, which is the whole point.
+    reconcile(invoice);
     if (through === 'send' && invoice.sentAt === null) {
       invoice = await sendInvoice(invoice, acct);
     }

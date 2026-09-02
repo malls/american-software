@@ -610,10 +610,14 @@ test('R10: a second finalize makes zero Stripe calls and still 303s — every st
   });
 });
 
-test('R11: a failed finalize is resumable — the retry reuses the SAME in_ and re-pushes items under the same keys', async () => {
+test('R11: a failed finalize is resumable — the retry reuses the SAME in_ and re-pushes items under the same keys; and a resumed SEND whose totals agree is not blocked', async () => {
   let failFinalize = true;
+  let failSend = true;
   const intercept = (record) => {
     if (failFinalize && record.path.endsWith('/finalize')) {
+      return json({ error: { type: 'api_error', message: 'synthetic refusal' } }, 500);
+    }
+    if (failSend && record.path.endsWith('/send')) {
       return json({ error: { type: 'api_error', message: 'synthetic refusal' } }, 500);
     }
     return undefined;
@@ -645,20 +649,59 @@ test('R11: a failed finalize is resumable — the retry reuses the SAME in_ and 
       itemKeys,
       'items re-pushed under the SAME per-item keys — Stripe deduplicates them, we do not skip them',
     );
+
+    // THE FALSE-POSITIVE DIRECTION, which is the one nobody remembers. Since
+    // review cycle 1 the reconciliation guard runs on EVERY resumed request with
+    // no predicate of its own, so it now sits between an ordinary retry and its
+    // send. Prove it does not block a good one: the mirror is `open` and its
+    // amounts agree, so this request must skip steps 1-4, reconcile clean, and
+    // reach step 5. Failing send first, so the retry is a genuine resume rather
+    // than a fresh run.
+    const sendUrl = `${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`;
+    const failedSend = await post(sendUrl);
+    assert.equal(failedSend.status, 502);
+    assert.equal(await failedSend.text(), 'StripeApiError: send\n', 'the guard let it through — it died at the send');
+    assert.equal(repos.invoices.getById(freelancer.id, draft.id).sentAt, null);
+
+    failSend = false;
+    const beforeResume = calls.length;
+    const resumed = await post(sendUrl);
+    assert.equal(resumed.status, 303, 'a resumed send whose totals AGREE is not refused');
+    assert.deepEqual(
+      pathsOf(calls.slice(beforeResume)),
+      [`/v1/invoices/${row.stripeInvoiceId}/send`],
+      'exactly one call on the resumed request: steps 1-4 all skipped, and the guard costs nothing',
+    );
+    assert.notEqual(repos.invoices.getById(freelancer.id, draft.id).sentAt, null);
   });
 });
 
-test('R12: the reconciliation guard fires on a total AND on a currency disagreement — 409, no send, snapshot already written', async () => {
+// THE LOAD-BEARING CASE for AC 10, and the one review cycle 1 stopped one
+// request short of. It is the ONLY case whose mirror actually reaches `open`,
+// so it is the only one that takes the resumed-skip path — the path on which
+// the guard did not exist. M3 tests the same refusal against stripe-mock but
+// cannot reach this path (the mock is stateless, so its mirror stays `draft`
+// and its second request is refused by the finalizing path instead). M3 must
+// not be read as standing in for this case; F8 in the plan's §7 is the recipe
+// that proves the difference by restoring the defect.
+//
+// The old currency sub-case is deleted, not moved: the currency half of the
+// comparison was dropped by the tech lead's 2026-09-02 ruling (plan §3.7), and
+// R26 pins the invariant it rests on.
+test('R12: the reconciliation guard fires, and KEEPS firing — 409 on the first request AND on every request after it', async () => {
   const inflate = (record) => {
     const match = record.path.match(/^\/v1\/invoices\/([^/]+)\/finalize$/);
     return match === null ? undefined : json(invoiceObject({ id: match[1], total: ITEMS_TOTAL + 1, open: true }));
   };
   await withInvoiceApp({ fixture: { intercept: inflate } }, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
-    const res = await post(`${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`);
-    assert.equal(res.status, 409);
-    assert.equal(await res.text(), 'AmountMismatchError: reconcile\n');
-    assert.equal(calls.filter((call) => call.path.endsWith('/send')).length, 0, 'the client is NOT emailed a wrong invoice');
+    const sendUrl = `${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`;
+    const sends = () => calls.filter((call) => call.path.endsWith('/send')).length;
+
+    const first = await post(sendUrl);
+    assert.equal(first.status, 409);
+    assert.equal(await first.text(), 'AmountMismatchError: reconcile\n');
+    assert.equal(sends(), 0, 'the client is NOT emailed a wrong invoice');
     // Snapshot first, then refuse: Stripe really did finalize it, and a mirror
     // that still said draft would be a lie (plan §3.7).
     const row = repos.invoices.getById(freelancer.id, draft.id);
@@ -666,19 +709,27 @@ test('R12: the reconciliation guard fires on a total AND on a currency disagreem
     assert.equal(row.amountDueMinor, ITEMS_TOTAL + 1, "the mirror records STRIPE's amount, which is the truth");
     assert.equal(row.totalMinor, ITEMS_TOTAL, 'and it visibly disagrees with our line items');
     assert.equal(row.sentAt, null);
-  });
 
-  const reCurrency = (record) => {
-    const match = record.path.match(/^\/v1\/invoices\/([^/]+)\/finalize$/);
-    return match === null ? undefined : json(invoiceObject({ id: match[1], currency: 'eur', total: ITEMS_TOTAL, open: true }));
-  };
-  await withInvoiceApp({ fixture: { intercept: reCurrency } }, async ({ base, repos, freelancer, client, calls }) => {
-    const draft = draftOf(repos, freelancer.id, client.id);
-    const res = await post(`${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`);
-    assert.equal(res.status, 409);
-    assert.equal(await res.text(), 'AmountMismatchError: reconcile\n');
-    assert.equal(calls.filter((call) => call.path.endsWith('/send')).length, 0);
-    assert.equal(repos.invoices.getById(freelancer.id, draft.id).status, 'open');
+    // THE RETRY. Nothing about the fixture changes; the mirror is now `open`, so
+    // this request skips steps 3 and 4 and goes straight at the send.
+    // Re-submitting the form is THE user-visible retry (plan §3.5) and AS-46's
+    // single "Finalize & send" control posts here — so a 303 in this position is
+    // the client being emailed an invoice we have already recorded as wrong.
+    const afterFirst = calls.length;
+    const second = await post(sendUrl);
+    assert.equal(second.status, 409, 'the guard is not a one-shot');
+    assert.equal(await second.text(), 'AmountMismatchError: reconcile\n');
+    assert.equal(sends(), 0, 'still zero, cumulative across BOTH requests');
+    assert.equal(calls.length, afterFirst, 'and the resumed request made no Stripe call at all');
+    assert.equal(repos.invoices.getById(freelancer.id, draft.id).sentAt, null);
+
+    // The finalize route is guarded on the same path, for the same reason:
+    // neither route answers 303 once the totals disagree.
+    const refinalize = await post(`${base}/invoices/${draft.id}/finalize?freelancer=${freelancer.id}`);
+    assert.equal(refinalize.status, 409, 'finalize is re-checked too, not only send');
+    assert.equal(await refinalize.text(), 'AmountMismatchError: reconcile\n');
+    assert.equal(calls.length, afterFirst);
+    assert.equal(repos.invoices.getById(freelancer.id, draft.id).sentAt, null);
   });
 });
 
@@ -960,9 +1011,23 @@ function mockReady() {
   return readiness;
 }
 
-/** The real app, its client pointed at the mock through the real transport. */
+/** The real app, its client pointed at the mock through the real transport.
+ *
+ *  `paths` records what the SERVICE asked the client for, through a decorator
+ *  around the real client — the real pipeline, the real transport and the real
+ *  mock all still run. That granularity is the right one for the claim M3
+ *  makes ("we never even asked Stripe to send this"), and it is the only one
+ *  available here: unlike the offline cases there is no fixture transport to
+ *  record wire bytes. */
 async function withMockApp(totalMinor, fn) {
-  const stripe = createStripeClient({ apiKey: MOCK_KEY, baseUrl: MOCK_URL });
+  const real = createStripeClient({ apiKey: MOCK_KEY, baseUrl: MOCK_URL });
+  const paths = [];
+  const stripe = Object.freeze({
+    request: (call) => {
+      paths.push(call.path);
+      return real.request(call);
+    },
+  });
   await withServer(configFor(), async (base, app, deps) => {
     const repos = deps.repos;
     const freelancer = repos.freelancers.create({ email: 'mock@example.test', displayName: 'Mock Freelancer' });
@@ -970,7 +1035,7 @@ async function withMockApp(totalMinor, fn) {
     repos.connectedAccounts.updateReadiness(ACCT, readinessFromAccount(stripeAccount(), TS));
     const client = repos.clients.create(freelancer.id, { name: 'Client Co', email: 'client@example.test' });
     const draft = draftOf(repos, freelancer.id, client.id, [{ description: 'Contract work', quantity: 1, unitAmountMinor: totalMinor }]);
-    await fn({ base, repos, freelancer, client, draft });
+    await fn({ base, repos, freelancer, client, draft, paths });
   }, { stripe });
 }
 
@@ -1007,15 +1072,38 @@ test('M2: send against stripe-mock — 303, and sentAt written from our clock', 
   });
 });
 
-test('M3: the reconciliation guard against stripe-mock — a real spec-shaped response, refused', { skip: SKIP }, async () => {
+// THE WEAKER WITNESS, and labelled as one. It proves the refusal is stable
+// across requests against a REAL spec-shaped response — which R12's fixture
+// cannot claim — but it does NOT cover the defect review cycle 1 found. See the
+// comment at the second request for why, and R12 for the case that does.
+test('M3: the reconciliation guard against stripe-mock — a real spec-shaped response, refused, and refused again', { skip: SKIP }, async () => {
   await mockReady();
-  await withMockApp(MOCK_FIXTURE_AMOUNT_DUE + 1, async ({ base, repos, freelancer, draft }) => {
-    const res = await post(`${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`);
+  await withMockApp(MOCK_FIXTURE_AMOUNT_DUE + 1, async ({ base, repos, freelancer, draft, paths }) => {
+    const url = `${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`;
+    const sends = () => paths.filter((path) => path.endsWith('/send')).length;
+
+    const res = await post(url);
     assert.equal(res.status, 409);
     assert.equal(await res.text(), 'AmountMismatchError: reconcile\n');
     const row = repos.invoices.getById(freelancer.id, draft.id);
     assert.equal(row.sentAt, null, 'the send did not happen');
     assert.equal(row.amountDueMinor, MOCK_FIXTURE_AMOUNT_DUE, "the snapshot WAS written first, with Stripe's amount");
     assert.equal(row.totalMinor, MOCK_FIXTURE_AMOUNT_DUE + 1, 'and it disagrees with our line items, visibly');
+    assert.equal(sends(), 0);
+
+    // WHY THIS SECOND REQUEST IS THE WEAKER WITNESS, asserted rather than
+    // assumed. stripe-mock is stateless: its finalize response still says
+    // "draft" (M1 pins that), so the mirror below is STILL `draft` and this
+    // request RE-RUNS steps 3 and 4 and is refused by the FINALIZING path — not
+    // by the resumed-skip path the review-cycle-1 defect lived on. Only R12
+    // reaches that path, because only the computing fixture advances the mirror
+    // to `open`. This case would stay green with the defect restored (plan §7
+    // F8), which is precisely why it cannot stand in for R12.
+    assert.equal(row.status, 'draft', 'the stateless-mock residual — and the reason this witness is the weaker one');
+    const second = await post(url);
+    assert.equal(second.status, 409);
+    assert.equal(await second.text(), 'AmountMismatchError: reconcile\n');
+    assert.equal(sends(), 0, 'cumulative across both requests: Stripe was never asked to send this');
+    assert.equal(repos.invoices.getById(freelancer.id, draft.id).sentAt, null);
   });
 });
