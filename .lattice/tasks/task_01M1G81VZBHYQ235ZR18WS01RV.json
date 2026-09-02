@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 6,
+  "comment_count": 7,
   "complexity": "high",
   "created_at": "2026-09-02T05:04:17Z",
   "created_by": "agent:cto-owen",
@@ -17,20 +17,20 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1G81VZBHYQ235ZR18WS01RV",
-  "last_event_id": "ev_01M1GC6JF5YDF2X4M9FZCR1NKE",
-  "last_status_changed_at": "2026-09-02T05:34:29Z",
+  "last_event_id": "ev_01M1GJKEFGJ45CMASKFBSCQ2P8",
+  "last_status_changed_at": "2026-09-02T08:08:39Z",
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-60",
-  "status": "in_progress",
+  "status": "review",
   "tags": [
     "advance-loop",
     "concurrency"
   ],
   "title": "advance loop spike: parallel implementer lanes \u2014 WIP>1 under a single board writer",
   "type": "spike",
-  "updated_at": "2026-09-02T06:16:46Z",
+  "updated_at": "2026-09-02T08:08:39Z",
   "urgency": null
 }
