@@ -123,12 +123,16 @@ takes only `.md` regular files and rejects every dot-leading segment except
 a first `.lattice`, so `.git/`, `.claude/` and `.worktrees/` are
 unreachable by any path a client can name, even though the mount now spans
 them, and realpath containment stops a symlink from pointing out of the
-tree. One caveat on that dot rule: it is a check on the *requested* string,
-so a non-dot-named symlink pointing into a dot directory would launder it
-(`link/x.md` where `link -> .git`). Containment is unaffected — the target
-still has to resolve inside the checkout — and the repo contains no
-symlinks at all today, but do not add one into a dot directory. The
-mount is read-only at the kernel, so the container cannot write the repo
+tree. Since AS-34 the gate also refuses aliasing outright: after realpath
+resolution, the resolved path below the (resolved) repo root must equal the
+requested path byte-for-byte, so a symlink anywhere inside the tree 404s —
+`link/x.md` where `link -> .git`, and equally a symlink to a servable
+location. The dot rule therefore holds for real locations, not just
+requested spellings: `.git/`, `.claude/` and `.worktrees/` are categorically
+unreachable regardless of how the tree is aliased. Symlinks *above* the repo
+root (a symlinked parent directory) stay irrelevant — both sides of the
+comparison sit below the resolved root. The mount is read-only at the
+kernel, so the container cannot write the repo
 regardless. Until AS-26 the mount was only `.lattice/` + `personnel/`,
 which meant the four headline paths above 404'd in the deployed container
 while every unit test passed — the suite injects a temp repo root and is

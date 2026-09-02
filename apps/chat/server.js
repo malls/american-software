@@ -49,9 +49,14 @@ const FILE_PATH_RE = /^[A-Za-z0-9._/-]+$/; // rejects %-escapes surviving decode
  * empty/'.'/'..' segments, no dot-leading segment except a first segment
  * exactly '.lattice'; (3) realpath prefix — the target's RESOLVED path must
  * sit under the repo root's resolved path, which defeats symlink escape;
- * (4) regular file. Checks 1–4 throw ONE byte-identical not_found — a probe
- * cannot distinguish "outside the gate" from "doesn't exist". Check (5),
- * size cap, alone is a 400: the file already passed the gate, nothing leaks.
+ * (3b, AS-34) realpath equality — the resolved path must equal the resolved
+ * root joined with the requested path, byte-for-byte, which refuses every
+ * symlink below the root: an alias can neither launder a dot directory nor
+ * serve a servable file under a second name (the dot rule thus holds for
+ * real locations, not just requested spellings); (4) regular file. Checks
+ * 1–4 throw ONE byte-identical not_found — a probe cannot distinguish
+ * "outside the gate" from "doesn't exist". Check (5), size cap, alone is a
+ * 400: the file already passed the gate, nothing leaks.
  */
 function readRepoMarkdown(root, path) {
   const fail = () => new StoreError('No such file.', 'not_found');
@@ -67,7 +72,8 @@ function readRepoMarkdown(root, path) {
     if (s === '' || s === '.' || s === '..') throw fail();
     if (s.startsWith('.') && !(i === 0 && s === '.lattice')) throw fail();
   }
-  // 3. Realpath containment (symlink-escape proof) + 4. regular file.
+  // 3. Realpath containment (symlink-escape proof) + 3b. resolved-path
+  // equality (AS-34: refuses any symlink below the root) + 4. regular file.
   let real, rootReal, st;
   try {
     rootReal = realpathSync(root);
@@ -77,6 +83,7 @@ function readRepoMarkdown(root, path) {
     throw fail();
   }
   if (!real.startsWith(rootReal + sep)) throw fail();
+  if (real !== join(rootReal, path)) throw fail();
   if (!st.isFile()) throw fail();
   // 5. Size cap — distinct error by design (the gate already passed).
   if (st.size > FILE_MAX_BYTES) throw new StoreError('File too large.');
