@@ -1,0 +1,34 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "low",
+  "created_at": "2026-09-02T09:12:31Z",
+  "created_by": "agent:qa-ruben",
+  "custom_fields": {},
+  "description": "From the AS-60 QA review (qa-ruben, 2026-09-02; verdict PASS, this was tagged convention and did not block). AS-60 merged at 4460837.\n\nWHAT. tools/lanes/check-git-identity.sh validates every commit on a branch against that branch's expected_authors set from trial-config.json. The Review Gate explicitly sanctions a QA employee committing trivial inline fixes on the branch under their own identity, so a reviewed branch legitimately carries commits authored by a qa-* employee who is not the implementer. The checker treats those as identity violations. Reproduced twice in one day on real branches: qa-priya's inline fix on AS-41's tip, and qa-ruben's own on AS-60's.\n\nWHY IT MATTERS. AS-60's proposed wording (result doc section 9) makes the six checkers a condition of a lanes tick's end-of-tick checklist. As written, that condition fails at every tick where a review produced an inline fix \u2014 which is the normal, sanctioned path, not an exception. A guard that fails on correct behaviour gets ignored, and an ignored guard is worse than none.\n\nFIX SHAPE, decide in planning: the expected-author set for a branch is not one implementer but the implementer plus whichever reviewer the task actually used. Options include deriving the reviewer from the Lattice event log (the review comment's actor is authoritative and already durable), adding an expected_reviewers key to trial-config.json, or accepting any active qa-* identity from personnel frontmatter. Prefer whichever keeps the checker honest about the case it exists to catch \u2014 the AS-53 developer-marcus-webb identity drift \u2014 rather than merely widening it until nothing fails.\n\nACCEPTANCE. The checker passes on a fixture branch carrying implementer commits plus one sanctioned reviewer inline fix, and still FAILS on the identity-drift fixture it was built to catch (tools/lanes/test/ already has that fixture; do not weaken it). Both directions shown red-then-green per the house technique: assert the planted violation applied, predict the exact failing set before running, restore, prove the tree clean. Suite stays green; zero new dependencies; scratch fixtures only, never the real repo.\n\nALSO IN SCOPE, one line of prose: the result doc section 3.2 lists three evidence-level deviations from the trial and should list a fourth \u2014 the lane reports themselves were never archived, so plan section 5.3's relay-fidelity check can never be performed for this trial. Recording the gap is the whole fix; nothing is recoverable.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1GP8CNP28DCY40J5RZKJCVP",
+  "last_event_id": "ev_01M1GP8CW6NHZSH9S1CFXWP3HW",
+  "last_status_changed_at": "2026-09-02T09:12:31Z",
+  "priority": "low",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-02T09:12:31Z",
+      "created_by": "agent:qa-ruben",
+      "note": null,
+      "target_task_id": "task_01M1G81VZBHYQ235ZR18WS01RV",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-62",
+  "status": "backlog",
+  "tags": null,
+  "title": "tools/lanes: check-git-identity false-fails on sanctioned QA inline-fix commits",
+  "type": "task",
+  "updated_at": "2026-09-02T09:12:31Z",
+  "urgency": null
+}
