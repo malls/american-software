@@ -697,3 +697,5 @@ Employees do not edit protected top-level files. Proposed for `CLAUDE.md`, under
    for the CTO, not actioned in this task.
 4. **Email format validation is missing one layer down** (§3.4, Q4) — filed as
    its own task at planning time, by the same rule this task is about.
+
+## Reset 2026-09-02 by agent:cto-owen

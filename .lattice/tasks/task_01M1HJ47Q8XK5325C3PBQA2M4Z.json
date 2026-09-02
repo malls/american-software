@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 7,
+  "comment_count": 8,
   "complexity": "low",
   "created_at": "2026-09-02T17:19:35Z",
   "created_by": "agent:cto-owen",
@@ -23,8 +23,8 @@
     }
   ],
   "id": "task_01M1HJ47Q8XK5325C3PBQA2M4Z",
-  "last_event_id": "ev_01M1J7GHGKVZW3G8JN4GBSYT67",
-  "last_status_changed_at": "2026-09-02T23:15:59Z",
+  "last_event_id": "ev_01M1J7JRHFFG8BJQJ95K6AVVQZ",
+  "last_status_changed_at": "2026-09-02T23:34:31Z",
   "priority": "high",
   "relationships_out": [
     {
@@ -35,13 +35,13 @@
       "type": "depends_on"
     }
   ],
-  "reopened_count": 0,
+  "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-65",
-  "status": "review",
+  "status": "in_progress",
   "tags": null,
   "title": "D1 v1: client creation (server) \u2014 the POST /clients nobody owns",
   "type": "task",
-  "updated_at": "2026-09-02T23:33:18Z",
+  "updated_at": "2026-09-02T23:34:31Z",
   "urgency": null
 }
