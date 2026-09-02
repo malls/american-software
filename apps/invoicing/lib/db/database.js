@@ -7,10 +7,17 @@
 // version through schemaVersion() from migrate.js — and nothing here imports
 // lib/config.js, lib/stripe/* or Express: the layer takes a settings object
 // and a path, never the environment.
+import { randomUUID } from 'node:crypto';
 import { accessSync, constants, statSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { openDatabase } from './connection.js';
+import { openDatabase, transaction } from './connection.js';
 import { migrate, schemaVersion, SCHEMA_VERSION } from './migrate.js';
+import { createClientsRepository } from './repositories/clients.js';
+import { createConnectedAccountsRepository } from './repositories/connected-accounts.js';
+import { createContractsRepository } from './repositories/contracts.js';
+import { createFreelancersRepository } from './repositories/freelancers.js';
+import { createInvoicesRepository } from './repositories/invoices.js';
+import { createStripeEventsRepository } from './repositories/stripe-events.js';
 
 export {
   RepositoryError,
@@ -83,6 +90,31 @@ export function probeDatabase(dbPath) {
     const cause = err.code === 'ERR_SQLITE_ERROR' ? err.message : (err.code ?? err.message);
     return { ok: false, detail: `${dbPath}: ${cause}` };
   }
+}
+
+/**
+ * The repositories a route module is handed (plan §2.5): exactly seven keys, the
+ * six entity repositories and `transaction`, frozen. Callers never see SQL or
+ * the driver's rows — plain camelCase objects in, plain objects out, and every
+ * failure is a RepositoryError with a stable `code`.
+ *
+ * The clock and the id generator are injected so tests can fix them; nothing
+ * under lib/db/ calls datetime('now') or reads the wall clock any other way.
+ *
+ * @param {import('node:sqlite').DatabaseSync} db an open, migrated handle
+ * @param {{ now?: () => string, newId?: () => string }} [deps]
+ */
+export function createRepositories(db, { now = () => new Date().toISOString(), newId = () => randomUUID() } = {}) {
+  const ctx = Object.freeze({ now, newId });
+  return Object.freeze({
+    transaction: (fn) => transaction(db, fn),
+    freelancers: createFreelancersRepository(db, ctx),
+    connectedAccounts: createConnectedAccountsRepository(db, ctx),
+    clients: createClientsRepository(db, ctx),
+    contracts: createContractsRepository(db, ctx),
+    invoices: createInvoicesRepository(db, ctx),
+    stripeEvents: createStripeEventsRepository(db, ctx),
+  });
 }
 
 function probe(dbPath) {
