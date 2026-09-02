@@ -371,7 +371,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 32, `expected 32 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 35, `expected 35 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/config.js',
@@ -397,12 +397,15 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/stripe/transport.js',
     'lib/vendor.js',
     'lib/views.js',
+    'lib/webhooks/receiver.js',
+    'lib/webhooks/signature.js',
     'public/scaffold.css',
     'routes/assets.js',
     'routes/connect.js',
     'routes/health.js',
     'routes/invoices.js',
     'routes/pages.js',
+    'routes/webhooks.js',
     'server.js',
     'views/scaffold.ejs',
   ]);
@@ -555,7 +558,7 @@ function scanConcept(name, pattern, allowed, { raw = false } = {}) {
   assert.deepEqual(hits, [...allowed].sort(), `${name}: found in [${hits.join(', ')}], allowed in exactly [${allowed.join(', ')}]`);
 }
 
-test('the Stripe concepts live exactly where AS-38, AS-39, AS-41 and AS-43 put them, and nothing AS-44 owns has leaked in', () => {
+test('the Stripe concepts live exactly where AS-38, AS-39, AS-41, AS-43 and AS-44 put them', () => {
   // The `stripe` npm module is banned everywhere, permanently: `new Stripe(key)`
   // is the documented bypass of the custody guard (stack decision §8.1).
   scanConcept('stripe module import', /(from|require\s*\(|import\s*\()\s*['"]stripe['"]/, []);
@@ -564,8 +567,23 @@ test('the Stripe concepts live exactly where AS-38, AS-39, AS-41 and AS-43 put t
   scanConcept('STRIPE_ config key', /STRIPE_[A-Z_]+/, ['compose.yaml', 'lib/config.js', 'lib/stripe/client.js']);
   // The forbidden-parameter table is the only place the fee rail is even named.
   scanConcept('application_fee', /application_fee/, ['lib/stripe/custody.js']);
-  // AS-44's webhook route is not here yet.
-  scanConcept('/webhook route', /['"]\/webhook/, []);
+  // AS-44's webhook route, landed: exactly one file may name the path Stripe
+  // is configured to POST to, so the app.js mount line carries no path string
+  // and a second endpoint cannot appear quietly. The used-exemption rule cuts
+  // both ways — renaming the path in routes/webhooks.js fails this row too.
+  scanConcept('/webhook route', /['"]\/webhook/, ['routes/webhooks.js']);
+  // THE RAW-BODY GUARD, made mechanical (AS-44). AS-43 mounts its parser per
+  // route and AS-44's signature verification depends on nothing upstream
+  // touching the bytes. An app-wide express.json() in app.js is a red test, not
+  // a review catch.
+  scanConcept('body parser', /express\.(json|urlencoded|raw|text)\s*\(/, ['routes/invoices.js', 'routes/webhooks.js']);
+  // ONE verifier, not two. Measured before AS-44: zero hits anywhere. A second,
+  // home-rolled comparison in the route or the receiver is the `new Stripe(key)`
+  // of this boundary.
+  scanConcept('webhook signature HMAC', /\b(createHmac|timingSafeEqual)\b/, ['lib/webhooks/signature.js']);
+  // ONE state machine. AS-43 and AS-44 both call applyStripeSnapshot; neither
+  // may reimplement the ranking that decides which snapshot wins.
+  scanConcept('invoice status rank', /STATUS_RANK/, ['lib/db/repositories/invoices.js']);
   // The platform-scoped Stripe calls (AS-41). The custody guard already
   // requires `platform: true` at every platform call site (custody.js
   // checkScope) — this row pins WHERE those declarations may exist, so a

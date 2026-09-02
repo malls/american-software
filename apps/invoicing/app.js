@@ -31,6 +31,7 @@ import { connectRoutes } from './routes/connect.js';
 import { healthRoutes } from './routes/health.js';
 import { invoiceRoutes } from './routes/invoices.js';
 import { pageRoutes } from './routes/pages.js';
+import { webhookRoutes } from './routes/webhooks.js';
 
 /**
  * @param {object} config frozen settings from lib/config.js
@@ -57,20 +58,25 @@ export function createApp(config, deps) {
   // ORDER IS LOAD-BEARING.
   // 1. /healthz first: it must answer even when a later precondition is broken.
   app.use(healthRoutes(config));
-  // 2. Vendored assets by explicit named route, BEFORE any directory serving,
+  // 2. The Stripe webhook receiver (AS-44), before every other router: nothing
+  //    ahead of it may parse a body, and putting it here makes that property
+  //    visible in eight lines instead of eighty. Exact path, shadows nothing;
+  //    absent entirely when no signing secret is configured.
+  app.use(webhookRoutes(config, { repos }));
+  // 3. Vendored assets by explicit named route, BEFORE any directory serving,
   //    so a stray file in public/ can never shadow one (plan §3.3d).
   app.use(assetRoutes(config));
-  // 3. Pages.
+  // 4. Pages.
   app.use(pageRoutes(config));
-  // 4. Stripe Connect onboarding (AS-41): after pages, before static — the
+  // 5. Stripe Connect onboarding (AS-41): after pages, before static — the
   //    three routes are exact paths under /connect-stripe/ and shadow nothing.
   app.use(connectRoutes(config, { repos, stripe }));
-  // 5. Invoice lifecycle (AS-43): draft, edit, finalize, send. Exact paths
+  // 6. Invoice lifecycle (AS-43): draft, edit, finalize, send. Exact paths
   //    under /invoices/ that shadow nothing; its body parser is mounted per
   //    route inside that router, never here, so AS-44's webhook keeps its raw
   //    request body by construction.
   app.use(invoiceRoutes(config, { repos, stripe }));
-  // 6. App-owned static files last. express.static rather than chat's
+  // 7. App-owned static files last. express.static rather than chat's
   //    STATIC_FILES allowlist: the allowlist's failure mode is a two-edit change
   //    where the second edit is forgotten, which is exactly AS-17. This has no
   //    second edit, and its own failure mode (a file lands here and is served,

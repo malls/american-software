@@ -17,28 +17,38 @@ import { ConfigError, SCHEMA, loadConfig, startupLogLine, validateResolved } fro
 
 // --- V2: cardinality before quantification ----------------------------------
 
-test('the schema is exactly the ten settings AS-37, AS-38, AS-39 and AS-41 define', () => {
-  assert.equal(SCHEMA.length, 10);
+test('the schema is exactly the eleven settings AS-37, AS-38, AS-39, AS-41 and AS-44 define', () => {
+  assert.equal(SCHEMA.length, 11);
   assert.deepEqual(
     SCHEMA.map((row) => row.key),
-    ['port', 'bind', 'env', 'logLevel', 'vendorDir', 'viewsDir', 'publicDir', 'dbPath', 'appBaseUrl', 'stripeSecretKey'],
+    ['port', 'bind', 'env', 'logLevel', 'vendorDir', 'viewsDir', 'publicDir', 'dbPath', 'appBaseUrl', 'stripeSecretKey', 'webhookSecret'],
   );
   // Every env var is INVOICING_-prefixed except NODE_ENV, which is a platform
   // convention. The prefix keeps the monorepo's namespaces disjoint from
   // apps/chat's CHAT_.
   const prefixed = SCHEMA.filter((row) => row.envVar.startsWith('INVOICING_'));
-  assert.equal(prefixed.length, 9);
+  assert.equal(prefixed.length, 10);
   assert.deepEqual(SCHEMA.filter((row) => !row.envVar.startsWith('INVOICING_')).map((r) => r.envVar), ['NODE_ENV']);
 });
 
-test('no setting is required, and the only secret is the Stripe key name (AS-38)', () => {
-  // The app boots from an empty environment: nothing is required. Exactly one
-  // row is a secret — the Stripe key, optional and defaulting to null. AS-40
-  // adds SESSION_SECRET here the same way; nothing else belongs on this list.
+test('no setting is required, and the only secrets are the two Stripe secret names (AS-38, AS-44)', () => {
+  // The app boots from an empty environment: nothing is required. Exactly two
+  // rows are secrets — the API key and the webhook signing secret, both
+  // optional and both defaulting to null. AS-40 adds SESSION_SECRET here the
+  // same way; nothing else belongs on this list.
   assert.deepEqual(SCHEMA.filter((row) => row.required).map((r) => r.envVar), []);
-  assert.deepEqual(SCHEMA.filter((row) => row.secret).map((r) => r.envVar), ['INVOICING_STRIPE_SECRET_KEY']);
+  assert.deepEqual(
+    SCHEMA.filter((row) => row.secret).map((r) => r.envVar),
+    ['INVOICING_STRIPE_SECRET_KEY', 'INVOICING_STRIPE_WEBHOOK_SECRET'],
+  );
   const stripe = SCHEMA.find((row) => row.envVar === 'INVOICING_STRIPE_SECRET_KEY');
   assert.deepEqual(stripe, { key: 'stripeSecretKey', envVar: 'INVOICING_STRIPE_SECRET_KEY', type: 'string', default: null, required: false, secret: true });
+  // The AS-44 row, exactly. `type: 'string'` and NO format validation on the
+  // value: a prefix check would hard-code a Stripe convention Stripe can
+  // change, and would buy nothing — a wrong secret already fails every delivery
+  // immediately, at the only place that matters.
+  const webhook = SCHEMA.find((row) => row.envVar === 'INVOICING_STRIPE_WEBHOOK_SECRET');
+  assert.deepEqual(webhook, { key: 'webhookSecret', envVar: 'INVOICING_STRIPE_WEBHOOK_SECRET', type: 'string', default: null, required: false, secret: true });
 });
 
 // --- the empty-environment property -----------------------------------------
@@ -56,6 +66,7 @@ test('defaults resolve from a COMPLETELY EMPTY environment', () => {
     dbPath: '/app/data/invoicing.sqlite',
     appBaseUrl: 'http://127.0.0.1:8348',
     stripeSecretKey: null,
+    webhookSecret: null,
   });
   // Enumerable keys are exactly the schema keys — redacted() is non-enumerable
   // so it cannot leak into a JSON body as a stray property.
@@ -91,6 +102,10 @@ test('INVOICING_* overrides win over defaults', () => {
     INVOICING_PUBLIC_DIR: '/elsewhere/public',
     INVOICING_DB_PATH: '/elsewhere/data/invoicing.sqlite',
     INVOICING_APP_BASE_URL: 'https://d1.example.test',
+    // Deliberately NOT whsec_-shaped (plan §4): the schema applies no format
+    // check to this row, and a placeholder that looked like a real signing
+    // secret would make that absence invisible.
+    INVOICING_STRIPE_WEBHOOK_SECRET: 'unit-test-placeholder-webhook-secret',
   });
   assert.deepEqual({ ...config }, {
     port: 9999,
@@ -103,6 +118,7 @@ test('INVOICING_* overrides win over defaults', () => {
     dbPath: '/elsewhere/data/invoicing.sqlite',
     appBaseUrl: 'https://d1.example.test',
     stripeSecretKey: null,
+    webhookSecret: 'unit-test-placeholder-webhook-secret',
   });
 });
 
@@ -281,6 +297,34 @@ test('a configured Stripe key is [redacted] in redacted() and the startup line, 
   // ...and the guard is not vacuous: the raw config really does contain it.
   assert.ok(JSON.stringify({ ...config }).includes(value));
   assert.deepEqual(validateResolved(config), []);
+});
+
+test('the webhook signing secret is [redacted] when set and null when not — the operator\'s only signal (AS-44)', () => {
+  // routes/webhooks.js registers NO ROUTE when this is unset, so an
+  // unconfigured deployment answers 404 and tells an unauthenticated caller
+  // nothing. That is deliberate, and it is why the operator's signal has to
+  // live on the authenticated side: the startup line and /healthz, through
+  // redacted() and nothing else. No new health check, no new log line.
+  const unset = loadConfig({});
+  assert.equal(unset.webhookSecret, null);
+  assert.equal(unset.redacted().webhookSecret, null);
+  assert.match(startupLogLine(unset), /"webhookSecret":null/);
+
+  const value = 'configured-webhook-secret-placeholder-value';
+  const set = loadConfig({ INVOICING_STRIPE_WEBHOOK_SECRET: `  ${value}  ` });
+  assert.equal(set.webhookSecret, value, 'the app itself sees the trimmed real value');
+  assert.equal(set.redacted().webhookSecret, '[redacted]');
+  const logLine = startupLogLine(set);
+  assert.match(logLine, /"webhookSecret":"\[redacted\]"/);
+  assert.ok(!logLine.includes(value), `startup log line leaked the signing secret: ${logLine}`);
+  assert.ok(!JSON.stringify(set.redacted()).includes(value));
+  // ...and the guard is not vacuous: the raw config really does contain it.
+  assert.ok(JSON.stringify({ ...set }).includes(value));
+  // An empty or whitespace value is "unconfigured" too — never an empty secret
+  // that verifies nothing against every delivery.
+  assert.equal(loadConfig({ INVOICING_STRIPE_WEBHOOK_SECRET: '' }).webhookSecret, null);
+  assert.equal(loadConfig({ INVOICING_STRIPE_WEBHOOK_SECRET: '   ' }).webhookSecret, null);
+  assert.deepEqual(validateResolved(set), []);
 });
 
 // --- validateResolved: the health check's config check, at unit level --------

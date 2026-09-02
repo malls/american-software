@@ -294,12 +294,13 @@ test('deploy-shape: no credential VALUE appears in compose.yaml, and every secre
     'INVOICING_BIND=0.0.0.0',
     'INVOICING_PORT=8348',
     'INVOICING_STRIPE_SECRET_KEY=${INVOICING_STRIPE_SECRET_KEY:-}',
+    'INVOICING_STRIPE_WEBHOOK_SECRET=${INVOICING_STRIPE_WEBHOOK_SECRET:-}',
   ]);
   assert.deepEqual(SERVICES.contract.environment, ['ASC_STRIPE_MOCK_URL=http://stripe-mock:12111']);
   assert.equal(SERVICES.test.environment, undefined, 'the test service sets nothing — the offline half stays offline');
   assert.equal(SERVICES['stripe-mock'].environment, undefined);
   const env = Object.values(SERVICES).flatMap((s) => s.environment ?? []);
-  assert.equal(env.length, 4, `expected exactly 4 environment entries, found ${env.length}: ${env.join(', ')}`);
+  assert.equal(env.length, 5, `expected exactly 5 environment entries, found ${env.length}: ${env.join(', ')}`);
   // Any variable whose NAME looks like a credential must be an interpolated
   // pass-through of the same name with an empty default: `${NAME:-}` and
   // nothing else. A literal value here would be a committed secret.
@@ -312,7 +313,7 @@ test('deploy-shape: no credential VALUE appears in compose.yaml, and every secre
       assert.equal(value, `\${${name}:-}`, `${name} must be a pass-through of itself, got ${JSON.stringify(value)}`);
     }
   }
-  assert.equal(secretShaped, 1, 'exactly one secret-shaped variable is passed through (the Stripe key)');
+  assert.equal(secretShaped, 2, 'exactly two secret-shaped variables are passed through (the Stripe key and the webhook signing secret)');
   // A credential VALUE has a recognisable shape; none of those shapes is here.
   // (The old whole-text word test — "no `stripe`, no `secret`" — is retired: the
   // service `stripe-mock` and the variable name legitimately carry both words.)
@@ -320,6 +321,7 @@ test('deploy-shape: no credential VALUE appears in compose.yaml, and every secre
   // The strict parser must have read the interpolation literally, or the
   // pass-through assertion above was made against something else.
   assert.ok(COMPOSE_TEXT.includes('INVOICING_STRIPE_SECRET_KEY=${INVOICING_STRIPE_SECRET_KEY:-}'));
+  assert.ok(COMPOSE_TEXT.includes('INVOICING_STRIPE_WEBHOOK_SECRET=${INVOICING_STRIPE_WEBHOOK_SECRET:-}'));
 });
 
 test('deploy-shape: the amd64 platform pin is set where it actually takes effect', () => {

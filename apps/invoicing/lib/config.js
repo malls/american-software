@@ -24,12 +24,20 @@
 // because minted Stripe onboarding links carry return/refresh URLs built on it
 // and a malformed base must fail at boot, not at the first redirect. Its default
 // is the host side of compose's port map — the address a browser on this host
-// uses — so compose stays unchanged. AS-40 (sessions) adds its own row the same
-// way.
+// uses — so compose stays unchanged. AS-44 added the second secret: the Stripe
+// webhook signing secret, again as a NAME only, optional and defaulting to null
+// — and its absence is a first-class state rather than a misconfiguration,
+// because the receiver registers NO ROUTE without it (routes/webhooks.js). It
+// carries no format check on purpose: a prefix rule would hard-code a Stripe
+// convention Stripe can change, would produce a boot failure whose message is
+// about a secret, and would buy nothing, because a wrong secret already fails
+// every delivery immediately at the only place that matters. AS-40 (sessions)
+// adds its own row the same way.
 
 /** The live schema. Every row: { key, envVar, type, default, required, secret }.
  *  Nothing is `required`: the app boots and serves /healthz from a completely
- *  empty environment. Exactly one row is `secret` (AS-38). */
+ *  empty environment. Exactly two rows are `secret` (AS-38, AS-44), and both
+ *  are last. */
 export const SCHEMA = Object.freeze([
   { key: 'port', envVar: 'INVOICING_PORT', type: 'integer', default: 8348, min: 1, max: 65535 },
   { key: 'bind', envVar: 'INVOICING_BIND', type: 'string', default: '127.0.0.1' },
@@ -41,6 +49,7 @@ export const SCHEMA = Object.freeze([
   { key: 'dbPath', envVar: 'INVOICING_DB_PATH', type: 'path', default: '/app/data/invoicing.sqlite' },
   { key: 'appBaseUrl', envVar: 'INVOICING_APP_BASE_URL', type: 'url', default: 'http://127.0.0.1:8348' },
   { key: 'stripeSecretKey', envVar: 'INVOICING_STRIPE_SECRET_KEY', type: 'string', default: null, required: false, secret: true },
+  { key: 'webhookSecret', envVar: 'INVOICING_STRIPE_WEBHOOK_SECRET', type: 'string', default: null, required: false, secret: true },
 ].map(Object.freeze));
 
 /** Config errors are read from a container log by someone with no debugger and
