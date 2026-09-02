@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:42Z",
   "created_by": "agent:cto-owen",
@@ -17,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34N011ZBKGSM2AW5X3VZN",
-  "last_event_id": "ev_01M1FJY8BHBCDBGWVX3YRCGYN0",
+  "last_event_id": "ev_01M1FPVVG24SBJVKSCQVJ7CD7K",
   "last_status_changed_at": "2026-09-01T22:55:19Z",
   "priority": "high",
   "relationships_out": [
@@ -43,6 +43,6 @@
   ],
   "title": "D1 v1: Stripe client wrapper with custody guard (never in the flow of funds)",
   "type": "task",
-  "updated_at": "2026-09-01T22:55:19Z",
+  "updated_at": "2026-09-02T00:03:55Z",
   "urgency": null
 }
