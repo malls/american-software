@@ -422,8 +422,8 @@ if (MOCK_URL !== undefined) {
 // The same mock-only placeholder stripe-mock.test.js uses (the mock requires a
 // test-mode prefix and validates nothing else about it). Deliberately the
 // identical literal — one grep finds both — and it never leaves the internal
-// compose network. Second key-shaped string in the repository; recorded as
-// such in the AS-41 implementation comment.
+// compose network. Second occurrence of the ONE key-shaped placeholder value in
+// the repository; recorded as such in the AS-41 review comment.
 const MOCK_KEY = 'sk_test_stripemock';
 
 let readiness;
