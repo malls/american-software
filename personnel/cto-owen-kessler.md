@@ -16,6 +16,12 @@ status: active
 - **Myers-Briggs type:** INTP
 - **Reports to:** Carla Voss, CEO (C-levels report to the CEO structurally; peers in decision making)
 - **Agent definition:** `.claude/agents/cto-owen.md` (actor ID `agent:cto-owen`)
+- **Model assignment:** `fable` — the top available tier. Cofounder, and the role writes the plans
+  and rulings every other stage executes against; a planning error propagates
+  to implementation and review before anyone can catch it.
+  Recorded 2026-09-02 from `.claude/agents/cto-owen.md`, which was the only
+  copy; no rationale was stated at hire, so the reasoning above is the
+  present justification, not a reconstruction of one.
 
 ## Resume
 

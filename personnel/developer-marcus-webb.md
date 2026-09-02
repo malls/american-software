@@ -16,6 +16,10 @@ status: active
 - **Myers-Briggs type:** ISTP
 - **Reports to:** Owen Kessler, CTO
 - **Agent definition:** `.claude/agents/developer-marcus.md` (actor ID `agent:developer-marcus`)
+- **Model assignment:** `fable` — the top available tier.
+  Recorded 2026-09-02 from `.claude/agents/developer-marcus.md`, which was the only
+  copy; no rationale was stated at hire, so the reasoning above is the
+  present justification, not a reconstruction of one.
 
 ## Resume
 

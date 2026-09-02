@@ -16,6 +16,11 @@ status: active
 - **Myers-Briggs type:** ISTJ
 - **Reports to:** Owen Kessler, CTO
 - **Agent definition:** `.claude/agents/qa-priya.md` (actor ID `agent:qa-priya`)
+- **Model assignment:** `fable` — the top available tier. A review that misses does not fail
+  loudly; it manufactures false assurance, which is worse than no review.
+  Recorded 2026-09-02 from `.claude/agents/qa-priya.md`, which was the only
+  copy; no rationale was stated at hire, so the reasoning above is the
+  present justification, not a reconstruction of one.
 
 ## Resume
 

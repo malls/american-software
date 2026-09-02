@@ -16,6 +16,12 @@ status: active
 - **Myers-Briggs type:** ENTJ
 - **Reports to:** The board (Forrest, board member)
 - **Agent definition:** `.claude/agents/ceo-carla.md` (actor ID `agent:ceo-carla`)
+- **Model assignment:** `fable` — the top available tier. Cofounders carry unlimited token spend
+  by convention (CLAUDE.md, Persona Agents), so the minimum-viable-model rule
+  does not bind this role.
+  Recorded 2026-09-02 from `.claude/agents/ceo-carla.md`, which was the only
+  copy; no rationale was stated at hire, so the reasoning above is the
+  present justification, not a reconstruction of one.
 
 ## Resume
 
