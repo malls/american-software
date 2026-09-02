@@ -371,9 +371,13 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 38, `expected 38 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 43, `expected 43 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
+    'lib/auth/accounts.js',
+    'lib/auth/guard.js',
+    'lib/auth/password.js',
+    'lib/auth/session.js',
     'lib/config.js',
     'lib/connect/onboarding.js',
     'lib/connect/readiness.js',
@@ -404,6 +408,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/webhooks/signature.js',
     'public/scaffold.css',
     'routes/assets.js',
+    'routes/auth.js',
     'routes/connect.js',
     'routes/health.js',
     'routes/invoices.js',
@@ -561,7 +566,7 @@ function scanConcept(name, pattern, allowed, { raw = false } = {}) {
   assert.deepEqual(hits, [...allowed].sort(), `${name}: found in [${hits.join(', ')}], allowed in exactly [${allowed.join(', ')}]`);
 }
 
-test('the Stripe concepts live exactly where AS-38, AS-39, AS-41, AS-43 and AS-44 put them', () => {
+test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-43 and AS-44 put them', () => {
   // The `stripe` npm module is banned everywhere, permanently: `new Stripe(key)`
   // is the documented bypass of the custody guard (stack decision §8.1).
   scanConcept('stripe module import', /(from|require\s*\(|import\s*\()\s*['"]stripe['"]/, []);
@@ -579,11 +584,21 @@ test('the Stripe concepts live exactly where AS-38, AS-39, AS-41, AS-43 and AS-4
   // route and AS-44's signature verification depends on nothing upstream
   // touching the bytes. An app-wide express.json() in app.js is a red test, not
   // a review catch.
-  scanConcept('body parser', /express\.(json|urlencoded|raw|text)\s*\(/, ['routes/invoices.js', 'routes/webhooks.js']);
+  scanConcept('body parser', /express\.(json|urlencoded|raw|text)\s*\(/, ['routes/auth.js', 'routes/invoices.js', 'routes/webhooks.js']);
   // ONE verifier, not two. Measured before AS-44: zero hits anywhere. A second,
   // home-rolled comparison in the route or the receiver is the `new Stripe(key)`
   // of this boundary.
-  scanConcept('webhook signature HMAC', /\b(createHmac|timingSafeEqual)\b/, ['lib/webhooks/signature.js']);
+  //
+  // SPLIT BY AS-40, AND THIS IS NOT A WEAKENING. createHmac stays pinned to
+  // exactly one file, so the row's stated purpose — ONE verifier — is carried
+  // entirely by that half, and AS-44's own falsification recipe still works byte
+  // for byte. The second half is a NARROWER row than the original disjunction:
+  // it names the two files that may compare a secret in constant time, and it
+  // keeps the used-exemption property in both directions. AS-40 needs
+  // timingSafeEqual for password verification and must not be able to borrow
+  // createHmac by sharing a row with it.
+  scanConcept('webhook signature HMAC', /\bcreateHmac\b/, ['lib/webhooks/signature.js']);
+  scanConcept('constant-time compare', /\btimingSafeEqual\b/, ['lib/auth/password.js', 'lib/webhooks/signature.js']);
   // ONE state machine. AS-43 and AS-44 both call applyStripeSnapshot; neither
   // may reimplement the ranking that decides which snapshot wins.
   scanConcept('invoice status rank', /STATUS_RANK/, ['lib/db/repositories/invoices.js']);
@@ -655,6 +670,42 @@ test('the Stripe concepts live exactly where AS-38, AS-39, AS-41, AS-43 and AS-4
     ],
     { raw: true },
   );
+  // --- AS-40: the accounts boundary -----------------------------------------
+  // Each of these landed on a MEASURED baseline of zero files, so each is a
+  // used exemption from the moment it ships and cannot quietly decay into a
+  // hole waiting for a tenant.
+  //
+  // ONE KDF, in one file. scryptSync is in the pattern deliberately: it is the
+  // spelling that would block the event loop for ~40 ms per sign-in, and the
+  // row makes reaching for it visible. pbkdf2 is here because swapping the KDF
+  // is a decision (plan §3.2.2), not a diff.
+  //
+  // The trailing (?!\$) excludes the STORED FORMAT PREFIX 'scrypt$', which the
+  // migration's CHECK constraint and the credentials repository's assertion both
+  // spell out and neither of which is a call — `$` cannot follow an identifier
+  // in one. The alternative was to allowlist those two files, and that would be
+  // strictly worse: it would let a real KDF call hide in either of them. Narrow
+  // the pattern, never the allowlist.
+  scanConcept('password KDF', /\b(scrypt|scryptSync|pbkdf2|pbkdf2Sync)\b(?!\$)/, ['lib/auth/password.js']);
+  // Randomness for a secret comes from exactly two places: the salt and the
+  // session token. A third site is either a third secret or a mistake.
+  scanConcept('random bytes', /\brandomBytes\b/, ['lib/auth/password.js', 'lib/auth/session.js']);
+  // The session token is stored as its digest and never in the clear; the file
+  // that mints the token is the only one that may compute it.
+  scanConcept('session token digest', /\bcreateHash\b/, ['lib/auth/session.js']);
+  // ONE place sets or reads the cookie. A second minting site is a second
+  // session mechanism, and a second reader is a parser that can disagree.
+  scanConcept('session cookie', /\bres\.cookie\b|\bclearCookie\b|\breq\.headers\.cookie\b/, ['lib/auth/session.js']);
+  // THE IMPERSONATION GUARD. req.currentUser belongs to the guard alone, so no
+  // route module can read it directly and skip actingFreelancerId's assertion —
+  // which is what turns "this handler is behind the boundary" from a comment
+  // into a loud 500 when it is not.
+  scanConcept('current user', /\breq\.currentUser\b/, ['lib/auth/guard.js']);
+  // NOTHING IN THE ACCOUNTS PATH LOGS. The allowlist is the measured current
+  // set, so "no logger exists in lib/auth/* or routes/auth.js" is mechanical
+  // rather than a review catch — and the stdout/stderr capture in
+  // test/auth.test.js is its dynamic half.
+  scanConcept('console output', /\bconsole\.\w+/, ['lib/invoices/lifecycle.js', 'lib/webhooks/receiver.js', 'server.js']);
 });
 
 test('no file in apps/invoicing exceeds 1,200 lines', () => {

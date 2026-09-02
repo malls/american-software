@@ -32,7 +32,9 @@
 // convention Stripe can change, would produce a boot failure whose message is
 // about a secret, and would buy nothing, because a wrong secret already fails
 // every delivery immediately at the only place that matters. AS-40 (sessions)
-// adds its own row the same way.
+// added NO row, and that is a decision rather than an omission: its sessions
+// are server-side rows keyed by the digest of a random token, so nothing is
+// signed and there is no secret to configure, redact, hand over or leak.
 
 /** The live schema. Every row: { key, envVar, type, default, required, secret }.
  *  Nothing is `required`: the app boots and serves /healthz from a completely

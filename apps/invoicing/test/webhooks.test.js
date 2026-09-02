@@ -33,7 +33,7 @@ import { readinessFromAccount } from '../lib/connect/readiness.js';
 import { createStripeClient } from '../lib/stripe/client.js';
 import { DEFAULT_TOLERANCE_SECONDS, SignatureError, verifyStripeSignature } from '../lib/webhooks/signature.js';
 import { HANDLED_TYPES, OUTCOMES } from '../lib/webhooks/receiver.js';
-import { APP_DIR, configFor, withServer } from './helpers/server.js';
+import { APP_DIR, configFor, seedSession, signedInHeaders, withServer } from './helpers/server.js';
 
 // --- fixtures ------------------------------------------------------------------
 
@@ -406,7 +406,13 @@ async function withWebhookApp({ secret = SECRET, transport = refusingTransport, 
     config,
     async (base, app, deps) => {
       const rows = seedRows(deps.repos, seed);
-      await fn({ base, config, repos: deps.repos, ...rows });
+      // AS-40: W17 alone drives AS-43's send route, which is now behind the
+      // auth boundary, so it needs a session. Every OTHER case here posts to
+      // /webhooks/stripe, which is mounted ABOVE that boundary and is
+      // authenticated by signature — no cookie and no Origin — which is the
+      // property G8 in auth.test.js regression-tests.
+      const session = signedInHeaders(base, seedSession(deps.repos, rows.freelancer.id).cookie);
+      await fn({ base, config, repos: deps.repos, ...rows, session });
     },
     { stripe },
   );
@@ -432,11 +438,17 @@ async function deliver(base, body, { secret = SECRET, timestamp = nowSeconds(), 
 const invoiceEvent = (type, object, id) => event({ type, object, id });
 
 test('W1: with NO signing secret configured the endpoint does not exist — 404, and nothing is reachable', async () => {
-  await withWebhookApp({ secret: null, invoices: [{}] }, async ({ base, config, repos, freelancer, invoices }) => {
+  await withWebhookApp({ secret: null, invoices: [{}] }, async ({ base, config, repos, freelancer, invoices, session }) => {
+    // AS-40: both probes carry a session and an Origin. This case's claim is
+    // about ROUTING — that an unconfigured deployment registers no route at all
+    // — so auth is removed from the question. Without them the unrouted request
+    // is answered by the app-wide middlewares first (403 for an origin-less
+    // POST, a sign-in redirect for a signed-out GET), and the case would be
+    // asserting the guard rather than the absence of the route.
     const body = JSON.stringify(invoiceEvent('invoice.finalized', invoiceObject()));
-    const posted = await deliver(base, body);
+    const posted = await deliver(base, body, { headers: session });
     assert.equal(posted.status, 404, 'a configured deployment answers 400; an unconfigured one must not exist');
-    const got = await fetch(`${base}/webhooks/stripe`, { method: 'GET', redirect: 'manual' });
+    const got = await fetch(`${base}/webhooks/stripe`, { method: 'GET', redirect: 'manual', headers: session });
     assert.equal(got.status, 404);
     assert.equal(ledgerCount(config), 0);
     assert.equal(repos.invoices.getById(freelancer.id, invoices[0].id).status, 'draft');
@@ -779,11 +791,12 @@ test('W17: an invoice THIS task moved to open is reconciled by AS-43 before it c
       customerId: 'cus_fixture1',
       invoices: [{ stripeInvoiceId: IN }, { stripeInvoiceId: IN_TWO }],
     },
-    async ({ base, repos, freelancer, invoices }) => {
+    async ({ base, repos, invoices, session }) => {
       const send = (invoice) =>
-        fetch(`${base}/invoices/${invoice.id}/send?freelancer=${encodeURIComponent(freelancer.id)}`, {
+        fetch(`${base}/invoices/${invoice.id}/send`, {
           method: 'POST',
           redirect: 'manual',
+          headers: session,
         });
 
       // AGREEING: our finalize timed out but Stripe finalized, the webhook

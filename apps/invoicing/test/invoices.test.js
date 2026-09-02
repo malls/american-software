@@ -32,7 +32,7 @@ import { createRepositories, prepareDatabase } from '../lib/db/database.js';
 // SKIPPED_DIRS, so this import moves no committed literal — verified, not
 // assumed, by the green dependency-policy suite either side of this change.
 import { SUPPORTED_CURRENCIES } from '../lib/db/money.js';
-import { configFor, freshDbPath, withServer } from './helpers/server.js';
+import { configFor, freshDbPath, seedSession, signedInHeaders, withServer } from './helpers/server.js';
 
 // Not key-shaped on purpose — the stripe-client.test.js convention.
 const KEY = 'unit-test-placeholder-key';
@@ -179,6 +179,7 @@ async function withInvoiceApp(
     }
     const client = repos.clients.create(freelancer.id, { name: 'Client Co', email: 'client@example.test' });
     if (customerId !== null) repos.clients.setStripeCustomerId(freelancer.id, client.id, customerId);
+    auth.headers = signedInHeaders(base, seedSession(repos, freelancer.id).cookie);
     await fn({ base, repos, freelancer, client, calls });
   }, { stripe });
 }
@@ -196,12 +197,19 @@ function itemFields(items) {
   return out;
 }
 
-const post = (url) => fetch(url, { method: 'POST', redirect: 'manual' });
+/** THE SEEDED FREELANCER'S SESSION (AS-40). These four routes sit below the
+ *  auth boundary and no case here is about signing in, so the helper seeds a
+ *  session ROW (no KDF) and every request carries its cookie and an Origin the
+ *  same-origin check accepts. Set by withInvoiceApp/withMockApp before each
+ *  case; node --test runs a file's top-level tests sequentially. */
+const auth = { headers: {} };
+
+const post = (url) => fetch(url, { method: 'POST', redirect: 'manual', headers: auth.headers });
 const postForm = (url, fields) =>
   fetch(url, {
     method: 'POST',
     redirect: 'manual',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    headers: { 'content-type': 'application/x-www-form-urlencoded', ...auth.headers },
     body: typeof fields === 'string' ? fields : new URLSearchParams(fields).toString(),
   });
 const keysOf = (body) => [...new URLSearchParams(body ?? '').keys()].sort();
@@ -322,7 +330,7 @@ test('R1: the mapper — the exact ten keys, epoch→ISO, the invoice_pdf rename
 
 test('R2: create a draft — 303 to the edit screen, items in position order, total derived, zero transport calls', async () => {
   await withInvoiceApp({}, async ({ base, repos, freelancer, client, calls }) => {
-    const res = await postForm(`${base}/invoices?freelancer=${freelancer.id}`, {
+    const res = await postForm(`${base}/invoices`, {
       clientId: client.id,
       daysUntilDue: '30',
       currency: 'usd',
@@ -330,12 +338,13 @@ test('R2: create a draft — 303 to the edit screen, items in position order, to
     });
     assert.equal(res.status, 303);
     const location = res.headers.get('location');
-    assert.match(location, /^\/invoices\/[^/]+\/edit\?freelancer=/);
-    assert.ok(location.endsWith(`?freelancer=${freelancer.id}`), `redirect carries the seam: ${location}`);
+    // AS-40: the target is app-relative and carries NO identity — the screen
+    // that will own it reads the session, exactly as this handler does.
+    assert.match(location, /^\/invoices\/[^/]+\/edit$/);
     assert.equal(calls.length, 0, 'a draft is LOCAL: no Stripe call, ever');
 
     const [row] = repos.invoices.listByFreelancer(freelancer.id);
-    assert.equal(location, `/invoices/${row.id}/edit?freelancer=${freelancer.id}`);
+    assert.equal(location, `/invoices/${row.id}/edit`);
     assert.equal(row.status, 'draft');
     assert.equal(row.stripeInvoiceId, null);
     assert.equal(row.daysUntilDue, 30);
@@ -371,14 +380,14 @@ test('R3: every malformed draft is a 400 with zero transport calls — and an ov
       ['unsupported currency', { ...good, currency: 'eur' }],
     ];
     for (const [label, fields] of bad) {
-      const res = await postForm(`${base}/invoices?freelancer=${freelancer.id}`, fields);
+      const res = await postForm(`${base}/invoices`, fields);
       assert.equal(res.status, 400, `${label} must be 400, got ${res.status}`);
       assert.match(res.headers.get('content-type'), /text\/plain/);
       assert.match(await res.text(), /ValidationError/, label);
     }
     // The router-scoped parser's own limits answer before we count items: a
     // body past 64kb never reaches a handler and carries the parser's status.
-    const huge = await postForm(`${base}/invoices?freelancer=${freelancer.id}`, `clientId=${'x'.repeat(70_000)}`);
+    const huge = await postForm(`${base}/invoices`, `clientId=${'x'.repeat(70_000)}`);
     assert.equal(huge.status, 413);
 
     assert.equal(calls.length, 0, 'nothing malformed reaches Stripe');
@@ -391,13 +400,13 @@ test('R4: update a draft — clientId and daysUntilDue change, line items are re
     const other = repos.clients.create(freelancer.id, { name: 'Second Co', email: 'second@example.test' });
     const draft = draftOf(repos, freelancer.id, client.id);
     const replacement = [{ description: 'Rewrite', quantity: 3, unitAmountMinor: 1000 }];
-    const res = await postForm(`${base}/invoices/${draft.id}?freelancer=${freelancer.id}`, {
+    const res = await postForm(`${base}/invoices/${draft.id}`, {
       clientId: other.id,
       daysUntilDue: '14',
       ...itemFields(replacement),
     });
     assert.equal(res.status, 303);
-    assert.equal(res.headers.get('location'), `/invoices/${draft.id}/edit?freelancer=${freelancer.id}`);
+    assert.equal(res.headers.get('location'), `/invoices/${draft.id}/edit`);
     const row = repos.invoices.getById(freelancer.id, draft.id);
     assert.equal(row.clientId, other.id);
     assert.equal(row.daysUntilDue, 14);
@@ -429,7 +438,7 @@ test('R5: 25 line items survive body parsing in order with the right amounts; 51
   }));
   const expectedTotal = many.reduce((sum, item) => sum + item.quantity * item.unitAmountMinor, 0);
   await withInvoiceApp({}, async ({ base, repos, freelancer, client, calls }) => {
-    const res = await postForm(`${base}/invoices?freelancer=${freelancer.id}`, {
+    const res = await postForm(`${base}/invoices`, {
       clientId: client.id,
       daysUntilDue: '30',
       ...itemFields(many),
@@ -445,7 +454,7 @@ test('R5: 25 line items survive body parsing in order with the right amounts; 51
     assert.equal(full.totalMinor, expectedTotal);
 
     const tooMany = Array.from({ length: 51 }, (unused, i) => ({ description: `Item ${i}`, quantity: 1, unitAmountMinor: 1 }));
-    const refused = await postForm(`${base}/invoices?freelancer=${freelancer.id}`, {
+    const refused = await postForm(`${base}/invoices`, {
       clientId: client.id,
       daysUntilDue: '30',
       ...itemFields(tooMany),
@@ -456,7 +465,7 @@ test('R5: 25 line items survive body parsing in order with the right amounts; 51
     // The OBJECT branch, through the real parser: one item at index 0 and one
     // past the array limit. qs yields a numeric-keyed object, the normaliser
     // sorts it, and the gap is refused rather than quietly closed.
-    const sparse = await postForm(`${base}/invoices?freelancer=${freelancer.id}`, {
+    const sparse = await postForm(`${base}/invoices`, {
       clientId: client.id,
       daysUntilDue: '30',
       ...itemFields([ITEMS[0]]),
@@ -476,9 +485,9 @@ test('R5: 25 line items survive body parsing in order with the right amounts; 51
 test('R6: finalize happy path — 1+1+N+1 calls in order, every wire shape, the mirror, and no send', async () => {
   await withInvoiceApp({}, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
-    const res = await post(`${base}/invoices/${draft.id}/finalize?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/invoices/${draft.id}/finalize`);
     assert.equal(res.status, 303);
-    assert.equal(res.headers.get('location'), `/invoices/${draft.id}?freelancer=${freelancer.id}`);
+    assert.equal(res.headers.get('location'), `/invoices/${draft.id}`);
 
     const row = repos.invoices.getById(freelancer.id, draft.id);
     // Cardinality first, then the shapes.
@@ -567,7 +576,7 @@ test('R7: a NOT-READY account is 403 before any Stripe call, in both of its shap
   ]) {
     await withInvoiceApp(options, async ({ base, repos, freelancer, client, calls }) => {
       const draft = draftOf(repos, freelancer.id, client.id);
-      const res = await post(`${base}/invoices/${draft.id}/finalize?freelancer=${freelancer.id}`);
+      const res = await post(`${base}/invoices/${draft.id}/finalize`);
       assert.equal(res.status, 403, label);
       assert.equal(await res.text(), 'AccountNotReadyError: not-ready\n');
       assert.equal(calls.length, 0, `${label}: the gate is upstream of the client`);
@@ -582,7 +591,7 @@ test('R8: no connected-account row at all is 403 not-connected, zero transport c
   for (const route of ['finalize', 'send']) {
     await withInvoiceApp({ connected: false }, async ({ base, repos, freelancer, client, calls }) => {
       const draft = draftOf(repos, freelancer.id, client.id);
-      const res = await post(`${base}/invoices/${draft.id}/${route}?freelancer=${freelancer.id}`);
+      const res = await post(`${base}/invoices/${draft.id}/${route}`);
       assert.equal(res.status, 403, route);
       assert.equal(await res.text(), 'AccountNotReadyError: not-connected\n');
       assert.equal(calls.length, 0);
@@ -593,7 +602,7 @@ test('R8: no connected-account row at all is 403 not-connected, zero transport c
 test('R9: a client that already carries a cus_ makes ZERO /v1/customers calls, and the stored id is what the invoice names', async () => {
   await withInvoiceApp({ customerId: 'cus_alreadythere' }, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
-    const res = await post(`${base}/invoices/${draft.id}/finalize?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/invoices/${draft.id}/finalize`);
     assert.equal(res.status, 303);
     assert.equal(calls.filter((call) => call.path === '/v1/customers').length, 0, 'a client is one Stripe customer, forever');
     assert.equal(calls.length, 1 + ITEMS.length + 1);
@@ -608,12 +617,12 @@ test('R9: a client that already carries a cus_ makes ZERO /v1/customers calls, a
 test('R10: a second finalize makes zero Stripe calls and still 303s — every step skipped', async () => {
   await withInvoiceApp({}, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
-    const url = `${base}/invoices/${draft.id}/finalize?freelancer=${freelancer.id}`;
+    const url = `${base}/invoices/${draft.id}/finalize`;
     assert.equal((await post(url)).status, 303);
     const after = calls.length;
     const second = await post(url);
     assert.equal(second.status, 303);
-    assert.equal(second.headers.get('location'), `/invoices/${draft.id}?freelancer=${freelancer.id}`);
+    assert.equal(second.headers.get('location'), `/invoices/${draft.id}`);
     assert.equal(calls.length, after, 'the mirror already records every step done');
     assert.equal(repos.invoices.getById(freelancer.id, draft.id).status, 'open');
   });
@@ -633,7 +642,7 @@ test('R11: a failed finalize is resumable — the retry reuses the SAME in_ and 
   };
   await withInvoiceApp({ fixture: { intercept } }, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
-    const url = `${base}/invoices/${draft.id}/finalize?freelancer=${freelancer.id}`;
+    const url = `${base}/invoices/${draft.id}/finalize`;
 
     const failed = await post(url);
     assert.equal(failed.status, 502);
@@ -666,7 +675,7 @@ test('R11: a failed finalize is resumable — the retry reuses the SAME in_ and 
     // amounts agree, so this request must skip steps 1-4, reconcile clean, and
     // reach step 5. Failing send first, so the retry is a genuine resume rather
     // than a fresh run.
-    const sendUrl = `${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`;
+    const sendUrl = `${base}/invoices/${draft.id}/send`;
     const failedSend = await post(sendUrl);
     assert.equal(failedSend.status, 502);
     assert.equal(await failedSend.text(), 'StripeApiError: send\n', 'the guard let it through — it died at the send');
@@ -704,7 +713,7 @@ test('R12: the reconciliation guard fires, and KEEPS firing — 409 on the first
   };
   await withInvoiceApp({ fixture: { intercept: inflate } }, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
-    const sendUrl = `${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`;
+    const sendUrl = `${base}/invoices/${draft.id}/send`;
     const sends = () => calls.filter((call) => call.path.endsWith('/send')).length;
 
     const first = await post(sendUrl);
@@ -734,7 +743,7 @@ test('R12: the reconciliation guard fires, and KEEPS firing — 409 on the first
 
     // The finalize route is guarded on the same path, for the same reason:
     // neither route answers 303 once the totals disagree.
-    const refinalize = await post(`${base}/invoices/${draft.id}/finalize?freelancer=${freelancer.id}`);
+    const refinalize = await post(`${base}/invoices/${draft.id}/finalize`);
     assert.equal(refinalize.status, 409, 'finalize is re-checked too, not only send');
     assert.equal(await refinalize.text(), 'AmountMismatchError: reconcile\n');
     assert.equal(calls.length, afterFirst);
@@ -749,7 +758,7 @@ test('R13: a Stripe 4xx at the finalize step is 502 naming finalize; the mirror 
       : undefined;
   await withInvoiceApp({ fixture: { intercept } }, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
-    const res = await post(`${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/invoices/${draft.id}/send`);
     assert.equal(res.status, 502);
     assert.equal(await res.text(), 'StripeApiError: finalize\n');
     assert.equal(calls.filter((call) => call.path.endsWith('/send')).length, 0);
@@ -767,7 +776,7 @@ test('R14: send from an ALREADY-OPEN invoice is exactly one call, and sentAt com
     repos.invoices.applyStripeSnapshot('in_alreadyopen', invoiceSnapshotFromStripe(invoiceObject({ id: 'in_alreadyopen', total: ITEMS_TOTAL, open: true })));
 
     const before = new Date().toISOString();
-    const res = await post(`${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/invoices/${draft.id}/send`);
     const after = new Date().toISOString();
     assert.equal(res.status, 303);
     assert.deepEqual(pathsOf(calls), ['/v1/invoices/in_alreadyopen/send'], 'steps 1-4 all skipped');
@@ -790,9 +799,9 @@ test('R15: send from a DRAFT runs all five steps in one request — 1+1+N+1+1, m
   await withInvoiceApp({}, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
     const before = new Date().toISOString();
-    const res = await post(`${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/invoices/${draft.id}/send`);
     assert.equal(res.status, 303);
-    assert.equal(res.headers.get('location'), `/invoices/${draft.id}?freelancer=${freelancer.id}`);
+    assert.equal(res.headers.get('location'), `/invoices/${draft.id}`);
     const row = repos.invoices.getById(freelancer.id, draft.id);
     assert.equal(calls.length, 1 + 1 + ITEMS.length + 1 + 1, `got ${pathsOf(calls).join(' ')}`);
     assert.deepEqual(pathsOf(calls), [
@@ -821,7 +830,7 @@ test('R16: send when sentAt is already set makes zero transport calls and still 
       ...invoiceSnapshotFromStripe(invoiceObject({ id: 'in_alreadysent', total: ITEMS_TOTAL, open: true })),
       sentAt: TS,
     });
-    const res = await post(`${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/invoices/${draft.id}/send`);
     assert.equal(res.status, 303);
     assert.equal(calls.length, 0, 'retry-safety must not quietly become a manual re-send feature');
     assert.equal(repos.invoices.getById(freelancer.id, draft.id).sentAt, TS, 'and the recorded moment is untouched');
@@ -832,7 +841,7 @@ test('R17: editing a draft after it is attached is 409 with zero transport calls
   await withInvoiceApp({}, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
     repos.invoices.attachStripeInvoice(freelancer.id, draft.id, 'in_frozen');
-    const res = await postForm(`${base}/invoices/${draft.id}?freelancer=${freelancer.id}`, { daysUntilDue: '7' });
+    const res = await postForm(`${base}/invoices/${draft.id}`, { daysUntilDue: '7' });
     assert.equal(res.status, 409);
     assert.equal(await res.text(), 'InvalidStateError: update-draft\n');
     assert.equal(calls.length, 0);
@@ -843,7 +852,7 @@ test('R17: editing a draft after it is attached is 409 with zero transport calls
 test('R18: no key configured is 503 with zero transport calls — requireKey fires after the guard, before the transport', async () => {
   await withInvoiceApp({ apiKey: null }, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
-    const res = await post(`${base}/invoices/${draft.id}/finalize?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/invoices/${draft.id}/finalize`);
     assert.equal(res.status, 503);
     assert.match(await res.text(), /ConfigError/);
     assert.equal(calls.length, 0);
@@ -858,7 +867,7 @@ test('R19: a Stripe 4xx at the customer step is 502 naming create-customer, and 
       : undefined;
   await withInvoiceApp({ fixture: { intercept } }, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
-    const res = await post(`${base}/invoices/${draft.id}/finalize?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/invoices/${draft.id}/finalize`);
     assert.equal(res.status, 502);
     assert.equal(await res.text(), 'StripeApiError: create-customer\n');
     assert.equal(calls.length, 1, 'the create was attempted and nothing after it');
@@ -869,16 +878,21 @@ test('R19: a Stripe 4xx at the customer step is 502 naming create-customer, and 
 
 // --- R20–R23: identity, ownership, custody, and the sentAt interaction ----------
 
-test('R20: a missing or blank freelancer parameter is 400 on all four routes, with zero transport calls', async () => {
+test('R20: all four routes redirect to sign-in without a session, with zero transport calls', async () => {
+  // WAS the missing-freelancer-parameter case. AS-40 deleted that parameter and
+  // the branch behind it: identity is the session's, so "no identity" is now
+  // "no session". These are POSTs, so the redirect carries no ?next= — a body
+  // cannot be replayed after one.
   await withInvoiceApp({}, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
     const routes = ['/invoices', `/invoices/${draft.id}`, `/invoices/${draft.id}/finalize`, `/invoices/${draft.id}/send`];
     for (const path of routes) {
-      for (const query of ['', '?freelancer=', '?freelancer=%20%20']) {
-        const res = await postForm(`${base}${path}${query}`, { clientId: client.id, daysUntilDue: '30', ...itemFields(ITEMS) });
-        assert.equal(res.status, 400, `${path}${query}`);
-        assert.equal(await res.text(), 'missing freelancer parameter\n');
-      }
+      // With an Origin, as a signed-out browser on our own page would send:
+      // requireSameOrigin is above the boundary and fails closed, so an
+      // origin-less POST is a 403 before the guard sees it (auth.test.js G12).
+      const res = await fetch(`${base}${path}`, { method: 'POST', redirect: 'manual', headers: { origin: base } });
+      assert.equal(res.status, 303, path);
+      assert.equal(res.headers.get('location'), '/signin', path);
     }
     assert.equal(calls.length, 0);
   });
@@ -898,7 +912,7 @@ test('R21: another freelancer\'s invoice (or client) is 404 on all four routes, 
       [`/invoices/${otherDraft.id}/send`, {}],
     ];
     for (const [path, fields] of notOurs) {
-      const res = await postForm(`${base}${path}?freelancer=${freelancer.id}`, fields);
+      const res = await postForm(`${base}${path}`, fields);
       assert.equal(res.status, 404, path);
       assert.match(await res.text(), /NotFoundError/, path);
     }
@@ -921,7 +935,7 @@ test('R22: the custody property at the wire — every request carries stripe-acc
   ];
   await withInvoiceApp({}, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
-    assert.equal((await post(`${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`)).status, 303);
+    assert.equal((await post(`${base}/invoices/${draft.id}/send`)).status, 303);
     assert.equal(calls.length, 6, `a complete run is six calls, got ${pathsOf(calls).join(' ')}`);
     for (const call of calls) {
       assert.equal(call.headers['stripe-account'], ACCT, `${call.path} executes as the freelancer, never as us`);
@@ -982,7 +996,7 @@ test('R24: a custody refusal is 500 at the route — loud, and carrying no reque
   await withInvoiceApp({ stripe }, async ({ base, repos, freelancer, client }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
     for (const route of ['finalize', 'send']) {
-      const res = await post(`${base}/invoices/${draft.id}/${route}?freelancer=${freelancer.id}`);
+      const res = await post(`${base}/invoices/${draft.id}/${route}`);
       assert.equal(res.status, 500, `${route}: a custody refusal is ours, not Stripe's`);
       // The whole body, byte for byte: the class and the step, and nothing of
       // what we sent — no path, no parameter name, no key.
@@ -1002,7 +1016,7 @@ test('R25: an invoice shape the mapper does not understand is 502 at the route, 
   };
   await withInvoiceApp({ fixture: { intercept: malformed } }, async ({ base, repos, freelancer, client, calls }) => {
     const draft = draftOf(repos, freelancer.id, client.id);
-    const res = await post(`${base}/invoices/${draft.id}/finalize?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/invoices/${draft.id}/finalize`);
     assert.equal(res.status, 502, 'a shape this app does not understand came from Stripe, so it is a 502');
     assert.equal(await res.text(), 'TypeError: finalize\n', 'and the body names WHICH interaction produced it');
     assert.equal(calls.filter((call) => call.path.endsWith('/send')).length, 0);
@@ -1106,6 +1120,7 @@ async function withMockApp(totalMinor, fn) {
     repos.connectedAccounts.updateReadiness(ACCT, readinessFromAccount(stripeAccount(), TS));
     const client = repos.clients.create(freelancer.id, { name: 'Client Co', email: 'client@example.test' });
     const draft = draftOf(repos, freelancer.id, client.id, [{ description: 'Contract work', quantity: 1, unitAmountMinor: totalMinor }]);
+    auth.headers = signedInHeaders(base, seedSession(repos, freelancer.id).cookie);
     await fn({ base, repos, freelancer, client, draft, paths });
   }, { stripe });
 }
@@ -1113,9 +1128,9 @@ async function withMockApp(totalMinor, fn) {
 test('M1: finalize over HTTP against stripe-mock — the mock validates all four request shapes', { skip: SKIP }, async () => {
   await mockReady();
   await withMockApp(MOCK_FIXTURE_AMOUNT_DUE, async ({ base, repos, freelancer, client, draft }) => {
-    const res = await post(`${base}/invoices/${draft.id}/finalize?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/invoices/${draft.id}/finalize`);
     assert.equal(res.status, 303, 'the mock accepted every wire shape — a parameter the spec does not know would be a 502 here');
-    assert.equal(res.headers.get('location'), `/invoices/${draft.id}?freelancer=${freelancer.id}`);
+    assert.equal(res.headers.get('location'), `/invoices/${draft.id}`);
     const row = repos.invoices.getById(freelancer.id, draft.id);
     assert.ok(row.stripeInvoiceId.startsWith('in_'), 'attached from the mock invoice fixture');
     assert.ok(repos.clients.getById(freelancer.id, client.id).stripeCustomerId.startsWith('cus_'));
@@ -1134,7 +1149,7 @@ test('M2: send against stripe-mock — 303, and sentAt written from our clock', 
   await mockReady();
   await withMockApp(MOCK_FIXTURE_AMOUNT_DUE, async ({ base, repos, freelancer, draft }) => {
     const before = new Date().toISOString();
-    const res = await post(`${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/invoices/${draft.id}/send`);
     assert.equal(res.status, 303);
     const row = repos.invoices.getById(freelancer.id, draft.id);
     assert.notEqual(row.sentAt, null);
@@ -1150,7 +1165,7 @@ test('M2: send against stripe-mock — 303, and sentAt written from our clock', 
 test('M3: the reconciliation guard against stripe-mock — a real spec-shaped response, refused, and refused again', { skip: SKIP }, async () => {
   await mockReady();
   await withMockApp(MOCK_FIXTURE_AMOUNT_DUE + 1, async ({ base, repos, freelancer, draft, paths }) => {
-    const url = `${base}/invoices/${draft.id}/send?freelancer=${freelancer.id}`;
+    const url = `${base}/invoices/${draft.id}/send`;
     const sends = () => paths.filter((path) => path.endsWith('/send')).length;
 
     const res = await post(url);

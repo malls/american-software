@@ -16,9 +16,11 @@ import assert from 'node:assert/strict';
 import { createApp } from '../app.js';
 import { createStripeClient } from '../lib/stripe/client.js';
 import { readinessFromAccount } from '../lib/connect/readiness.js';
-import { resolveFreelancerId } from '../routes/connect.js';
+// R2 only: the service-level guard whose HTTP path AS-40 made unreachable.
+import { createOnboarding } from '../lib/connect/onboarding.js';
+import { NotFoundError } from '../lib/db/database.js';
 import { createRepositories, prepareDatabase } from '../lib/db/database.js';
-import { configFor, freshDbPath, withServer } from './helpers/server.js';
+import { configFor, freshDbPath, seedSession, signedInHeaders, withServer } from './helpers/server.js';
 
 // Not key-shaped on purpose — the stripe-client.test.js convention.
 const KEY = 'unit-test-placeholder-key';
@@ -81,12 +83,22 @@ async function withConnectApp({ fixture = {}, apiKey = KEY, appBaseUrl } = {}, f
   const config = configFor(appBaseUrl === undefined ? {} : { appBaseUrl });
   await withServer(config, async (base, app, deps) => {
     const freelancer = deps.repos.freelancers.create({ email: 'f@example.test', displayName: 'Freda Lancer' });
-    await fn({ base, repos: deps.repos, freelancer, calls });
+    const { cookie } = seedSession(deps.repos, freelancer.id);
+    auth.headers = signedInHeaders(base, cookie);
+    await fn({ base, repos: deps.repos, freelancer, calls, cookie });
   }, { stripe });
 }
 
-const post = (url) => fetch(url, { method: 'POST', redirect: 'manual' });
-const get = (url) => fetch(url, { redirect: 'manual' });
+/** THE SEEDED FREELANCER'S SESSION (AS-40). These routes sit below the auth
+ *  boundary and none of the cases here are about signing in, so the helper
+ *  seeds a session ROW and every request carries its cookie (plus the Origin
+ *  the same-origin check wants on unsafe methods). Set by withConnectApp and
+ *  withMockApp before each case; node --test runs a file's top-level tests
+ *  sequentially, so one holder is enough and no case can see another's. */
+const auth = { headers: {} };
+
+const post = (url) => fetch(url, { method: 'POST', redirect: 'manual', headers: auth.headers });
+const get = (url) => fetch(url, { redirect: 'manual', headers: auth.headers });
 
 // --- composition (plan §3.7, AC 10) --------------------------------------------
 
@@ -179,14 +191,27 @@ test('R1: the readiness mapper — exact mapping, requirements tolerance, boolea
 
 // --- R2–R13: the routes, offline -------------------------------------------------
 
-test('R2: start with an unknown freelancer is 404, zero transport calls', async () => {
-  await withConnectApp({}, async ({ base, calls }) => {
-    const res = await post(`${base}/connect-stripe/start?freelancer=00000000-0000-4000-8000-000000000000`);
-    assert.equal(res.status, 404);
-    assert.match(res.headers.get('content-type'), /text\/plain/);
-    assert.match(await res.text(), /NotFoundError/);
+test('R2: start for a freelancer who does not exist is a NotFoundError from the service, zero transport calls', async () => {
+  // AS-40 CHANGED WHAT THIS CAN ASSERT, and the change is the point. Identity
+  // comes from the session now, and sessions.freelancer_id is a foreign key, so
+  // acting as a freelancer who does not exist is UNREACHABLE over HTTP —
+  // resolveSession additionally deletes a session whose freelancer is gone. The
+  // service's guard still exists and is still what makes statusFor's
+  // NotFoundError branch correct, so it is asserted where it now lives; R8
+  // keeps the reachable HTTP 404 (a signed-in freelancer with no row).
+  const { transport, calls } = fixtureTransport();
+  const { db } = prepareDatabase({ dbPath: freshDbPath() });
+  try {
+    const onboarding = createOnboarding({
+      appBaseUrl: 'http://127.0.0.1:8348',
+      repos: createRepositories(db),
+      stripe: createStripeClient({ apiKey: KEY, transport }),
+    });
+    await assert.rejects(() => onboarding.start('00000000-0000-4000-8000-000000000000'), NotFoundError);
     assert.equal(calls.length, 0);
-  });
+  } finally {
+    db.close();
+  }
 });
 
 test('R3: start with no row — bare create with the stable idempotency key, readiness seeded from the create response, the four-parameter mint, 303 to the link', async () => {
@@ -194,7 +219,7 @@ test('R3: start with no row — bare create with the stable idempotency key, rea
   // hardcoded default would pass under configFor() and fail here.
   const APP_BASE = 'https://d1.example.test';
   await withConnectApp({ appBaseUrl: APP_BASE }, async ({ base, repos, freelancer, calls }) => {
-    const res = await post(`${base}/connect-stripe/start?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/connect-stripe/start`);
     assert.equal(res.status, 303);
     assert.equal(res.headers.get('location'), LINK_URL);
 
@@ -212,8 +237,8 @@ test('R3: start with no row — bare create with the stable idempotency key, rea
     assert.deepEqual([...params.keys()].sort(), ['account', 'refresh_url', 'return_url', 'type'], 'exactly the four parameters K8 validates');
     assert.equal(params.get('account'), ACCT);
     assert.equal(params.get('type'), 'account_onboarding');
-    assert.equal(params.get('refresh_url'), `${APP_BASE}/connect-stripe/refresh?freelancer=${freelancer.id}`);
-    assert.equal(params.get('return_url'), `${APP_BASE}/connect-stripe/return?freelancer=${freelancer.id}`);
+    assert.equal(params.get('refresh_url'), `${APP_BASE}/connect-stripe/refresh`);
+    assert.equal(params.get('return_url'), `${APP_BASE}/connect-stripe/return`);
 
     const row = repos.connectedAccounts.getByFreelancer(freelancer.id);
     assert.equal(row.stripeAccountId, ACCT);
@@ -229,7 +254,7 @@ test('R3: start with no row — bare create with the stable idempotency key, rea
 test('R4: start with an existing not-ready row mints only — zero /v1/accounts calls', async () => {
   await withConnectApp({}, async ({ base, repos, freelancer, calls }) => {
     repos.connectedAccounts.create({ freelancerId: freelancer.id, stripeAccountId: ACCT });
-    const res = await post(`${base}/connect-stripe/start?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/connect-stripe/start`);
     assert.equal(res.status, 303);
     assert.equal(res.headers.get('location'), LINK_URL);
     assert.equal(calls.filter((c) => c.path === '/v1/accounts').length, 0, 'no second account, ever');
@@ -243,7 +268,7 @@ test('R5: start with a ready row short-circuits to the screen — zero transport
   await withConnectApp({}, async ({ base, repos, freelancer, calls }) => {
     repos.connectedAccounts.create({ freelancerId: freelancer.id, stripeAccountId: ACCT });
     repos.connectedAccounts.updateReadiness(ACCT, readinessFromAccount(readyAccount(), TS));
-    const res = await post(`${base}/connect-stripe/start?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/connect-stripe/start`);
     assert.equal(res.status, 303);
     assert.equal(res.headers.get('location'), '/connect-stripe');
     assert.equal(calls.length, 0);
@@ -253,7 +278,7 @@ test('R5: start with a ready row short-circuits to the screen — zero transport
 test('R6: return NEVER trusts the return — a fresh read decides, and a not-ready account stays not-ready', async () => {
   await withConnectApp({}, async ({ base, repos, freelancer, calls }) => {
     repos.connectedAccounts.create({ freelancerId: freelancer.id, stripeAccountId: ACCT });
-    const res = await get(`${base}/connect-stripe/return?freelancer=${freelancer.id}`);
+    const res = await get(`${base}/connect-stripe/return`);
     assert.equal(res.status, 303);
     assert.equal(res.headers.get('location'), '/connect-stripe');
     assert.equal(calls.length, 1);
@@ -273,7 +298,7 @@ test('R6: return NEVER trusts the return — a fresh read decides, and a not-rea
 test('R7: return with a ready account flips the row to ready', async () => {
   await withConnectApp({ fixture: { accountBody: readyAccount() } }, async ({ base, repos, freelancer }) => {
     repos.connectedAccounts.create({ freelancerId: freelancer.id, stripeAccountId: ACCT });
-    const res = await get(`${base}/connect-stripe/return?freelancer=${freelancer.id}`);
+    const res = await get(`${base}/connect-stripe/return`);
     assert.equal(res.status, 303);
     const row = repos.connectedAccounts.getByFreelancer(freelancer.id);
     assert.equal(row.ready, true);
@@ -282,12 +307,12 @@ test('R7: return with a ready account flips the row to ready', async () => {
   });
 });
 
-test('R8: return with no row, and return for an unknown freelancer, are 404 with zero transport calls', async () => {
-  await withConnectApp({}, async ({ base, freelancer, calls }) => {
-    const noRow = await get(`${base}/connect-stripe/return?freelancer=${freelancer.id}`);
+test('R8: return with no connected-account row is 404 with zero transport calls', async () => {
+  // The unknown-freelancer half moved to R2 when AS-40 made it unreachable over
+  // HTTP; the no-row half is the reachable 404 and stays here.
+  await withConnectApp({}, async ({ base, calls }) => {
+    const noRow = await get(`${base}/connect-stripe/return`);
     assert.equal(noRow.status, 404);
-    const unknown = await get(`${base}/connect-stripe/return?freelancer=11111111-1111-4111-8111-111111111111`);
-    assert.equal(unknown.status, 404);
     assert.equal(calls.length, 0);
   });
 });
@@ -296,7 +321,7 @@ test('R9: refresh mints a fresh link for the stored account and writes no readin
   await withConnectApp({}, async ({ base, repos, freelancer, calls }) => {
     repos.connectedAccounts.create({ freelancerId: freelancer.id, stripeAccountId: ACCT });
     repos.connectedAccounts.updateReadiness(ACCT, readinessFromAccount(account(), TS)); // synced, not ready
-    const res = await get(`${base}/connect-stripe/refresh?freelancer=${freelancer.id}`);
+    const res = await get(`${base}/connect-stripe/refresh`);
     assert.equal(res.status, 303);
     assert.equal(res.headers.get('location'), LINK_URL, 'S2-REFRESH: straight back into the hosted flow, not an error page');
     assert.equal(calls.length, 1, 'one Stripe call — the mint; refresh reads nothing');
@@ -306,7 +331,7 @@ test('R9: refresh mints a fresh link for the stored account and writes no readin
     assert.equal(row.syncedAt, TS, 'no readiness write: syncedAt untouched');
   });
   await withConnectApp({}, async ({ base, freelancer, calls }) => {
-    const res = await get(`${base}/connect-stripe/refresh?freelancer=${freelancer.id}`);
+    const res = await get(`${base}/connect-stripe/refresh`);
     assert.equal(res.status, 404);
     assert.equal(calls.length, 0);
   });
@@ -316,7 +341,7 @@ test('R9b: refresh for an already-ready row short-circuits to the screen — no 
   await withConnectApp({}, async ({ base, repos, freelancer, calls }) => {
     repos.connectedAccounts.create({ freelancerId: freelancer.id, stripeAccountId: ACCT });
     repos.connectedAccounts.updateReadiness(ACCT, readinessFromAccount(readyAccount(), TS));
-    const res = await get(`${base}/connect-stripe/refresh?freelancer=${freelancer.id}`);
+    const res = await get(`${base}/connect-stripe/refresh`);
     assert.equal(res.status, 303);
     assert.equal(res.headers.get('location'), '/connect-stripe');
     assert.equal(calls.length, 0);
@@ -331,7 +356,7 @@ test('R10: a Stripe 4xx on account create is 502 naming the step, and NO row is 
     return undefined;
   };
   await withConnectApp({ fixture: { intercept } }, async ({ base, repos, freelancer, calls }) => {
-    const res = await post(`${base}/connect-stripe/start?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/connect-stripe/start`);
     assert.equal(res.status, 502);
     const body = await res.text();
     assert.match(body, /StripeApiError/);
@@ -343,7 +368,7 @@ test('R10: a Stripe 4xx on account create is 502 naming the step, and NO row is 
 
 test('R11: start with no key configured is 503, zero transport calls — a deploy problem, not an upstream one', async () => {
   await withConnectApp({ apiKey: null }, async ({ base, freelancer, calls }) => {
-    const res = await post(`${base}/connect-stripe/start?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/connect-stripe/start`);
     assert.equal(res.status, 503);
     assert.match(await res.text(), /ConfigError/);
     assert.equal(calls.length, 0, 'requireKey fires after the guard, before the transport');
@@ -364,7 +389,7 @@ test('R12: the check-then-insert race converges on the stored account — one ro
   await withConnectApp({ fixture: { intercept } }, async ({ base, repos, freelancer, calls }) => {
     box.repos = repos;
     box.freelancerId = freelancer.id;
-    const res = await post(`${base}/connect-stripe/start?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/connect-stripe/start`);
     assert.equal(res.status, 303);
     assert.equal(res.headers.get('location'), LINK_URL);
     assert.equal(calls.length, 2);
@@ -376,22 +401,29 @@ test('R12: the check-then-insert race converges on the stored account — one ro
   });
 });
 
-test('R13: a missing or blank freelancer parameter is 400 on all three routes; resolveFreelancerId trims', async () => {
-  assert.equal(resolveFreelancerId({ query: {} }), null);
-  assert.equal(resolveFreelancerId({ query: { freelancer: '' } }), null);
-  assert.equal(resolveFreelancerId({ query: { freelancer: '   ' } }), null);
-  assert.equal(resolveFreelancerId({ query: { freelancer: ['a', 'b'] } }), null, 'a repeated parameter is nobody');
-  assert.equal(resolveFreelancerId({ query: { freelancer: '  f-1  ' } }), 'f-1');
+test('R13: all three routes redirect to sign-in without a session, and touch nothing', async () => {
+  // WAS the missing-freelancer-parameter case. AS-40 deleted that parameter and
+  // the branch behind it: identity is the session's, so "no identity" is now
+  // "no session", and the answer is a redirect rather than a 400. The GETs
+  // carry ?next= so signing in lands back here; the POST does not, because a
+  // body cannot be replayed after a redirect.
   await withConnectApp({}, async ({ base, calls }) => {
-    for (const [method, path] of [
-      ['POST', '/connect-stripe/start'],
-      ['GET', '/connect-stripe/return'],
-      ['GET', '/connect-stripe/refresh'],
+    for (const [method, path, next] of [
+      ['POST', '/connect-stripe/start', null],
+      ['GET', '/connect-stripe/return', '/connect-stripe/return'],
+      ['GET', '/connect-stripe/refresh', '/connect-stripe/refresh'],
     ]) {
-      for (const query of ['', '?freelancer=', '?freelancer=%20%20']) {
-        const res = await fetch(`${base}${path}${query}`, { method, redirect: 'manual' });
-        assert.equal(res.status, 400, `${method} ${path}${query}`);
-      }
+      // The POST carries an Origin because a signed-out BROWSER on our own page
+      // would: requireSameOrigin sits above the boundary and fails closed, so
+      // an origin-less POST is a 403 before the guard ever sees it. That
+      // ordering is asserted on its own in auth.test.js (G9–G12).
+      const res = await fetch(`${base}${path}`, { method, redirect: 'manual', headers: { origin: base } });
+      assert.equal(res.status, 303, `${method} ${path}`);
+      assert.equal(
+        res.headers.get('location'),
+        next === null ? '/signin' : `/signin?next=${encodeURIComponent(next)}`,
+        `${method} ${path}`,
+      );
     }
     assert.equal(calls.length, 0);
   });
@@ -451,6 +483,7 @@ const mockStripeClient = () => createStripeClient({ apiKey: MOCK_KEY, baseUrl: M
 async function withMockApp(fn) {
   await withServer(configFor(), async (base, app, deps) => {
     const freelancer = deps.repos.freelancers.create({ email: 'mock@example.test', displayName: 'Mock Freelancer' });
+    auth.headers = signedInHeaders(base, seedSession(deps.repos, freelancer.id).cookie);
     await fn({ base, repos: deps.repos, freelancer });
   }, { stripe: mockStripeClient() });
 }
@@ -468,7 +501,7 @@ async function fixtureLinkUrl() {
 test('M1: start over HTTP against stripe-mock — the mock validates both route-level request shapes', { skip: SKIP }, async () => {
   await mockReady();
   await withMockApp(async ({ base, repos, freelancer }) => {
-    const res = await post(`${base}/connect-stripe/start?freelancer=${freelancer.id}`);
+    const res = await post(`${base}/connect-stripe/start`);
     assert.equal(res.status, 303, 'the mock accepted both wire shapes — a parameter the spec does not know would be a 502 here');
     assert.equal(res.headers.get('location'), await fixtureLinkUrl());
     const row = repos.connectedAccounts.getByFreelancer(freelancer.id);
@@ -484,7 +517,7 @@ test('M2: return against stripe-mock — the row is exactly the mapping of what 
   await mockReady();
   await withMockApp(async ({ base, repos, freelancer }) => {
     repos.connectedAccounts.create({ freelancerId: freelancer.id, stripeAccountId: 'acct_stripemock' });
-    const res = await get(`${base}/connect-stripe/return?freelancer=${freelancer.id}`);
+    const res = await get(`${base}/connect-stripe/return`);
     assert.equal(res.status, 303);
     assert.equal(res.headers.get('location'), '/connect-stripe');
     const row = repos.connectedAccounts.getByFreelancer(freelancer.id);
@@ -504,7 +537,7 @@ test('M3: refresh against stripe-mock — 303 back into the hosted flow, no read
   await mockReady();
   await withMockApp(async ({ base, repos, freelancer }) => {
     repos.connectedAccounts.create({ freelancerId: freelancer.id, stripeAccountId: 'acct_stripemock' });
-    const res = await get(`${base}/connect-stripe/refresh?freelancer=${freelancer.id}`);
+    const res = await get(`${base}/connect-stripe/refresh`);
     assert.equal(res.status, 303);
     assert.equal(res.headers.get('location'), await fixtureLinkUrl());
     assert.equal(repos.connectedAccounts.getByFreelancer(freelancer.id).syncedAt, null, 'no readiness write on refresh');

@@ -119,3 +119,8 @@ export const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '.
 
 /** The test directory itself: /app/test. */
 export const TEST_DIR = resolve(APP_DIR, 'test');
+
+// AS-40: re-exported here so a suite that needs a signed-in freelancer imports
+// from the one helper it already imports. seedSignedIn mints the session ROW
+// directly, so a suite that is not testing sign-in pays no KDF cost.
+export { seedSession, seedSignedIn, signedInHeaders } from './auth.js';

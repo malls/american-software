@@ -21,14 +21,11 @@ import { ConfigError } from '../lib/config.js';
 import { InvalidStateError, NotFoundError, ValidationError } from '../lib/db/database.js';
 import { StripeApiError, StripeCustodyError, StripeTransportError } from '../lib/stripe/client.js';
 import { AccountNotReadyError, AmountMismatchError, createInvoiceLifecycle } from '../lib/invoices/lifecycle.js';
-// THE SHARED AS-40 SEAM: identity resolution for these routes is the SAME
-// exported function routes/connect.js uses, not a second copy — one function,
-// one AS-40 OBLIGATION marker, one replacement point when sessions land. A
-// route module importing another route module is unusual and deliberate: the
-// alternative (extracting to lib/http/identity.js) edits a proven surface for
-// no behaviour change. The trigger to extract is a THIRD consumer — AS-42's
-// contract routes (plan §9 Q1).
-import { resolveFreelancerId } from './connect.js';
+// AS-40 retired the interim seam: identity is the session's, read through the
+// one sanctioned accessor. This router no longer imports routes/connect.js —
+// the shared identity function both of them used is gone, and with it the
+// route-module-importing-a-route-module shape it required.
+import { actingFreelancerId } from '../lib/auth/guard.js';
 
 /** Above this a request is a mistake or an attack, not an invoice. Exceeded is
  *  a 400; the body-parser's own limits (below) answer for size and parameter
@@ -172,11 +169,10 @@ function draftPatch(body) {
   return patch;
 }
 
-/** Redirect targets carry ?freelancer= so the screens that will own them
- *  inherit the same interim seam. Constructed, never concatenated raw. */
-const query = (freelancerId) => `?freelancer=${encodeURIComponent(freelancerId)}`;
-const editPath = (id, freelancerId) => `/invoices/${encodeURIComponent(id)}/edit${query(freelancerId)}`;
-const detailPath = (id, freelancerId) => `/invoices/${encodeURIComponent(id)}${query(freelancerId)}`;
+/** Redirect targets are app-relative and carry no identity: the screens that
+ *  will own them read the session, exactly as these handlers do. */
+const editPath = (id) => `/invoices/${encodeURIComponent(id)}/edit`;
+const detailPath = (id) => `/invoices/${encodeURIComponent(id)}`;
 
 /**
  * @param {object} config frozen settings from lib/config.js. Nothing here reads
@@ -200,11 +196,13 @@ export function invoiceRoutes(config, { repos, stripe }) {
     res.status(statusFor(err)).type('text/plain').send(`${err?.name ?? 'Error'}: ${err?.step ?? step}\n`);
   };
 
+  // Identity comes from the session and from nothing else (AS-40): a request
+  // that names another freelancer in its query string still acts as the
+  // SESSION's freelancer, because nothing here reads the query string for
+  // identity any more. That is asserted, not asserted-by-comment — see the
+  // impersonation case in test/auth.test.js.
   const handle = (step, act) => async (req, res) => {
-    const freelancerId = resolveFreelancerId(req);
-    if (freelancerId === null) {
-      return res.status(400).type('text/plain').send('missing freelancer parameter\n');
-    }
+    const freelancerId = actingFreelancerId(req);
     try {
       res.redirect(303, await act(freelancerId, req));
     } catch (err) {
@@ -215,27 +213,27 @@ export function invoiceRoutes(config, { repos, stripe }) {
   // Zero Stripe calls: a draft is local until the freelancer issues it.
   router.post('/invoices', form, handle('create-draft', (freelancerId, req) => {
     const invoice = repos.invoices.createDraft(freelancerId, draftInput(req.body ?? {}));
-    return editPath(invoice.id, freelancerId);
+    return editPath(invoice.id);
   }));
 
   // Zero Stripe calls, and 409 once the draft is attached: AS-39 freezes the
   // local copy the moment finalization starts, and this surfaces that freeze.
   router.post('/invoices/:id', form, handle('update-draft', (freelancerId, req) => {
     const invoice = repos.invoices.updateDraft(freelancerId, req.params.id, draftPatch(req.body ?? {}));
-    return editPath(invoice.id, freelancerId);
+    return editPath(invoice.id);
   }));
 
   // The readiness gate, then the pipeline through step 4.
   router.post('/invoices/:id/finalize', form, handle('finalize', async (freelancerId, req) => {
     const invoice = await lifecycle.finalize(freelancerId, req.params.id);
-    return detailPath(invoice.id, freelancerId);
+    return detailPath(invoice.id);
   }));
 
   // The same pipeline, not stopping early: AS-46's one "Finalize & send" button
   // posts here, and every step already done is skipped.
   router.post('/invoices/:id/send', form, handle('send', async (freelancerId, req) => {
     const invoice = await lifecycle.send(freelancerId, req.params.id);
-    return detailPath(invoice.id, freelancerId);
+    return detailPath(invoice.id);
   }));
 
   // A body-parser refusal (too large, too many parameters) never reaches a

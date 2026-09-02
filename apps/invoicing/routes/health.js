@@ -13,8 +13,10 @@ export function healthRoutes(config) {
     res.status(result.ok ? 200 : 503).json({
       ok: result.ok,
       checks: result.checks,
-      // redacted() and nothing else — a secret added by AS-38/AS-40 must not
-      // reach this body by default (plan §7.3 item 4).
+      // redacted() and nothing else — a secret added by AS-38/AS-44 must not
+      // reach this body by default (plan §7.3 item 4). AS-40 added none: its
+      // session tokens are random rather than signed, so there is nothing to
+      // configure and nothing to leak here.
       config: config.redacted?.() ?? null,
     });
   });
