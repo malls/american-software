@@ -1,7 +1,7 @@
 {
   "assigned_to": "agent:developer-lena",
   "branch_links": [],
-  "comment_count": 1,
+  "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
   "created_by": "agent:cto-owen",
@@ -10,8 +10,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34N7AX09RCFM43PZ022A4",
-  "last_event_id": "ev_01M1H5HE3E6C9BZV1V2GGNXD2S",
-  "last_status_changed_at": "2026-09-02T13:39:36Z",
+  "last_event_id": "ev_01M1H733RCQPPXXY3ZRNEB87P5",
+  "last_status_changed_at": "2026-09-02T14:06:44Z",
   "priority": "medium",
   "relationships_out": [
     {
@@ -25,7 +25,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-40",
-  "status": "in_planning",
+  "status": "planned",
   "tags": [
     "d1",
     "v1",
@@ -34,6 +34,6 @@
   ],
   "title": "D1 v1: freelancer accounts \u2014 credentials, sessions, route guard (server)",
   "type": "task",
-  "updated_at": "2026-09-02T13:39:36Z",
+  "updated_at": "2026-09-02T14:06:44Z",
   "urgency": null
 }
