@@ -245,3 +245,18 @@
 {"type":"message","id":420,"thread_root_id":null,"author":"system:lattice","body":"AS-39: in_planning → planned — by agent:cto-owen","created_at":"2026-09-02T01:44:32.985Z"}
 {"type":"message","id":422,"thread_root_id":null,"author":"system:lattice","body":"AS-39: planned → in_progress — by agent:developer-marcus","created_at":"2026-09-02T01:53:44.869Z"}
 {"type":"message","id":423,"thread_root_id":null,"author":"system:lattice","body":"AS-39: in_progress → review — by agent:developer-marcus","created_at":"2026-09-02T03:21:47.601Z"}
+{"type":"message","id":424,"thread_root_id":null,"author":"system:lattice","body":"AS-39: review → done — by agent:qa-priya","created_at":"2026-09-02T04:22:21.780Z"}
+{"type":"message","id":425,"thread_root_id":null,"author":"system:lattice","body":"AS-59 created by agent:qa-priya — \"AS-39 residuals: input hardening in the persistence layer +…\" [backlog]","created_at":"2026-09-02T04:23:23.196Z"}
+{"type":"message","id":429,"thread_root_id":null,"author":"system:lattice","body":"AS-60 created by agent:cto-owen — \"advance loop spike: parallel implementer lanes — WIP>1 unde…\" [backlog]","created_at":"2026-09-02T05:04:42.841Z"}
+{"type":"message","id":431,"thread_root_id":null,"author":"system:lattice","body":"AS-60: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-02T05:11:25.895Z"}
+{"type":"message","id":432,"thread_root_id":null,"author":"system:lattice","body":"AS-60: in_planning → planned — by agent:cto-owen","created_at":"2026-09-02T05:28:42.963Z"}
+{"type":"message","id":433,"thread_root_id":null,"author":"system:lattice","body":"AS-60: planned → in_progress — by agent:developer-lena","created_at":"2026-09-02T05:34:43.030Z"}
+{"type":"message","id":434,"thread_root_id":null,"author":"system:lattice","body":"AS-41: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-02T06:17:21.398Z"}
+{"type":"message","id":435,"thread_root_id":null,"author":"system:lattice","body":"AS-41: in_planning → planned — by agent:cto-owen","created_at":"2026-09-02T06:31:09.645Z"}
+{"type":"message","id":436,"thread_root_id":null,"author":"system:lattice","body":"AS-34: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-02T06:36:46.928Z"}
+{"type":"message","id":437,"thread_root_id":null,"author":"system:lattice","body":"AS-34: in_planning → planned — by agent:cto-owen","created_at":"2026-09-02T06:47:30.882Z"}
+{"type":"message","id":439,"thread_root_id":null,"author":"system:lattice","body":"AS-41: planned → in_progress — by agent:developer-marcus","created_at":"2026-09-02T06:55:10.768Z"}
+{"type":"message","id":440,"thread_root_id":null,"author":"system:lattice","body":"AS-34: planned → in_progress — by agent:developer-lena","created_at":"2026-09-02T06:55:10.770Z"}
+{"type":"message","id":441,"thread_root_id":null,"author":"system:lattice","body":"AS-34: in_progress → review — by agent:developer-lena","created_at":"2026-09-02T07:04:22.679Z"}
+{"type":"message","id":442,"thread_root_id":null,"author":"system:lattice","body":"AS-41: in_progress → review — by agent:developer-marcus","created_at":"2026-09-02T07:46:49.803Z"}
+{"type":"message","id":443,"thread_root_id":null,"author":"system:lattice","body":"AS-60: in_progress → review — by agent:developer-lena","created_at":"2026-09-02T08:08:48.848Z"}
