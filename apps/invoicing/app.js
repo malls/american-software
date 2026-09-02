@@ -31,6 +31,7 @@ import { loadSession, requireSameOrigin, requireSession } from './lib/auth/guard
 import { assetRoutes } from './routes/assets.js';
 import { publicAuthRoutes, sessionAuthRoutes } from './routes/auth.js';
 import { connectRoutes } from './routes/connect.js';
+import { contractRoutes } from './routes/contracts.js';
 import { healthRoutes } from './routes/health.js';
 import { invoiceRoutes } from './routes/invoices.js';
 import { pageRoutes } from './routes/pages.js';
@@ -149,6 +150,15 @@ export function createApp(config, deps) {
   //     route inside that router, never here, so AS-44's webhook keeps its raw
   //     request body by construction.
   app.use(invoiceRoutes(config, { repos, stripe }));
+  // 12. Contract generation (AS-42): one route, POST /contracts, whose exact
+  //     path shadows nothing. NOTE THE DEPENDENCIES — `{ repos }` alone, not
+  //     the `{ repos, stripe }` its two neighbours take. This is the one D1
+  //     entity with no payment-processor dimension at all: no custody guard, no
+  //     connected-account header, no readiness gate, and nothing under
+  //     lib/contracts/ imports lib/stripe/*. The asymmetry is deliberate and is
+  //     asserted in test/contracts.test.js, not left to the eye. Its body
+  //     parser is mounted per route inside that router, never here.
+  app.use(contractRoutes(config, { repos }));
 
   return app;
 }

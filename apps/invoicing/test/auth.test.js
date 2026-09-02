@@ -738,6 +738,7 @@ const ALL_ROUTES = [
   'GET /healthz',
   'GET /tokens.css',
   'POST /connect-stripe/start',
+  'POST /contracts',
   'POST /invoices',
   'POST /invoices/:id',
   'POST /invoices/:id/finalize',
@@ -766,7 +767,7 @@ test('G1: the route walk finds the EXACT committed list — cardinality first', 
     const found = discoverRoutes(app);
     // Never `> 0`: a walk that silently returned nothing would otherwise pass
     // every rule below it on an empty set (the AS-31 lesson).
-    assert.equal(found.length, 14, `expected exactly 14 routes, found ${found.length}: ${found.join(', ')}`);
+    assert.equal(found.length, 15, `expected exactly 15 routes, found ${found.length}: ${found.join(', ')}`);
     assert.deepEqual(found, ALL_ROUTES);
   });
 });
@@ -776,7 +777,7 @@ test('G1b: with NO webhook secret the surface is the same list minus the webhook
   // committed list above is config-dependent and says so in both directions.
   await withApp({ secret: null }, async ({ app }) => {
     const found = discoverRoutes(app);
-    assert.equal(found.length, 13, found.join(', '));
+    assert.equal(found.length, 14, found.join(', '));
     assert.deepEqual(found, ALL_ROUTES.filter((r) => r !== 'POST /webhooks/stripe'));
   });
 });
@@ -795,6 +796,7 @@ test('G2: the public/protected partition is exact in BOTH directions', async () 
       'GET /connect-stripe/refresh',
       'GET /connect-stripe/return',
       'POST /connect-stripe/start',
+      'POST /contracts',
       'POST /invoices',
       'POST /invoices/:id',
       'POST /invoices/:id/finalize',
@@ -833,7 +835,7 @@ test('G3: every protected route\'s cookieless answer is ATTRIBUTABLE to the guar
     assert.equal(ref.headers.getSetCookie().length, 0, 'the guard sets NO cookie: that silence is what distinguishes it from a handler');
 
     const protectedRoutes = found.filter((r) => !PUBLIC_ROUTES.includes(r));
-    assert.equal(protectedRoutes.length, 9, 'cardinality before quantification');
+    assert.equal(protectedRoutes.length, 10, 'cardinality before quantification');
     for (const entry of protectedRoutes) {
       const [method, path] = entry.split(' ');
       const url = new URL(`${base}${path.replaceAll(':id', 'some-id')}`);
@@ -995,7 +997,7 @@ test('G14: actingFreelancerId throws rather than act as nobody', () => {
 test('G15: the whole app is constructible and the boundary survives a rebuild', async () => {
   // A cheap guard against the enumeration above being satisfied by a stale app.
   await withApp({}, async ({ app, base }) => {
-    assert.equal(discoverRoutes(app).length, 14);
+    assert.equal(discoverRoutes(app).length, 15);
     assert.equal((await fetch(`${base}/`, { redirect: 'manual' })).status, 303);
   });
 });

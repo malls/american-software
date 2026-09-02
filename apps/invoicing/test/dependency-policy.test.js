@@ -371,7 +371,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 43, `expected 43 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 48, `expected 48 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/auth/accounts.js',
@@ -381,6 +381,10 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/config.js',
     'lib/connect/onboarding.js',
     'lib/connect/readiness.js',
+    'lib/contracts/generation.js',
+    'lib/contracts/render.js',
+    'lib/contracts/templates.js',
+    'lib/contracts/templates/independent-contractor-agreement.js',
     'lib/db/connection.js',
     'lib/db/database.js',
     'lib/db/errors.js',
@@ -410,6 +414,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'routes/assets.js',
     'routes/auth.js',
     'routes/connect.js',
+    'routes/contracts.js',
     'routes/health.js',
     'routes/invoices.js',
     'routes/pages.js',
@@ -566,7 +571,7 @@ function scanConcept(name, pattern, allowed, { raw = false } = {}) {
   assert.deepEqual(hits, [...allowed].sort(), `${name}: found in [${hits.join(', ')}], allowed in exactly [${allowed.join(', ')}]`);
 }
 
-test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-43 and AS-44 put them', () => {
+test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43 and AS-44 put them', () => {
   // The `stripe` npm module is banned everywhere, permanently: `new Stripe(key)`
   // is the documented bypass of the custody guard (stack decision §8.1).
   scanConcept('stripe module import', /(from|require\s*\(|import\s*\()\s*['"]stripe['"]/, []);
@@ -584,7 +589,11 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-43 and AS-4
   // route and AS-44's signature verification depends on nothing upstream
   // touching the bytes. An app-wide express.json() in app.js is a red test, not
   // a review catch.
-  scanConcept('body parser', /express\.(json|urlencoded|raw|text)\s*\(/, ['routes/auth.js', 'routes/invoices.js', 'routes/webhooks.js']);
+  // AS-42 adds routes/contracts.js: its form parser is mounted PER ROUTE for
+  // exactly the reason this row exists. Widening the row is the only way to
+  // mount a parser at all; what the row actually guards — no app-wide parser
+  // in app.js — is unchanged, and app.js is still not a member.
+  scanConcept('body parser', /express\.(json|urlencoded|raw|text)\s*\(/, ['routes/auth.js', 'routes/contracts.js', 'routes/invoices.js', 'routes/webhooks.js']);
   // ONE verifier, not two. Measured before AS-44: zero hits anywhere. A second,
   // home-rolled comparison in the route or the receiver is the `new Stripe(key)`
   // of this boundary.
@@ -701,6 +710,17 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-43 and AS-4
   // which is what turns "this handler is behind the boundary" from a comment
   // into a loud 500 when it is not.
   scanConcept('current user', /\breq\.currentUser\b/, ['lib/auth/guard.js']);
+  // --- AS-42: the contract renderer -----------------------------------------
+  // ONE ESCAPER, in one file. Every text node of a rendered contract —
+  // template-authored and user-supplied alike — goes through escapeHtml, so
+  // there is no raw-output path an author could reach for. A second escaper
+  // anywhere (in the route, in the generation service, in a future screen
+  // helper) is the `new Stripe(key)` of this boundary: two implementations that
+  // can disagree about what is safe. MEASURED BASELINE BEFORE THIS ROW: zero
+  // occurrences of escapeHtml anywhere under apps/invoicing, so it is a used
+  // exemption from the moment it ships. The used-exemption rule cuts both ways
+  // — a render.js that stopped escaping would fail this row too.
+  scanConcept('contract HTML escape', /\bescapeHtml\b/, ['lib/contracts/render.js']);
   // NOTHING IN THE ACCOUNTS PATH LOGS. The allowlist is the measured current
   // set, so "no logger exists in lib/auth/* or routes/auth.js" is mechanical
   // rather than a review catch — and the stdout/stderr capture in
