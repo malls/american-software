@@ -37,6 +37,13 @@ services:
     platform: linux/amd64
     ports:
       - "127.0.0.1:8348:8348"
+    # The database lives on a named volume, never a bind mount: a bind mount
+    # would put the product's data in the checkout (the apps/chat/data lesson).
+    # The path inside the container is the config default for INVOICING_DB_PATH;
+    # test/deploy-shape.test.js pins the Dockerfile, this mount and that default
+    # to one another.
+    volumes:
+      - invoicing-data:/app/data
     # INVOICING_STRIPE_SECRET_KEY is a PASS-THROUGH (AS-38): the value comes from
     # the host shell or `docker compose --env-file .env.local`, never from this
     # file, and an unset host variable arrives as '' — which config.js treats as
@@ -106,3 +113,6 @@ networks:
   # internal: no default gateway — nothing attached can reach the internet.
   stripe-mock:
     internal: true
+
+volumes:
+  invoicing-data:
