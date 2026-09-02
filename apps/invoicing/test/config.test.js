@@ -6,35 +6,39 @@
 // board ask) off the critical path of fifteen downstream tasks, and it is
 // asserted below against an empty object literal rather than process.env.
 //
-// The secret/required machinery is exercised against a FIXTURE schema, because
-// no real secret exists yet and naming one would encode exactly the assumption
-// the scaffold must not encode (plan §7.3). AS-38 and AS-40 inherit a tested
-// mechanism.
+// The secret/required machinery is exercised against a FIXTURE schema: it was
+// built at AS-37 before the first real secret existed (plan §7.3), and the
+// fixture keeps those tests independent of which real secrets exist. AS-38 added
+// the first live secret row — the Stripe key, as a NAME only — and the two tests
+// at the end of this file pin how the live schema treats it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ConfigError, SCHEMA, loadConfig, startupLogLine, validateResolved } from '../lib/config.js';
 
 // --- V2: cardinality before quantification ----------------------------------
 
-test('the schema is exactly the seven settings AS-37 defines', () => {
-  assert.equal(SCHEMA.length, 7);
+test('the schema is exactly the eight settings AS-37 and AS-38 define', () => {
+  assert.equal(SCHEMA.length, 8);
   assert.deepEqual(
     SCHEMA.map((row) => row.key),
-    ['port', 'bind', 'env', 'logLevel', 'vendorDir', 'viewsDir', 'publicDir'],
+    ['port', 'bind', 'env', 'logLevel', 'vendorDir', 'viewsDir', 'publicDir', 'stripeSecretKey'],
   );
   // Every env var is INVOICING_-prefixed except NODE_ENV, which is a platform
   // convention. The prefix keeps the monorepo's namespaces disjoint from
   // apps/chat's CHAT_.
   const prefixed = SCHEMA.filter((row) => row.envVar.startsWith('INVOICING_'));
-  assert.equal(prefixed.length, 6);
+  assert.equal(prefixed.length, 7);
   assert.deepEqual(SCHEMA.filter((row) => !row.envVar.startsWith('INVOICING_')).map((r) => r.envVar), ['NODE_ENV']);
 });
 
-test('no setting is required and none is a secret at AS-37', () => {
-  // Declaring a STRIPE_* or SESSION_SECRET row now would encode an assumption
-  // this task must not encode (plan §7.3 item 1). AS-38 and AS-40 add theirs.
+test('no setting is required, and the only secret is the Stripe key name (AS-38)', () => {
+  // The app boots from an empty environment: nothing is required. Exactly one
+  // row is a secret — the Stripe key, optional and defaulting to null. AS-40
+  // adds SESSION_SECRET here the same way; nothing else belongs on this list.
   assert.deepEqual(SCHEMA.filter((row) => row.required).map((r) => r.envVar), []);
-  assert.deepEqual(SCHEMA.filter((row) => row.secret).map((r) => r.envVar), []);
+  assert.deepEqual(SCHEMA.filter((row) => row.secret).map((r) => r.envVar), ['INVOICING_STRIPE_SECRET_KEY']);
+  const stripe = SCHEMA.find((row) => row.envVar === 'INVOICING_STRIPE_SECRET_KEY');
+  assert.deepEqual(stripe, { key: 'stripeSecretKey', envVar: 'INVOICING_STRIPE_SECRET_KEY', type: 'string', default: null, required: false, secret: true });
 });
 
 // --- the empty-environment property -----------------------------------------
@@ -49,6 +53,7 @@ test('defaults resolve from a COMPLETELY EMPTY environment', () => {
     vendorDir: '/app/vendor',
     viewsDir: '/app/views',
     publicDir: '/app/public',
+    stripeSecretKey: null,
   });
   // Enumerable keys are exactly the schema keys — redacted() is non-enumerable
   // so it cannot leak into a JSON body as a stray property.
@@ -91,6 +96,7 @@ test('INVOICING_* overrides win over defaults', () => {
     vendorDir: '/elsewhere/vendor',
     viewsDir: '/elsewhere/views',
     publicDir: '/elsewhere/public',
+    stripeSecretKey: null,
   });
 });
 
@@ -184,6 +190,38 @@ test('a secret value appears in NEITHER the redacted object NOR the startup log 
 
 test('the startup log line names the bind and port', () => {
   assert.match(startupLogLine(loadConfig({})), /127\.0\.0\.1:8348/);
+});
+
+// --- the live secret row (AS-38) ----------------------------------------------
+
+test('an unconfigured Stripe key is null in the config AND in redacted(), so the startup line says which it is', () => {
+  // `null` and `[redacted]` are different facts — "no key" versus "a key you may
+  // not see" — and an operator reading the startup line or /healthz needs to tell
+  // them apart without a debugger. Nothing about the value is ever said.
+  const config = loadConfig({});
+  assert.equal(config.stripeSecretKey, null);
+  assert.equal(config.redacted().stripeSecretKey, null);
+  assert.match(startupLogLine(config), /"stripeSecretKey":null/);
+  // An empty or whitespace value is "unconfigured" too — never an empty key that
+  // reaches a real call as `Bearer `.
+  assert.equal(loadConfig({ INVOICING_STRIPE_SECRET_KEY: '' }).stripeSecretKey, null);
+  assert.equal(loadConfig({ INVOICING_STRIPE_SECRET_KEY: '   ' }).stripeSecretKey, null);
+});
+
+test('a configured Stripe key is [redacted] in redacted() and the startup line, and never appears in either', () => {
+  // Deliberately NOT key-shaped (plan §2.8): a value that looks like a real key
+  // is how a fake key ends up in a real call, and AC 34 greps for the shape.
+  const value = 'configured-stripe-key-placeholder-value';
+  const config = loadConfig({ INVOICING_STRIPE_SECRET_KEY: `  ${value}  ` });
+  assert.equal(config.stripeSecretKey, value, 'the app itself sees the trimmed real value');
+  assert.equal(config.redacted().stripeSecretKey, '[redacted]');
+  const logLine = startupLogLine(config);
+  assert.match(logLine, /"stripeSecretKey":"\[redacted\]"/);
+  assert.ok(!logLine.includes(value), `startup log line leaked the key: ${logLine}`);
+  assert.ok(!JSON.stringify(config.redacted()).includes(value));
+  // ...and the guard is not vacuous: the raw config really does contain it.
+  assert.ok(JSON.stringify({ ...config }).includes(value));
+  assert.deepEqual(validateResolved(config), []);
 });
 
 // --- validateResolved: the health check's config check, at unit level --------

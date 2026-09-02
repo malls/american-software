@@ -6,7 +6,7 @@ Built by AS-37 as the scaffold every other D1 task sits on. The binding stack
 decision is `docs/engineering/01-stack-decision.md`; the plan this was built
 from is `.lattice/plans/task_01M1D34MWF287MVX3FC9NTASW7.md`.
 
-## The two commands
+## The three commands
 
 The app **only ever runs under compose** (`CLAUDE.md ## Infra`). There is no
 supported way to run it, or its suite, on the host.
@@ -15,13 +15,48 @@ supported way to run it, or its suite, on the host.
 # from apps/invoicing/
 DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose up --build
 DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose run --rm --build test
-docker compose down
+DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose run --rm --build contract && docker compose down
 ```
+
+`up` runs `web` alone. `test` runs the whole suite offline (the stripe-mock
+cases report as *skipped*, never as passed). `contract` runs the same suite
+with the stripe-mock cases live — see [The contract half](#the-contract-half-stripe-mock);
+the trailing `down` stops the mock that `depends_on` started (`--rm` removes only
+the run container). Plain `docker compose down` after `up` is unchanged.
 
 `web` serves on **http://127.0.0.1:8348** — `/` (scaffold page), `/healthz`,
 `/tokens.css`. Port 8348 is deliberate: 8347 is `asc-chat-server-1` and must not
 be disturbed. The compose project is named `asc-invoicing`, so `docker compose
 down` here cannot take the chat app with it.
+
+### Giving the app a key
+
+The app has exactly one secret setting, `INVOICING_STRIPE_SECRET_KEY`
+(`lib/config.js`, the only `secret: true` row). It is **optional, and absent by
+default**: nothing in this repository has a Stripe key, the Stripe account itself
+is a board-gated ask (AS-51), and every command above runs without one.
+
+`compose.yaml` passes the variable through as `${INVOICING_STRIPE_SECRET_KEY:-}`
+— the value comes from your shell or from an env file you name on the command
+line, never from a committed file. To run `web` with a test-mode key, keep it in
+`apps/invoicing/.env.local` (gitignored at the repo root, `.dockerignore`d at the
+repo root, and **not** referenced by `compose.yaml`, so its absence is not an error):
+
+```bash
+# apps/invoicing/.env.local — never committed
+INVOICING_STRIPE_SECRET_KEY=sk_test_x
+```
+
+```bash
+DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose --env-file .env.local up --build
+```
+
+What absent means: an unset variable arrives in the container as `''`, which
+`config.js` reads as *unconfigured* — `stripeSecretKey: null` in the startup
+line. A configured key is logged as `"[redacted]"` and appears nowhere else; a
+Stripe call made without one fails at the `requireKey` step with a `ConfigError`
+naming the variable — **after** the custody guard has already run, so a missing
+key never hides a custody refusal.
 
 **Why the `DOCKER_BUILDKIT=1` prefix.** This host's shell exports
 `DOCKER_BUILDKIT=0`/`COMPOSE_DOCKER_CLI_BUILD=0`, which `apps/chat` documents as
@@ -51,8 +86,40 @@ built on that property, and it is what keeps AS-51 (the Stripe account board
 ask) off their critical path.
 
 The suite also passes with a **completely empty environment**: no `.env`, no
-exported variable, no credential. There is no `.env*` file in this directory and
-no credential is named in `compose.yaml`, by design.
+exported variable, no credential. There is no **committed** `.env*` file in this
+directory — the only one that may exist is the optional, gitignored `.env.local`
+described above — and `compose.yaml` names the one secret variable only as a
+`${NAME:-}` pass-through, never with a value. `test/deploy-shape.test.js`
+asserts that shape, and `test/stripe-client.test.js` (C15) asserts the key
+variable is undefined while the suite runs.
+
+### The contract half (stripe-mock)
+
+`test/stripe-mock.test.js` sends every allowlisted request shape through the
+real client and the real transport to **stripe-mock**, Stripe's own open-source
+request validator, pinned in `compose.yaml` to `stripe/stripe-mock:v0.203.0` —
+the tag whose bundled OpenAPI spec (`2026-08-26.dahlia`) the client's
+`Stripe-Version` constant names. The mock runs with `-strict-version-check`, so
+a drifted version constant is a 400, not a silent pass (K1); it rejects unknown
+parameter names, so the 200s are not vacuous (K9); and it **accepts** the
+forbidden custody shape that the client refuses with zero transport calls (K11)
+— Stripe's schema will not hold the never-in-the-flow-of-funds boundary for us,
+which is the whole reason `lib/stripe/custody.js` exists.
+
+Why this is not a signup, and not an account: pulling a public image creates no
+credential and no relationship with Stripe. The mock checks only that the key
+has a test-mode prefix; the placeholder the test file uses is the **one**
+key-shaped literal in the repository, and it never leaves the compose network. The `contract` and
+`stripe-mock` services sit on an `internal: true` network with no gateway; `web`
+is not on it; `test` still has no network at all. The first `contract` run pulls
+the image once (registry access at pull time, like `npm ci` at build time); every
+later run works offline. The `test` service is unchanged and the contract cases
+self-skip there — the T3 property (no accounts, no external services, no egress)
+is untouched.
+
+Readiness is the test's own poll — an unauthenticated `GET /v1/customers` every
+100 ms for at most 10 s; the 401 is the reachability signal. A compose
+healthcheck on the mock would need a key literal in `compose.yaml`, which is banned.
 
 ### The three structural guards
 
@@ -97,6 +164,12 @@ server.js        entrypoint: loadConfig() -> createApp() -> listen(). Only this
 app.js           composition root. Takes config as an ARGUMENT, never reads the
                  environment. Route registration order is load-bearing
 lib/config.js    schema-as-data; frozen settings; redacted() for secrets
+lib/stripe/      the ONLY outbound HTTP in the product (AS-38):
+  custody.js       the three policy tables and guardRequest() — the never-in-the-
+                   flow-of-funds boundary as data, checked before the key exists
+  client.js        createStripeClient(): validate -> build -> guard -> requireKey
+                   -> sign -> transport -> interpret; encodeForm(); the error classes
+  transport.js     fetchTransport(): the one `fetch` token in product source
 lib/health.js    the checks, as data
 lib/vendor.js    assets consumed from outside this app (registry)
 lib/views.js     the template registry + the health check's render probe
@@ -135,10 +208,23 @@ declaration count are committed literals. Update them in the same commit.
 - **AS-45 deletes `views/scaffold.ejs`** (and its row in `lib/views.js`, and
   `public/scaffold.css`). It is the one non-budgeted page, and exists only to
   prove the chain end to end in a browser. It is not one of the seven screens.
-- **AS-38 owns Stripe.** There is deliberately no HTTP client anywhere outside
-  `test/` — `test/dependency-policy.test.js` scans for one and fails on a hit.
-  The hand-rolled client was chosen because the only bypass is a second HTTP
-  client, and those call sites stay greppable. Do not add a generic HTTP helper.
+- **AS-38 landed Stripe: `lib/stripe/` is the only outbound HTTP in the
+  product, and the custody guard is the only way through it.** The one `fetch`
+  token in product source is a pinned line of `lib/stripe/transport.js`; the one
+  import of that file is a pinned line of `lib/stripe/client.js`; both are
+  `SANCTIONED` entries in `test/dependency-policy.test.js`, which fails on any
+  other HTTP client (`fetch`, `http`/`https`/`http2`/`net`/`tls`,
+  `child_process`, `WebSocket`, the `stripe` SDK) anywhere outside `test/`. Do
+  not add a generic HTTP helper: the guard runs **before** the key is checked and
+  never sees the key, so every request Stripe receives from this app went
+  through it. **Adding an endpoint:** the dependent task that needs it adds one
+  row to `ALLOWED_ENDPOINTS` in `lib/stripe/custody.js` — `method`, exact path
+  with `{id}` for the one variable segment, `scope` (`platform` or `connected`),
+  and a `reason` — plus its case in `test/stripe-mock.test.js` and the row-count
+  literal in `test/stripe-client.test.js`. Never a wildcard, never a row under a
+  `FORBIDDEN_ENDPOINT_PREFIXES` entry (the module refuses to load), and never a
+  parameter named in `FORBIDDEN_PARAMS` — those tables change only with a board
+  ruling recorded in the task that changes them.
 - **AS-39 owns data.** No database is opened, `node:sqlite` is imported nowhere,
   and no money type is guessed at (that is integer minor units with an explicit
   currency column, and it is AS-39's to define).
