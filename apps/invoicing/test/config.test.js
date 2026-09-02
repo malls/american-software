@@ -34,8 +34,9 @@ test('the schema is exactly the eleven settings AS-37, AS-38, AS-39, AS-41 and A
 test('no setting is required, and the only secrets are the two Stripe secret names (AS-38, AS-44)', () => {
   // The app boots from an empty environment: nothing is required. Exactly two
   // rows are secrets — the API key and the webhook signing secret, both
-  // optional and both defaulting to null. AS-40 adds SESSION_SECRET here the
-  // same way; nothing else belongs on this list.
+  // optional and both defaulting to null. AS-40 predicted a SESSION_SECRET
+  // here and does not add one: it signs nothing, so it needs no secret.
+  // Nothing else belongs on this list.
   assert.deepEqual(SCHEMA.filter((row) => row.required).map((r) => r.envVar), []);
   assert.deepEqual(
     SCHEMA.filter((row) => row.secret).map((r) => r.envVar),

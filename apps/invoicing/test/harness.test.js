@@ -12,9 +12,9 @@
 // makes green mean something, structurally, from day one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { TEST_DIR } from './helpers/server.js';
+import { APP_DIR, TEST_DIR } from './helpers/server.js';
 
 // --- V1: the runner is proven able to fail ----------------------------------
 
@@ -61,6 +61,7 @@ function discoverTestFiles(dir = TEST_DIR) {
 // two-line change: the file, and this list.
 const EXPECTED_TEST_FILES = [
   'assets.test.js',
+  'auth.test.js',
   'config.test.js',
   'connect.test.js',
   'db.test.js',
@@ -78,7 +79,7 @@ const EXPECTED_TEST_FILES = [
 test('V2: the suite is exactly the files it is supposed to be', () => {
   const found = discoverTestFiles();
   // Cardinality FIRST, against a committed number — never `length > 0`.
-  assert.equal(found.length, 13, `expected exactly 13 test files, found ${found.length}: ${found.join(', ')}`);
+  assert.equal(found.length, 14, `expected exactly 14 test files, found ${found.length}: ${found.join(', ')}`);
   assert.deepEqual(found, EXPECTED_TEST_FILES);
 });
 
@@ -86,12 +87,60 @@ test('V2: this file is one of the discovered files, and the runner is running it
   // Closes the remaining gap in the check above: the disk enumeration proves
   // the files EXIST, and this proves the runner actually loaded at least this
   // one. Together with V1 (a failure here really exits 1), a green suite means
-  // these thirteen files ran and could have failed.
+  // these fourteen files ran and could have failed.
   assert.ok(EXPECTED_TEST_FILES.includes('harness.test.js'));
   assert.ok(
     import.meta.url.endsWith('/test/harness.test.js'),
     `harness.test.js is running from an unexpected location: ${import.meta.url}`,
   );
+});
+
+// --- V4: every grep-based guard in this repo depends on this -----------------
+
+/** Every .js file under `dir`, skipping the trees nobody owns. */
+function discoverSourceFiles(dir, found = []) {
+  for (const entry of readdirSync(dir)) {
+    if (entry === 'node_modules' || entry === 'vendor') continue;
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) discoverSourceFiles(path, found);
+    else if (entry.endsWith('.js')) found.push(path);
+  }
+  return found;
+}
+
+test('V4: no source file contains a control byte — grep must be able to read all of them', () => {
+  // ADDED BY AS-40, after the same defect appeared TWICE in one task. A source
+  // file carrying a literal NUL (an escape sequence that was written as the
+  // character it denotes rather than as its two-character spelling) makes `file`
+  // report "data" and makes grep treat it as BINARY: every match prints nothing
+  // and the exit status is 1. Both AS-40 occurrences ran and passed their unit
+  // tests perfectly — the damage was invisible except through grep.
+  //
+  // That matters far beyond one file. This repo's mutation discipline rests on
+  // grep-based assert-applied steps, and the dependency-policy concept rows are
+  // greppable by a reviewer working cold. A binary source file silently defeats
+  // both: a `grep -c` that should read 1 reads nothing, and an unapplied
+  // mutation becomes indistinguishable from a guard that did not fire.
+  //
+  // Tab, LF and CR are the only control bytes a source file may carry.
+  const files = discoverSourceFiles(APP_DIR);
+  assert.ok(files.length > 20, `the walk found only ${files.length} files — it is not examining the tree`);
+  const offenders = [];
+  for (const path of files) {
+    const bytes = readFileSync(path);
+    for (let i = 0; i < bytes.length; i += 1) {
+      const b = bytes[i];
+      if (b < 0x20 && b !== 0x09 && b !== 0x0a && b !== 0x0d) {
+        offenders.push(`${relative(APP_DIR, path)}: byte 0x${b.toString(16).padStart(2, '0')} at offset ${i}`);
+        break;
+      }
+      if (b === 0x7f) {
+        offenders.push(`${relative(APP_DIR, path)}: DEL at offset ${i}`);
+        break;
+      }
+    }
+  }
+  assert.deepEqual(offenders, [], `control bytes in source — write the ESCAPE SEQUENCE, not the character:\n${offenders.join('\n')}`);
 });
 
 // --- V3 is asserted where the subject lives ---------------------------------

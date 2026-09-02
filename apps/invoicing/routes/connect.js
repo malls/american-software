@@ -19,31 +19,7 @@ import { ConfigError } from '../lib/config.js';
 import { NotFoundError, ValidationError } from '../lib/db/database.js';
 import { StripeApiError, StripeCustodyError, StripeTransportError } from '../lib/stripe/client.js';
 import { createOnboarding } from '../lib/connect/onboarding.js';
-
-/**
- * AS-40 OBLIGATION: when sessions land, AS-40 replaces this function's BODY
- * with session-derived identity and deletes the query parameter from start.
- * Return/refresh keep working unchanged, because a Stripe redirect is a
- * top-level GET navigation and carries session cookies.
- *
- * Until then there are no sessions, so every route takes the acting freelancer
- * as ?freelancer=<id> (the AS-39 UUID). On return/refresh the parameter
- * arrives because WE minted it into return_url/refresh_url when creating the
- * account link. These endpoints are exactly as open as every other route in
- * the app today — there is no auth anywhere yet; this seam is the one place
- * the ownership check lands when sessions exist.
- *
- * A query parameter deliberately, not a body field: app.js mounts no
- * body-parsing middleware and this task adds none (plan §3.1).
- *
- * @returns {string | null} the trimmed id, or null when absent/blank/repeated
- */
-export function resolveFreelancerId(req) {
-  const raw = req.query.freelancer;
-  if (typeof raw !== 'string') return null;
-  const trimmed = raw.trim();
-  return trimmed === '' ? null : trimmed;
-}
+import { actingFreelancerId } from '../lib/auth/guard.js';
 
 /** Plan §3.2's error taxonomy, mapped by error class — never by message text. */
 function statusFor(err) {
@@ -74,11 +50,12 @@ export function connectRoutes(config, { repos, stripe }) {
   const onboarding = createOnboarding({ appBaseUrl: config.appBaseUrl, repos, stripe });
   const router = Router();
 
+  // Identity comes from the session and from nothing else (AS-40). These routes
+  // are mounted below the auth boundary in app.js, so actingFreelancerId cannot
+  // return null — it THROWS if it is ever reached without one, which would mean
+  // this router was mounted above the boundary.
   const handle = (step, act) => async (req, res) => {
-    const freelancerId = resolveFreelancerId(req);
-    if (freelancerId === null) {
-      return res.status(400).type('text/plain').send('missing freelancer parameter\n');
-    }
+    const freelancerId = actingFreelancerId(req);
     try {
       const { redirectTo } = await act(freelancerId);
       res.redirect(303, redirectTo);

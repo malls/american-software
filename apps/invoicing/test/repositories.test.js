@@ -924,12 +924,12 @@ test('Z2: with no id generator injected, ids are v4 UUIDs and distinct', (t) => 
   assert.equal(new Set(ids).size, ids.length);
 });
 
-test('Z3: createRepositories returns a frozen object with exactly the seven keys', (t) => {
+test('Z3: createRepositories returns a frozen object with exactly the nine keys', (t) => {
   const db = openDatabase(':memory:');
   t.after(() => db.close());
   migrate(db);
   const repos = createRepositories(db);
-  assert.deepEqual(Object.keys(repos), ['transaction', 'freelancers', 'connectedAccounts', 'clients', 'contracts', 'invoices', 'stripeEvents']);
+  assert.deepEqual(Object.keys(repos), ['transaction', 'freelancers', 'connectedAccounts', 'clients', 'contracts', 'invoices', 'stripeEvents', 'credentials', 'sessions']);
   assert.ok(Object.isFrozen(repos));
   for (const key of Object.keys(repos)) {
     if (key !== 'transaction') assert.ok(Object.isFrozen(repos[key]), `${key} is frozen`);

@@ -48,23 +48,24 @@ export function createOnboarding({ appBaseUrl, repos, stripe, now = () => new Da
   if (stripe === null || typeof stripe !== 'object' || typeof stripe.request !== 'function') throw new TypeError('connect: stripe must be a client exposing request()');
   if (typeof now !== 'function') throw new TypeError('connect: now must be a function');
 
-  /** Constructed, never concatenated (plan §3.3): the freelancer id rides as a
-   *  query parameter so any id shape survives encoding intact. */
-  function routeUrl(path, freelancerId) {
-    const url = new URL(path, appBaseUrl);
-    url.searchParams.set('freelancer', freelancerId);
-    return url.toString();
+  /** Constructed, never concatenated (plan §3.3). AS-40 removed the freelancer
+   *  query parameter these URLs used to carry: Stripe's return and refresh are
+   *  top-level GET navigations, so they arrive with the session cookie under
+   *  SameSite=Lax and the handlers read identity from that. The Stripe
+   *  parameter NAMES are untouched. */
+  function routeUrl(path) {
+    return new URL(path, appBaseUrl).toString();
   }
 
   /** POST /v1/account_links with exactly the four parameters K8 validates. */
-  async function mintLink(stripeAccountId, freelancerId) {
+  async function mintLink(stripeAccountId) {
     const link = await labelled('mint-onboarding-link', () => stripe.request({
       method: 'POST', path: '/v1/account_links', platform: true,
       params: {
         account: stripeAccountId,
         type: 'account_onboarding',
-        refresh_url: routeUrl('/connect-stripe/refresh', freelancerId),
-        return_url: routeUrl('/connect-stripe/return', freelancerId),
+        refresh_url: routeUrl('/connect-stripe/refresh'),
+        return_url: routeUrl('/connect-stripe/return'),
       },
     }));
     return link.data.url;
@@ -86,7 +87,7 @@ export function createOnboarding({ appBaseUrl, repos, stripe, now = () => new Da
       // §3.3 layer 1, the row check: a second start reuses, never creates —
       // UNIQUE (freelancer_id) makes one-account-per-freelancer a database fact.
       if (existing.ready) return { redirectTo: SCREEN_PATH }; // nothing to onboard; zero Stripe calls
-      return { redirectTo: await mintLink(existing.stripeAccountId, freelancerId) };
+      return { redirectTo: await mintLink(existing.stripeAccountId) };
     }
     // No row. Stripe first, row after: a refused create leaves nothing behind
     // (R10). `params: {}` is load-bearing — the bare POST is what yields the
@@ -114,7 +115,7 @@ export function createOnboarding({ appBaseUrl, repos, stripe, now = () => new Da
       if (winner === null) throw err;
       stripeAccountId = winner.stripeAccountId;
     }
-    return { redirectTo: await mintLink(stripeAccountId, freelancerId) };
+    return { redirectTo: await mintLink(stripeAccountId) };
   }
 
   async function handleReturn(freelancerId) {
@@ -143,7 +144,7 @@ export function createOnboarding({ appBaseUrl, repos, stripe, now = () => new Da
     // nothing wrong — mint a fresh link and put them straight back into the
     // hosted flow. No readiness write: mid-onboarding, a read adds latency and
     // no information; creation and return are the sync moments (§3.5).
-    return { redirectTo: await mintLink(row.stripeAccountId, freelancerId) };
+    return { redirectTo: await mintLink(row.stripeAccountId) };
   }
 
   return Object.freeze({ start, handleReturn, handleRefresh });

@@ -23,7 +23,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { HEALTH_CHECKS, runHealthChecks } from '../lib/health.js';
 import { VIEWS } from '../lib/views.js';
-import { configFor, preparedConfigFor, withServer } from './helpers/server.js';
+import { configFor, preparedConfigFor, seedSignedIn, withServer } from './helpers/server.js';
 
 /** Names of the checks that failed, sorted. */
 const failing = (body) => body.checks.filter((c) => !c.ok).map((c) => c.name).sort();
@@ -155,8 +155,12 @@ test('a check that throws is a failing check, never a 500', async () => {
 // --- the scaffold page (plan §9.7, folded in here as the plan allows) --------
 
 test('GET / renders the scaffold page and links the vendored stylesheet', async () => {
-  await withServer(configFor(), async (base) => {
-    const res = await fetch(`${base}/`);
+  // AS-40 put this page behind the auth boundary, so the case that asserts what
+  // it RENDERS now signs in first. That the same page redirects when signed out
+  // is asserted in auth.test.js (G3), not here.
+  await withServer(configFor(), async (base, app, deps) => {
+    const { cookie } = seedSignedIn(deps.repos);
+    const res = await fetch(`${base}/`, { headers: { cookie } });
     assert.equal(res.status, 200);
     assert.match(res.headers.get('content-type'), /text\/html/);
     const html = await res.text();
@@ -170,8 +174,13 @@ test('GET / renders the scaffold page and links the vendored stylesheet', async 
 });
 
 test('an unknown path 404s rather than falling through to something else', async () => {
-  await withServer(configFor(), async (base) => {
-    const res = await fetch(`${base}/no-such-page`);
+  await withServer(configFor(), async (base, app, deps) => {
+    // Signed in, because for a signed-out caller an unknown path is answered by
+    // the guard (a redirect to sign-in) before express can 404 it — which is
+    // the correct answer and is asserted in auth.test.js. This case is about
+    // ROUTING, so it removes auth from the question.
+    const { cookie } = seedSignedIn(deps.repos);
+    const res = await fetch(`${base}/no-such-page`, { headers: { cookie } });
     assert.equal(res.status, 404);
   });
 });

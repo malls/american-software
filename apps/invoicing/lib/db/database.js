@@ -15,8 +15,10 @@ import { migrate, schemaVersion, SCHEMA_VERSION } from './migrate.js';
 import { createClientsRepository } from './repositories/clients.js';
 import { createConnectedAccountsRepository } from './repositories/connected-accounts.js';
 import { createContractsRepository } from './repositories/contracts.js';
+import { createCredentialsRepository } from './repositories/credentials.js';
 import { createFreelancersRepository } from './repositories/freelancers.js';
 import { createInvoicesRepository } from './repositories/invoices.js';
+import { createSessionsRepository } from './repositories/sessions.js';
 import { createStripeEventsRepository } from './repositories/stripe-events.js';
 
 export {
@@ -93,10 +95,14 @@ export function probeDatabase(dbPath) {
 }
 
 /**
- * The repositories a route module is handed (plan §2.5): exactly seven keys, the
- * six entity repositories and `transaction`, frozen. Callers never see SQL or
+ * The repositories a route module is handed (plan §2.5): exactly nine keys, the
+ * eight entity repositories and `transaction`, frozen. Callers never see SQL or
  * the driver's rows — plain camelCase objects in, plain objects out, and every
  * failure is a RepositoryError with a stable `code`.
+ *
+ * `credentials` and `sessions` are AS-40's (plan §4.2), appended last. The
+ * credential repository is the ONE way to a password hash, and it has exactly
+ * one caller (lib/auth/accounts.js) — the hash never joins the freelancer row.
  *
  * The clock and the id generator are injected so tests can fix them; nothing
  * under lib/db/ calls datetime('now') or reads the wall clock any other way.
@@ -114,6 +120,8 @@ export function createRepositories(db, { now = () => new Date().toISOString(), n
     contracts: createContractsRepository(db, ctx),
     invoices: createInvoicesRepository(db, ctx),
     stripeEvents: createStripeEventsRepository(db, ctx),
+    credentials: createCredentialsRepository(db, ctx),
+    sessions: createSessionsRepository(db, ctx),
   });
 }
 
