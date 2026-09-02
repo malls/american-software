@@ -315,8 +315,17 @@ test('A17: a plaintext password_hash is refused TWICE — by the repository, and
       .prepare('INSERT INTO credentials (freelancer_id, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?)')
       .run(freelancer.id, hash, at, at);
 
-    // (a) the repository refuses, with the friendly named-field error.
-    assert.throws(() => repos.credentials.create(freelancer.id, PASSWORD), ValidationError);
+    // (a) THE REPOSITORY refuses, before any SQL runs. The `field` is what
+    // makes this half distinguishable from half (b): the repository names the
+    // input it rejected (`passwordHash`), while the engine's mapped refusal
+    // names the constraint (`check`). Both are ValidationError, so asserting
+    // only the CLASS here would let this half pass on the engine's answer —
+    // and deleting the repository assertion would then redden nothing.
+    assert.throws(
+      () => repos.credentials.create(freelancer.id, PASSWORD),
+      (err) => err instanceof ValidationError && err.field === 'passwordHash',
+      'must be answered by the repository (field passwordHash), not by the engine underneath it (field check)',
+    );
     assert.equal(repos.credentials.getByFreelancer(freelancer.id), null, 'nothing was written');
 
     // (b) THE ENGINE refuses, reached past the repository entirely. This is the
@@ -350,10 +359,15 @@ test('A18: a raw token as a session id is refused TWICE — by the repository, a
     const bad = [token, 'A'.repeat(64), `${'0'.repeat(63)}g`, '0'.repeat(63), '0'.repeat(65)];
     assert.equal(bad.length, 5, 'cardinality first: the committed list of rejected id shapes');
 
-    // (a) the repository refuses each one, before any SQL runs.
+    // (a) THE REPOSITORY refuses each one, before any SQL runs. As in A17 the
+    // `field` is what separates this half from half (b) — the repository names
+    // the input (`id`), the engine names the constraint (`check`).
     for (const value of bad) {
-      assert.throws(() => repos.sessions.create({ id: value, freelancerId: freelancer.id, expiresAt: at }),
-        ValidationError, value.slice(0, 12));
+      assert.throws(
+        () => repos.sessions.create({ id: value, freelancerId: freelancer.id, expiresAt: at }),
+        (err) => err instanceof ValidationError && err.field === 'id',
+        `must be answered by the repository (field id) for ${value.slice(0, 12)}`,
+      );
     }
 
     // (b) THE ENGINE refuses each one too, reached past the repository.
