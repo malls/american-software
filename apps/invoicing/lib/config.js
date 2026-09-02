@@ -18,7 +18,14 @@
 // process cannot be pointed at an in-memory database by a typo. Its default is
 // the ONE copy of the in-container path: compose mounts the volume at its
 // directory and the Dockerfile owns that directory, and test/deploy-shape.test.js
-// pins the three to one another. AS-40 (sessions) adds its own row the same way.
+// pins the three to one another. AS-41 added the app's public base URL —
+// `type: 'url'` accepts only a bare http(s) origin (no path, query, fragment,
+// credentials, or trailing slash; the rules mirror client.js#validateBaseUrl),
+// because minted Stripe onboarding links carry return/refresh URLs built on it
+// and a malformed base must fail at boot, not at the first redirect. Its default
+// is the host side of compose's port map — the address a browser on this host
+// uses — so compose stays unchanged. AS-40 (sessions) adds its own row the same
+// way.
 
 /** The live schema. Every row: { key, envVar, type, default, required, secret }.
  *  Nothing is `required`: the app boots and serves /healthz from a completely
@@ -32,6 +39,7 @@ export const SCHEMA = Object.freeze([
   { key: 'viewsDir', envVar: 'INVOICING_VIEWS_DIR', type: 'path', default: '/app/views' },
   { key: 'publicDir', envVar: 'INVOICING_PUBLIC_DIR', type: 'path', default: '/app/public' },
   { key: 'dbPath', envVar: 'INVOICING_DB_PATH', type: 'path', default: '/app/data/invoicing.sqlite' },
+  { key: 'appBaseUrl', envVar: 'INVOICING_APP_BASE_URL', type: 'url', default: 'http://127.0.0.1:8348' },
   { key: 'stripeSecretKey', envVar: 'INVOICING_STRIPE_SECRET_KEY', type: 'string', default: null, required: false, secret: true },
 ].map(Object.freeze));
 
@@ -75,6 +83,25 @@ function coerce(row, raw) {
       // error, which is the opposite of what §7.4 asks for.
       if (!value.startsWith('/')) throw new ConfigError(row.envVar, `must be an absolute path, got ${JSON.stringify(raw)}`);
       return value;
+    case 'url': {
+      // A bare http(s) origin, stored as given (AS-41). A value ending in `/`
+      // beyond the scheme://host[:port] is rejected, never silently trimmed:
+      // `new URL(path, base)` treats `http://x` and `http://x/` identically,
+      // but a config value should have exactly one accepted spelling.
+      let url;
+      try {
+        url = new URL(value);
+      } catch (err) {
+        throw new ConfigError(row.envVar, `expected an absolute http(s) origin, got ${JSON.stringify(raw)}`);
+      }
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new ConfigError(row.envVar, `must be http: or https:, got ${JSON.stringify(raw)}`);
+      if (url.username !== '' || url.password !== '') throw new ConfigError(row.envVar, 'must carry no credentials');
+      if (url.search !== '' || url.hash !== '') throw new ConfigError(row.envVar, 'must have no query or fragment');
+      if (url.pathname !== '/' || value.endsWith('/')) {
+        throw new ConfigError(row.envVar, `must be a bare origin with no path and no trailing slash, got ${JSON.stringify(raw)}`);
+      }
+      return value;
+    }
     case 'string':
       return value;
     default:
@@ -158,6 +185,26 @@ export function validateResolved(config, schema = SCHEMA) {
       case 'path':
         if (typeof value !== 'string' || !value.startsWith('/')) problems.push(`${row.key} (${row.envVar}) is not an absolute path`);
         break;
+      case 'url': {
+        if (typeof value !== 'string') {
+          problems.push(`${row.key} (${row.envVar}) is not a string`);
+          break;
+        }
+        let url = null;
+        try {
+          url = new URL(value);
+        } catch { /* reported below */ }
+        if (
+          url === null
+          || (url.protocol !== 'http:' && url.protocol !== 'https:')
+          || url.username !== '' || url.password !== ''
+          || url.search !== '' || url.hash !== ''
+          || url.pathname !== '/' || value.endsWith('/')
+        ) {
+          problems.push(`${row.key} (${row.envVar}) is not a bare http(s) origin`);
+        }
+        break;
+      }
       case 'string':
         if (typeof value !== 'string') problems.push(`${row.key} (${row.envVar}) is not a string`);
         break;

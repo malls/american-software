@@ -17,17 +17,17 @@ import { ConfigError, SCHEMA, loadConfig, startupLogLine, validateResolved } fro
 
 // --- V2: cardinality before quantification ----------------------------------
 
-test('the schema is exactly the nine settings AS-37, AS-38 and AS-39 define', () => {
-  assert.equal(SCHEMA.length, 9);
+test('the schema is exactly the ten settings AS-37, AS-38, AS-39 and AS-41 define', () => {
+  assert.equal(SCHEMA.length, 10);
   assert.deepEqual(
     SCHEMA.map((row) => row.key),
-    ['port', 'bind', 'env', 'logLevel', 'vendorDir', 'viewsDir', 'publicDir', 'dbPath', 'stripeSecretKey'],
+    ['port', 'bind', 'env', 'logLevel', 'vendorDir', 'viewsDir', 'publicDir', 'dbPath', 'appBaseUrl', 'stripeSecretKey'],
   );
   // Every env var is INVOICING_-prefixed except NODE_ENV, which is a platform
   // convention. The prefix keeps the monorepo's namespaces disjoint from
   // apps/chat's CHAT_.
   const prefixed = SCHEMA.filter((row) => row.envVar.startsWith('INVOICING_'));
-  assert.equal(prefixed.length, 8);
+  assert.equal(prefixed.length, 9);
   assert.deepEqual(SCHEMA.filter((row) => !row.envVar.startsWith('INVOICING_')).map((r) => r.envVar), ['NODE_ENV']);
 });
 
@@ -54,6 +54,7 @@ test('defaults resolve from a COMPLETELY EMPTY environment', () => {
     viewsDir: '/app/views',
     publicDir: '/app/public',
     dbPath: '/app/data/invoicing.sqlite',
+    appBaseUrl: 'http://127.0.0.1:8348',
     stripeSecretKey: null,
   });
   // Enumerable keys are exactly the schema keys — redacted() is non-enumerable
@@ -89,6 +90,7 @@ test('INVOICING_* overrides win over defaults', () => {
     INVOICING_VIEWS_DIR: '/elsewhere/views',
     INVOICING_PUBLIC_DIR: '/elsewhere/public',
     INVOICING_DB_PATH: '/elsewhere/data/invoicing.sqlite',
+    INVOICING_APP_BASE_URL: 'https://d1.example.test',
   });
   assert.deepEqual({ ...config }, {
     port: 9999,
@@ -99,6 +101,7 @@ test('INVOICING_* overrides win over defaults', () => {
     viewsDir: '/elsewhere/views',
     publicDir: '/elsewhere/public',
     dbPath: '/elsewhere/data/invoicing.sqlite',
+    appBaseUrl: 'https://d1.example.test',
     stripeSecretKey: null,
   });
 });
@@ -139,6 +142,45 @@ test('an out-of-range enum throws, naming its env var', () => {
 
 test('a relative path throws, naming its env var', () => {
   assert.throws(() => loadConfig({ INVOICING_VENDOR_DIR: 'vendor' }), /INVOICING_VENDOR_DIR/);
+});
+
+test('a malformed app base URL throws, naming INVOICING_APP_BASE_URL (AS-41)', () => {
+  // The base minted Stripe onboarding links redirect back to. One accepted
+  // spelling: a bare http(s) origin. A path, query, fragment, credential or
+  // trailing slash is rejected at load — never trimmed into compliance.
+  for (const value of [
+    'not a url',
+    'd1.example.test',
+    'ftp://d1.example.test',
+    'http://d1.example.test/app',
+    'http://d1.example.test/?x=1',
+    'http://d1.example.test/#frag',
+    'http://user:pw@d1.example.test',
+    'http://user@d1.example.test',
+    'http://d1.example.test/',
+    'https://d1.example.test/app/',
+  ]) {
+    assert.throws(() => loadConfig({ INVOICING_APP_BASE_URL: value }), (err) => {
+      assert.ok(err instanceof ConfigError);
+      assert.equal(err.envVar, 'INVOICING_APP_BASE_URL');
+      assert.match(err.message, /INVOICING_APP_BASE_URL/);
+      return true;
+    }, `INVOICING_APP_BASE_URL=${value} was accepted`);
+  }
+  // Accepted: bare origins, either scheme, with or without an explicit port,
+  // stored exactly as given.
+  assert.equal(loadConfig({ INVOICING_APP_BASE_URL: 'https://d1.example.test' }).appBaseUrl, 'https://d1.example.test');
+  assert.equal(loadConfig({ INVOICING_APP_BASE_URL: 'http://127.0.0.1:9999' }).appBaseUrl, 'http://127.0.0.1:9999');
+});
+
+test('validateResolved flags a malformed appBaseUrl (AS-41)', () => {
+  // `null` is NOT in this list: validateResolved treats null as the legitimate
+  // "unconfigured optional" state for every non-required row, url included.
+  for (const bad of ['http://d1.example.test/app', 'http://d1.example.test/', 'not a url', 'ftp://d1.example.test', 42]) {
+    const config = { ...loadConfig({}), appBaseUrl: bad };
+    assert.match(validateResolved(config).join(' '), /appBaseUrl/, `appBaseUrl=${JSON.stringify(bad)} passed validateResolved`);
+  }
+  assert.deepEqual(validateResolved({ ...loadConfig({}), appBaseUrl: 'https://d1.example.test' }), []);
 });
 
 test('the database path must be absolute: a relative path and :memory: both throw, naming INVOICING_DB_PATH (AS-39)', () => {
