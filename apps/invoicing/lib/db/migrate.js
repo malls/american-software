@@ -12,9 +12,10 @@
 import { transaction } from './connection.js';
 import { MigrationError } from './errors.js';
 import m0001 from './migrations/0001-initial.js';
+import m0002 from './migrations/0002-accounts.js';
 
 /** Every migration this build knows, in the order they apply. Append only. */
-export const MIGRATIONS = Object.freeze([m0001]);
+export const MIGRATIONS = Object.freeze([m0001, m0002]);
 
 // Load-time check, like custody.js's: a mis-numbered, renamed-to-collide, or
 // empty migration fails every import — the whole suite — instead of one boot.

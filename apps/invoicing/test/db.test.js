@@ -32,21 +32,24 @@ import { prepareDatabase, probeDatabase } from '../lib/db/database.js';
 import { SCHEMA, loadConfig } from '../lib/config.js';
 import { configFor, freshDbPath, preparedConfigFor, withServer } from './helpers/server.js';
 
-/** The seven entity tables migration 0001 creates, plus the runner's ledger: eight. */
+/** The nine entity tables migrations 0001 and 0002 create, plus the runner's ledger: ten. */
 const TABLES = [
   'clients',
   'connected_accounts',
   'contracts',
+  'credentials',
   'freelancers',
   'invoice_line_items',
   'invoices',
   'schema_migrations',
+  'sessions',
   'stripe_events',
 ];
 
-/** The named indexes in migration 0001 (the plan's prose said five; the DDL it
- *  pins has four — the count here is the DDL's, and D3 asserts it exactly). */
-const NAMED_INDEXES = ['clients_owner_email', 'contracts_owner_created', 'freelancers_email_unique', 'invoices_owner_created'];
+/** The named indexes in migrations 0001 and 0002 (0001's plan prose said five;
+ *  the DDL it pins has four — the count here is the DDL's, and D3 asserts it
+ *  exactly. 0002 adds sessions_expires, for the sign-in sweep). */
+const NAMED_INDEXES = ['clients_owner_email', 'contracts_owner_created', 'freelancers_email_unique', 'invoices_owner_created', 'sessions_expires'];
 
 /** Rows come back as null-prototype objects; spread them so deepEqual against
  *  a literal compares values and not prototypes. */
@@ -100,8 +103,8 @@ test('D1: openDatabase applies WAL, foreign keys ON and the 5 s busy timeout; :m
   }
 });
 
-test('D2: the migration set is exactly one migration, contiguous from 1, uniquely named; SCHEMA_VERSION is its head', () => {
-  assert.equal(MIGRATIONS.length, 1, `expected exactly 1 migration, found ${MIGRATIONS.length}`);
+test('D2: the migration set is exactly two migrations, contiguous from 1, uniquely named; SCHEMA_VERSION is its head', () => {
+  assert.equal(MIGRATIONS.length, 2, `expected exactly 2 migrations, found ${MIGRATIONS.length}`);
   MIGRATIONS.forEach((m, i) => {
     assert.equal(m.version, i + 1, `MIGRATIONS[${i}] must be version ${i + 1}`);
     assert.equal(typeof m.name, 'string');
@@ -109,43 +112,43 @@ test('D2: the migration set is exactly one migration, contiguous from 1, uniquel
     assert.ok(m.up.trim().length > 0, `migration ${m.version} has an empty up`);
   });
   assert.equal(new Set(MIGRATIONS.map((m) => m.name)).size, MIGRATIONS.length, 'migration names are unique');
-  assert.deepEqual(MIGRATIONS.map((m) => m.name), ['initial']);
-  assert.equal(SCHEMA_VERSION, 1);
+  assert.deepEqual(MIGRATIONS.map((m) => m.name), ['initial', 'accounts']);
+  assert.equal(SCHEMA_VERSION, 2);
   assert.ok(Object.isFrozen(MIGRATIONS), 'the set is append-only in code, and frozen at runtime');
 });
 
 // --- D3–D6: the runner ----------------------------------------------------------
 
-test('D3: migrating an empty file creates exactly the seven entity tables plus the ledger, the four named indexes — every table STRICT', () => {
+test('D3: migrating an empty file creates exactly the nine entity tables plus the ledger, the five named indexes — every table STRICT', () => {
   const path = freshDbPath();
   assert.equal(existsSync(path), false, 'the file does not exist before open');
   const db = openDatabase(path);
   try {
     assert.equal(schemaVersion(db), 0, 'a database with no ledger is at version 0');
     const result = migrate(db, MIGRATIONS, { now: () => NOW });
-    assert.deepEqual(result, { applied: [1], head: 1 });
+    assert.deepEqual(result, { applied: [1, 2], head: 2 });
     assert.equal(schemaVersion(db), SCHEMA_VERSION);
-    assert.deepEqual(ledger(db), [{ version: 1, name: 'initial', applied_at: NOW }]);
+    assert.deepEqual(ledger(db), [{ version: 1, name: 'initial', applied_at: NOW }, { version: 2, name: 'accounts', applied_at: NOW }]);
 
     // Cardinality first, against committed literals — never `> 0`.
     const tables = tableNames(db);
-    assert.equal(tables.length, 8, `expected 8 tables (7 + the ledger), found ${tables.length}: ${tables.join(', ')}`);
+    assert.equal(tables.length, 10, `expected 10 tables (9 + the ledger), found ${tables.length}: ${tables.join(', ')}`);
     assert.deepEqual(tables, TABLES);
 
     const named = db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL ORDER BY name").all().map((r) => r.name);
-    assert.equal(named.length, 4, `expected 4 named indexes, found ${named.length}: ${named.join(', ')}`);
+    assert.equal(named.length, 5, `expected 5 named indexes, found ${named.length}: ${named.join(', ')}`);
     assert.deepEqual(named, NAMED_INDEXES);
     // The implicit ones — every PRIMARY KEY and UNIQUE on a TEXT key gets one.
     // Pinned so a dropped UNIQUE shows up as a count, not as a silently
     // duplicable stripe_account_id.
     const auto = db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND sql IS NULL").all();
-    assert.equal(auto.length, 13, `expected 13 autoindexes, found ${auto.length}`);
+    assert.equal(auto.length, 15, `expected 15 autoindexes, found ${auto.length}`);
 
     // STRICT everywhere: a non-STRICT table would accept 'seven' in an INTEGER
     // column and store it as text. Zero exceptions, the ledger included.
     const lax = db.prepare("SELECT name, sql FROM sqlite_master WHERE type = 'table'").all().filter((r) => !/\)\s*STRICT\s*$/.test(r.sql));
     assert.deepEqual(lax.map((r) => r.name), [], `non-STRICT tables: ${lax.map((r) => r.name).join(', ')}`);
-    assert.equal(db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table'").get().n, 8);
+    assert.equal(db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table'").get().n, 10);
   } finally {
     db.close();
   }
@@ -155,9 +158,9 @@ test('D4: a second migrate applies nothing and changes nothing — ledger and ca
   withFreshDb((db) => {
     migrate(db, MIGRATIONS, { now: () => NOW });
     const before = { ledger: ledger(db), catalogue: catalogue(db) };
-    assert.equal(before.catalogue.length, 8 + 4 + 13, 'the catalogue has the tables, the named indexes and the autoindexes');
+    assert.equal(before.catalogue.length, 10 + 5 + 15, 'the catalogue has the tables, the named indexes and the autoindexes');
     const second = migrate(db, MIGRATIONS, { now: () => '2030-01-01T00:00:00.000Z' });
-    assert.deepEqual(second, { applied: [], head: 1 });
+    assert.deepEqual(second, { applied: [], head: 2 });
     assert.deepEqual(ledger(db), before.ledger, 'the ledger row keeps its ORIGINAL applied_at');
     assert.deepEqual(catalogue(db), before.catalogue);
     assert.equal(db.isTransaction, false);
@@ -181,7 +184,7 @@ test('D5: a database ahead of the build (ledger head N+1) is refused, naming bot
     );
     assert.equal(db.isTransaction, false, 'the failed run rolled back');
     assert.deepEqual(tableNames(db), ['schema_migrations'], 'nothing was applied — old code must not touch a newer schema');
-    assert.deepEqual(plain(db.prepare('SELECT version, name FROM schema_migrations').all()), [{ version: 2, name: 'from-the-future' }]);
+    assert.deepEqual(plain(db.prepare('SELECT version, name FROM schema_migrations').all()), [{ version: 3, name: 'from-the-future' }]);
   });
 });
 
@@ -378,12 +381,12 @@ test('D14: prepareDatabase against a missing directory throws, names the path, a
   assert.equal(existsSync('/nonexistent'), false, 'a mis-mounted volume must fail loudly, never be papered over with mkdir');
 });
 
-test('D15: prepareDatabase returns { db, applied: [1] } on a fresh file and { applied: [] } on the next boot', () => {
+test('D15: prepareDatabase returns { db, applied: [1, 2] } on a fresh file and { applied: [] } on the next boot', () => {
   const config = configFor();
   const first = prepareDatabase(config);
   try {
     assert.deepEqual(Object.keys(first).sort(), ['applied', 'db']);
-    assert.deepEqual(first.applied, [1]);
+    assert.deepEqual(first.applied, [1, 2]);
     assert.equal(typeof first.db.close, 'function');
     assert.equal(schemaVersion(first.db), SCHEMA_VERSION);
   } finally {
@@ -446,7 +449,7 @@ test('D18: the image ships /app/data owned by the runtime user — the DEFAULT p
   try {
     const { db, applied } = prepareDatabase(config);
     db.close();
-    assert.deepEqual(applied, [1]);
+    assert.deepEqual(applied, [1, 2]);
     assert.equal(existsSync(dbDefault), true);
     await withServer(config, async (base) => {
       const res = await fetch(`${base}/healthz`);
