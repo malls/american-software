@@ -371,10 +371,12 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 26, `expected 26 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 29, `expected 29 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/config.js',
+    'lib/connect/onboarding.js',
+    'lib/connect/readiness.js',
     'lib/db/connection.js',
     'lib/db/database.js',
     'lib/db/errors.js',
@@ -395,6 +397,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/views.js',
     'public/scaffold.css',
     'routes/assets.js',
+    'routes/connect.js',
     'routes/health.js',
     'routes/pages.js',
     'server.js',
@@ -549,7 +552,7 @@ function scanConcept(name, pattern, allowed, { raw = false } = {}) {
   assert.deepEqual(hits, [...allowed].sort(), `${name}: found in [${hits.join(', ')}], allowed in exactly [${allowed.join(', ')}]`);
 }
 
-test('the Stripe concepts live exactly where AS-38 and AS-39 put them, and nothing AS-44 owns has leaked in', () => {
+test('the Stripe concepts live exactly where AS-38, AS-39 and AS-41 put them, and nothing AS-44 owns has leaked in', () => {
   // The `stripe` npm module is banned everywhere, permanently: `new Stripe(key)`
   // is the documented bypass of the custody guard (stack decision §8.1).
   scanConcept('stripe module import', /(from|require\s*\(|import\s*\()\s*['"]stripe['"]/, []);
@@ -560,6 +563,16 @@ test('the Stripe concepts live exactly where AS-38 and AS-39 put them, and nothi
   scanConcept('application_fee', /application_fee/, ['lib/stripe/custody.js']);
   // AS-44's webhook route is not here yet.
   scanConcept('/webhook route', /['"]\/webhook/, []);
+  // The platform-scoped Stripe calls (AS-41). The custody guard already
+  // requires `platform: true` at every platform call site (custody.js
+  // checkScope) — this row pins WHERE those declarations may exist, so a
+  // Stripe call creeping into a route or a second service module is a red
+  // test, not a review catch. Stripped text: custody.js and client.js mention
+  // the construct only in comments, and client.js's own meta line reads
+  // `platform: call.platform === true`, which the pattern does not match.
+  // The used-exemption rule cuts both ways: an onboarding.js that stopped
+  // calling Stripe would fail this row too.
+  scanConcept('platform Stripe call', /platform:\s*true/, ['lib/connect/onboarding.js']);
   // The database (AS-39). `node:sqlite` is imported in exactly one file — the
   // connection module — so the driver has one seam to change and one place to
   // stub (stack decision §5.3 chokepoint corollary). A repository that imports
