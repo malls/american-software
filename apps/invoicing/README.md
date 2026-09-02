@@ -33,7 +33,8 @@ the return itself is never trusted — then 303 to the screen) and
 hosted flow). All three take `?freelancer=<id>` until AS-40 lands sessions, and
 all three 303 targets include `/connect-stripe`, which 404s until AS-45 lands
 screen 2 — deliberate: the Location header is the contract, and AS-45 depends
-on this task. Port 8348 is deliberate: 8347 is `asc-chat-server-1` and must not
+on this task. It also serves the four invoice routes (AS-43) — see
+[Issuing an invoice](#issuing-an-invoice). Port 8348 is deliberate: 8347 is `asc-chat-server-1` and must not
 be disturbed. The compose project is named `asc-invoicing`, so `docker compose
 down` here cannot take the chat app with it.
 
@@ -128,9 +129,10 @@ which is the whole reason `lib/stripe/custody.js` exists.
 Why this is not a signup, and not an account: pulling a public image creates no
 credential and no relationship with Stripe. The mock checks only that the key
 has a test-mode prefix; the placeholder is the one key-shaped VALUE in the
-repository (spelled in exactly two mock-gated test files —
-`stripe-mock.test.js` and, since AS-41, `connect.test.js` — deliberately the
-identical literal so one grep finds both), and it never leaves the compose network. The `contract` and
+repository (spelled in exactly three mock-gated test files —
+`stripe-mock.test.js`, `connect.test.js` since AS-41, and `invoices.test.js`
+since AS-43 — deliberately the identical literal so one grep finds all
+three), and it never leaves the compose network. The `contract` and
 `stripe-mock` services sit on an `internal: true` network with no gateway; `web`
 is not on it; `test` still has no network at all. The first `contract` run pulls
 the image once (registry access at pull time, like `npm ci` at build time); every
@@ -177,6 +179,72 @@ step** under an `EXIT` trap, then verify the **image**, not just the tree:
 Run it in a subshell with absolute paths and, when working in a task worktree, under a
 distinct `-p` project name so the main checkout's running `web` is never touched.
 
+## Issuing an invoice
+
+Four routes (AS-43), all `POST`, all answering **303** on success and a one-line
+`text/plain` error otherwise, all taking `?freelancer=<id>` until AS-40:
+
+| Route | Does | 303 to |
+|---|---|---|
+| `/invoices` | create a LOCAL draft — **zero Stripe calls** | `/invoices/{id}/edit?freelancer=` |
+| `/invoices/{id}` | update a LOCAL draft — **zero Stripe calls** | `/invoices/{id}/edit?freelancer=` |
+| `/invoices/{id}/finalize` | the gate, then the pipeline **through finalize** | `/invoices/{id}?freelancer=` |
+| `/invoices/{id}/send` | the gate, then the pipeline **through send** | `/invoices/{id}?freelancer=` |
+
+`/invoices/{id}` and `/invoices/{id}/edit` 404 until AS-48 (screens 3 and 5) and
+AS-46 (screen 4) land — the same deliberate dangle as `/connect-stripe` above.
+AS-46's single "Finalize & send" control posts to `…/send`; `…/finalize` exists
+because finalize and send are two operations with two failure modes, and AS-49
+can drive them separately to observe the intermediate state.
+
+**The gate.** Finalize and send both refuse with **403 `AccountNotReadyError`**
+(`not-connected` / `not-ready`) *before any Stripe call* unless the freelancer's
+connected account is ready. Readiness is **read, never re-derived**: the one
+derivation lives in `lib/db/repositories/connected-accounts.js` and nothing in
+`lib/invoices/` names its underlying fields. Drafting is deliberately ungated —
+a freelancer may build drafts before connecting Stripe.
+
+**The five Stripe calls**, in this order, every one connected-scope (carrying
+`Stripe-Account: acct_…`, never `platform: true`) and every one carrying a
+stable idempotency key:
+
+| # | Call | Key |
+|---|---|---|
+| 1 | `POST /v1/customers` | `cus-create-<clientId>` |
+| 2 | `POST /v1/invoices` | `inv-create-<invoiceId>` |
+| 3 | `POST /v1/invoiceitems` × N | `ii-create-<lineItemId>` |
+| 4 | `POST /v1/invoices/{id}/finalize` | `inv-finalize-<invoiceId>` |
+| 5 | `POST /v1/invoices/{id}/send` | `inv-send-<invoiceId>` |
+
+Five POSTs, **zero GETs**: calls 4 and 5 each return the full invoice object.
+No allowlist row was added — every one of these was already in `custody.js`.
+
+Four things here are load-bearing and should not be "simplified":
+
+- **The invoice is created BEFORE its items, and each item names it.** Pending
+  invoice items attach to the *customer*, so a run that created items and then
+  failed would leave them to be swept onto that client's **next** invoice.
+  `pending_invoice_items_behavior=exclude` is the belt to that braces.
+- **`unit_amount` is never sent** — the endpoint rejects it outright at this API
+  version (measured against stripe-mock, 400 "additional properties are not
+  allowed"). Each item carries the **extended amount we computed ourselves**, so
+  nothing depends on Stripe's multiplication semantics.
+- **`auto_advance: false` on both calls 2 and 4.** Otherwise Stripe can finalize
+  and email an invoice on our behalf about an hour later, and "who sent this"
+  becomes ambiguous in a v1 whose whole email story is "Stripe does it, once".
+- **The reconciliation guard.** After finalize, Stripe's `amount_due` and
+  `currency` must equal ours, or the send is refused with **409
+  `AmountMismatchError`** — *after* the snapshot is written, because Stripe
+  really did finalize it and a mirror saying `draft` would be a lie. Resolution
+  is the freelancer's, in their own Dashboard: `/v1/invoices/{id}/void` is
+  deliberately not on the allowlist.
+
+**Every step is skipped when the mirror records it done**, so re-submitting the
+form after a failure completes the run rather than duplicating Stripe objects,
+and a second finalize makes zero calls. Send is a no-op once `sent_at` is
+recorded — which is what keeps retry-safety from quietly becoming a re-send
+feature.
+
 ## Layout
 
 ```
@@ -211,10 +279,16 @@ lib/connect/     Stripe Connect onboarding (AS-41):
   onboarding.js    the three platform Stripe calls + create-or-reuse + the sync
                    moments — the only file with `platform: true` call sites,
                    pinned by dependency-policy
+lib/invoices/    the invoice lifecycle (AS-43):
+  mapping.js       the ONE Stripe-invoice -> snapshot mapper; AS-44's invoice.*
+                   handlers reuse it. Never emits sentAt/lastPaymentFailedAt
+  lifecycle.js     the readiness gate, the five connected-scope Stripe calls,
+                   the resumable pipeline and the reconciliation guard — the
+                   only file in this feature that calls Stripe
 lib/health.js    the checks, as data
 lib/vendor.js    assets consumed from outside this app (registry)
 lib/views.js     the template registry + the health check's render probe
-routes/          health.js, assets.js, pages.js, connect.js
+routes/          health.js, assets.js, pages.js, connect.js, invoices.js
 views/           one template file per screen
 public/          app-owned static assets, served by express.static
 vendor/          created by the Dockerfile — see below. Not in version control
@@ -301,6 +375,26 @@ declaration count are committed literals. Update them in the same commit.
   through `connectedAccounts.updateReadiness` only, with a snapshot freshly
   read from Stripe, mapped by `lib/connect/readiness.js` — never inferred from
   a redirect, never cached, last writer wins.
+- **AS-43 landed the invoice lifecycle server-side; three handoffs are open.**
+  **AS-44 (webhooks):** import `invoiceSnapshotFromStripe` from
+  `lib/invoices/mapping.js` for `invoice.created/finalized/paid/voided/
+  marked_uncollectible/payment_failed` — an event's `data.object` IS an invoice
+  object, and the reuse is already tested (R1). Write `paid`, `void`,
+  `uncollectible` and `lastPaymentFailedAt`; AS-43 writes only `draft` and
+  `open`, so the two sides need no coordination — both go through
+  `invoices.applyStripeSnapshot`, whose rank machine converges them. **Do not
+  mount a body parser app-wide**: the webhook needs the RAW body for signature
+  verification, which is why AS-43's parser is mounted per route. **`sentAt` and
+  `lastPaymentFailedAt` must never be emitted by the mapper** — a Stripe invoice
+  object has neither, so emitting them as null would erase a recorded fact on
+  the next snapshot (each is written by its own writer, at its own moment; R23
+  is that rule under test). **AS-46 (screen 4)** owns `/invoices/{id}/edit` and
+  **AS-48 (screens 3 and 5)** owns `/invoices/{id}`; both paths are already
+  load-bearing in shipped `Location` headers, so treat them as settled unless
+  you also change AS-43's redirects. **AS-40 (sessions):** these routes import
+  `resolveFreelancerId` from `routes/connect.js` rather than copying it — one
+  seam, one replacement point. A **third** consumer (AS-42) is the trigger to
+  extract it to `lib/http/identity.js`.
 - **The dependency budget is 2.** A third turns the suite red and goes through
   all six rules in the stack decision §11 first. Install with
   `npm install --save-exact` — plain `npm install` writes a caret range, which
