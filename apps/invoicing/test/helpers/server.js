@@ -18,30 +18,43 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApp } from '../../app.js';
 import { loadConfig } from '../../lib/config.js';
-import { prepareDatabase } from '../../lib/db/database.js';
+import { createRepositories, prepareDatabase } from '../../lib/db/database.js';
+import { createStripeClient } from '../../lib/stripe/client.js';
 
 /**
- * Start an app on an OS-assigned port, run `fn(baseUrl, app)`, always stop it.
+ * Start an app on an OS-assigned port, run `fn(baseUrl, app, deps)`, always
+ * stop it.
  *
  * Mirrors boot (server.js): the database is opened and migrated BEFORE the app
- * exists, and closed after the listener is, so a test that boots against a
- * fresh file sees exactly what `docker compose up` sees.
+ * exists, the deps pair is built from that handle exactly as server.js builds
+ * it (AS-41, plan §3.7), and the database is closed after the listener is —
+ * so a test that boots against a fresh file sees exactly what `docker compose
+ * up` sees. The optional third argument lets connect tests inject a
+ * fixture-transport Stripe client; with no override the client is keyless
+ * (config.stripeSecretKey is null in tests), exactly like an unconfigured
+ * deployment. `fn` receives the deps as its third argument so a test can seed
+ * and read rows through the same repositories the app serves from.
  *
  * Port 0, never 8348: a test run alongside `docker compose up` would otherwise
  * collide with the running web service.
  *
  * @param {object} config frozen settings (see configFor)
- * @param {(baseUrl: string, app: import('express').Express) => Promise<any>} fn
+ * @param {(baseUrl: string, app: import('express').Express, deps: { repos: object, stripe: object }) => Promise<any>} fn
+ * @param {{ stripe?: object }} [overrides]
  */
-export async function withServer(config, fn) {
+export async function withServer(config, fn, { stripe } = {}) {
   const { db } = prepareDatabase(config);
   try {
-    const app = createApp(config);
+    const deps = {
+      repos: createRepositories(db),
+      stripe: stripe ?? createStripeClient({ apiKey: config.stripeSecretKey }),
+    };
+    const app = createApp(config, deps);
     const server = app.listen(0, '127.0.0.1');
     try {
       await once(server, 'listening');
       const { port } = server.address();
-      return await fn(`http://127.0.0.1:${port}`, app);
+      return await fn(`http://127.0.0.1:${port}`, app, deps);
     } finally {
       await new Promise((resolve) => server.close(resolve));
     }
@@ -63,13 +76,14 @@ export async function withServer(config, fn) {
  * make every row count flaky. The real default path is exercised by exactly one
  * test (db.test.js D18), which passes it explicitly, read from SCHEMA.
  *
- * @param {{vendorDir?: string, viewsDir?: string, publicDir?: string, dbPath?: string, port?: number|string, bind?: string, logLevel?: string, env?: string}} overrides
+ * @param {{vendorDir?: string, viewsDir?: string, publicDir?: string, dbPath?: string, appBaseUrl?: string, port?: number|string, bind?: string, logLevel?: string, env?: string}} overrides
  */
 export function configFor(overrides = {}) {
   const env = {};
   if (overrides.vendorDir !== undefined) env.INVOICING_VENDOR_DIR = overrides.vendorDir;
   if (overrides.viewsDir !== undefined) env.INVOICING_VIEWS_DIR = overrides.viewsDir;
   if (overrides.publicDir !== undefined) env.INVOICING_PUBLIC_DIR = overrides.publicDir;
+  if (overrides.appBaseUrl !== undefined) env.INVOICING_APP_BASE_URL = overrides.appBaseUrl;
   env.INVOICING_DB_PATH = overrides.dbPath !== undefined ? overrides.dbPath : freshDbPath();
   if (overrides.port !== undefined) env.INVOICING_PORT = String(overrides.port);
   if (overrides.bind !== undefined) env.INVOICING_BIND = overrides.bind;
