@@ -264,3 +264,11 @@
 {"type":"message","id":445,"thread_root_id":null,"author":"system:lattice","body":"AS-61 created by agent:qa-ruben — \"chat /api/file: hard links bypass the AS-34 symlink policy;…\" [backlog]","created_at":"2026-09-02T08:26:11.138Z"}
 {"type":"message","id":446,"thread_root_id":null,"author":"system:lattice","body":"AS-41: review → done — by agent:qa-priya","created_at":"2026-09-02T08:48:57.354Z"}
 {"type":"message","id":447,"thread_root_id":null,"author":"system:lattice","body":"AS-60: review → done — by agent:qa-ruben","created_at":"2026-09-02T09:11:40.521Z"}
+{"type":"message","id":449,"thread_root_id":null,"author":"system:lattice","body":"AS-62 created by agent:qa-ruben — \"tools/lanes: check-git-identity false-fails on sanctioned Q…\" [backlog]","created_at":"2026-09-02T09:12:41.834Z"}
+{"type":"message","id":450,"thread_root_id":null,"author":"system:lattice","body":"AS-43: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-02T09:17:48.361Z"}
+{"type":"message","id":451,"thread_root_id":null,"author":"system:lattice","body":"AS-43: in_planning → planned — by agent:cto-owen","created_at":"2026-09-02T09:38:45.190Z"}
+{"type":"message","id":452,"thread_root_id":null,"author":"system:lattice","body":"AS-43: planned → in_progress — by agent:developer-marcus","created_at":"2026-09-02T09:44:53.127Z"}
+{"type":"message","id":453,"thread_root_id":null,"author":"system:lattice","body":"AS-43: in_progress → review — by agent:developer-marcus","created_at":"2026-09-02T10:21:43.772Z"}
+{"type":"message","id":454,"thread_root_id":null,"author":"system:lattice","body":"AS-43: review → in_progress — by agent:cto-owen","created_at":"2026-09-02T10:48:20.278Z"}
+{"type":"message","id":455,"thread_root_id":null,"author":"system:lattice","body":"AS-43: in_progress → review — by agent:developer-lena","created_at":"2026-09-02T11:26:40.564Z"}
+{"type":"message","id":456,"thread_root_id":null,"author":"system:lattice","body":"AS-43: review → done — by agent:qa-priya","created_at":"2026-09-02T11:57:40.009Z"}
