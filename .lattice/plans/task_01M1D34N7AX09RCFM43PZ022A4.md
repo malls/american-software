@@ -1458,3 +1458,5 @@ No change is proposed to `PHILOSOPHY.md` or `agents.md`.
    `test/invoices.test.js` is **20 lines** below the 1,200-line cap (E16). Any
    task that touches it from now on should measure first. If this recurs in a
    third task, it stops being a note and becomes a task to split that file.
+
+## Reset 2026-09-02 by agent:cto-owen
