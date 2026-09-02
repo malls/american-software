@@ -371,10 +371,22 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 14, `expected 14 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 26, `expected 26 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/config.js',
+    'lib/db/connection.js',
+    'lib/db/database.js',
+    'lib/db/errors.js',
+    'lib/db/migrate.js',
+    'lib/db/migrations/0001-initial.js',
+    'lib/db/money.js',
+    'lib/db/repositories/clients.js',
+    'lib/db/repositories/connected-accounts.js',
+    'lib/db/repositories/contracts.js',
+    'lib/db/repositories/freelancers.js',
+    'lib/db/repositories/invoices.js',
+    'lib/db/repositories/stripe-events.js',
     'lib/health.js',
     'lib/stripe/client.js',
     'lib/stripe/custody.js',
@@ -537,7 +549,7 @@ function scanConcept(name, pattern, allowed, { raw = false } = {}) {
   assert.deepEqual(hits, [...allowed].sort(), `${name}: found in [${hits.join(', ')}], allowed in exactly [${allowed.join(', ')}]`);
 }
 
-test('the Stripe concepts live exactly where AS-38 put them, and nothing AS-39 or AS-44 owns has leaked in', () => {
+test('the Stripe concepts live exactly where AS-38 and AS-39 put them, and nothing AS-44 owns has leaked in', () => {
   // The `stripe` npm module is banned everywhere, permanently: `new Stripe(key)`
   // is the documented bypass of the custody guard (stack decision §8.1).
   scanConcept('stripe module import', /(from|require\s*\(|import\s*\()\s*['"]stripe['"]/, []);
@@ -546,15 +558,50 @@ test('the Stripe concepts live exactly where AS-38 put them, and nothing AS-39 o
   scanConcept('STRIPE_ config key', /STRIPE_[A-Z_]+/, ['compose.yaml', 'lib/config.js', 'lib/stripe/client.js']);
   // The forbidden-parameter table is the only place the fee rail is even named.
   scanConcept('application_fee', /application_fee/, ['lib/stripe/custody.js']);
-  // AS-44's webhook route and AS-39's database are not here yet.
+  // AS-44's webhook route is not here yet.
   scanConcept('/webhook route', /['"]\/webhook/, []);
-  scanConcept('node:sqlite', /(from|require\s*\(|import\s*\()\s*['"]node:sqlite['"]/, []);
+  // The database (AS-39). `node:sqlite` is imported in exactly one file — the
+  // connection module — so the driver has one seam to change and one place to
+  // stub (stack decision §5.3 chokepoint corollary). A repository that imports
+  // it directly is the `new Stripe(key)` of the persistence layer.
+  scanConcept('node:sqlite', /(from|require\s*\(|import\s*\()\s*['"]node:sqlite['"]/, ['lib/db/connection.js']);
+  // Raw SQL text lives in exactly nine files: the connection module (its
+  // PRAGMAs), the migration runner (its ledger), the migrations themselves, and
+  // the six repositories under lib/db/repositories/ — the only modules that turn
+  // a method into a statement. database.js composes those without a byte of SQL,
+  // and health.js/server.js/routes never see any. Stripped text, so a comment
+  // that quotes SQL does not count.
+  scanConcept(
+    'raw SQL',
+    /\b(SELECT\s+[\w*(),. ]+\s+FROM|INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|CREATE\s+(TABLE|INDEX|UNIQUE)|PRAGMA)\b/,
+    [
+      'lib/db/connection.js',
+      'lib/db/migrate.js',
+      'lib/db/migrations/0001-initial.js',
+      'lib/db/repositories/clients.js',
+      'lib/db/repositories/connected-accounts.js',
+      'lib/db/repositories/contracts.js',
+      'lib/db/repositories/freelancers.js',
+      'lib/db/repositories/invoices.js',
+      'lib/db/repositories/stripe-events.js',
+    ],
+  );
   // Money is AS-39's: integer minor units with an explicit currency column. The
-  // custody table is exempt because its citations quote Stripe's own parameter
-  // names (application_fee_amount) and reasons — and it MUST match there, or the
+  // schema that declares those columns, money.js (the supported-currency set and
+  // the minor-unit validators — the ONE place a currency code is spelled out),
+  // and the invoices repository (the only one with an amount or a currency in
+  // its rows) are the database files allowed to say so; the other five
+  // repositories and database.js never touch the words. The custody table is
+  // exempt because its citations quote Stripe's own parameter names
+  // (application_fee_amount) and reasons — and it MUST match there, or the
   // exemption is stale. Everything else, client.js and transport.js included,
   // stays clear of the words even in comments (RAW text, not stripped).
-  scanConcept('money representation', /amount|currency|money/i, ['lib/stripe/custody.js'], { raw: true });
+  scanConcept(
+    'money representation',
+    /amount|currency|money/i,
+    ['lib/db/migrations/0001-initial.js', 'lib/db/money.js', 'lib/db/repositories/invoices.js', 'lib/stripe/custody.js'],
+    { raw: true },
+  );
 });
 
 test('no file in apps/invoicing exceeds 1,200 lines', () => {

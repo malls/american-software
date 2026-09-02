@@ -17,13 +17,14 @@
 // Every check below is demonstrated able to fail in test/health.test.js. A
 // check with no demonstrated failure path is a 200 with extra steps.
 //
-// The list is data so AS-39 appends a `database` row without touching the route.
+// The list is data: AS-39 appended the `database` row without touching the route.
 // NOT checked, deliberately: Stripe (no account exists; asserting one would
-// encode the assumption plan §7.3 forbids) and the database (AS-39's).
+// encode the assumption plan §7.3 forbids).
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import ejs from 'ejs';
 import { validateResolved } from './config.js';
+import { probeDatabase } from './db/database.js';
 import { VENDOR_ASSETS } from './vendor.js';
 import { VIEWS } from './views.js';
 
@@ -88,6 +89,13 @@ export const HEALTH_CHECKS = Object.freeze([
       return problems.length === 0 ? true : { ok: false, detail: problems.join('; ') };
     },
   }),
+
+  // Can be false: the volume is missing, mounted read-only or owned by root,
+  // the file was deleted or is not a database, or an older image is running
+  // against a newer schema. All preconditions from OUTSIDE the process, probed
+  // on a second short-lived connection (AS-39, plan §2.7); the probe never
+  // creates the file. Its failure paths are demonstrated in test/db.test.js.
+  Object.freeze({ name: 'database', run(config) { return probeDatabase(config.dbPath); } }),
 ]);
 
 /**

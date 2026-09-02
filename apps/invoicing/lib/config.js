@@ -13,7 +13,12 @@
 // AS-38 added the first one: the Stripe secret key, as a NAME only — optional,
 // defaulting to null, redacted from every log line and health body. No value is
 // committed anywhere; see apps/invoicing/README.md § Giving the app a key.
-// AS-40 (sessions) adds its own row the same way.
+// AS-39 added the database path — `type: 'path'` already requires a leading `/`,
+// so `:memory:` and a relative path are rejected at load, and a production
+// process cannot be pointed at an in-memory database by a typo. Its default is
+// the ONE copy of the in-container path: compose mounts the volume at its
+// directory and the Dockerfile owns that directory, and test/deploy-shape.test.js
+// pins the three to one another. AS-40 (sessions) adds its own row the same way.
 
 /** The live schema. Every row: { key, envVar, type, default, required, secret }.
  *  Nothing is `required`: the app boots and serves /healthz from a completely
@@ -26,6 +31,7 @@ export const SCHEMA = Object.freeze([
   { key: 'vendorDir', envVar: 'INVOICING_VENDOR_DIR', type: 'path', default: '/app/vendor' },
   { key: 'viewsDir', envVar: 'INVOICING_VIEWS_DIR', type: 'path', default: '/app/views' },
   { key: 'publicDir', envVar: 'INVOICING_PUBLIC_DIR', type: 'path', default: '/app/public' },
+  { key: 'dbPath', envVar: 'INVOICING_DB_PATH', type: 'path', default: '/app/data/invoicing.sqlite' },
   { key: 'stripeSecretKey', envVar: 'INVOICING_STRIPE_SECRET_KEY', type: 'string', default: null, required: false, secret: true },
 ].map(Object.freeze));
 

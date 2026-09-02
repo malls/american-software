@@ -26,7 +26,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { SCHEMA } from '../lib/config.js';
 import { APP_DIR } from './helpers/server.js';
 
 const COMPOSE_TEXT = readFileSync(join(APP_DIR, 'compose.yaml'), 'utf8');
@@ -156,8 +157,10 @@ test('deploy-shape: the parsers read the manifests they are about to assert on',
   // Guards against the AS-31 failure: a checker that silently read nothing and
   // "passed" every rule on an empty corpus. Exact counts, not `> 0`.
   assert.equal(COMPOSE.name, 'asc-invoicing', 'distinct project name so `compose down` cannot take asc-chat with it');
+  assert.deepEqual(Object.keys(COMPOSE), ['name', 'services', 'networks', 'volumes']);
   assert.deepEqual(Object.keys(SERVICES), ['web', 'test', 'stripe-mock', 'contract']);
   assert.deepEqual(Object.keys(COMPOSE.networks), ['stripe-mock']);
+  assert.deepEqual(Object.keys(COMPOSE.volumes), ['invoicing-data']);
   assert.equal(COPIES.length, 9, `expected 9 COPY instructions, found ${COPIES.length}`);
   assert.equal(IGNORE_PATTERNS.length, 6, `expected 6 .dockerignore patterns, found ${IGNORE_PATTERNS.length}`);
   assert.match(DOCKERFILE_CODE, /^FROM /m);
@@ -227,17 +230,57 @@ test('deploy-shape: the test service is network-blocked and mountless', () => {
   assert.equal(svc.ports, undefined, 'the test service publishes nothing');
 });
 
-test('deploy-shape: the web service publishes 8348 on loopback and mounts nothing', () => {
+test('deploy-shape: the web service publishes 8348 on loopback and mounts exactly the data volume', () => {
   const svc = SERVICES.web;
   assert.deepEqual(svc.ports, ['127.0.0.1:8348:8348']);
   // Loopback is enforced on the HOST side; the container binds 0.0.0.0, or the
   // port map is dead. Both halves are asserted so neither can drift alone.
   assert.ok(svc.environment.includes('INVOICING_BIND=0.0.0.0'), 'the container must bind 0.0.0.0 internally');
   assert.ok(svc.environment.includes('INVOICING_PORT=8348'));
-  // No source bind-mounts: the running container must BE the shipped image.
-  // Mounting source would shadow node_modules/ and vendor/ and reintroduce the
-  // AS-26 class of bug through the front door (plan §3.4).
-  assert.equal(svc.volumes, undefined, 'the web service declares no volumes');
+  // Exactly one volume, and it is a NAMED volume onto the data directory — the
+  // AS-39 persistence mount. It is the only mount the web service declares: a
+  // source bind-mount would shadow node_modules/ and vendor/ and reintroduce the
+  // AS-26 class of bug through the front door (plan §3.4). An `up` without this
+  // line boots fine and loses every row on `down` — which is why it is asserted
+  // here and not left to a reader of compose.yaml.
+  assert.deepEqual(svc.volumes, ['invoicing-data:/app/data'], 'the web service mounts exactly the data volume');
+  assert.deepEqual(Object.keys(COMPOSE.volumes), ['invoicing-data'], 'exactly one top-level volume is declared');
+  assert.equal(COMPOSE.volumes['invoicing-data'], null, 'the volume is a bare declaration (no driver, no bind options)');
+});
+
+test('deploy-shape: no service anywhere bind-mounts a host path', () => {
+  // The web service's data volume must be the ONLY volume in the file, and it
+  // must be a named volume — never a host path. Sweeps every service so a
+  // `./data:/app/data` added to any of them (the tempting "just look at the
+  // file on disk" shortcut) turns this red.
+  const declared = Object.entries(SERVICES).flatMap(([name, svc]) => (svc.volumes ?? []).map((v) => [name, v]));
+  assert.deepEqual(declared, [['web', 'invoicing-data:/app/data']], 'the web data volume is the only volume in the file');
+  for (const [name, spec] of declared) {
+    const source = spec.split(':')[0];
+    assert.ok(!source.startsWith('/') && !source.startsWith('.'), `${name}: ${spec} is a bind mount, not a named volume`);
+  }
+});
+
+test('deploy-shape: the image, the compose mount and the config default agree on the data directory', () => {
+  // Three files each hold one half of a fact: the Dockerfile creates and chowns
+  // /app/data BEFORE dropping to `node`, compose mounts the named volume there,
+  // and config.js defaults the database file into it. Any one of them drifting
+  // is a container that starts and then dies at the first write (or, worse, a
+  // container that writes into the image layer and loses it on `down`).
+  assert.match(
+    DOCKERFILE_CODE,
+    /^RUN mkdir -p \/app\/data && chown node:node \/app\/data$/m,
+    'the Dockerfile creates the data directory and hands it to the runtime user',
+  );
+  const mkdirAt = DOCKERFILE_CODE.indexOf('RUN mkdir -p /app/data');
+  const userAt = DOCKERFILE_CODE.indexOf('USER node');
+  assert.ok(userAt > 0, 'the Dockerfile drops to `USER node`');
+  assert.ok(mkdirAt > 0 && mkdirAt < userAt, 'the data directory is created and chowned BEFORE `USER node` — after it, chown would fail');
+
+  const mountTarget = SERVICES.web.volumes[0].split(':')[1];
+  const dbDefault = SCHEMA.find((r) => r.key === 'dbPath').default;
+  assert.equal(mountTarget, '/app/data');
+  assert.equal(dirname(dbDefault), mountTarget, 'the default database file lives inside the mounted directory');
 });
 
 test('deploy-shape: no credential VALUE appears in compose.yaml, and every secret-shaped variable is a pass-through', () => {

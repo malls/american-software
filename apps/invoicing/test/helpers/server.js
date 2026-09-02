@@ -1,5 +1,5 @@
 // test/helpers/server.js — the one place that knows how to start and stop an
-// app under test (AS-37, plan §8.4).
+// app under test (AS-37, plan §8.4; AS-39, plan §2.10).
 //
 // THE RULE THIS FILE EXISTS TO ENFORCE: teardown is registered BEFORE the
 // assertions run. Measured on the spike — a probe that called srv.close() on
@@ -12,13 +12,20 @@
 // close — so no test file has to remember t.after(). Callers get a base URL and
 // nothing else to clean up.
 import { once } from 'node:events';
-import { dirname, resolve } from 'node:path';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApp } from '../../app.js';
 import { loadConfig } from '../../lib/config.js';
+import { prepareDatabase } from '../../lib/db/database.js';
 
 /**
  * Start an app on an OS-assigned port, run `fn(baseUrl, app)`, always stop it.
+ *
+ * Mirrors boot (server.js): the database is opened and migrated BEFORE the app
+ * exists, and closed after the listener is, so a test that boots against a
+ * fresh file sees exactly what `docker compose up` sees.
  *
  * Port 0, never 8348: a test run alongside `docker compose up` would otherwise
  * collide with the running web service.
@@ -27,14 +34,19 @@ import { loadConfig } from '../../lib/config.js';
  * @param {(baseUrl: string, app: import('express').Express) => Promise<any>} fn
  */
 export async function withServer(config, fn) {
-  const app = createApp(config);
-  const server = app.listen(0, '127.0.0.1');
+  const { db } = prepareDatabase(config);
   try {
-    await once(server, 'listening');
-    const { port } = server.address();
-    return await fn(`http://127.0.0.1:${port}`, app);
+    const app = createApp(config);
+    const server = app.listen(0, '127.0.0.1');
+    try {
+      await once(server, 'listening');
+      const { port } = server.address();
+      return await fn(`http://127.0.0.1:${port}`, app);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
   } finally {
-    await new Promise((resolve) => server.close(resolve));
+    db.close();
   }
 }
 
@@ -45,20 +57,42 @@ export async function withServer(config, fn) {
  *
  * With no overrides this returns the REAL container configuration
  * (/app/vendor, /app/views, /app/public), which is what the V3 tests use to
- * assert against the real image (plan §8.3).
+ * assert against the real image (plan §8.3) — with ONE documented exception:
+ * `dbPath` defaults to a fresh file under a private mkdtemp directory, because
+ * `node --test` runs files in parallel processes and a shared database would
+ * make every row count flaky. The real default path is exercised by exactly one
+ * test (db.test.js D18), which passes it explicitly, read from SCHEMA.
  *
- * @param {{vendorDir?: string, viewsDir?: string, publicDir?: string, port?: number|string, bind?: string, logLevel?: string, env?: string}} overrides
+ * @param {{vendorDir?: string, viewsDir?: string, publicDir?: string, dbPath?: string, port?: number|string, bind?: string, logLevel?: string, env?: string}} overrides
  */
 export function configFor(overrides = {}) {
   const env = {};
   if (overrides.vendorDir !== undefined) env.INVOICING_VENDOR_DIR = overrides.vendorDir;
   if (overrides.viewsDir !== undefined) env.INVOICING_VIEWS_DIR = overrides.viewsDir;
   if (overrides.publicDir !== undefined) env.INVOICING_PUBLIC_DIR = overrides.publicDir;
+  env.INVOICING_DB_PATH = overrides.dbPath !== undefined ? overrides.dbPath : freshDbPath();
   if (overrides.port !== undefined) env.INVOICING_PORT = String(overrides.port);
   if (overrides.bind !== undefined) env.INVOICING_BIND = overrides.bind;
   if (overrides.logLevel !== undefined) env.INVOICING_LOG_LEVEL = overrides.logLevel;
   if (overrides.env !== undefined) env.NODE_ENV = overrides.env;
   return loadConfig(env);
+}
+
+/**
+ * configFor + a migrated database on disk at its `dbPath`, handle already
+ * closed — for check-level tests that never start a server but need the
+ * `database` health check to pass (the hand-built-config test in health.test.js).
+ */
+export function preparedConfigFor(overrides = {}) {
+  const config = configFor(overrides);
+  const { db } = prepareDatabase(config);
+  db.close();
+  return config;
+}
+
+/** A database path nothing else in the run shares: a new temp directory per call. */
+export function freshDbPath() {
+  return join(mkdtempSync(join(tmpdir(), 'asc-invoicing-db-')), 'invoicing.sqlite');
 }
 
 /** The app's root directory inside the image (and in a checkout): /app. */

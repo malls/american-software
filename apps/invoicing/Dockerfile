@@ -49,6 +49,14 @@ COPY docs/design/tokens/tokens.css ./vendor/tokens.css
 # the same reason: its apps/chat/data line is an assertion target.
 COPY apps/invoicing/compose.yaml apps/invoicing/Dockerfile .dockerignore ./
 
+# The database directory. A fresh named volume mounted here inherits this
+# ownership (measured 2026-09-01: uid 1000, mode 755, and the `node` user creates
+# the WAL database in it). Without this line the volume would be root-owned and
+# the first boot would fail at open with SQLITE_CANTOPEN. The `test` service
+# mounts nothing here, so the suite writes to the image's own empty copy and
+# never touches a developer's data.
+RUN mkdir -p /app/data && chown node:node /app/data
+
 USER node
 EXPOSE 8348
 CMD ["node", "server.js"]

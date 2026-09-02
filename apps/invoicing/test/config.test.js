@@ -17,17 +17,17 @@ import { ConfigError, SCHEMA, loadConfig, startupLogLine, validateResolved } fro
 
 // --- V2: cardinality before quantification ----------------------------------
 
-test('the schema is exactly the eight settings AS-37 and AS-38 define', () => {
-  assert.equal(SCHEMA.length, 8);
+test('the schema is exactly the nine settings AS-37, AS-38 and AS-39 define', () => {
+  assert.equal(SCHEMA.length, 9);
   assert.deepEqual(
     SCHEMA.map((row) => row.key),
-    ['port', 'bind', 'env', 'logLevel', 'vendorDir', 'viewsDir', 'publicDir', 'stripeSecretKey'],
+    ['port', 'bind', 'env', 'logLevel', 'vendorDir', 'viewsDir', 'publicDir', 'dbPath', 'stripeSecretKey'],
   );
   // Every env var is INVOICING_-prefixed except NODE_ENV, which is a platform
   // convention. The prefix keeps the monorepo's namespaces disjoint from
   // apps/chat's CHAT_.
   const prefixed = SCHEMA.filter((row) => row.envVar.startsWith('INVOICING_'));
-  assert.equal(prefixed.length, 7);
+  assert.equal(prefixed.length, 8);
   assert.deepEqual(SCHEMA.filter((row) => !row.envVar.startsWith('INVOICING_')).map((r) => r.envVar), ['NODE_ENV']);
 });
 
@@ -53,6 +53,7 @@ test('defaults resolve from a COMPLETELY EMPTY environment', () => {
     vendorDir: '/app/vendor',
     viewsDir: '/app/views',
     publicDir: '/app/public',
+    dbPath: '/app/data/invoicing.sqlite',
     stripeSecretKey: null,
   });
   // Enumerable keys are exactly the schema keys — redacted() is non-enumerable
@@ -87,6 +88,7 @@ test('INVOICING_* overrides win over defaults', () => {
     INVOICING_VENDOR_DIR: '/elsewhere/vendor',
     INVOICING_VIEWS_DIR: '/elsewhere/views',
     INVOICING_PUBLIC_DIR: '/elsewhere/public',
+    INVOICING_DB_PATH: '/elsewhere/data/invoicing.sqlite',
   });
   assert.deepEqual({ ...config }, {
     port: 9999,
@@ -96,6 +98,7 @@ test('INVOICING_* overrides win over defaults', () => {
     vendorDir: '/elsewhere/vendor',
     viewsDir: '/elsewhere/views',
     publicDir: '/elsewhere/public',
+    dbPath: '/elsewhere/data/invoicing.sqlite',
     stripeSecretKey: null,
   });
 });
@@ -136,6 +139,20 @@ test('an out-of-range enum throws, naming its env var', () => {
 
 test('a relative path throws, naming its env var', () => {
   assert.throws(() => loadConfig({ INVOICING_VENDOR_DIR: 'vendor' }), /INVOICING_VENDOR_DIR/);
+});
+
+test('the database path must be absolute: a relative path and :memory: both throw, naming INVOICING_DB_PATH (AS-39)', () => {
+  // A production process cannot be pointed at an in-memory database — or at a
+  // file relative to whatever cwd it happens to have — by a typo. Both fail at
+  // config load, before anything is opened.
+  for (const value of ['data/x.sqlite', ':memory:']) {
+    assert.throws(() => loadConfig({ INVOICING_DB_PATH: value }), (err) => {
+      assert.ok(err instanceof ConfigError);
+      assert.equal(err.envVar, 'INVOICING_DB_PATH');
+      assert.match(err.message, /INVOICING_DB_PATH/);
+      return true;
+    }, `INVOICING_DB_PATH=${value} was accepted`);
+  }
 });
 
 // --- the secret mechanism, pinned before the first secret exists -------------

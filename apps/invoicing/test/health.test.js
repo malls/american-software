@@ -3,12 +3,15 @@
 //
 // THE STANDARD THIS FILE HOLDS THE ENDPOINT TO: every check must be
 // demonstrated able to fail, or it is decoration. A health check with no
-// demonstrated failure path is a 200 with extra steps. All three checks are
-// driven red below, each by the real-world condition it exists to catch:
+// demonstrated failure path is a 200 with extra steps. All four checks are
+// driven red, each by the real-world condition it exists to catch — three of
+// them below, the fourth in db.test.js (D9–D17):
 //
 //   config        <- an app handed a settings object that never passed loadConfig
 //   vendor_assets <- the tokens COPY dropped from the Dockerfile / wrong vendorDir
 //   views         <- views/ not COPY'd, and separately, a template that cannot render
+//   database      <- the file missing, the directory unwritable, the schema ahead
+//                    of the build, or a file that is not a database (db.test.js)
 //
 // The green case runs against the REAL container paths (/app/vendor,
 // /app/views) inside the mountless test service, so it is a statement about the
@@ -20,7 +23,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { HEALTH_CHECKS, runHealthChecks } from '../lib/health.js';
 import { VIEWS } from '../lib/views.js';
-import { configFor, withServer } from './helpers/server.js';
+import { configFor, preparedConfigFor, withServer } from './helpers/server.js';
 
 /** Names of the checks that failed, sorted. */
 const failing = (body) => body.checks.filter((c) => !c.ok).map((c) => c.name).sort();
@@ -28,13 +31,15 @@ const byName = (body, name) => body.checks.find((c) => c.name === name);
 
 // --- V2: cardinality before quantification ----------------------------------
 
-test('there are exactly three checks, by name', () => {
-  assert.equal(HEALTH_CHECKS.length, 3);
-  assert.deepEqual(HEALTH_CHECKS.map((c) => c.name), ['config', 'vendor_assets', 'views']);
+test('there are exactly four checks, by name', () => {
+  assert.equal(HEALTH_CHECKS.length, 4);
+  assert.deepEqual(HEALTH_CHECKS.map((c) => c.name), ['config', 'vendor_assets', 'views', 'database']);
   // Not checked, deliberately: Stripe (no account exists — asserting one would
-  // encode the assumption plan §7.3 forbids) and the database (AS-39 appends a
-  // row here, which is why the checks are data).
-  assert.equal(HEALTH_CHECKS.filter((c) => /stripe|database|db/i.test(c.name)).length, 0);
+  // encode the assumption plan §7.3 forbids). The database row is AS-39's, and
+  // there is exactly one of it — the checks are data, so it was appended
+  // without touching the route.
+  assert.equal(HEALTH_CHECKS.filter((c) => /stripe/i.test(c.name)).length, 0);
+  assert.equal(HEALTH_CHECKS.filter((c) => /database|db/i.test(c.name)).length, 1);
 });
 
 test('there is exactly one registered view', () => {
@@ -44,14 +49,14 @@ test('there is exactly one registered view', () => {
 
 // --- the green case, against the real image ---------------------------------
 
-test('GET /healthz returns 200 and {ok:true} with all three checks passing', async () => {
+test('GET /healthz returns 200 and {ok:true} with all four checks passing', async () => {
   await withServer(configFor(), async (base) => {
     const res = await fetch(`${base}/healthz`);
     assert.equal(res.status, 200);
     assert.match(res.headers.get('content-type'), /application\/json/);
     const body = await res.json();
     assert.equal(body.ok, true);
-    assert.deepEqual(body.checks.map((c) => c.name), ['config', 'vendor_assets', 'views']);
+    assert.deepEqual(body.checks.map((c) => c.name), ['config', 'vendor_assets', 'views', 'database']);
     assert.deepEqual(failing(body), []);
   });
 });
@@ -74,7 +79,7 @@ test('503 when vendorDir is wrong — vendor_assets is named as the failing chec
     assert.equal(res.status, 503);
     const body = await res.json();
     assert.equal(body.ok, false);
-    assert.deepEqual(failing(body), ['vendor_assets'], 'ONLY vendor_assets fails — the other two still pass');
+    assert.deepEqual(failing(body), ['vendor_assets'], 'ONLY vendor_assets fails — the other three still pass');
     assert.match(byName(body, 'vendor_assets').detail, /\/nonexistent\/vendor\/tokens\.css/);
     assert.match(byName(body, 'vendor_assets').detail, /ENOENT/);
   });
@@ -124,13 +129,15 @@ test('503 when the app holds a settings object that never passed loadConfig — 
   // be holding a partial or hand-built object. Boot-time validation cannot see
   // that; this check can. Asserted at the check level rather than over HTTP
   // because a config broken enough to matter may not survive createApp.
-  const broken = { ...configFor(), logLevel: 'chatty' };
+  // preparedConfigFor, not configFor: no server boots here, so the database
+  // must already be migrated on disk for `config` to be the ONLY failing check.
+  const broken = { ...preparedConfigFor(), logLevel: 'chatty' };
   const result = runHealthChecks(broken);
   assert.equal(result.ok, false);
   assert.deepEqual(failing(result), ['config']);
   assert.match(byName(result, 'config').detail, /logLevel .*INVOICING_LOG_LEVEL/);
 
-  const incomplete = { ...configFor() };
+  const incomplete = { ...preparedConfigFor() };
   delete incomplete.vendorDir;
   const second = runHealthChecks(incomplete);
   assert.equal(second.ok, false);
