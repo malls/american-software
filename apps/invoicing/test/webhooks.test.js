@@ -565,6 +565,24 @@ test('W7: an unhandled event type is 200 ignored and is NOT recorded', async () 
     assert.equal(repos.stripeEvents.has(evt.id), false);
     assert.equal(ledgerCount(config), 0);
     assert.deepEqual(repos.invoices.getByStripeInvoiceId(IN), before);
+
+    // ...and "unhandled" includes the names every object literal inherits. A
+    // bare HANDLERS[type] resolves `constructor` and friends to a member of
+    // Object.prototype — truthy, with no `locate` — and dispatch throws a
+    // TypeError the route answers with 500. Stripe cannot send these (its types
+    // all contain a dot) and reaching the dispatch takes a valid signature, but
+    // 500 is the one answer an unhandled type must never get: Stripe retries a
+    // 5xx for three days and can disable the endpoint over it. Cardinality
+    // first — six names, one delivery each.
+    const inherited = ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf', 'isPrototypeOf'];
+    assert.equal(inherited.length, 6);
+    for (const type of inherited) {
+      const poison = invoiceEvent(type, invoiceObject());
+      assert.deepEqual(await deliver(base, poison), { status: 200, body: 'ok: ignored\n' }, `type ${type}`);
+      assert.equal(repos.stripeEvents.has(poison.id), false, `type ${type} was recorded`);
+    }
+    assert.equal(ledgerCount(config), 0);
+    assert.deepEqual(repos.invoices.getByStripeInvoiceId(IN), before);
   });
 });
 

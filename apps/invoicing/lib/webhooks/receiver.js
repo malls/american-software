@@ -211,7 +211,18 @@ export function createWebhookReceiver({ repos } = {}) {
    * their own dashboard activity eventually makes Stripe disable our endpoint.
    */
   function receive(event) {
-    const handler = HANDLERS[event.type];
+    // Object.hasOwn, not a bare lookup. HANDLERS is an object literal, so a
+    // `type` of `constructor`, `toString` or `__proto__` resolves to an
+    // INHERITED member — truthy, without a `locate` — and dispatch would throw
+    // a TypeError, which the route answers with 500 where §3.4.2 requires a
+    // 200 `ignored`. Not a live hole: every Stripe event type contains a dot,
+    // so none can collide, and reaching this line at all takes a valid
+    // signature. It is fixed anyway because 500 is the one answer this receiver
+    // must never give to a type it simply does not handle — Stripe retries a
+    // 5xx for three days and can disable the endpoint over it (§3.4.1 reason
+    // 3). Proven by breaking it: W7 carries the six prototype keys and goes red
+    // against a bare lookup. (qa-ruben, AS-44 review.)
+    const handler = Object.hasOwn(HANDLERS, event.type) ? HANDLERS[event.type] : undefined;
     if (handler === undefined) return { outcome: 'ignored' };
     const target = handler.locate(repos, event);
     if (target === null) return { outcome: 'unknown-target' };
