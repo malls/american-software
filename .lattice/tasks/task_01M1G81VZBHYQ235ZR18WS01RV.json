@@ -1,6 +1,13 @@
 {
   "assigned_to": "agent:developer-lena",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-60-parallel-lanes",
+      "linked_at": "2026-09-02T05:28:53Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
   "comment_count": 3,
   "complexity": "high",
   "created_at": "2026-09-02T05:04:17Z",
@@ -10,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1G81VZBHYQ235ZR18WS01RV",
-  "last_event_id": "ev_01M1G9EEXB3SD2EFZRHJNS5Z7R",
+  "last_event_id": "ev_01M1G9EX641HMMZH4CPFR23DQW",
   "last_status_changed_at": "2026-09-02T05:28:38Z",
   "priority": "high",
   "relationships_out": [],
@@ -24,6 +31,6 @@
   ],
   "title": "advance loop spike: parallel implementer lanes \u2014 WIP>1 under a single board writer",
   "type": "spike",
-  "updated_at": "2026-09-02T05:28:39Z",
+  "updated_at": "2026-09-02T05:28:53Z",
   "urgency": null
 }
