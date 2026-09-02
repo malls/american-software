@@ -1,6 +1,13 @@
 {
   "assigned_to": "agent:developer-lena",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-40-accounts",
+      "linked_at": "2026-09-02T14:06:50Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
   "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
@@ -10,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34N7AX09RCFM43PZ022A4",
-  "last_event_id": "ev_01M1H733RCQPPXXY3ZRNEB87P5",
+  "last_event_id": "ev_01M1H739V9ZNCK35K309V2K83E",
   "last_status_changed_at": "2026-09-02T14:06:44Z",
   "priority": "medium",
   "relationships_out": [
@@ -34,6 +41,6 @@
   ],
   "title": "D1 v1: freelancer accounts \u2014 credentials, sessions, route guard (server)",
   "type": "task",
-  "updated_at": "2026-09-02T14:06:44Z",
+  "updated_at": "2026-09-02T14:06:50Z",
   "urgency": null
 }
