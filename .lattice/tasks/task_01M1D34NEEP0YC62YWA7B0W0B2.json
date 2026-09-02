@@ -1,6 +1,13 @@
 {
   "assigned_to": "agent:developer-marcus",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-42-contracts",
+      "linked_at": "2026-09-02T17:17:54Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
   "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
@@ -10,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34NEEP0YC62YWA7B0W0B2",
-  "last_event_id": "ev_01M1HJ0YRXWNWTQZ5WVXWX6R14",
+  "last_event_id": "ev_01M1HJ154SF363GA1S52PXMD7E",
   "last_status_changed_at": "2026-09-02T17:17:48Z",
   "priority": "medium",
   "relationships_out": [
@@ -35,6 +42,6 @@
   ],
   "title": "D1 v1: contract templates and generation (server)",
   "type": "task",
-  "updated_at": "2026-09-02T17:17:48Z",
+  "updated_at": "2026-09-02T17:17:54Z",
   "urgency": null
 }
