@@ -503,13 +503,26 @@ then **rebuild the image and re-run green** — a restored tree with a stale
 mutant image produces phantom results in both directions. Every `docker
 compose` invocation from the worktree, never the main checkout.
 
+**CORRECTED 2026-09-02, after the review, by `agent:cto-owen`.** Two of the five
+predicted sets below were observed WIDER than predicted, and one rationale was
+observed to be simply wrong; Priya and Ruben derived the same corrections
+independently (AS-41 review comments). The corrections are applied in place and
+marked, rather than silently rewritten — a plan whose predictions are quietly
+fixed teaches the next planner that predictions are cheap. **No test was
+narrowed to match a prediction, and none may be.** The lesson generalises and is
+carried forward in AS-43's §7 preamble: *the custody guard sits upstream of
+`requireKey` and of the transport, so any mutation that makes a call
+custody-illegal pre-empts every downstream expectation with a 500.*
+
 | # | Mutation (exact) | Assert applied | Predicted failing set |
 |---|---|---|---|
-| F1 | `perl -0pi -e "s/path: '\/v1\/accounts', platform: true/path: '\/v1\/accounts'/" lib/connect/onboarding.js` — strip the platform declaration from the account-CREATE call only | `grep -c "platform: true" lib/connect/onboarding.js` drops by exactly 1 | R3 and R12 fail (guard throws `platform_not_declared` → 500 where 303 expected); R4/R5/R9 still green (their calls untouched) — the narrowness IS the point; dependency-policy stays green (the construct still appears) |
-| F2 | in `readiness.js`, hardcode `requirementsCurrentlyDue: []` regardless of input | `grep -n "requirementsCurrentlyDue: \[\]" lib/connect/readiness.js` = 1 hit | R1 (due-mapping and truth-table rows with due≠[]), R6 (not-ready fixture becomes ready — the trust assertion trips) |
+| F1 | `perl -0pi -e "s/path: '\/v1\/accounts', platform: true/path: '\/v1\/accounts'/" lib/connect/onboarding.js` — strip the platform declaration from the account-CREATE call only | `grep -c "platform: true" lib/connect/onboarding.js` drops by exactly 1 | **CORRECTED: {R3, R10, R11, R12}.** The guard throws `platform_not_declared` → 500 where 303 was expected (R3, R12) — and, because AS-38 places the custody guard UPSTREAM of both `requireKey` and the transport, it also pre-empts R10's expected 502 (Stripe 4xx) and R11's expected 503 (no key configured), both of which traverse the same create call. R11 going red is itself positive evidence for the ordering claim in AC 9. *(Originally predicted {R3, R12}; observed {R3, R10, R11, R12}.)* Still true, and still the point: R4/R5/R9/R9b stay green — their call sites are untouched — and dependency-policy stays green, because the construct still appears in the file |
+| F2 | in `readiness.js`, hardcode `requirementsCurrentlyDue: []` regardless of input | `grep -n "requirementsCurrentlyDue: \[\]" lib/connect/readiness.js` = 1 hit | **CORRECTED: {R1, R3, R6}.** R1 fails on the due-mapping and on the truth-table row `[charges=true, due=['external_account'] → ready false]`, which is the row where blanking the due list would wrongly flip `ready`. R3 fails because it pins the same due list through the seed-from-the-create-response path, so the seed is guarded by the same mapping. R6 fails on the **due-list mapping assertion, not on `ready`** — that fixture carries `charges_enabled: false`, so AS-39's derivation keeps `ready` false whatever the due list, and the readiness flip is guarded by R1's truth table and by F4. *(Originally predicted {R1, R6}, with a rationale for R6 — "the not-ready fixture becomes ready" — that is unreachable in that fixture.)* |
 | F3 | comment out the `row exists` early branch in `onboarding.js#start` (always take the create path) | grep for the branch marker comment shows it disabled | R4 (accounts-call count 1≠0), R5 (Stripe calls where zero expected / UniqueViolation → 502 where 303 expected) |
 | F4 | replace `handleReturn`'s GET-account+map with a hardcoded all-true ready patch | `grep -c "GET" lib/connect/onboarding.js` (or the call-site line) shows the read gone | R6 fails (row ready despite not-ready fixture); R7 stays green — recorded to show why R6, not R7, is the trust guard; M2 fails in the contract service |
 | F5 | in a SCRATCH COPY of the worktree (never in place): `mv test/connect.test.js test/connect.test.js.bak` | `ls test/connect.test.js` fails in the copy | harness V2 only: found 10 files ≠ committed 11 — proves the new file is load-bearing in the pinned list, not decoration |
+| F6 | **ADDED after the review** (Ruben and Priya both derived it): leak a real, non-comment `platform: true` into `routes/connect.js` | `platform: true` hits in `routes/connect.js` go 0 → 1 | the `platform Stripe call` concept row ONLY: "found in [lib/connect/onboarding.js, routes/connect.js], allowed in exactly [lib/connect/onboarding.js]". F1–F5 only ever saw that row PASS, and a guard only ever seen passing proves nothing; this breaks it in the direction it exists to catch — a Stripe call creeping into a route |
+| F7 | **ADDED after the review**: strip ALL THREE `platform: true` declarations from `lib/connect/onboarding.js` | `platform: true,` hits go 3 → 0 | the concept row's **used-exemption** direction — "found in [], allowed in exactly [lib/connect/onboarding.js]" — plus the full custody blast radius {R3, R4, R6, R7, R9, R10, R11, R12}. F6 proves one direction of §3.6's claim; only F7 proves the other, which is why both are standing recipes |
 
 ## §8 Size and complexity, against the milestone tripwires
 
