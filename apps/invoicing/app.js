@@ -29,7 +29,7 @@ import express from 'express';
 import { createAccounts } from './lib/auth/accounts.js';
 import { loadSession, requireSameOrigin, requireSession } from './lib/auth/guard.js';
 import { assetRoutes } from './routes/assets.js';
-import { authRoutes } from './routes/auth.js';
+import { publicAuthRoutes, sessionAuthRoutes } from './routes/auth.js';
 import { connectRoutes } from './routes/connect.js';
 import { healthRoutes } from './routes/health.js';
 import { invoiceRoutes } from './routes/invoices.js';
@@ -116,10 +116,12 @@ export function createApp(config, deps) {
       dotfiles: 'ignore',
     }),
   );
-  // 7. Sign-up and sign-in are public by definition. POST /signout is in the
-  //    same router but is guarded by construction — it is only reachable with a
-  //    session, because nothing below the boundary is reachable without one.
-  app.use(authRoutes(config, { repos, accounts }));
+  // 7. Sign-up and sign-in, AND NOTHING ELSE: they are public by definition,
+  //    being how a caller with no session gets one. POST /signout is NOT in
+  //    this router — routes/auth.js exports a second one for it, mounted below
+  //    the boundary, because one Express router cannot sit on both sides of a
+  //    middleware.
+  app.use(publicAuthRoutes(config, { repos, accounts }));
 
   // ─── THE AUTH BOUNDARY ──────────────────────────────────────────────────────
   // Everything below requires a session. A router added below this line is
@@ -128,14 +130,21 @@ export function createApp(config, deps) {
   // suite red until its author classifies it in writing.
   app.use(requireSession(config));
 
-  // 8. Pages.
+  // 8. Sign-out, the guarded half of routes/auth.js. Mounted HERE rather than
+  //    with its siblings so that its protection is the same mechanism as every
+  //    other protected route's — position, not per-route middleware — which is
+  //    what keeps the sentence above a complete description of what is guarded.
+  //    An anonymous POST /signout is answered by requireSession (303 to
+  //    /signin, NO Set-Cookie); the handler never runs.
+  app.use(sessionAuthRoutes(config, { repos, accounts }));
+  // 9. Pages.
   app.use(pageRoutes(config));
-  // 9. Stripe Connect onboarding (AS-41): the three routes are exact paths
+  // 10. Stripe Connect onboarding (AS-41): the three routes are exact paths
   //    under /connect-stripe/ and shadow nothing. Stripe's return is a
   //    top-level GET navigation and carries the session cookie under
   //    SameSite=Lax — which is why the cookie is Lax and not Strict.
   app.use(connectRoutes(config, { repos, stripe }));
-  // 10. Invoice lifecycle (AS-43): draft, edit, finalize, send. Exact paths
+  // 11. Invoice lifecycle (AS-43): draft, edit, finalize, send. Exact paths
   //     under /invoices/ that shadow nothing; its body parser is mounted per
   //     route inside that router, never here, so AS-44's webhook keeps its raw
   //     request body by construction.

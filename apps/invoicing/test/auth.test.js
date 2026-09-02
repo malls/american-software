@@ -13,7 +13,9 @@
 // walk that silently returned nothing would otherwise pass every rule below it
 // on an empty set — partitions it, and drives a real cookieless request at
 // every route on the protected side. Reordering two mount lines turns G3 red
-// while leaving G1 green, which is precisely why both exist.
+// while leaving G1 green, which is precisely why both exist. G3 compares each
+// member against the GUARD'S OWN rejection, never against a literal shape: a
+// handler is free to reproduce a shape, and one did.
 //
 // Everything runs offline: no accounts, no network, no Stripe.
 import test from 'node:test';
@@ -779,20 +781,53 @@ test('G2: the public/protected partition is exact in BOTH directions', async () 
   });
 });
 
-test('G3: EVERY route in the protected partition redirects to sign-in with no cookie', async () => {
+/** A path below the boundary that NOTHING registers. Nothing serves it, so
+ *  whatever answers a cookieless request to it is DEFINITIONALLY the guard —
+ *  which makes its answer the reference every protected member is compared
+ *  against. */
+const UNROUTED_PATH = '/__unrouted__';
+
+test('G3: every protected route\'s cookieless answer is ATTRIBUTABLE to the guard, not merely shaped like one', async () => {
   await withApp({}, async ({ base, app }) => {
-    const protectedRoutes = discoverRoutes(app).filter((r) => !PUBLIC_ROUTES.includes(r));
+    const found = discoverRoutes(app);
+    // ATTRIBUTION, NOT APPEARANCE. This case previously asserted `303` +
+    // `Location: /signin` — what a rejection LOOKS like, which any handler may
+    // reproduce and POST /signout's success path does exactly: its member
+    // stayed green while the route sat ABOVE the boundary answering anonymous
+    // callers, and would have stayed green with requireSession deleted. The
+    // property is "if the guard's rejection changed, this route's response
+    // would change", enforced here by comparing every member against the
+    // guard's OWN rejection in this same app, and in §7's recipe F12 by moving
+    // that rejection and requiring all nine members to move with it.
+    assert.equal(found.includes(`POST ${UNROUTED_PATH}`), false, 'something now serves the reference path — it is no longer the guard that answers it');
+    const ref = await fetch(`${base}${UNROUTED_PATH}`, { method: 'POST', redirect: 'manual', headers: { origin: base } });
+    const refLocation = ref.headers.get('location');
+    // Cardinality on the INSTRUMENT before quantifying with it: with the guard
+    // deleted this probe 404s with no Location, and nine 404s compared against
+    // a 404 would be a vacuous green.
+    assert.ok(ref.status >= 300 && ref.status < 400, `the reference probe was not answered by a redirect (${ref.status}) — requireSession is not answering ${UNROUTED_PATH}`);
+    assert.equal(refLocation, '/signin', 'the guard redirects to the sign-in path — the contract AS-45 renders');
+    assert.equal(ref.headers.getSetCookie().length, 0, 'the guard sets NO cookie: that silence is what distinguishes it from a handler');
+
+    const protectedRoutes = found.filter((r) => !PUBLIC_ROUTES.includes(r));
     assert.equal(protectedRoutes.length, 9, 'cardinality before quantification');
     for (const entry of protectedRoutes) {
       const [method, path] = entry.split(' ');
-      const url = `${base}${path.replaceAll(':id', 'some-id')}`;
+      const url = new URL(`${base}${path.replaceAll(':id', 'some-id')}`);
       const res = await fetch(url, { method, redirect: 'manual', headers: { origin: base } });
-      assert.equal(res.status, 303, entry);
-      const location = res.headers.get('location');
-      // G4: safe methods carry ?next=; unsafe ones do not — a POST body cannot
-      // be replayed after a redirect, so offering to resume it would be a lie.
-      if (method === 'GET') assert.match(location, /^\/signin\?next=/, entry);
-      else assert.equal(location, '/signin', entry);
+      // The guard's own status, not a literal 303.
+      assert.equal(res.status, ref.status, `${entry}: status differs from the guard's own rejection`);
+      // The byte that discriminates: POST /signout's handler emits
+      // `invoicing_session=; …Expires=Thu, 01 Jan 1970…`, and the guard emits
+      // nothing at all. One line, and it is the line that would have caught the
+      // defect that shipped in cycle 1.
+      assert.equal(res.headers.getSetCookie().length, 0, `${entry}: answered with a Set-Cookie, so a HANDLER ran and the guard never saw the request`);
+      // The guard's own Location, built from the reference rather than from a
+      // literal. G4's split, unchanged: a safe method carries ?next= so the
+      // freelancer lands where they were going, an unsafe one does not, because
+      // a POST body cannot be replayed after a redirect.
+      const expected = method === 'GET' ? `${refLocation}?next=${encodeURIComponent(url.pathname)}` : refLocation;
+      assert.equal(res.headers.get('location'), expected, entry);
     }
   });
 });

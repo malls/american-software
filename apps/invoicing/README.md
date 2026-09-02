@@ -379,7 +379,18 @@ behind.
 |---|---|---|
 | `POST /signup` | public | create the freelancer and the credential in ONE transaction, issue a session, 303 to `next` (validated) or `/` |
 | `POST /signin` | public | verify, re-hash if the stored parameters are behind the default, issue a session, 303 |
-| `POST /signout` | guarded | delete the row, clear the cookie, 303 to `/signin` |
+| `POST /signout` | guarded — mounted below the boundary | delete the row, clear the cookie, 303 to `/signin` |
+
+`routes/auth.js` exports **two** routers for that reason: `publicAuthRoutes`
+(sign-up, sign-in) above the boundary and `sessionAuthRoutes` (sign-out) below
+it. One Express router cannot sit on both sides of a middleware, so signout is
+protected by **position**, exactly like every other guarded route — never by
+per-route middleware, which would make "everything below the boundary requires a
+session" an incomplete description of what is guarded. An anonymous
+`POST /signout` therefore gets the guard's answer — `303` to `/signin` with **no
+`Set-Cookie`** — and the handler never runs; the stale cookie is left alone,
+because `loadSession` already resolves it to nothing and the next sign-in
+overwrites it.
 
 `GET /signin` **404s until AS-45 lands screen 1** — the `Location` header is the
 contract, exactly as `/connect-stripe` has 404'd since AS-41. The guard

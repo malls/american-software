@@ -11,10 +11,24 @@
 // bodies are the house one-line text/plain carrying the error class and the
 // step that failed, never the credential and never request material.
 //
-// POST /signout takes no allowlist entry and needs none: it is mounted BELOW
-// the boundary in app.js and is therefore guarded by construction. It is a POST
-// rather than a GET precisely because SameSite=Lax sends cookies on top-level
-// GET navigations, which would make a GET /signout triggerable from a link.
+// TWO ROUTERS, ONE PER SIDE OF THE AUTH BOUNDARY. One Express router cannot be
+// on both sides of a middleware: publicAuthRoutes carries POST /signup and
+// POST /signin and mounts ABOVE requireSession, sessionAuthRoutes carries
+// POST /signout alone and mounts BELOW it. Signout is therefore protected
+// POSITIONALLY, like every other guarded route, so "everything below the
+// boundary line requires a session" stays a COMPLETE description of what is
+// guarded — no reader of app.js has to open this file to learn which of its
+// routes are exceptions. Cycle 1 shipped all three routes in one router above
+// the boundary, described as "guarded by construction": that phrase asserted
+// the conclusion and named no mechanism, so nothing contradicted it when the
+// mechanism was absent, and POST /signout ran its handler for anonymous
+// callers. The split is cheap because signout shares nothing with the public
+// pair — no body parser, no status mapping, no renderSignIn seam, no
+// router-level error handler.
+//
+// POST /signout is a POST rather than a GET precisely because SameSite=Lax
+// sends cookies on top-level GET navigations, which would make a GET /signout
+// triggerable from a link.
 import express, { Router } from 'express';
 import { AuthError, createAccounts } from '../lib/auth/accounts.js';
 import { POST_SIGNIN_LANDING, SIGNIN_PATH, safeNext } from '../lib/auth/guard.js';
@@ -59,12 +73,14 @@ function renderSignIn(res, view) {
 }
 
 /**
+ * The PUBLIC half: the two ways in. Mounted ABOVE the auth boundary.
+ *
  * @param {object} config frozen settings from lib/config.js (appBaseUrl decides
  *   the cookie's Secure flag, through lib/auth/session.js)
  * @param {{ repos: object }} deps built in app.js from the same repos every
  *   other router receives
  */
-export function authRoutes(config, { repos, accounts = createAccounts({ repos }) } = {}) {
+export function publicAuthRoutes(config, { repos, accounts = createAccounts({ repos }) } = {}) {
   const router = Router();
 
   // MOUNTED PER ROUTE, NOT APP-WIDE — the AS-44 raw-body rule: an app-wide
@@ -103,20 +119,38 @@ export function authRoutes(config, { repos, accounts = createAccounts({ repos })
     password: field(body, 'password'),
   })));
 
-  // Guarded by construction (mounted below the boundary). Clearing the cookie
-  // uses the SAME attributes it was set with, or a browser will not match the
-  // cookie it is meant to remove.
-  router.post('/signout', (req, res) => {
-    accounts.signOut(readSessionToken(req));
-    clearSessionCookie(res, config);
-    res.redirect(303, SIGNIN_PATH);
-  });
-
   // A body-parser refusal never reaches a handler, so it needs its own landing:
   // the same one-line shape as every other failure on these routes.
   router.use((err, req, res, next) => {
     if (res.headersSent) return next(err);
     renderSignIn(res, { status: statusFor(err), error: err, step: 'parse-body' });
+  });
+
+  return router;
+}
+
+/**
+ * The GUARDED half: sign-out alone. Mounted BELOW the auth boundary in app.js,
+ * which is the whole of its protection — an anonymous POST /signout is answered
+ * by requireSession (303 to /signin, and NO Set-Cookie) and never reaches this
+ * handler. test/auth.test.js's G3 asserts that difference on the byte that
+ * carries it: the guard sets no cookie and this handler always does.
+ *
+ * Same signature as publicAuthRoutes so both mounts in app.js read alike.
+ *
+ * @param {object} config frozen settings from lib/config.js
+ * @param {{ repos: object }} deps as above
+ */
+export function sessionAuthRoutes(config, { repos, accounts = createAccounts({ repos }) } = {}) {
+  const router = Router();
+
+  // No body parser: sign-out reads the cookie and nothing else. Clearing that
+  // cookie uses the SAME attributes it was set with, or a browser will not
+  // match the cookie it is meant to remove.
+  router.post('/signout', (req, res) => {
+    accounts.signOut(readSessionToken(req));
+    clearSessionCookie(res, config);
+    res.redirect(303, SIGNIN_PATH);
   });
 
   return router;
