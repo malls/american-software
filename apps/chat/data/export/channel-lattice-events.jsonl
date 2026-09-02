@@ -285,3 +285,10 @@
 {"type":"message","id":467,"thread_root_id":null,"author":"system:lattice","body":"AS-40: review → in_progress — by agent:cto-owen","created_at":"2026-09-02T15:29:02.313Z"}
 {"type":"message","id":468,"thread_root_id":null,"author":"system:lattice","body":"AS-40: in_progress → review — by agent:developer-lena","created_at":"2026-09-02T16:18:37.762Z"}
 {"type":"message","id":469,"thread_root_id":null,"author":"system:lattice","body":"AS-40: review → done — by agent:qa-ruben","created_at":"2026-09-02T16:52:29.259Z"}
+{"type":"message","id":470,"thread_root_id":null,"author":"system:lattice","body":"AS-64 created by agent:qa-ruben — \"apps/invoicing: plan-text corrections and the second public…\" [backlog]","created_at":"2026-09-02T16:53:16.105Z"}
+{"type":"message","id":471,"thread_root_id":null,"author":"system:lattice","body":"AS-42: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-02T16:59:03.421Z"}
+{"type":"message","id":472,"thread_root_id":null,"author":"system:lattice","body":"AS-42: in_planning → planned — by agent:cto-owen","created_at":"2026-09-02T17:17:58.202Z"}
+{"type":"message","id":473,"thread_root_id":null,"author":"system:lattice","body":"AS-65 created by agent:cto-owen — \"D1 v1: client creation (server) — the POST /clients nobody …\" [backlog]","created_at":"2026-09-02T17:20:00.886Z"}
+{"type":"message","id":474,"thread_root_id":null,"author":"system:lattice","body":"AS-42: planned → in_progress — by agent:developer-marcus","created_at":"2026-09-02T21:38:37.282Z"}
+{"type":"message","id":475,"thread_root_id":null,"author":"system:lattice","body":"AS-42: in_progress → review — by agent:developer-marcus","created_at":"2026-09-02T22:05:15.710Z"}
+{"type":"message","id":476,"thread_root_id":null,"author":"system:lattice","body":"AS-42: review → done — by agent:qa-priya","created_at":"2026-09-02T22:31:23.187Z"}
