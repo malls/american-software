@@ -1,0 +1,2 @@
+examined 1 commit(s) on feat/AS-34-symlink-dot-check (master..feat/AS-34-symlink-dot-check)
+PASS: all commit identities in expected set with canonical emails

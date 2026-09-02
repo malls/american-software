@@ -1,0 +1,2 @@
+examined 3 task(s) / 3 pair(s) / 34 diff path(s)
+PASS: allowed-prefix sets and branch diff sets pairwise disjoint

@@ -1,0 +1,2 @@
+examined 3 changed file(s) on feat/AS-34-symlink-dot-check / 2 working tree(s)
+PASS: diff confined to allowed prefixes; worktree and main checkout clean

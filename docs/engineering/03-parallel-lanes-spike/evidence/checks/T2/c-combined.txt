@@ -1,0 +1,2 @@
+examined 601 event(s) / 60 task(s) / 12 in-window / 3 attributed task(s)
+PASS: event-log integrity holds

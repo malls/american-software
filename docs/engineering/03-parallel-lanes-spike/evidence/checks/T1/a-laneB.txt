@@ -1,0 +1,2 @@
+examined 3 changed file(s) on feat/AS-34-symlink-dot-check (master...feat/AS-34-symlink-dot-check)
+PASS: no .lattice/ paths in branch diff

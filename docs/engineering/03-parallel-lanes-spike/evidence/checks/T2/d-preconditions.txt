@@ -1,0 +1,2 @@
+examined 4 precondition(s) for AS-41 (task_01M1D34NAX4QTQ3HMJ7P5EBGK9)
+PASS: durable resume set complete (status=in_progress, branch=feat/AS-41-connect-onboarding, worktree present, plan real)
