@@ -258,8 +258,8 @@ test('A13: credentials round trip, and getByFreelancer returns null rather than 
   });
 });
 
-test('A14: sessions round trip; getById returns null for an unknown digest', () => {
-  withRepos((repos) => {
+test('A14: sessions round trip; getById returns null for an unknown digest', async () => {
+  await withRepos((repos) => {
     const freelancer = repos.freelancers.create({ email: EMAIL, displayName: NAME });
     const { token, id } = mintToken();
     assert.equal(token.length, 43, '32 random bytes as base64url — no percent-encoding needed');
@@ -276,8 +276,8 @@ test('A14: sessions round trip; getById returns null for an unknown digest', () 
   });
 });
 
-test('A15: deleteExpired removes exactly the expired rows and returns the count', () => {
-  withRepos((repos) => {
+test('A15: deleteExpired removes exactly the expired rows and returns the count', async () => {
+  await withRepos((repos) => {
     const freelancer = repos.freelancers.create({ email: EMAIL, displayName: NAME });
     const at = (ms) => new Date(Date.now() + ms).toISOString();
     const live = [mintToken(), mintToken()];
@@ -292,8 +292,8 @@ test('A15: deleteExpired removes exactly the expired rows and returns the count'
   });
 });
 
-test('A16: the FK refuses a session for a freelancer that does not exist', () => {
-  withRepos((repos) => {
+test('A16: the FK refuses a session for a freelancer that does not exist', async () => {
+  await withRepos((repos) => {
     const { id } = mintToken();
     assert.throws(
       () => repos.sessions.create({ id, freelancerId: 'no-such-freelancer', expiresAt: new Date().toISOString() }),
@@ -302,13 +302,13 @@ test('A16: the FK refuses a session for a freelancer that does not exist', () =>
   });
 });
 
-test('A17: a plaintext password_hash is refused TWICE — by the repository, and by the DDL underneath it', () => {
+test('A17: a plaintext password_hash is refused TWICE — by the repository, and by the DDL underneath it', async () => {
   // TWO INDEPENDENT HALVES, and the split is the point. A single assertion
   // through the repository would pass while the CHECK constraint was pure
   // decoration, because the repository's own prefix assertion runs first and
   // would answer for it. Each half is separately falsifiable: deleting the
   // repository assertion reddens (a); deleting the CHECK reddens (b).
-  withRepos((repos, db) => {
+  await withRepos((repos, db) => {
     const freelancer = repos.freelancers.create({ email: EMAIL, displayName: NAME });
     const at = new Date().toISOString();
     const insert = (hash) => db
@@ -333,12 +333,12 @@ test('A17: a plaintext password_hash is refused TWICE — by the repository, and
   });
 });
 
-test('A18: a raw token as a session id is refused TWICE — by the repository, and by the DDL underneath it', () => {
+test('A18: a raw token as a session id is refused TWICE — by the repository, and by the DDL underneath it', async () => {
   // Same two-half structure as A17, for the same reason. Storing the cookie
   // value instead of its digest is the single worst mistake available in this
   // design, and it must be impossible at the engine rather than merely
   // validated against.
-  withRepos((repos, db) => {
+  await withRepos((repos, db) => {
     const freelancer = repos.freelancers.create({ email: EMAIL, displayName: NAME });
     const { token, id } = mintToken();
     assert.equal(token.length, 43, 'the token really is the shorter, non-hex thing');
@@ -644,7 +644,7 @@ test('H11b: a session naming a freelancer who no longer exists is refused AND de
 });
 
 test('H12–H15: `next` is honoured when safe, and replaced by / for each hostile spelling', async () => {
-  const hostile = ['//evil.test', 'https://evil.test', '/\\evil.test', '/ok bad'];
+  const hostile = ['//evil.test', 'https://evil.test', '/\\evil.test', `/ok${String.fromCharCode(0)}bad`];
   assert.equal(hostile.length, 4, 'the committed list of hostile spellings');
   for (const raw of hostile) assert.equal(safeNext(raw), null, raw);
   assert.equal(safeNext('/invoices/abc?x=1'), '/invoices/abc?x=1', 'a safe same-site path survives');
