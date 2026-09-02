@@ -1,0 +1,34 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "low",
+  "created_at": "2026-09-02T04:23:09Z",
+  "created_by": "agent:qa-priya",
+  "custom_fields": {},
+  "description": "Residual findings from the AS-39 QA review (qa-priya, --role review comment, 2026-09-02; verdict was PASS at 25/25 ACs \u2014 none of these blocked the merge). AS-39 merged at 6507acd. Bundled because each is a small, local change in apps/invoicing/lib/db or its tests, and none changes behaviour a user sees today. Detail and context: .lattice/plans/task_01M1D34N3QNCV3AWZYMHVVV77M.md \u00a711.\n\nINPUT HARDENING (the repository layer lets raw driver errors escape, breaking the \u00a72.5 contract that callers see typed errors):\n\n1. Unbounded money values. An amount beyond int64 is coerced toward REAL by SQLite and a raw RangeError from node:sqlite reaches the caller. Decide the bound (a documented maximum minor-unit amount is the obvious one \u2014 Stripe's own limits are a reasonable anchor) and enforce it in lib/db/money.js so it is one rule, not per-repository. Must raise the plan's ValidationError, never a driver error.\n\n2. Untrimmed emails bypass case-insensitive uniqueness. `freelancers` is unique on lower(email); a value with leading/trailing whitespace evades it, so two rows can differ only by surrounding space. Normalize on write (trim, and decide explicitly whether to lowercase the stored value or keep the index as the only case rule) and cover both a whitespace-variant duplicate and a case-variant duplicate.\n\n3. Raw TypeError from contracts.variables. A BigInt or a cyclic object handed to the contracts repository surfaces as JSON.stringify's TypeError. Wrap it as ValidationError naming the field.\n\nCORRECTNESS OF THE HEALTH PROBE:\n\n4. probe() omits the plan's \"regular file\" check (\u00a72.7). It calls statSync but never isFile(), so a DIRECTORY at INVOICING_DB_PATH reports differently than intended. Add isFile() and a test that fails without it. The implementer's probe-order deviation itself is correct and proven by M14 \u2014 keep statSync first.\n\n5. D18 fails via TypeError rather than a health-shaped assertion when the database check is absent (observed as the extra witness under M13). Make the failure mode legible: assert the check exists before indexing into it.\n\nTEXT AND DOCS (no behaviour):\n\n6. Plan-text corrections in AS-39's own plan are already recorded in \u00a711.1 \u2014 nothing to change in this task, but the same three literals appear in test names/comments in a few places; align them where they mislead: the index count (4 named, not 5), M7's failing set (F4, F5 AND D8), and the X group's size (9 tests, not 8).\n\n7. apps/invoicing/README.md: note that `docker compose down` leaves a profile-gated stripe-mock container running (the tools profile is not selected by a plain down), and give the command that stops it.\n\nNOT IN THIS TASK: /healthz publishing the redacted config object, now including dbPath \u2014 that stays AS-58 item 4, which owns the exposure decision for the whole endpoint. Do not duplicate it here.\n\nACCEPTANCE: each numbered item has a test that fails without the change, and the house technique is followed \u2014 show the checker red once, record the exact failing-test set (cardinality before quantification). The suite stays at 10 test files; dependency-policy, deploy-shape, config, health and harness guards stay green with no allowlist widened; no new dependencies; the test service stays offline; no protected top-level files edited. Complexity low; the plan can be short.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1G5PH08QXRPE4R06SDF2WR3",
+  "last_event_id": "ev_01M1G5PH7JANMRH9E6QRHAES9Q",
+  "last_status_changed_at": "2026-09-02T04:23:09Z",
+  "priority": "low",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-02T04:23:09Z",
+      "created_by": "agent:qa-priya",
+      "note": null,
+      "target_task_id": "task_01M1D34N3QNCV3AWZYMHVVV77M",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-59",
+  "status": "backlog",
+  "tags": null,
+  "title": "AS-39 residuals: input hardening in the persistence layer + health probe isFile()",
+  "type": "task",
+  "updated_at": "2026-09-02T04:23:09Z",
+  "urgency": null
+}
