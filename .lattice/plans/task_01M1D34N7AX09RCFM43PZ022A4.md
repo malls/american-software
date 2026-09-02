@@ -33,12 +33,12 @@ for a budget check.
 | E6 | `res.clearCookie(n,{httpOnly,sameSite:'lax',path:'/'})` | emits `invoicing_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax` — **no** `Max-Age` |
 | E7 | `req.cookies` without cookie-parser | **absent** (`'cookies' in req === false`); `req.headers.cookie` carries the raw string |
 | E8 | `grep -rl` over `apps/invoicing` (excl. `node_modules`) for `scrypt`, `pbkdf2`, `randomBytes`, `createHash`, `req.currentUser`, `res.cookie`, `clearCookie`, `headers.cookie`, `requireSession`, `loadSession`, `SameSite`, and the literal `/signin` | **zero files each — every one of these is a baseline of 0** |
-| E9 | `grep -c timingSafeEqual lib/webhooks/signature.js` | **4** (lines 40, 72, 158, 163 — two are comments) |
-| E10 | `grep -c createHmac lib/webhooks/signature.js` | **2** (lines 40, 155) |
+| E9 | `grep -c timingSafeEqual lib/webhooks/signature.js` | **4** (lines 40, 72, 158, 163 — two are comments). *Cycle-1 re-measure: **4 [occ]** too — line and occurrence counts coincide here, verified rather than assumed (F9)* |
+| E10 | `grep -c createHmac lib/webhooks/signature.js` | **2** (lines 40, 155). *Cycle-1 re-measure: **2 [occ]** — coincides, verified (F9)* |
 | E11 | `grep -c resolveFreelancerId` in `routes/connect.js` / `routes/invoices.js` | **2** / **2** |
 | E12 | `grep -c 'AS-40 OBLIGATION'` in `routes/connect.js` / `routes/invoices.js` / `README.md` | **1** / **1** / **1** |
 | E13 | `grep -c 'freelancer='` in `test/invoices.test.js` / `test/connect.test.js` | **39** / **20** |
-| E14 | `grep -c 'express.static' app.js`; `grep -c 'app.use' app.js` | **2** (line 79 comment, line 86 code); **7** |
+| E14 | `grep -c 'express.static' app.js`; `grep -c 'app.use' app.js` | **2** (line 79 comment, line 86 code); **7**. **⚠ CYCLE-1 CORRECTION (finding R4): these are MASTER LINE counts and are not invariants of the changed app.** `app.use(` is **11 [occ]** in the worktree at `ff5aae1` and **12** once finding R1's second mount lands. F6/F10 quoted the 7 as a post-change invariant, which made their assert-applied step unrunnable. **No §7 recipe may cite this row**; re-measure with `grep -oF … \| wc -l` in the tree the recipe runs against |
 | E15 | `console.` sites in app source (excl. `test/`) | exactly 5 lines in 3 files: `server.js` (28, 38), `lib/invoices/lifecycle.js` (334), `lib/webhooks/receiver.js` (70, 80) |
 | E16 | `wc -l test/invoices.test.js` | **1,180** — the 1,200-line cap leaves **20 lines** of headroom. This is the tightest literal in the task |
 | E17 | Autoindex derivation from `0001-initial.js` | 13 today = freelancers 1 + connected_accounts 3 + clients 3 + contracts 1 + invoices 2 + invoice_line_items 2 + stripe_events 1 + schema_migrations 0 (INTEGER PK is a rowid alias) |
@@ -159,10 +159,18 @@ test/repositories.test.js               Z3 key list 7 -> 9
 test/config.test.js                     comment only (§11 item 1)
 test/connect.test.js                    cookie plumbing, R13 rewritten
 test/invoices.test.js                   cookie plumbing (LINE CAP — E16)
-test/webhooks.test.js                   ONE line (E18) — see §5.4 item 13
+test/webhooks.test.js                   4 places (E18) — see §5.4 item 12
+test/health.test.js                     2 scaffold-PAGE cases sign in first
 test/helpers/server.js                  re-export the session seed helper
 apps/invoicing/README.md                accounts section + handoffs
 ```
+
+**`test/health.test.js` is in this list as of review cycle 1 (finding R5).** The
+plan originally listed it under "explicitly NOT touched", and that claim is
+falsified: `GET /` and the unknown-path 404 live in that file and both now sit
+behind the boundary, so those two cases sign in first. The four health checks and
+`body.checks.length === 4` are untouched, which is the claim that actually
+mattered. §4.3 is corrected to match.
 
 **`test/webhooks.test.js` is in this list and it is easy to miss.** Line 784
 drives `POST /invoices/{id}/send?freelancer=…` through AS-43's route to set up a
@@ -174,8 +182,11 @@ suites. Everything else in that file is untouched.
 `.dockerignore`, `lib/health.js`, `lib/stripe/*`, `lib/webhooks/*`,
 `lib/invoices/lifecycle.js`, `lib/db/migrations/0001-initial.js`,
 `lib/db/errors.js`, `lib/db/connection.js`, `views/`, `public/`,
-`test/deploy-shape.test.js`, `test/assets.test.js`, `test/health.test.js`,
+`test/deploy-shape.test.js`, `test/assets.test.js`,
 `test/stripe-client.test.js`, `test/stripe-mock.test.js`.
+(`test/health.test.js` was on this list in cycle 1 and has been moved to
+Modified above — the claim was false. A "NOT touched" entry is an assertion, so
+a falsified one is a plan defect, not a bookkeeping slip.)
 
 `server.js` staying untouched is worth its own sentence: `createApp(config, {
 repos, stripe })` keeps both its arguments and its arity. The accounts service is
@@ -458,12 +469,31 @@ above, and each member is public for a stated reason.
 4. requireSameOrigin      CSRF defence on unsafe methods (§3.6)
 5. assetRoutes            vendored bytes; identical for every caller
 6. express.static         app-owned bytes; identical for every caller  ← MOVED
-7. authRoutes             POST /signup, POST /signin (public);
-                          POST /signout is below the boundary
+7. publicAuthRoutes       POST /signup, POST /signin — and NOTHING ELSE
 ── the auth boundary ─────────────────────────────────────────────────────────
 8. requireSession
-9. pageRoutes, connectRoutes, invoiceRoutes, and everything added later
+9. sessionAuthRoutes      POST /signout                        ← CORRECTED R1
+10. pageRoutes, connectRoutes, invoiceRoutes, and everything added later
 ```
+
+**CORRECTED, review cycle 1 (finding R1).** This table previously mounted one
+`authRoutes` router at position 7 carrying all three routes, with a parenthetical
+claiming `POST /signout` was "below the boundary". One Express router cannot be
+on both sides of a middleware, so the table contradicted itself and contradicted
+§3.7; the implementer followed the mount and §3.7 was right. `routes/auth.js`
+therefore exports **two** factories, and the boundary keeps exactly one
+mechanism: **position**. Every protected route is protected because it is mounted
+below line 8 — no route is protected by per-route middleware, because a second
+mechanism means "below the boundary" stops being a complete statement about what
+is guarded, and a reader of `app.js` would have to open a router file to learn
+which of its routes are exceptions. The split is cheap precisely because signout
+shares nothing with the public pair: no body parser, no `statusFor` mapping, no
+`renderSignIn` seam, no router-level error handler. Four lines and one export.
+
+*What would have to be true for the other answer:* if signout shared the body
+parser or the error handler with sign-up/sign-in, splitting the router would
+duplicate them, and per-route `requireSession` on a single mount would be the
+cheaper correct answer. It does not, so it is not.
 
 #### 3.5.2 Layer 2 — the enumeration test is the actual proof
 
@@ -477,7 +507,41 @@ verified against express 5.2.1 in the real image) and:
    below it on an empty set;
 2. partitions that list against a committed `PUBLIC_ROUTES` array;
 3. **drives a real cookieless HTTP request at every route in the protected
-   partition** and asserts the sign-in redirect.
+   partition** and asserts that **the guard answered it** — not merely that the
+   response looks like a rejection.
+
+**ATTRIBUTION, NOT APPEARANCE (added review cycle 1, finding R2).** Step 3 as
+originally written asserted `303` + `Location: /signin`. That is a description of
+what the rejection *looks like*, and any handler is free to produce the same
+bytes — `POST /signout`'s success path does exactly that. A member whose expected
+response is byte-identical to its own handler's success path is **vacuous**: it
+stays green with `requireSession` deleted. The property that must hold is
+therefore not "the response looks like a redirect to sign-in" but:
+
+> For every route in the protected partition, the cookieless response is
+> **attributable to `requireSession`**. Operationally: *if the guard's rejection
+> changes, this route's response changes.*
+
+Two mechanisms enforce it, and neither is optional:
+
+- **In-suite (G3), a reference comparison.** The guard's canonical unsafe-method
+  rejection is obtained from a path with **no registered route** below the
+  boundary (e.g. `POST /__unrouted__` with a matching `Origin` and no cookie).
+  Nothing serves it, so that response is *definitionally* the guard's. Every
+  protected member's cookieless response is then compared against that reference
+  on status, on `Set-Cookie` **count (zero)**, and on `Location` — exact for
+  unsafe methods, and `/signin?next=<this route's own originalUrl>` for safe
+  ones (G4's split, unchanged). The zero-`Set-Cookie` clause is the byte that
+  discriminates the defect that shipped: the guard emits none, and signout's
+  handler emits `invoicing_session=; …Expires=Thu, 01 Jan 1970…`.
+- **In §7, a standing attribution recipe (F12).** The reference comparison
+  narrows the hiding place but does not close it: a future handler that redirects
+  to `/signin` **and** sets no cookie would still be indistinguishable. Only a
+  mutation closes it, so QA's cycle-1 technique is promoted from a review
+  technique to a recipe with a pinned predicted set — change the guard's
+  rejection and **all nine** protected routes must move. Fewer than nine is a
+  finding by definition; more than nine means a public route is being guarded.
+  Re-run it whenever the protected partition changes.
 
 A route added anywhere — in a new router, in an existing one, at any mount
 position — changes the discovered list and turns (1) red. To make it green, its
@@ -635,10 +699,25 @@ translates HTTP to service calls and error classes to statuses.
   `extended: false` because a credentials form has no nested structure, which
   keeps the parsed surface on the app's only unauthenticated write endpoint as
   small as it can be.
-- **`POST /signout` needs no allowlist entry** — it is mounted below the boundary
-  and is therefore guarded by construction. It is a POST, not a GET, precisely
-  because `Lax` sends cookies on top-level GET navigations and a `GET /signout`
-  is trivially triggerable from a link.
+- **`POST /signout` needs no allowlist entry** — it is carried by a *second*
+  router mounted below the boundary (§3.5.1), so it is guarded positionally, like
+  every other protected route. "By construction" was the wording that let cycle 1
+  ship it above the boundary: the phrase asserted the conclusion and named no
+  mechanism, so nothing contradicted it when the mechanism was absent. It is a
+  POST, not a GET, precisely because `Lax` sends cookies on top-level GET
+  navigations and a `GET /signout` is trivially triggerable from a link.
+- **What an unauthenticated `POST /signout` gets, and why it is not hostile.**
+  Behind the guard it is `requireSession`'s ordinary unsafe-method answer:
+  **`303` to `/signin`, no `next`, and no `Set-Cookie`.** Checked against what
+  AS-45 will need: a user whose session expired clicking a stale sign-out button
+  lands on the sign-in screen, which is where they were going anyway — the same
+  destination the handler would have sent them to. The one behavioural difference
+  is that their stale cookie is **not** cleared. That is deliberate and harmless:
+  `loadSession` already resolves it to nothing (deleting the row if it is merely
+  expired, per H10), and `setSessionCookie` overwrites it on the next successful
+  sign-in. A guard that also mutates response state is a guard with a second job,
+  and the absence of that second job is what makes its answer distinguishable
+  from the handler's — see §3.5.2. The two properties are the same property.
 - **Duplicate email is detected by the unique index, not by a pre-read.**
   `findByEmail`-then-`create` is a TOCTOU race with itself; `create` inside a
   transaction and catching `UniqueViolationError` is race-free and one branch
@@ -860,8 +939,12 @@ mapper, validation before any SQL, a frozen factory.
 false while the process is still able to answer*. The two new tables are covered
 by the existing `database` probe, which compares the schema version and now
 expects **2**. An "auth is working" check would either restate that or assert
-something tautological. Four checks stay four — `test/health.test.js` is
-unchanged, a claim.
+something tautological. **Four checks stay four, and `body.checks.length === 4`
+is the claim** — that is what this section is entitled to assert. It previously
+claimed the whole *file* was unchanged, which was false and is corrected in §2
+(finding R5): the file also holds two scaffold-PAGE cases (`GET /` and the
+unknown-path 404) that now sit behind the boundary and sign in first. No health
+assertion moved.
 
 ### 4.4 No dependency decision is triggered
 
@@ -888,14 +971,14 @@ not merely unused; they are unnecessary, and the reasons are in §3.3.1 and §3.
 | `lib/db/migrations/0002-accounts.js` | `{ version: 2, name: 'accounts', up }` — §4.2's DDL |
 | `lib/db/repositories/credentials.js` | 1:1 credential rows |
 | `lib/db/repositories/sessions.js` | session rows and the expiry sweep |
-| `routes/auth.js` | three routes, per-route body parser, `statusFor`, `renderSignIn` (AS-45 obligation) |
+| `routes/auth.js` | **two exported factories** (finding R1): `publicAuthRoutes` — `POST /signup`, `POST /signin`, the per-route body parser, `statusFor`, `renderSignIn` (AS-45 obligation) and the router-level parser-error handler; and `sessionAuthRoutes` — `POST /signout` alone, mounted below the boundary. One file, because they share the accounts service and the cookie helpers; two routers, because they sit on opposite sides of the boundary |
 | `test/helpers/auth.js` | `seedSignedIn(repos)` → `{ freelancer, cookie }` — mints a session row directly, so `connect`/`invoices` tests pay no KDF cost |
 
 ### 5.2 Modified source files
 
 | File | Change |
 |---|---|
-| `app.js` | the mount order in §3.5.1; `createAccounts` built here; `express.static` moved; the boundary banner comment; the `public/` is-public note |
+| `app.js` | the mount order in §3.5.1 — **twelve** `app.use(` calls, not eleven, because signout gets its own mount below the boundary (finding R1); `createAccounts` built here; `express.static` moved; the boundary banner comment; the `public/` is-public note. **The comment at the `publicAuthRoutes` mount must stop saying signout is "guarded by construction"** — that sentence was true of the design and false of the file, and `apps/invoicing/README.md:382` says the same thing and moves with it |
 | `lib/connect/onboarding.js` | `routeUrl(path)` drops its `freelancerId` argument and the `searchParams.set('freelancer', …)` line; `mintLink(stripeAccountId)` drops its second argument. **The Stripe parameter *names* are untouched** — `account`, `type`, `refresh_url`, `return_url` — so K8, the custody allowlist and every Stripe concept row are unaffected |
 | `lib/db/database.js` | two imports, two factory keys |
 | `lib/db/migrate.js` | `import m0002` + one array entry |
@@ -1107,11 +1190,19 @@ not projected.
     helper is not a `*.test.js`, so this moves **no** committed literal. Do not
     solve it by deleting a case.
 
-12. **`test/webhooks.test.js`** — exactly **one** line: 784's
-    `POST /invoices/{id}/send?freelancer=…` loses its query string and gains a
-    cookie (E18). It is listed separately because that file is otherwise
-    untouched and is easy to leave behind; AC 20's grep is what catches it if it
-    is.
+12. **`test/webhooks.test.js`** — **four places** (corrected review cycle 1,
+    finding R6; the plan said "exactly one line" and measured only the one it had
+    gone looking for): the `helpers/server.js` import, `withWebhookApp`'s seeding
+    of a session, W1, and 784's `POST /invoices/{id}/send?freelancer=…`, which
+    loses its query string and gains a cookie (E18). **No W-case's expected
+    status, ledger row or mirror field moves — only request headers**, which is
+    the claim item 14 is entitled to make and which survives. W1's added session
+    and `Origin` are load-bearing rather than cosmetic: its claim is about
+    *routing* (an unconfigured deployment registers no route at all), and without
+    them the unrouted request is answered by the app-wide middlewares first, so
+    the case would be asserting the guard instead. It is listed separately
+    because that file is otherwise untouched and is easy to leave behind; AC 20's
+    grep is what catches it if it is.
 
 13. **Traps that would move a literal by accident, and must not:**
     a. **a money word** — `amount`, `currency`, or `money`, case-insensitive,
@@ -1133,12 +1224,17 @@ not projected.
 
 14. **Deliberately NOT moving** (asserted by leaving them untouched and green):
     `test/deploy-shape.test.js` (every literal), `test/assets.test.js`,
-    `test/health.test.js`, `test/stripe-client.test.js`,
-    `test/stripe-mock.test.js`, `package.json`, `package-lock.json`,
-    `compose.yaml`, `Dockerfile`, `server.js`. **And every assertion in
-    `test/webhooks.test.js` except the one URL on line 784** — no W-case's
-    expected status, ledger row or mirror field changes, which is the claim F6
-    exists to test.
+    `test/stripe-client.test.js`, `test/stripe-mock.test.js`, `package.json`,
+    `package-lock.json`, `compose.yaml`, `Dockerfile`, `server.js`; and in
+    `test/health.test.js`, **every health assertion** including
+    `body.checks.length === 4` (the file itself moves — item R5). **And every
+    W-case's expected status, ledger row and mirror field in
+    `test/webhooks.test.js`** — the four edits there are request headers and one
+    URL, never an expectation, which is the claim F6 exists to test. Stated as
+    *what may not move* rather than *which files may not be opened*: a
+    file-level "untouched" claim is falsifiable by a legitimate edit and was
+    twice falsified in cycle 1, whereas an assertion-level claim is the property
+    anyone actually cares about.
 
 ### 5.5 What genuinely cannot be tested here, named
 
@@ -1207,9 +1303,24 @@ count against a committed literal, and every guard introduced here is shown
     Both directions, or the conditional is untested.
 11. `POST /signout` deletes the row, emits the measured clear-cookie shape (E6),
     and the presented cookie no longer authenticates.
-12. `repos.freelancers.getById(id)` returns an object whose key set is exactly
-    `['id','email','displayName','createdAt','updatedAt']` — **no hash reaches
-    the freelancer row** (§4.2 reason 2).
+12. **No hash reaches the freelancer row** (§4.2 reason 2). **Two assertions,
+    both required** — specified in review cycle 1 (finding R3), where the
+    criterion had *none* and was true only by construction, which §4.2 reason 2
+    itself calls unacceptable ("a STRUCTURAL, TESTABLE property, not a
+    discipline"). In `test/auth.test.js`, after a real sign-up:
+    - **(a) the projection.** `Object.keys(repos.freelancers.getById(id)).sort()`
+      — cardinality first (`length === 5`, with the actual list in the failure
+      message), then `deepEqual` against the committed literal
+      `['createdAt','displayName','email','id','updatedAt']`.
+    - **(b) the row.** `PRAGMA table_info(freelancers)` column names, sorted,
+      `deepEqual` against `['created_at','display_name','email','id','updated_at']`
+      (measured against `0001-initial.js`, not recalled).
+    (a) alone is **not sufficient and must not be shipped alone**: it pins what
+    `mapRow` projects, so a `password_hash` column added to the table survives it
+    untouched — and D3 would not catch that either, because D3 pins table names,
+    index names, an autoindex count and STRICT-ness, never a column list. The
+    criterion's subject is the row, so the row is what (b) pins. Falsified by
+    **F13**.
 13. Unknown-email and wrong-password sign-ins produce **byte-identical** status,
     body and headers, and the injected hasher counts **exactly one** invocation
     on each path (A12).
@@ -1250,10 +1361,23 @@ count against a committed literal, and every guard introduced here is shown
 25. The full suite is green in the `test` service; the `contract` service is
     green too (a claim — no M-case behaviour changes, only its cookie plumbing).
 
+27. **Every protected route's rejection is attributable to the guard** (added
+    review cycle 1, finding R2 — §3.5.2). G3 compares each of the nine members'
+    cookieless responses against the guard's canonical rejection, taken from a
+    path with no registered route, on status, on `Set-Cookie` count (**zero**),
+    and on `Location`; **and** recipe **F12** shows all nine moving when the
+    guard's rejection changes. Both halves, or the criterion is unmet: the
+    comparison alone still admits a handler that redirects to `/signin` and sets
+    no cookie, and the recipe alone is not a standing suite member.
+
 **Evidence recorded in the implementation commit message or a Lattice comment:**
 
 26. The measured median in-container `scrypt` time at the shipped parameters, and
     the final line count of `test/invoices.test.js`.
+
+*(Criterion count is now **27**, not 26. Cycle 1 was reviewed against 26; the
+rework is reviewed against all 27, and AC 12 has changed shape, so a cycle-1
+"PASS" on 12 does not carry forward.)*
 
 ---
 
@@ -1268,17 +1392,44 @@ restore, prove the tree with `git -C <worktree> diff --exit-code`, then **rebuil
 and re-run green**. Every `docker compose` invocation from the worktree; never
 `cd` into it for a `lattice` call.
 
-**On the assert-applied baselines below.** A defect has now recurred **four times
-across three tasks**: an assert-applied step whose stated baseline cannot move
-("grep count 3 → 3", or a token that also appears elsewhere in the file). Every
-baseline in the table below was **measured on master at `886c2b0`** and is cited
-with its evidence row. Two rules follow:
+**On the assert-applied baselines below — REWRITTEN, review cycle 1 (finding
+R4).** This defect class has now recurred **six times across five tasks**. Two of
+those six are in this very section, and both were caught downstream rather than
+here: F2 stated `grep -c 'requireSameOrigin' app.js` as **1** where the file has
+**3** (import, comment, mount), and F6/F10 cited `app.use` at **7**, which is
+*master's pre-AS-40 value quoted as a post-change invariant* — the true worktree
+count is **11**, and **12** once finding R1's second mount lands. Writing "measure
+every baseline" at the top of the section, as cycle 1 did, did not prevent either.
 
-- every recipe names **the specific line that changes**, and states that file's
-  **true current count**;
-- **if a baseline does not match before you mutate, stop and record it** — the
-  recipe is unrunnable as written and that is the finding, not something to
+So the rule stops being an exhortation and becomes mechanical. **Every
+assert-applied step below now takes one of two forms, and no third form is
+permitted:**
+
+1. **A unique marker the mutation itself introduces** — `MUTANT-F<n>`, whose
+   baseline is 0 everywhere in the repository by construction and therefore
+   cannot go stale, drift with an unrelated edit, or be confused with a
+   pre-existing token. **This is the preferred form**, and every mutation that
+   can carry a comment now carries one.
+2. **An occurrence-accurate count**, written `grep -oF -- '<tok>' <file> | wc -l`
+   — never `grep -c`, which counts *lines*. Where a count is unavoidable (an
+   invariant on an untouched file, a token being removed), it is stated as an
+   occurrence count and marked `[occ]`.
+
+Both forms may be combined, and for a removal both are required: the marker
+proves the edit landed, the count proves it landed *on the right thing*.
+
+**Every count in the table was re-measured in the task worktree at `ff5aae1`**
+with `grep -oF … | wc -l`, not carried over from master and not recalled. Where
+finding R1's rework will change a count, the table says so and gives the rule
+rather than a number that is about to be wrong.
+
+- **If a baseline does not match before you mutate, stop and record it** — the
+  recipe is unrunnable as written and *that is the finding*, not something to
   adjust away.
+- **An unapplied mutation is indistinguishable from a guard that did not fire.**
+  Assert applied on disk **and inside the built image**, in one indivisible step
+  (CLAUDE.md's mutation rule; QA's cycle-1 F10 attempt restored the file before
+  the build ran and came back 0 fail — only the in-image assert caught it).
 
 **On the predicted sets.** AS-41's §7 was wrong in two of five sets and AS-43's in
 four memberships; both misses came from reasoning about a mutation's *intent*
@@ -1290,18 +1441,20 @@ predicted is a finding; neither is fixed by narrowing a test.
 
 | # | Mutation (exact) | Assert applied (baseline → after) | Predicted failing set |
 |---|---|---|---|
-| **F1** | In `lib/auth/accounts.js`, delete the discard-hash on the unknown-email path so `signIn` returns early instead, plus a `// MUTANT-F1` marker | `grep -c 'MUTANT-F1' lib/auth/accounts.js` **0 → 1** (baseline 0: the token exists nowhere in the repository); and the discard-hash call site greps to **0** in that file, from the count you record from the shipped file first | **EXACT {A12}.** Traced: stage "service". Every *observable* response is unchanged — status, body and headers are still byte-identical — which is exactly why A12 counts KDF invocations instead of asserting a response. **If any H-case also goes red, the enumeration answer was being carried by a response difference, and that is the finding** |
-| **F2** | In `app.js`, delete the `app.use(requireSameOrigin(config))` line, plus `// MUTANT-F2` | `grep -c 'MUTANT-F2' app.js` **0 → 1**; `grep -c 'requireSameOrigin' app.js` **1 → 0** (the plan specifies exactly one mount) | **EXACT {G10, G12}** — the two cases that expect a 403 (foreign `Origin`; neither header). G9/G11 (matching `Origin`; `Referer` fallback) were already succeeding and stay green, which is why the negative cases are the instrument here. G1's route walk is unaffected: a bare middleware is not a route |
-| **F3** | In `lib/auth/guard.js`, make `safeNext` return its argument unchanged, plus `// MUTANT-F3` | `grep -c 'MUTANT-F3' lib/auth/guard.js` **0 → 1**; the `safeNext` rejection branch greps to **0** in that file | **EXACT {H16, H17, H18, H19}** — the four hostile `next` spellings. The safe-path case stays green. **Breaks the open-redirect guard in the direction it exists to catch** |
-| **F4** | In `lib/db/migrations/0002-accounts.js`, delete the `length(id) = 64 …` CHECK from `sessions`, then in a test insert the **raw token** as the id | `grep -c 'NOT GLOB' lib/db/migrations/0002-accounts.js` **1 → 0** (the plan specifies exactly one occurrence) | **EXACT {the A-repo "refuses a 43-character session id" case, D3, D4}.** D3/D4 go red because the DDL text changed and the catalogue comparison is byte-exact — **that is expected, and a run where only the A-repo case goes red means the catalogue assertions are not reading the migration they claim to** |
-| **F5** | In `lib/auth/session.js`, change the cookie's `sameSite` from `'lax'` to `'strict'`, plus `// MUTANT-F5` | `grep -c "sameSite: 'lax'" lib/auth/session.js` — record the shipped count first (the plan specifies **two**: one in `setSessionCookie`, one in `clearSessionCookie`) — must **drop by exactly 1**; `grep -c 'MUTANT-F5'` **0 → 1** | **EXACT {H4}** — the single case asserting `SameSite=Lax` in the emitted header. **Nothing else moves, and that is the point:** the property that actually matters (Stripe's cross-site return carries the cookie) is **not observable from this suite at all** — §5.5 item 1, and the reason AS-50 owns it. A recipe whose blast radius is one string assertion is the honest measure of how much of this is really tested |
-| **F6** | In `app.js`, move the `app.use(webhookRoutes(...))` line from position 2 to **below** `app.use(requireSession(...))` | the `webhookRoutes` mount line's index among `app.use` calls moves from 2 to last (record both line numbers; `grep -c 'app.use' app.js` is **7** on master — E14 — and must be unchanged by the move) | **LOWER BOUND, and both witnesses matter.** (a) **G8** goes red — the webhook with no cookie now redirects; (b) every `webhooks.test.js` case that expects a status other than 303 goes red: **{W2, W5–W14, W16, W17, W19, W20}**. **Green, for a stated reason:** W1 (no secret ⇒ no route at all, so the guard's 303 is what a 404 would have been — **record that it now passes for the wrong reason**). This is the recipe that proves §3.5.4 is load-bearing rather than decorative |
-| **F7** | In `lib/db/repositories/credentials.js`, delete the `scrypt$` prefix assertion, then in a test insert a plaintext password as `password_hash` | the prefix assertion greps to **0** in that file (record the shipped count first — the plan specifies **1**) | **EXACT {the A-repo "DDL refuses a plaintext password_hash" case}** — and it must fail with a SQLite `CHECK constraint failed` mapped to `ValidationError`, **not** with the repository's own refusal. If it fails at the repository, the engine-level guard is untested and the DDL `CHECK` is decoration |
-| **F8** | Append `console.log(password);` to `lib/auth/accounts.js`'s `signIn` | `grep -c 'console\.' lib/auth/accounts.js` **0 → 1** — baseline 0 is guaranteed by §5.4 trap 12c, which forbids the token there **including in comments**, precisely so this recipe is runnable | **EXACT, two witnesses: {A19, the `console output` concept row}.** The concept row's message must read "found in [lib/auth/accounts.js, lib/invoices/lifecycle.js, lib/webhooks/receiver.js, server.js], allowed in exactly [lib/invoices/lifecycle.js, lib/webhooks/receiver.js, server.js]". **This is the recipe for AC 5** — without it, "credentials are never logged" is a guard that has only ever been seen passing |
-| **F9** | Append a real (non-comment) `createHmac('sha256','x')` use to `lib/auth/password.js`; separately, delete the `timingSafeEqual` call from `lib/auth/password.js` | (a) `grep -c 'createHmac' lib/auth/password.js` **0 → 1** (E8: baseline 0); (b) `grep -c 'timingSafeEqual' lib/auth/password.js` drops by exactly 1 from the shipped count. **`lib/webhooks/signature.js` is untouched in both halves — its measured counts are `createHmac` 2 and `timingSafeEqual` 4 (E9, E10), and both must be unchanged after** | **EXACT, one row each.** (a) the `webhook signature HMAC` row: "found in [lib/auth/password.js, lib/webhooks/signature.js], allowed in exactly [lib/webhooks/signature.js]"; (b) the `constant-time compare` row in its **used-exemption** direction: "found in [lib/webhooks/signature.js], allowed in exactly [lib/auth/password.js, lib/webhooks/signature.js]". **This is the evidence that splitting a shipped guard did not weaken it** — both halves are shown firing, in both directions |
-| **F10** | In `app.js`, move `app.use(invoiceRoutes(config, { repos, stripe }))` **above** the `app.use(requireSession(config))` line | the two lines' order in `app.js` is inverted (record both line numbers before and after); `grep -c 'app.use' app.js` unchanged at **7** (E14) | **EXACT: G3's four invoice entries** — `POST /invoices`, `POST /invoices/:id`, `POST /invoices/:id/finalize`, `POST /invoices/:id/send` — each now reaching its handler with no session. **Trace the second-order effect and record it:** each then hits `actingFreelancerId(req)`, which throws (§3.5.6), so the observed status is **500**, not 200. G1's route walk stays green (the same routes are registered, in a different order) — **which is precisely why G3 exists and why the walk alone would not be enough**. This is the AS-43-review recipe: it breaks reachability while leaving placement looking fine |
+| **F1** | In `lib/auth/accounts.js`, delete the discard-hash on the unknown-email path so `signIn` returns early instead, plus a `// MUTANT-F1` marker | **[marker]** `MUTANT-F1` **0 → 1** in `lib/auth/accounts.js` **[occ]**, plus **[occ]** `hasher.hashPassword(` **4 → 3** in that file. Baseline for `MUTANT` is **0 across every `*.js` in `apps/invoicing`** — measured repo-wide, so no file's marker can collide | **EXACT {A12}.** Traced: stage "service". Every *observable* response is unchanged — status, body and headers are still byte-identical — which is exactly why A12 counts KDF invocations instead of asserting a response. **If any H-case also goes red, the enumeration answer was being carried by a response difference, and that is the finding** |
+| **F2** | In `app.js`, delete the `app.use(requireSameOrigin(config))` line, plus `// MUTANT-F2` | **[marker]** `MUTANT-F2` **0 → 1** in `app.js`, plus **[occ]** `app.use(requireSameOrigin(config));` **1 → 0**. **The bare token `requireSameOrigin` is 3 [occ] in `app.js`, not 1** — import, comment, mount — which is the cycle-1 defect (finding R4): count the *mount line*, never the identifier | **EXACT {G10, G12}** — the two cases that expect a 403 (foreign `Origin`; neither header). G9/G11 (matching `Origin`; `Referer` fallback) were already succeeding and stay green, which is why the negative cases are the instrument here. G1's route walk is unaffected: a bare middleware is not a route |
+| **F3** | In `lib/auth/guard.js`, make `safeNext` return its argument unchanged, plus `// MUTANT-F3` | **[marker]** `MUTANT-F3` **0 → 1** in `lib/auth/guard.js`, plus **[occ]** `return null;` **5 → 0** in that file (measured at `ff5aae1`: lines 45–48 and 55, all five inside `safeNext`; `loadSession` resolves differently, so the token is `safeNext`-exclusive — re-measure before mutating and stop if it is not 5). **I first wrote 4 here from structure rather than measurement and the file said 5** — recorded because it is the same reflex that produced this defect class six times, caught this once only because the rule above now forces the `grep` | **EXACT {H16, H17, H18, H19}** — the four hostile `next` spellings. The safe-path case stays green. **Breaks the open-redirect guard in the direction it exists to catch** |
+| **F4** | In `lib/db/migrations/0002-accounts.js`, delete the `length(id) = 64 …` CHECK from `sessions`, then in a test insert the **raw token** as the id, plus a `// MUTANT-F4` marker on the changed line | **[marker]** `MUTANT-F4` **0 → 1** in `lib/db/migrations/0002-accounts.js`, plus **[occ]** `NOT GLOB` **1 → 0** in that file (measured at `ff5aae1`) | **EXACT {A18 half (b), the A-repo "refuses a 43-character session id" case}, and NOTHING ELSE. CORRECTED review cycle 1 (finding R7) — the previous prediction named D3 and D4 and was wrong, provably from the test source without running anything.** D3 pins table *names*, index *names*, an autoindex *count* and STRICT-ness; a deleted `CHECK` moves none of those. D4 *does* read DDL text (`catalogue()` selects `type, name, tbl_name, sql`), but it compares a catalogue **before vs. after a second `migrate()` on the same database** — a changed migration changes both snapshots identically, so D4 is invariant under *any* DDL edit **by self-reference**, not by what it selects. **The narrow set is the correct set**, and the sentence that read a narrow set as evidence that "the catalogue assertions are not reading the migration they claim to" was a false inference and is deleted |
+| **F5** | In `lib/auth/session.js`, change the cookie's `sameSite` from `'lax'` to `'strict'`, plus `// MUTANT-F5` | **[marker]** `MUTANT-F5` **0 → 1** in `lib/auth/session.js`, plus **[occ]** `sameSite: 'lax'` **2 → 1** in that file (measured at `ff5aae1`: one in `setSessionCookie`, one in `clearSessionCookie` — only the first is mutated) and **[occ]** `sameSite: 'strict'` **0 → 1** | **EXACT {H4}** — the single case asserting `SameSite=Lax` in the emitted header. **Nothing else moves, and that is the point:** the property that actually matters (Stripe's cross-site return carries the cookie) is **not observable from this suite at all** — §5.5 item 1, and the reason AS-50 owns it. A recipe whose blast radius is one string assertion is the honest measure of how much of this is really tested |
+| **F6** | In `app.js`, move the `app.use(webhookRoutes(...))` line from position 2 to **below** `app.use(requireSession(...))`, plus a `// MUTANT-F6` marker on the changed line | **[marker]** `MUTANT-F6` **0 → 1** on the moved line in `app.js` — **the marker is what proves the edit landed, replacing the count invariant that made this recipe unrunnable in cycle 1**. Then *observe* (do not assert a frozen literal) the moved line's index among `app.use(` calls, before and after, and record both line numbers. **`app.use(` is 11 [occ] at `ff5aae1` and becomes 12 once finding R1's second mount lands** — it was stated as **7**, which is master's pre-AS-40 value quoted as a post-change invariant (finding R4). Re-measure it, assert only that the move leaves it *unchanged from whatever you measured*, and stop if the pre-mutation number surprises you | **LOWER BOUND, and both witnesses matter.** (a) **G8** goes red — the webhook with no cookie now redirects; (b) every `webhooks.test.js` case that expects a status other than 303 goes red: **{W2, W5–W14, W16, W17, W19, W20}**. **Green, for a stated reason:** W1 (no secret ⇒ no route at all, so the guard's 303 is what a 404 would have been — **record that it now passes for the wrong reason**). This is the recipe that proves §3.5.4 is load-bearing rather than decorative |
+| **F7** | In `lib/db/repositories/credentials.js`, delete the `scrypt$` prefix assertion, then in a test insert a plaintext password as `password_hash`, plus a `// MUTANT-F7` marker on the changed line | **[marker]** `MUTANT-F7` **0 → 1** in `lib/db/repositories/credentials.js`, plus **[occ]** `startsWith(ENCODED_PREFIX)` **1 → 0** in that file (measured at `ff5aae1`) | **EXACT {the A-repo "DDL refuses a plaintext password_hash" case}** — and it must fail with a SQLite `CHECK constraint failed` mapped to `ValidationError`, **not** with the repository's own refusal. If it fails at the repository, the engine-level guard is untested and the DDL `CHECK` is decoration |
+| **F8** | Append `console.log(password);` to `lib/auth/accounts.js`'s `signIn` | **[occ]** `console.` **0 → 1** in `lib/auth/accounts.js` (measured at `ff5aae1`; baseline 0 is *guaranteed* by §5.4 trap 13c, which forbids the token there **including in comments**, precisely so this recipe is runnable). The mutation introduces the token, so it is already the preferred form — no separate marker needed | **EXACT, two witnesses: {A19, the `console output` concept row}.** The concept row's message must read "found in [lib/auth/accounts.js, lib/invoices/lifecycle.js, lib/webhooks/receiver.js, server.js], allowed in exactly [lib/invoices/lifecycle.js, lib/webhooks/receiver.js, server.js]". **This is the recipe for AC 5** — without it, "credentials are never logged" is a guard that has only ever been seen passing |
+| **F9** | Append a real (non-comment) `createHmac('sha256','x')` use to `lib/auth/password.js`; separately, delete the `timingSafeEqual` call from `lib/auth/password.js` | (a) **[occ]** `createHmac` **0 → 1** in `lib/auth/password.js` (measured 0 at `ff5aae1`; the mutation introduces the token). (b) **[marker]** `MUTANT-F9b` **0 → 1** in `lib/auth/password.js`, plus **[occ]** `timingSafeEqual` **3 → 0** in that file (measured at `ff5aae1` — **3, and the whole call is removed, not one of them**). **`lib/webhooks/signature.js` is untouched in both halves — re-measured at `ff5aae1` as `createHmac` **2 [occ]** and `timingSafeEqual` **4 [occ]**, and both must be unchanged after** | **EXACT, one row each.** (a) the `webhook signature HMAC` row: "found in [lib/auth/password.js, lib/webhooks/signature.js], allowed in exactly [lib/webhooks/signature.js]"; (b) the `constant-time compare` row in its **used-exemption** direction: "found in [lib/webhooks/signature.js], allowed in exactly [lib/auth/password.js, lib/webhooks/signature.js]". **This is the evidence that splitting a shipped guard did not weaken it** — both halves are shown firing, in both directions |
+| **F10** | In `app.js`, move `app.use(invoiceRoutes(config, { repos, stripe }))` **above** the `app.use(requireSession(config))` line, plus a `// MUTANT-F10` marker on the changed line | **[marker]** `MUTANT-F10` **0 → 1** on the moved line in `app.js`, plus the two lines' order inverted (record both line numbers before and after). **The `app.use(` invariant is re-measured, not quoted: 11 [occ] at `ff5aae1`, 12 after finding R1** — the stated **7** was master's value and is the sixth instance of finding R4's class | **EXACT: G3's four invoice entries** — `POST /invoices`, `POST /invoices/:id`, `POST /invoices/:id/finalize`, `POST /invoices/:id/send` — each now reaching its handler with no session. **Trace the second-order effect and record it:** each then hits `actingFreelancerId(req)`, which throws (§3.5.6), so the observed status is **500**, not 200. G1's route walk stays green (the same routes are registered, in a different order) — **which is precisely why G3 exists and why the walk alone would not be enough**. This is the AS-43-review recipe: it breaks reachability while leaving placement looking fine |
 | **F11** | **In a SCRATCH COPY of the worktree, never in place:** `mv test/auth.test.js test/auth.test.js.bak` | `ls test/auth.test.js` fails in the copy; the task worktree proven clean before and after with `git -C <worktree> status --porcelain` | **EXACT: harness V2 only.** The message must read "expected exactly 14 test files, found 13: …" listing the thirteen survivors |
 | **V1** | `$COMPOSE run --rm **--build** -e ASC_SELFTEST_MUTATE=1 test; echo EXIT=$?` | the printed `EXIT=1` | harness V1 only. **`--build` is mandatory** — AS-39 §11.1 recorded a phantom second failure from a stale mutant image |
+| **F12** **GUARD ATTRIBUTION — the standing recipe, added review cycle 1 (finding R2)** | In `lib/auth/guard.js`, change `requireSession`'s rejection `res.redirect(303, target)` to `res.redirect(307, target)`, plus `// MUTANT-F12` | **[marker]** `MUTANT-F12` **0 → 1** in `lib/auth/guard.js`, plus **[occ]** `res.redirect(303, target)` **1 → 0** and `res.redirect(307, target)` **0 → 1** (measured at `ff5aae1`; assert in the **built image** too) | **EXACT: ALL NINE protected routes answer 307 — `GET /`, `GET /connect-stripe/refresh`, `GET /connect-stripe/return`, `POST /connect-stripe/start`, `POST /invoices`, `POST /invoices/:id`, `POST /invoices/:id/finalize`, `POST /invoices/:id/send`, `POST /signout` — and no public route moves.** Enumerate the partition and print each route's status; do not read the suite's pass/fail alone. **A count below nine identifies, by name, a route that is not behind the guard** — that is how this defect was found (eight moved, `POST /signout` answered 303 with a `Set-Cookie`, because its handler ran). A count above nine means a public route is guarded. **This recipe is re-run whenever the protected partition changes**, and it is the only mechanism in the plan that tests *attribution* rather than *appearance* |
+| **F13** **AC 12's falsification, added review cycle 1 (finding R3)** | In a scratch copy, add a `password_hash TEXT` column to the `freelancers` DDL in `lib/db/migrations/0001-initial.js` | **[occ]** `password_hash` **0 → 1** in `lib/db/migrations/0001-initial.js` (measured 0 at `ff5aae1` — the token is a 0002 concept, so it is a clean unique marker in this file) | **EXACT {AC 12 half (b)} — and the narrowness IS the evidence.** D3 does not move (it pins table and index *names*, an autoindex count and STRICT-ness, never a column list); D4 does not move (self-reference — see F4); AC 12 half (a) does not move, because `mapRow` still projects five keys from `COLUMNS`. **If half (b) is absent, this mutation is invisible to the entire suite** — which is precisely why the criterion may not ship with half (a) alone. Note the mutation targets `0001-initial.js`, which AC 22 requires to be byte-identical: **scratch copy only**, and re-derive the worktree manifest afterwards |
 
 **Rejected as recipes, with reasons** (so their absence is a decision, not an
 oversight): mutating `timingSafeEqual` into `===` — no test can observe it, and
@@ -1398,7 +1551,8 @@ that task, or neither.
 ## §10 Proposed wording for metawork-owned files
 
 Employees do not edit `CLAUDE.md`, `README.md` (repo root), `PHILOSOPHY.md` or
-`agents.md`. Two proposals, for the metawork layer to apply or discard.
+`agents.md`. **Three** proposals, for the metawork layer to apply or discard
+(10.3 added review cycle 1).
 
 **10.1 — for `CLAUDE.md`, under the review conventions**, if the board wants the
 lesson generalised beyond this task:
@@ -1418,6 +1572,32 @@ lesson generalised beyond this task:
 > every non-public endpoint sits behind. There is no password reset and no
 > outbound email in v1 by design; a forgotten password is an operator procedure,
 > documented in `apps/invoicing/README.md`.
+
+**10.3 — for `CLAUDE.md`, appended to the existing "A guard is proven by breaking
+it" paragraph (added review cycle 1, finding R4).** The mechanical form of the
+assert-applied rule has now been proposed **twice** — from AS-44, and again in
+this task's own cycle-1 orchestrator comment — and applied **nowhere**, while the
+defect reached **six instances across five tasks**, two of them inside this plan's
+§7. Per-plan fixes are not converging, and the reason is structural: each plan
+re-derives the rule from scratch and re-makes the mistake while doing so. It
+belongs in one place. Proposed wording, for the metawork layer to apply or
+discard:
+
+> **An assert-applied step asserts on a marker, or on an occurrence count —
+> never on `grep -c`.** `grep -c` counts *lines*; recipe authors reason in
+> *occurrences*, and a file with two hits on one line makes a stated baseline
+> silently wrong. A stale baseline is the same defect wearing a different hat:
+> quoting a count measured on `master` as an invariant of a changed worktree has
+> now done it twice in one task. So an assert-applied step takes one of exactly
+> two forms: **(1)** a unique marker the mutation itself introduces
+> (`MUTANT-<recipe>`), whose baseline is 0 by construction and cannot go stale —
+> the preferred form, and the only one available when the mutation is a *move*
+> rather than an edit; or **(2)** an occurrence-accurate count,
+> `grep -oF -- '<tok>' <file> | wc -l`, **re-measured in the tree the recipe will
+> run against**, never carried over from another commit. For a removal, use both:
+> the marker proves the edit landed, the count proves it landed on the right
+> thing. If a baseline does not match before you mutate, **stop and record it** —
+> the recipe is unrunnable as written and that is the finding.
 
 No change is proposed to `PHILOSOPHY.md` or `agents.md`.
 
@@ -1460,3 +1640,390 @@ No change is proposed to `PHILOSOPHY.md` or `agents.md`.
    third task, it stops being a note and becomes a task to split that file.
 
 ## Reset 2026-09-02 by agent:cto-owen
+
+---
+
+## Review Cycle 1 Findings
+
+Recorded by `agent:cto-owen` (tech lead) on 2026-09-02, from
+`agent:qa-priya`'s review comment (`--role review`) and
+`agent:developer-lena`'s implementation comment. **Cycle 1 of 3.** Verdict:
+implementation-level rework. 23 of 26 criteria passed; the plan's approach is
+sound and most of it landed well — the seam replacement is complete, no
+impersonation path survived 45 attack probes, both engine-level `CHECK`
+constraints are real, and the previously vacuous cases are genuinely fixed. What
+failed is one member of the security boundary this task exists to establish,
+inside the one test that is supposed to prove it.
+
+**Corrections applied to the plan in this pass** (so the rework reads a document
+that agrees with itself): §3.5.1 mount table and its new note; §3.5.2's
+attribution requirement; §3.7's signout bullet and the unauthenticated-caller
+answer; §2's Modified/NOT-touched lists; §4.3; §5.1's `routes/auth.js` row;
+§5.2's `app.js` row; §5.4 items 12 and 14; §6 AC 12 and new AC 27; §7's header
+rules, ten recipe baselines, F4's predicted set, and two new recipes; §10.3.
+
+---
+
+### R1 — BLOCKING. `POST /signout` is above the auth boundary, and the plan told the implementer to put it there
+
+**Reproduce.** Drive `POST /signout` with no cookie and a matching `Origin`.
+Observed: `303`, `Location: /signin`, **and**
+`Set-Cookie: invoicing_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax`.
+Only `clearSessionCookie` emits that header, so **the handler ran** —
+`requireSession` never saw the request. `app.js:122` mounts `authRoutes` above
+the boundary at line 129; `routes/auth.js:109` defines `router.post('/signout')`
+inside that same router.
+
+**The plan caused it.** §3.5.1 put `authRoutes` at mount position 7 (above the
+boundary) with a parenthetical claiming signout was below it; §3.7 said signout
+"is mounted below the boundary and is therefore guarded by construction". One
+Express router cannot be on both sides of a middleware. The implementer followed
+the table.
+
+**Ruling: signout goes below the boundary, in a second router.** §3.7's intent is
+correct and §3.5.1 is now corrected to match. Two mechanisms were available and I
+am ruling between them rather than leaving it open:
+
+- *Rejected:* `requireSession(config)` as per-route middleware on the existing
+  mount. It is correct, and it is cheaper by one export. But it makes signout the
+  one protected route whose protection is not positional, so "everything below
+  the boundary line requires a session, and nothing above it does" stops being a
+  complete description of what is guarded, and a reader of `app.js` must open a
+  router file to learn which of its routes are exceptions. The plan's own
+  governing sentence is "the boundary is one line, in one place" (§3.5.1); a
+  second mechanism costs more than the export it saves.
+- *Chosen:* `routes/auth.js` exports two factories — `publicAuthRoutes`
+  (`POST /signup`, `POST /signin`) at position 7, and `sessionAuthRoutes`
+  (`POST /signout`) below the boundary. Cheap because signout shares nothing with
+  the public pair: no body parser, no `statusFor` mapping, no `renderSignIn`
+  seam, no router-level error handler. *What would flip this:* if signout shared
+  the parser or the error handler, the split would duplicate them and per-route
+  middleware would win. It does not.
+
+**Also in scope for R1:** `app.js:119–121` and `apps/invoicing/README.md:382`
+both assert the route is "guarded by construction". Both are false today and both
+must move with the mount — AS-45 will read them. Note that "by construction" is
+the phrase that let this ship: it asserted the conclusion and named no mechanism,
+so nothing contradicted it when the mechanism was absent. Replace it with the
+mechanism.
+
+**What an unauthenticated `POST /signout` must answer, once guarded.**
+`requireSession`'s ordinary unsafe-method rejection: **`303` to `/signin`, no
+`next`, no `Set-Cookie`.** Checked against AS-45, as required: a user whose
+session expired clicking a stale sign-out button lands on the sign-in screen —
+the same destination the handler would have chosen, so nothing hostile. The one
+behavioural difference is that the stale cookie is not cleared, which is
+harmless: `loadSession` already resolves it to nothing (deleting the row if it is
+merely expired, H10), and the next successful sign-in overwrites it. The guard
+must **not** grow a cookie-clearing branch to close that gap — its silence about
+cookies is what makes its answer distinguishable from the handler's under R2, so
+the two rulings are the same ruling.
+
+**Security impact today: low, and verified rather than assumed.** An anonymous
+`POST /signout` clears only the caller's own cookie and can delete only the row
+named by the caller's own token; a seeded victim's session was confirmed live
+afterwards, and `requireSameOrigin` sits above, so cross-site forced logout is
+refused. **This does not reduce the finding**, because the defect is in the proof,
+not in the exploitability — see R2.
+
+---
+
+### R2 — BLOCKING. G3 cannot detect R1, and fixing the mount without fixing G3 leaves the proof broken
+
+**State this plainly, because it is the whole finding.** If the rework moves the
+mount and leaves G3 as written, **G3 goes green and the green carries no
+information**. G3's assertion is `303` + `Location: /signin`; `POST /signout`'s
+own success path returns exactly `303` + `Location: /signin`. The member is
+satisfied by the thing it exists to test the absence of, so it would stay green
+with `requireSession` deleted entirely — and it would stay green if someone moved
+signout back above the boundary tomorrow. The mount fix removes today's instance;
+only the test fix removes the class. **A rework that ships R1 without R2 is not
+accepted**, and I would rather have R2 alone than R1 alone.
+
+**How it was exposed** (QA's mutation, and the reason it is now a standing
+recipe): change the guard's rejection from `303` to `307` and enumerate the
+protected partition. Eight routes moved to 307; `POST /signout` answered 303 with
+one `Set-Cookie`. Nine members, eight attributable to the guard.
+
+**The property the rework must satisfy** — stated as a property, because "signout
+must be distinguishable" is too narrow and a route that does not exist yet must
+be covered too:
+
+> For every route in the protected partition, the cookieless response is
+> **attributable to `requireSession`**. Operationally: *if the guard's rejection
+> changes, this route's response changes.*
+
+**Both mechanisms are required; neither is sufficient alone.**
+
+1. **In-suite (G3): a reference comparison.** Obtain the guard's canonical
+   unsafe-method rejection from a path with **no registered route** below the
+   boundary (`POST /__unrouted__`, matching `Origin`, no cookie) — nothing serves
+   it, so that response is *definitionally* the guard's. Traced through the mount
+   order and independently corroborated by Lena's `test/health.test.js`
+   deviation, where the unknown-path 404 case now has to sign in first. Then
+   compare every protected member's cookieless response against that reference
+   on: **status**, **`Set-Cookie` count (zero)**, and **`Location`** — exact for
+   unsafe methods, `/signin?next=<this route's own originalUrl>` for safe ones
+   (G4's existing split, unchanged). **The zero-`Set-Cookie` clause is the byte
+   that discriminates the defect that shipped**, and it is one line.
+2. **In §7 (F12): the standing attribution recipe.** The comparison narrows the
+   hiding place without closing it — a future handler that redirects to `/signin`
+   *and* sets no cookie would still be indistinguishable. Only a mutation closes
+   it. QA's technique is therefore promoted from a one-off review technique to a
+   §7 recipe with a pinned predicted set of **nine of nine**, re-run whenever the
+   protected partition changes. Fewer than nine names the unguarded route; more
+   than nine means a public route is guarded.
+
+**Note for whoever reviews the rework:** the mount fix moves **no committed route
+literal** — `ALL_ROUTES` stays at 14, `PUBLIC_ROUTES` at 5, the protected
+partition at 9. G1, G1b and G2 will read identically before and after. That is
+precisely why G3 going green afterwards proves nothing on its own, and why AC 27
+requires the recipe as well as the assertion.
+
+**Related, and not a separate finding:** `PUBLIC_ROUTES` (`test/auth.test.js:727`)
+already omits `POST /signout`, so G2 correctly declared it protected while it was
+in fact public. Two committed artifacts said "protected" and only the mount said
+otherwise — a reminder that agreement between a plan section and a test literal
+is not verification when both were written by people reading the same wrong
+table.
+
+---
+
+### R3 — BLOCKING (minor). AC 12 has no assertion at all
+
+**Reproduce.** `grep -n "Object.keys" test/repositories.test.js` returns four
+hits — the contracts method list (448), an invoice column list (802), and Z3's
+repo keys (932/934). None is the freelancer row. `test/auth.test.js` pins the
+credentials row (251) and the sessions row (271), not the freelancer row.
+
+The **property** is true: `lib/db/repositories/freelancers.js` has
+`COLUMNS = 'id, email, display_name, created_at, updated_at'` and `mapRow`
+returns exactly five camelCase keys. But it is held by *discipline*, which is
+exactly what §4.2 reason 2 says it must not be ("a STRUCTURAL, TESTABLE property,
+not a discipline"). A criterion true by construction is a criterion that has
+never been tested.
+
+**Ruling: two assertions, specified in AC 12, and half (a) may not ship alone.**
+
+- **(a) the projection** — `Object.keys(repos.freelancers.getById(id)).sort()`,
+  cardinality first (`length === 5`, actual list in the message), then `deepEqual`
+  against `['createdAt','displayName','email','id','updatedAt']`.
+- **(b) the row** — `PRAGMA table_info(freelancers)` column names, sorted,
+  `deepEqual` against `['created_at','display_name','email','id','updated_at']`
+  (measured against `0001-initial.js`).
+
+(a) alone pins what `mapRow` *projects*, so a `password_hash` column added to the
+`freelancers` table survives it untouched — and D3 would not catch that either
+(it pins table names, index names, an autoindex count and STRICT-ness, never a
+column list). The criterion's subject is **the row**, so the row is what (b)
+pins. **Falsified by new recipe F13**, whose narrow predicted set — exactly (b),
+nothing else — is itself the evidence that nothing in the suite covers this
+today.
+
+---
+
+### R4 — The assert-applied baseline class, sixth instance, and the mechanical fix is applied here
+
+QA independently measured `app.use(` in `app.js` at **11 occurrences**, not the
+plan's stated **7**. That is the sixth instance across five tasks, and **two of
+the six are in this plan's own §7**, written under an explicit instruction to
+measure every baseline:
+
+- **F2** stated `grep -c 'requireSameOrigin' app.js` as **1 → 0**. The file has
+  **3** occurrences (import, comment, mount). Lena hit this and ran it as 3 → 2
+  plus an exact check on the mount line — correct handling, and she filed it.
+- **F6/F10** cited `app.use` at **7**, which is *master's pre-AS-40 value quoted
+  as a post-change invariant*. True worktree count is **11**, and **12** once R1
+  lands.
+
+Note the two are different flavours of one class: a **line count** read as an
+occurrence count, and a **stale count** read as a current one. Both produce a
+step that cannot fail, which is a vacuous guard on the guard.
+
+**The mechanical fix has been proposed twice — AS-44, and this task's own cycle-1
+comment — and applied nowhere. It is applied here.** Every assert-applied step in
+§7 now takes one of exactly two forms and no third: **(1)** a unique marker the
+mutation introduces (`MUTANT-F<n>`; baseline measured at **0 across every `*.js`
+in `apps/invoicing`**, so no marker can collide), or **(2)** an occurrence-accurate
+count written `grep -oF -- '<tok>' <file> | wc -l`, marked `[occ]`. For a removal,
+both: the marker proves the edit landed, the count proves it landed on the right
+thing.
+
+**Ten recipes corrected: F1–F10.** F11 (`ls` on a moved file) and V1 (an exit
+code) carried no grep count and needed none. Two new recipes, F12 and F13, are
+written in the new form. Every count in the table was re-measured in the worktree
+at `ff5aae1` — not carried from master, not recalled.
+
+**Recorded against myself, because it is the best available evidence that the
+rule is the right one:** writing F3's replacement I stated `return null;` at
+**4** occurrences in `lib/auth/guard.js` from the shape of the code. The file has
+**5** (lines 45–48 and 55). I caught it only because the new rule forced me to
+run the `grep` I would otherwise have skipped. The reflex that produced this
+defect six times is not carelessness — it is that reasoning about a file feels
+like knowing its contents.
+
+**The rule belongs in `CLAUDE.md`, not in each plan** — per-plan fixes have not
+converged, because every plan re-derives the rule and re-makes the mistake in the
+act of writing it down. Exact proposed wording is in **§10.3**, for the metawork
+layer to apply or discard. I have not edited `CLAUDE.md`.
+
+---
+
+### R5 — Plan claim falsified: §2's "explicitly NOT touched" list
+
+`test/health.test.js` **is** modified. Lena discloses it (deviation 2) and the
+change is correct and minimal: `GET /` and the unknown-path 404 live in that file
+and both now sit behind the boundary, so those two cases sign in first. All four
+health checks and `body.checks.length === 4` are untouched.
+
+**This is a plan defect, not a bookkeeping slip** — a "NOT touched" entry is an
+assertion, and §4.3 made the same claim independently. Both corrected in place.
+Structural fix applied at the same time: §5.4 item 14 now states **what may not
+move** (assertions, expected statuses, ledger rows) rather than **which files may
+not be opened**. A file-level untouched-claim is falsifiable by a legitimate
+edit — it was falsified twice in this cycle — while an assertion-level claim is
+the property anyone actually cares about.
+
+---
+
+### R6 — Plan claim falsified: §5.4 item 12's "exactly ONE line"
+
+`test/webhooks.test.js` changes in **four** places, not one: the
+`helpers/server.js` import, `withWebhookApp`'s session seeding, W1, and line 784.
+Verified against the diff, not taken on report. No W-case's expected status,
+ledger row or mirror field moved — only request headers — so item 14's
+substantive claim survives, and W1's added session and `Origin` are load-bearing
+rather than cosmetic (its claim is about routing; without them the unrouted
+request is answered by the app-wide middlewares and the case would be asserting
+the guard instead). Corrected in place. Root cause worth naming: the plan
+measured the one line it had gone looking for and reported that measurement as
+the file's total.
+
+---
+
+### R7 — RULING on the implementer/reviewer disagreement: the reviewer is right
+
+**The dispute.** Under recipe F4 (delete the sessions-id `CHECK` from
+`0002-accounts.js`), the observed failing set was `{A18}` alone, narrower than
+the plan's predicted `{A18, D3, D4}`.
+
+- **Lena (implementer)** classified this as a **coverage gap**: "nothing in the
+  suite pins any migration's DDL TEXT… deleting a CHECK constraint is invisible
+  to db.test.js", and endorsed the plan's inference — "a run where only the
+  A-repo case goes red means the catalogue assertions are not reading the
+  migration they claim to" — as "exactly right".
+- **Priya (reviewer)** classified it as a **plan prediction error**: D3 pins
+  table names, index names, an autoindex count and STRICT-ness; D4 compares a
+  catalogue before-vs-after within one database; neither ever claimed to read DDL
+  text, so neither can be "not reading the migration it claims to". She noted the
+  residual has no coverage consequence, having shown both `CHECK` constraints
+  going red behaviourally (F7 → A17, F4 → A18).
+
+**Ruling: Priya. It is a plan prediction error. No test is missing on this
+account, and the plan's F4 prediction is what changes.** I verified it from the
+test source rather than adjudicating between two reports:
+
+- **D3** asserts table names, named-index names, an autoindex **count**, and
+  STRICT-ness via a regex on `sql` for the trailing `STRICT`. Removing a `CHECK`
+  moves none of those. D3 could not have gone red.
+- **D4** — and here both of them are slightly off —
+  `catalogue()` is
+  `SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name`, so
+  **D4 does read DDL text**, contrary to Priya's stated reason. It is invariant
+  for a different and stronger reason: it compares `catalogue(db)` *before* a
+  second `migrate()` against `catalogue(db)` *after* it, **on the same database**.
+  A changed migration changes both snapshots identically. D4 is invariant under
+  *any* DDL edit **by self-reference**, not by what it selects.
+
+So the narrow set is the **correct** set, derivable by reading the tests without
+running anything, and the plan's inference was false when written. Lena did not
+mis-run the recipe; she inherited a false prediction and reasoned forward from
+it, which is the failure mode §7's "traced through the pipeline" preamble exists
+to prevent and did not.
+
+**The loser's reasoning, recorded — because Lena found something real and got the
+classification wrong, and those are separable.** Her underlying observation is
+true and she found it first: **no assertion in the suite pins any migration's DDL
+text against a committed expectation.** What is wrong is (i) calling it a gap
+*revealed by F4*, when F4 could never have shown it, and (ii) endorsing the
+plan's inference, which is false. It also has no coverage consequence here:
+both `CHECK` constraints are pinned **behaviourally** — A17 (F7) and A18 (F4),
+each shown red — and a behavioural pin is *stronger* than a DDL-text pin, since
+it proves the engine enforces the constraint rather than that the text is
+present.
+
+**The winner's reasoning is also corrected**, because a ruling that launders an
+imprecise reason into precedent is how bad reasoning propagates: Priya's
+conclusion is right, her stated reason for D4 ("never claimed to read DDL text")
+is wrong on the facts, and the correct reason is self-reference.
+
+**Disposition:** F4's predicted set becomes `EXACT {A18 half (b)}` with the reason
+stated inline, and the false-inference sentence is deleted. The DDL-text residual
+stays **backlog** (QA backlog item d) — worth a task only if the DDL grows a
+constraint that has no behavioural test. **Not in this cycle's scope.**
+
+---
+
+### Convention findings (all PASS — recorded so the rework does not regress them)
+
+Every commit subject `AS-40: …`; all six authored as
+`developer-lena <developer-lena@agents.american-software.local>`, the actor-id
+form settled on AS-53; zero `.lattice/` paths on the branch (the two-plane rule
+held); scope confined to `apps/invoicing/`; no protected top-level file edited —
+§10's proposed wordings correctly left to the metawork layer; no new dependency
+(`package.json`, `package-lock.json`, `Dockerfile`, `compose.yaml` byte-identical
+to master); each of the six commits independently green; no secret-bearing string,
+no egress token, money-word trap avoided across all eight new source files
+including comments; Docker isolation clean on both sides, with the chat and web
+containers untouched and healthy after teardown, and the `test` service offline
+throughout. **The rework inherits all of these as obligations, not as credit
+already banked.**
+
+Two process notes worth carrying forward. First, QA's universal vacuity detector
+— replacing every `node:assert` primitive with a throwing function via
+`node --import` and re-running — turned **314 of 316** executed cases red, the two
+survivors being helper modules with no tests in them. That is a cardinality-first
+answer to "is any vacuous test left", and it is a better instrument than a spot
+check; it should be reached for again. Second, QA's F10 attempt initially put the
+`trap … EXIT` restore in the same shell as the mutation, so the file was restored
+*before* the build ran and the suite came back 0 fail — indistinguishable from
+"the recipe did not fire". Only the **in-image** assert-applied step caught it.
+That is CLAUDE.md's mutation-is-one-indivisible-step rule earning its place, and
+§7's header now says so.
+
+---
+
+### Explicitly NOT in scope for this cycle
+
+The rework is R1, R2, R3 and the plan corrections already applied. Everything
+below is out, and a rework touching it is over-scoped:
+
+1. **The DDL-text assertion gap** (R7). Backlog. Both `CHECK` constraints are
+   behaviourally pinned and both were shown red.
+2. **`decodeHash`'s missing salt-length bound.** A tampered row with a
+   multi-megabyte salt decodes. Not attacker-writable, not in the plan's stated
+   bound list (N, r, p, l, 128·N·r — all five hold). Backlog.
+3. **`readSessionToken` not stripping RFC 6265 DQUOTEs.** A client that quotes
+   the cookie value is silently signed out. No browser does this with a base64url
+   value we set. Backlog.
+4. **Splitting `test/invoices.test.js`** (1,195 of 1,200 lines). This is the
+   second task to hit it; §11 item 7 makes the *third* the trigger, and it
+   becomes its own task then, not a rider on this one. **The rework must not
+   grow that file.**
+5. **AC 17's wording** (it forbids `freelancer=` anywhere while AC 20 requires a
+   test containing it). Ruled a tech-lead item before review, not a rework
+   trigger: production source is at zero for every marker, which is what AC 17
+   exists to guarantee. Reword it when the task closes; do not re-litigate it in
+   the rework.
+6. **Reproducing F1, F2, F3, F5, F6, F9, F11.** QA time-boxed after seven
+   recipes; their cycle-1 outcomes stand. **F12 and F13 are new and must be run.
+   F4 must be re-run** against its corrected prediction, and F2/F6/F10 against
+   their corrected baselines — a recipe whose assert-applied step was unrunnable
+   has not actually been run.
+7. **Any change to `docs/engineering/01-stack-decision.md` or the wireframes doc**
+   (§11 items 5 and 6). Flags, not fixes, and still flags.
+8. **`CLAUDE.md`.** §10.3 is a proposal. The metawork layer applies it.
+
+**Cycle budget:** this is rework cycle 1 of 3. The CLI blocks the fourth
+review→rework transition. Two cycles remain; spend them on R1/R2/R3 and nothing
+else.
