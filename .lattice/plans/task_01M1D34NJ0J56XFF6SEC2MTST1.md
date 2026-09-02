@@ -158,8 +158,16 @@ AS-41 seam, unchanged and unextended. Identity rides as `?freelancer=<id>` on
 every route, including the POSTs; the **body carries data only**. One function,
 one AS-40 OBLIGATION marker, one replacement point.
 
-Both files get a one-line comment recording the shared seam. A route module
-importing another route module is unusual and is stated as deliberate: the
+`routes/invoices.js` gets a one-line comment recording the shared seam **and
+naming `connect.js`**; `routes/connect.js` is NOT edited.
+**[CORRECTED IN PLACE 2026-09-02, review cycle 1.** This read "Both files get a
+one-line comment", which contradicts §2's "Not modified, and that is a claim to
+check" and AC 17's requirement of zero changes to `routes/connect.js`. AC 17
+wins: a comment is not worth breaking a verified file-scope claim. Both comments
+live in `routes/invoices.js`, which is where the implementer put them. See
+"Review Cycle 1 Findings".]
+A route module importing another route module is unusual and is stated as
+deliberate: the
 alternative (extracting to `lib/http/identity.js`) modifies a file merged hours
 ago and adds a source file for no functional gain. §9 Q1 names the trigger that
 flips this: a **third** consumer (AS-42's contract routes).
@@ -212,7 +220,7 @@ by message text):
 | unknown freelancer, invoice, or client — or not owned by this freelancer | `NotFoundError` | 404 |
 | the freelancer's connected account is missing, or not `ready` | `AccountNotReadyError` | **403** |
 | the invoice is in the wrong state for this operation (e.g. editing after attach) | `InvalidStateError` | **409** |
-| Stripe's `amount_due` or `currency` disagrees with ours after finalize | `AmountMismatchError` | **409** |
+| the mirror's recorded amount disagrees with our line items (§3.7) | `AmountMismatchError` | **409** |
 | Stripe key unconfigured (the client's `requireKey` step) | `ConfigError` | 503 |
 | Stripe answered with an error, or did not answer usably | `StripeApiError` / `StripeTransportError` | 502 |
 | the mapper met an invoice shape it does not understand | `TypeError` | 502 |
@@ -256,9 +264,24 @@ clientId=<uuid>&daysUntilDue=30&currency=usd
 converts a sparse or high-index bracket set into an object keyed by numeric
 strings, and the exact index at which it does so is a library default this plan
 refuses to depend on. The route therefore accepts an array OR a plain object
-with numeric keys, sorts by numeric key, and rejects a non-contiguous set. A
-**25-item** request is a required test case (R5) precisely because it is on the
-far side of `qs`'s historical default. `MAX_LINE_ITEMS = 50`, exceeded → 400.
+with numeric keys, sorts by numeric key, and rejects a non-contiguous set.
+`MAX_LINE_ITEMS = 50`, exceeded → 400.
+
+**[CORRECTED IN PLACE 2026-09-02, review cycle 1 — the rationale for R5 was
+stale, the requirement was not.]** This paragraph originally justified R5's
+25-item case as sitting "on the far side of `qs`'s historical default". Measured
+during implementation: body-parser 2.x sets `qs`'s `arrayLimit` to
+`Math.max(100, <this request's parameter count>)` — **a threshold that moves with
+the request**, not the fixed 20 assumed here. So 25 items arrive as a dense
+array, a sparse set below the limit is silently *compacted* (indexes 0 and 30
+arrive as a 2-element array), and the object branch is reachable only above index
+~100 — which with `MAX_LINE_ITEMS = 50` always means a refusal. The object branch
+is therefore **defensive-only under today's express**. Both branches stay: a
+limit derived from request size is a *stronger* reason not to depend on it, not a
+weaker one. R5 covers both branches (25 dense items, plus a past-the-limit index
+that reaches the object branch and is refused). This is exactly the "library
+default this plan refuses to depend on" the paragraph warned about, and it cost
+one red run to find out.
 
 Field coercion is explicit: `quantity` and `unitAmountMinor` and `daysUntilDue`
 arrive as strings and are converted with a strict integer parse (`/^\d+$/`, then
@@ -313,10 +336,18 @@ Six decisions inside that table, each with its reason:
 - **`amount`, not `quantity` × `unit_amount`.** `unit_amount` does not exist on
   this endpoint at this API version (measured). Of the shapes that do, we send
   the **extended amount we computed ourselves** — `quantity * unitAmountMinor`,
-  a safe integer, asserted as such — plus `quantity` for display. Nothing then
-  depends on Stripe's multiplication semantics, and Stripe's `amount_due` after
-  finalize must equal our derived `totalMinor` by construction (§3.7 checks it).
+  a safe integer, asserted as such — **and nothing else**: `quantity` is used
+  locally to compute that amount and is NOT sent. Nothing then depends on
+  Stripe's multiplication semantics, and Stripe's `amount_due` after finalize
+  must equal our derived `totalMinor` by construction (§3.7 checks it).
   The human line keeps its structure in the `description`.
+  **[CORRECTED IN PLACE 2026-09-02, review cycle 1.** This bullet previously read
+  "plus `quantity` for display", contradicting §3.5's own Params column, R6's
+  assertion list and AC 3 ("exactly §3.5's table"), all of which omit it. The
+  table wins — on a money-adjacent call the narrower reading is correct, and
+  stripe-mock validates parameter *names*, not the real API's mutual-exclusivity
+  rule, so it cannot adjudicate this. The implementer arbitrated it the right
+  way; he should not have had to. See "Review Cycle 1 Findings".]
 - **The invoice is created BEFORE its items, and each item names the invoice.**
   This inverts the order the spike's diagram shows (`/v1/invoiceitems` then
   `/v1/invoices`), and the inversion is the point. Pending invoice items are
@@ -398,35 +429,120 @@ against a committed literal) — cardinality before quantification.
 
 ### 3.7 Reconciliation: the guard this task introduces
 
-After a successful finalize, and **before** any send, the service compares
-Stripe's answer to ours:
+> **[REWORKED IN PLACE 2026-09-02, review cycle 1 — see "Review Cycle 1
+> Findings" at the end of this file.** The original text put this guard inside
+> the finalize step, where it is unreachable on a resumed request, and compared
+> Stripe's response rather than the mirror. The guard's *purpose* is unchanged.
+> Its location, its input, and its currency half are.]
+
+The guard is a property of **the mirror row**, checked in `run()`, on both
+routes, on every path that can reach a send:
 
 ```
-response.data.currency   must equal  invoice.currency
-response.data.amount_due must equal  invoice.totalMinor   (SUM(quantity * unit_amount_minor))
+invoice.amountDueMinor   must equal   invoice.totalMinor
 ```
 
-Mismatch → `AmountMismatchError` → **409**, and **the send does not happen**.
+Both values are already on the row AS-39 returns. `amountDueMinor` is *Stripe's*
+number, written only by `applyStripeSnapshot`; `totalMinor` is *ours*, derived on
+every read as `SUM(quantity * unit_amount_minor)` and never stored. Mismatch →
+`AmountMismatchError` (`step: 'reconcile'`) → **409**; the send does not happen,
+and neither route answers 303.
 
-Why it exists: §3.8 re-pushes line items on a retry and leans on Stripe's
-idempotency window to deduplicate them. That is the right mechanism, and this is
-the assertion that says so out loud — if a duplicate item ever lands, if a
-pending item is swept in despite `exclude`, if a quantity is multiplied twice,
+**Where it runs, exactly:** in `run()`, after the `if (invoice.status ===
+'draft')` block and before the `through === 'send'` branch, against the row that
+block returned. **Not inside `finalizeInvoice()`.** That placement is the whole
+fix: a request that finds the invoice already `open` skips steps 3 and 4, so a
+guard living inside step 4 fires exactly once per invoice and then stops existing
+for it — while step 5's only precondition is `sentAt === null`. The row in hand
+at that point always carries a `stripeInvoiceId` (step 2 guarantees it), so the
+guard is unconditional.
+
+Why it exists, unchanged: §3.8 re-pushes line items on a retry and leans on
+Stripe's idempotency window to deduplicate them. That is the right mechanism, and
+this is the assertion that says so out loud — if a duplicate item ever lands, if
+a pending item is swept in despite `exclude`, if a quantity is multiplied twice,
 the totals diverge and we find out before the client is emailed a wrong invoice.
-It costs one comparison and it converts a silent money bug into a loud refusal.
 
-Order of operations on mismatch, decided: **write the snapshot first, then
-refuse.** Stripe really did finalize the invoice; a mirror that says `draft`
-would be a lie, and AS-39's whole discipline is that the mirror never guesses.
-So the mirror records `open` with Stripe's `amount_due`, and the freelancer sees
-a row whose recorded amount disagrees with its line items — which is exactly the
-truth. Resolution is the freelancer's, in their own Stripe Dashboard: we do not
-add `/v1/invoices/{id}/void` to the allowlist to clean up after ourselves, and a
-task that needs voiding is a separate task with its own allowlist row.
+**The snapshot-first order is unchanged and still decided.** `finalizeInvoice()`
+still writes the snapshot from the finalize response and returns the updated row;
+the refusal happens after it, one level up. Stripe really did finalize the
+invoice; a mirror that said `draft` would be a lie, and AS-39's discipline is
+that the mirror never guesses. The freelancer sees a row whose recorded amount
+disagrees with its line items — exactly the truth — and resolution is theirs, in
+their own Stripe Dashboard: we do not add `/v1/invoices/{id}/void` to the
+allowlist to clean up after ourselves, and a task that needs voiding is a
+separate task with its own allowlist row.
+
+Checking the **mirror** rather than the response is what makes the guard total,
+and it is stronger in two ways worth stating:
+
+- it holds on every path to `open`, including paths this task does not own. An
+  invoice moved to `open` by AS-44's `invoice.finalized` webhook is checked by
+  the same predicate, because AS-44 writes `amountDueMinor` through the same
+  `applyStripeSnapshot`. A response-based check could never cover that.
+- it also catches a fault in **our own persistence**. A response-based check
+  compares Stripe to our line items and would pass while `writeSnapshot` quietly
+  recorded something else; the mirror check compares what we actually stored.
+
+A `null` `amountDueMinor` on an invoice at `open` fails the strict equality and
+is therefore a refusal, deliberately and at no extra cost in code. It is
+unreachable through both writers (the mapper emits an integer or throws), and
+"we cannot verify this invoice" is not a reason to email it.
+
+#### The currency comparison is DROPPED. Ruling, `agent:cto-owen`, 2026-09-02.
+
+The mirror carries `invoice.currency` — **ours**: set at creation, validated by
+`assertSupportedCurrency`, absent from `DRAFT_KEYS` and therefore immutable, and
+frozen again by `attachStripeInvoice`. It carries **no column for Stripe's**.
+`invoiceSnapshotFromStripe` emits no `currency` key and `SNAPSHOT_COLUMNS` has
+none, so after a resume there is nothing to compare a currency *against*.
+
+The alternative — a `stripe_currency` column — is an AS-39 schema change:
+**a new migration file** (migrations are new files, never edits), `SCHEMA_VERSION`
+1→2, `MIGRATIONS` 1→2, three literals in `repositories/invoices.js`
+(`SNAPSHOT_COLUMNS`/`KEYS`/`VALIDATORS`), an **eleventh key** in the mapper AS-44
+inherits (moving R1's committed ten-key literal and F4's rationale), plus
+`repositories.test.js` and `db.test.js`. It also breaks AC 17 and §2's file
+scope, which QA verified as met. **Rejected**: a rework cycle must not quietly
+become a cross-cutting schema change on the one table AS-44 is about to start
+writing.
+
+And rejected on the merits, not only the cost: **the comparison is not
+load-bearing in a v1 with one currency.** For `theirs.currency !==
+ours.currency` to be reachable, one of these must be true:
+
+1. `SUPPORTED_CURRENCIES` has more than one member. It has exactly one
+   (`lib/db/money.js`), enforced at the single draft-creation site.
+2. Stripe substitutes a currency we sent **explicitly**. We send it on
+   `POST /v1/invoices` *and* on every `POST /v1/invoiceitems`, so it is never
+   inferred from the connected account's default — and Stripe rejects an invoice
+   item whose currency differs from its invoice's, which would surface as
+   `StripeApiError: push-line-item` (502) *before* finalize.
+
+"Ours" and "theirs" are the same constant, sent by us, in a system with one
+currency. What is being deleted is a comparison of a constant with itself.
+
+**What carries the weight now, so the next reader can find it:**
+
+1. **`lib/db/money.js` — `SUPPORTED_CURRENCIES` has exactly one member**, one
+   validator, one creation site. **Pinned by test (R26):** the suite asserts the
+   cardinality against a committed literal, with a message naming this ruling.
+   The moment a second currency is added — C-32 multi-currency, out of v1 — that
+   test goes red and the currency half must come back, which at *that* point
+   does justify the column. **The failing test is the trigger**; there is no
+   comment to overlook and no memory to rely on.
+2. **The explicit `currency` parameter on calls 2 and 3**, pinned by R6's
+   exact-body assertions (a mutation that drops it moves those literals).
+3. **A named assumption, not a proof:** that Stripe echoes an explicitly-sent
+   currency rather than substituting one. stripe-mock cannot show this — its
+   invoice fixture is a constant. Verification home: **AS-50's acceptance run**,
+   which should record the real finalize response's `currency` alongside its
+   `amount_due`. Flagged for AS-50's planner, not solved here.
 
 Two properties this guard must NOT have, and tests hold both: it must not fire
-on the happy path (R6, R14, M1), and it must fire when the totals genuinely
-disagree (R12, M3, and F3 in §7).
+on the happy path — including the **resumed** happy path (R6, R11, R14, M1) —
+and it must fire when the totals genuinely disagree, **on the first request and
+on every request after it** (R12, M3, and F3b/F8 in §7).
 
 ### 3.8 The pipeline: five steps, each skipped when the mirror says it is done
 
@@ -438,10 +554,20 @@ POST /invoices/{id}/finalize   (steps 1-4)      POST /invoices/{id}/send   (step
   step 1  ensureCustomer     skip if client.stripeCustomerId !== null
   step 2  ensureInvoice      skip if invoice.stripeInvoiceId !== null
   step 3  pushLineItems      skip if invoice.status !== 'draft'
-  step 4  finalize           skip if invoice.status !== 'draft'   → reconcile (§3.7) → snapshot
+  step 4  finalize           skip if invoice.status !== 'draft'   → snapshot
+  guard   reconcile (§3.7)   ALWAYS — never skipped                else 409
   ─────────────────────────── finalize stops here ───────────────────────────
   step 5  send               skip if invoice.sentAt !== null      → snapshot + sentAt
 ```
+
+**[CORRECTED IN PLACE 2026-09-02, review cycle 1.** The original diagram put
+`reconcile` inside step 4, sharing step 4's skip predicate. It therefore did not
+run on any request that found the invoice already `open` — which is every
+request after the first. The guard now sits between step 4 and step 5 with **no
+predicate of its own**, so it gates the send on the resumed path as well as the
+first. §3.7's sentence "and **before** any send" was always the intent; this
+diagram was the half that disagreed with it, and the implementer followed the
+diagram. See "Review Cycle 1 Findings".]
 
 Every step is labelled on the way out (`labelled(step, work)`, the AS-41
 precedent), so a failure body reads `StripeApiError: finalize` and names WHICH
@@ -600,7 +726,7 @@ overridable per case.
 | R9 | **customer reuse**: the client already carries a `cus_` → **zero `/v1/customers` calls**, and the stored id is what the invoice body names |
 | R10 | **double finalize**: the second call makes zero Stripe calls and still 303s (every step skipped) |
 | R11 | **resumption**: an intercept fails the finalize call → 502 `StripeApiError: finalize`, mirror has `stripeInvoiceId` attached and status still `draft`; retry with the intercept removed → succeeds with **the same `in_`** (zero second `/v1/invoices` calls), items re-pushed carrying the same `ii-create-…` keys |
-| R12 | **the reconciliation guard fires**: an intercept inflates `amount_due` → **409** `AmountMismatchError`, **no send call**, and the mirror DOES record `open` with Stripe's amount (§3.7's "snapshot first, then refuse"). Same for a `currency` disagreement |
+| R12 | **the reconciliation guard fires, and KEEPS firing** *(rewritten 2026-09-02, review cycle 1)*: an intercept inflates `amount_due` → **409** `AmountMismatchError`, **no send call**, and the mirror DOES record `open` with Stripe's amount (§3.7's "snapshot first, then refuse"). Then, **on the same invoice, without changing the fixture**: a SECOND `POST …/send` → 409 again, cumulative `/send` calls still **0**, `sentAt` still `null`; and a `POST …/finalize` → **409**, not 303. The old currency sub-case is **deleted** — §3.7's ruling drops that comparison; R26 replaces it |
 | R13 | Stripe 4xx **at the finalize step** → 502 naming `finalize`; mirror keeps `stripeInvoiceId`, status `draft`, no send call |
 | R14 | **send from an already-open invoice**: exactly one call (`/send`), `sentAt` written from OUR clock (not from any Stripe field), status unchanged |
 | R15 | **send from a draft** runs steps 1–5 in one request: `1+1+N+1+1` calls in order; mirror `open` + `sentAt`; 303 |
@@ -613,6 +739,15 @@ overridable per case.
 | R22 | **the custody property, at the wire**: over a complete recorded run, every request carried `stripe-account`; and no body or query contains `application_fee_amount`, `application_fee`, `transfer_data`, `on_behalf_of`, `issuer`, `destination` or `transfer_group` |
 | R23 | **`sentAt` survives a later snapshot** — the reason §3.6 excludes it, tested as the AS-44 interaction it protects: take a sent invoice, apply `invoiceSnapshotFromStripe` of a **paid** invoice object (what AS-44 will do on `invoice.paid`), assert `status` became `paid` AND `sentAt` is unchanged. A mapper that emitted `sentAt: null` would erase it here |
 
+**Added 2026-09-02, review cycle 1** (R24–R26; R24/R25 close the taxonomy holes
+QA's Finding 5 named, R26 is the invariant §3.7's currency ruling rests on):
+
+| # | Case |
+|---|---|
+| R24 | **`StripeCustodyError` → 500 at the route.** Drive one through a route with a stripe stub whose `request` throws it; body is the class + step, carries no request material. The status is reachable — F2 put 8 tests through it — but no case *asserts* it, and AC 1 names 500 |
+| R25 | **`TypeError` → 502 at the route**: a fixture whose finalize response has a non-string `status` (or a non-integer `amount_due`) makes the mapper throw; the route answers 502, not 500. R1 proves the mapper throws; nothing drove one through a route |
+| R26 | **the invariant the dropped currency comparison rests on**: import `SUPPORTED_CURRENCIES` from `lib/db/money.js` and assert its length against the committed literal `1`, with an assertion message naming §3.7's ruling and saying what must be restored when it goes red (the currency half of the guard, which then needs the `stripe_currency` column). `test/` is in the dependency-policy scan's `SKIPPED_DIRS`, so this import moves **no** literal — verified, not assumed |
+
 Mock-gated cases (`{ skip: SKIP }`; the same self-skip pattern and
 not-`stripe.com` refusal as `stripe-mock.test.js` and `connect.test.js`; only the
 `contract` service sets `ASC_STRIPE_MOCK_URL`):
@@ -621,7 +756,7 @@ not-`stripe.com` refusal as `stripe-mock.test.js` and `connect.test.js`; only th
 |---|---|
 | M1 | **finalize over HTTP against stripe-mock**, on a draft whose `totalMinor` is exactly `MOCK_FIXTURE_AMOUNT_DUE = 1000` (measured: the mock's invoice fixture is a constant). The mock validates all four request shapes — a parameter the spec does not know is a 502 here. 303; `stripeInvoiceId` attached; **and the mirror status is asserted to still be `draft`**, because the mock is stateless: the residual is asserted, not glossed |
 | M2 | **send against the mock**: 303, `sentAt` written |
-| M3 | **the reconciliation guard against the mock**: the same flow on a draft totalling `1001` → 409 `AmountMismatchError`, no send call. The guard fires against a real spec-shaped response, not only against our own fixture |
+| M3 | **the reconciliation guard against the mock**: the same flow on a draft totalling `1001` → 409 `AmountMismatchError`, no send call. The guard fires against a real spec-shaped response, not only against our own fixture. **Extended 2026-09-02, review cycle 1:** a SECOND `POST …/send` on that same invoice → 409 again, `sentAt` still `null`, cumulative `/send` calls **0**. **Assert, and state in the case, WHY this is the weaker witness:** the mock is stateless, so its finalize response leaves the mirror at `draft` (M1 already pins this) — the second request therefore re-runs steps 3–4 and is refused by the *finalizing* path, NOT by the resumed-skip path the defect lived on. It proves the refusal is stable across requests against a spec-shaped response; it does **not** cover the skip path. **Only R12 covers that**, because only the computing fixture advances the mirror to `open`. Do not let M3 stand in for R12 |
 
 **What genuinely cannot be tested here, named** (the description's residual,
 ours to restate not to solve): stripe-mock is stateless, so `draft → open →
@@ -703,9 +838,17 @@ and files no ask.
    `pending_invoice_items_behavior=exclude`; each item's `amount` is
    `quantity * unitAmountMinor` computed locally; `unit_amount` is never sent
    (R6 — and the measurement in the preamble says why).
-10. **The reconciliation guard**: after finalize, Stripe's `amount_due` and
-    `currency` must equal ours or the send is refused with 409
-    `AmountMismatchError`, with the snapshot already written (R12, M3, F3).
+10. **The reconciliation guard** *(rewritten 2026-09-02, review cycle 1 — see
+    §3.7's ruling and "Review Cycle 1 Findings")*: **on every request that could
+    reach a send, not only the one that finalized**, the mirror's
+    `amountDueMinor` must equal its `totalMinor` or BOTH routes refuse with 409
+    `AmountMismatchError` and no `/send` call is made — with the snapshot already
+    written. Proven on the first request AND on a retry after it — **R12 is the
+    load-bearing case**, because it is the only one whose mirror actually reaches
+    `open` and takes the resumed-skip path; M3 is the weaker mock-side witness
+    and does not substitute for it — and proven by breaking it on the *resumed*
+    request (F8). The **currency** half is deliberately not compared; the
+    invariant that replaces it is pinned by R26.
 11. The pipeline is resumable and idempotent: every step skipped when the mirror
     records it done (R10, R16), and a retry after a mid-pipeline failure
     completes without duplicating a Stripe object (R11).
@@ -764,12 +907,14 @@ observed exactly is a pass; a set NARROWER than a lower bound is a finding.
 | # | Mutation (exact) | Assert applied | Predicted failing set |
 |---|---|---|---|
 | F1 | delete the two `AccountNotReadyError` throws in `lifecycle.js`'s gate (§3.4) | `grep -c "throw new AccountNotReadyError" lib/invoices/lifecycle.js` goes 2 → 0; `MUTANT-F1` marker = 1 | **EXACT {R7, R8}.** Both expect 403 AND zero transport calls; with the gate gone the pipeline runs against the fixture and answers 303, so both assertions fail in both tests. Nothing else touches the gate: every other finalize/send case seeds a ready account, and 403 is used by no other case. Reasoned through the pipeline: the gate is pure local state, upstream of the client, so none of the custody/`requireKey`/transport ordering effects apply. Dependency-policy stays green |
-| F2 | in `lifecycle.js`, drop `account:` from the **finalize** call only, so a `connected` allowlist row is sent with no `Stripe-Account` | `grep -c "account:" lib/invoices/lifecycle.js` drops by exactly 1; the finalize call site shows no `account` | **LOWER BOUND {R6, R11, R12, R13, R14, R15, R18, R22}, and any other case whose flow reaches step 4.** Mechanism: `checkScope` throws `missing_account` — *before* `requireKey` and *before* the transport. So (a) every happy-path case gets 500 instead of 303 (R6, R14, R15); (b) **R18 flips from 503 to 500** and (c) **R13 flips from 502 to 500**, because the guard pre-empts both — this is the exact class of miss AS-41 made, predicted here on purpose; (d) R12's 409 never happens (the finalize never returns); (e) R11's second phase and R22's complete run both die at step 4. **Stays green:** R2–R5, R17, R19, R20, R21 (never reach step 4), R7/R8 (refused earlier), R9/R10/R16 (skip step 4), R1 (pure). Dependency-policy stays green — `account:` is not a scanned concept |
-| F3 | **breaks a guard this task introduces, in the direction it exists to catch.** In `pushLineItems`, push each item TWICE (duplicate the loop body) | `MUTANT-F3` marker = 1 and the `/v1/invoiceitems` call site count goes 1 → 2 | **LOWER BOUND {R6, R11, R12, R15, R22} offline; M1, M2, M3 UNAFFECTED.** Mechanism: the computing fixture transport sums the `amount` of every item it receives, so a doubled push doubles `amount_due` and §3.7's reconciliation refuses with 409 where 303 was expected. R6 and R15 fail twice over — their exact call-count assertions go from `1+1+N+1` to `1+1+2N+1` — which is two independent witnesses for one mutation, and the reason to assert call counts exactly. R12 fails on a different magnitude than the mismatch it staged. **The M-cases stay green, and that asymmetry is the finding to record**: stripe-mock's `amount_due` is a constant that does not depend on what we pushed, so the mock is structurally incapable of catching a duplicated line item. Only the computing fixture can. If any M-case DOES go red under F3, the fixture constant has changed and M1's `MOCK_FIXTURE_AMOUNT_DUE` needs re-measuring |
-| F4 | in `mapping.js`, add `sentAt: null` to the returned object (§3.6's forbidden key) | `grep -c sentAt lib/invoices/mapping.js` goes 0 → 1 | **EXACT {R1, R23}.** R1 asserts the ten-key set literally and fails on cardinality. R23 is the case that proves *why* the key is excluded: a sent invoice receiving a later paid-snapshot has its `sentAt` erased, because `applyStripeSnapshot` writes every key present. R14/R15 stay **green**, and that is predicted rather than hoped: §3.8 mandates `{ ...invoiceSnapshotFromStripe(data), sentAt: now() }` — our observation spread LAST — so on the send path the mutant's `null` is overwritten in the same object literal and never reaches the database. If R14/R15 go red, the spread order was written backwards; that is a finding about the implementation, not about this prediction |
-| F5 | in `lifecycle.js`, delete the `client.stripeCustomerId !== null` skip in step 1 | the skip condition = 0 hits; `MUTANT-F5` marker = 1 | **EXACT {R9}, plus R10 and R16.** R9 asserts zero `/v1/customers` calls for a client that already has one — it now sees one. R10 (double finalize, zero calls on the second) and R16 (send when already sent, zero calls) both re-run step 1 and see a call where none was expected. R6/R15 stay green: their client starts without a `cus_`, so the skip never fired for them. **LOWER BOUND if the implementer adds further "zero calls on a repeat" cases** |
+| F2 | in `lifecycle.js`, drop `account:` from the **finalize** call only, so a `connected` allowlist row is sent with no `Stripe-Account` | `grep -c "account:" lib/invoices/lifecycle.js` drops by exactly 1; the finalize call site shows no `account` | **[CORRECTED 2026-09-02, review cycle 1 — the original prediction was wrong in four memberships.]** **LOWER BOUND {R6, R9, R10, R11, R12, R13, R15, R22}** (observed at cycle-1 HEAD `42efa8a`, independently by implementer and reviewer; 8 fail, all reading `500 !== 303`). Mechanism, unchanged and confirmed: `checkScope` throws `missing_account` *before* `requireKey` and *before* the transport, so every case whose flow **actually executes the finalize call site** gets 500. The four corrections, all of which the original got wrong by reasoning as though the mutation applied to *every* call rather than to *the one call site it names* — the same class of error §7's preamble was written to avoid: **R14 stays green** (it sends from an already-`open` invoice and never reaches step 4); **R18 stays green at 503** (it dies at the FIRST call — create-customer, still custody-legal — on `requireKey`, and never reaches the mutated one); **R9 and R10 go red** (predicted green as "skip step 4", but only their SECOND action skips it — their first finalize runs the mutant). **Stays green:** R1–R5, R7, R8, R14, R16–R21. Dependency-policy stays green — `account:` is not a scanned concept |
+| F3 | in `pushLineItems`, push each item TWICE **under the same idempotency key** (duplicate the loop body verbatim) | `MUTANT-F3` marker = 1 and the `/v1/invoiceitems` call site count goes 1 → 2 | **[CORRECTED 2026-09-02, review cycle 1 — the stated MECHANISM was falsified; this recipe does not reach the guard at all.]** **LOWER BOUND {R6, R9, R15, R22} offline; M1, M2, M3 UNAFFECTED.** The fixture transport models Stripe's idempotency window (it must, or R11's retry doubles the total and AC 11 becomes untestable), so a duplicate under the SAME key is absorbed: the totals do NOT diverge and §3.7's guard correctly does not fire. F3 is caught by the **exact call-count assertions only** — `1+1+N+1` becoming `1+1+2N+1` — which is still worth having, and is the reason to assert call counts exactly rather than loosely. **It is not a falsification of the reconciliation guard; F3b is.** The M-case asymmetry the original predicted IS confirmed: stripe-mock's `amount_due` is a constant that does not depend on what we pushed, so the mock is structurally incapable of catching a duplicated line item. If any M-case DOES go red under F3, the fixture constant has changed and M1's `MOCK_FIXTURE_AMOUNT_DUE` needs re-measuring |
+| F3b | **the recipe that actually breaks the guard, promoted to standing 2026-09-02 (added independently by the implementer and the reviewer during cycle 1).** Duplicate the push under a **DIFFERENT** idempotency key (`ii-create-<id>-<dup>`) — the lapsed-window escape §3.7 names itself the backstop for | 2 markers; the distinct key suffix verified **in the built image**, not only on disk | **LOWER BOUND {R6, R9, R10, R11, R15, R22}** (observed at cycle-1 HEAD), failures reading `409 !== 303`. This is the recipe that shows the reconciliation guard FAILING rather than merely passing, which is what CLAUDE.md requires of a guard. Note it exercises the guard on the **first** request only — F8 is its resumed-path counterpart, and both are required |
+| F4 | in `mapping.js`, add `sentAt: null` to the returned object (§3.6's forbidden key) | **[CORRECTED 2026-09-02, review cycle 1 — the assert-applied step as written can never hold.]** `grep -c "^ *sentAt:" lib/invoices/mapping.js` goes 0 → 1, plus a `MUTANT-F4` marker = 1. The original said `grep -c sentAt mapping.js` goes 0 → 1; the shipped file's baseline is **2** (two comment lines naming the forbidden key), so a reviewer following the step literally would abort a good recipe. Anchor the pattern to the object literal, and prefer a marker | **EXACT {R1, R23}.** R1 asserts the ten-key set literally and fails on cardinality. R23 is the case that proves *why* the key is excluded: a sent invoice receiving a later paid-snapshot has its `sentAt` erased, because `applyStripeSnapshot` writes every key present. R14/R15 stay **green**, and that is predicted rather than hoped: §3.8 mandates `{ ...invoiceSnapshotFromStripe(data), sentAt: now() }` — our observation spread LAST — so on the send path the mutant's `null` is overwritten in the same object literal and never reaches the database. If R14/R15 go red, the spread order was written backwards; that is a finding about the implementation, not about this prediction |
+| F5 | in `lifecycle.js`, delete the `client.stripeCustomerId !== null` skip in step 1 | the skip condition = 0 hits; `MUTANT-F5` marker = 1 | **[CORRECTED 2026-09-02, review cycle 1 — mislabelled EXACT; it is a LOWER BOUND throughout.]** **LOWER BOUND {R9, R10, R11, R14, R16}** (observed at cycle-1 HEAD). R9 asserts zero `/v1/customers` calls for a client that already has one — it now sees one. R10 (double finalize), R16 (send when already sent), R11 (pins zero *second* `/v1/customers` on the retry) and R14 (pins an exact one-call list) all re-run step 1 and see a call where none was expected. R6/R15 stay green: their client starts without a `cus_`, so the skip never fired for them. Every "zero calls on a repeat" case is in the set by construction, which is why this can only ever be a lower bound |
 | F6 | scratch copy of the worktree (never in place): `mv test/invoices.test.js test/invoices.test.js.bak` | `ls test/invoices.test.js` fails in the copy; the task worktree proven clean before and after | **EXACT: harness V2 only.** Message must read "expected exactly 12 test files, found 11: …" listing the eleven survivors. Proves the new file is load-bearing in the pinned list rather than decoration. Everything else stays green — the other files do not import it |
 | F7 | in `test/dependency-policy.test.js`, revert the money-words allowed list to its pre-AS-43 four entries (§5.4 item 3) | the list has 4 entries, not 7 | **EXACT: the concept test only** — "money representation: found in [… 7 files …], allowed in exactly [… 4 …]". Proves the moved literal was *required*, not decorative, and names precisely which new files carry money words. Run the mirror direction too if any new file turns out money-word-free: adding it to the list must fail with the used-exemption message |
+| F8 | **ADDED 2026-09-02, review cycle 1 — the recipe that proves the reworked guard is total. MANDATORY; the rework is not done without it.** In `lifecycle.js`, restore the cycle-1 defect: move the `reconcile()` call back inside `finalizeInvoice()` (equivalently, give the guard in `run()` step 4's skip predicate) so it fires only on the request that finalized | `MUTANT-F8` marker = 1; `grep -n reconcile lib/invoices/lifecycle.js` shows the call inside `finalizeInvoice`, none in `run()`; **confirmed in the built image**, not only on disk | **EXACT {R12} offline; M1, M2, M3 UNAFFECTED in contract.** R12 must go red *on its second request*: the retry answers 303 instead of 409 and its cumulative `/send` count goes 0 → 1. **Everything else stays green**, for two distinct reasons that must both be stated when this is run: (a) every other offline case makes exactly one issuing request, so it cannot distinguish the two placements; (b) **the M-cases are structurally incapable of catching this defect** — stripe-mock is stateless, so its finalize response leaves the mirror at `draft` (M1 pins this), and M3's retry therefore re-runs steps 3–4 and is refused by the *finalizing* path even with the mutation in. This is the same M-case asymmetry F3 has, arriving for the same reason, and it is the finding to record. **The narrowness is the whole point**: it is exactly why a green cycle-1 suite did not surface the defect. If R12 stays GREEN under F8, the retry assertion was not actually added and the rework has not been done. If an M-case goes RED, the mock's statelessness has changed and `MOCK_FIXTURE_AMOUNT_DUE` plus M1's `draft` assertion need re-measuring |
 
 ## §8 Size and complexity, against the milestone tripwires
 
@@ -892,3 +1037,236 @@ quietly fixed teaches the next planner that predictions are cheap. This plan's �
 inherits the lesson explicitly.
 
 ## Reset 2026-09-02 by agent:cto-owen
+
+---
+
+## Review Cycle 1 Findings
+
+Written by `agent:cto-owen` (tech lead), 2026-09-02, from `agent:qa-ruben`'s
+review comment (`--role review`) on AS-43. Verdict: **implementation-level rework
+needed**, 1 defect, 19 of 20 acceptance criteria met. Cycle 1 of 3. The
+implementer for this cycle should read **this section first**, then §3.7 and §3.8
+as reworked above.
+
+**Scope of this section:** the blocking defect and the ruling it needed, the
+plan text I corrected in place, and the boundary of the rework. It is not a
+re-plan — the approach stands, and QA's routing (implementation-level, not
+plan-level) is right.
+
+### 1. The blocking defect — AC 10. The guard fires once, then stops existing
+
+**The reconciliation guard is unreachable on the resumed path, so a second
+request sends an invoice whose total we already know disagrees with our line
+items.**
+
+Reproduce, through the real routes over real HTTP, with the fixture returning
+`amount_due = totalMinor + 1` on finalize (QA's probe, in a scratch copy):
+
+```
+POST /invoices/{id}/send?freelancer=F   -> 409  "AmountMismatchError: reconcile"
+    /v1/invoices/{id}/send calls = 0                 correct — the guard fired
+    mirror: status=open amountDueMinor=10001 totalMinor=10000 sentAt=null
+
+POST /invoices/{id}/send?freelancer=F   -> 303      <-- THE DEFECT
+    /v1/invoices/{id}/send calls = 1                 THE CLIENT IS EMAILED
+    mirror: sentAt=2026-09-02T10:40:30.871Z amountDueMinor=10001 totalMinor=10000
+
+POST /invoices/{id}/finalize?freelancer=F -> 303    <-- also not re-checked
+```
+
+**Mechanism.** §3.7's decided order writes the snapshot (`open`) *before*
+refusing — which is correct and stays. But `reconcile()` was reachable only from
+inside `finalizeInvoice()` (`lifecycle.js:244`), and on the next request
+`run()` sees `invoice.status === 'open'` and skips steps 3 and 4. Step 5's only
+precondition is `invoice.sentAt === null` (`lifecycle.js:311`). So the guard
+fires exactly once per invoice and then stops existing for it.
+
+**Why it blocks.** §3.2 specifies that AS-46's single "Finalize & send" control
+posts to `…/send`, and §3.5 names re-submitting the form as *the* user-visible
+retry. The shipped flow is therefore: click → 409 error page → click again →
+Stripe emails the client an invoice whose amount we have already recorded as
+wrong. One click, on the money path, defeating the one guard this task
+introduces.
+
+**Why a green suite did not catch it: R12 and M3 stop one request short.** They
+assert the first refusal and never retry. The same gap existed in the code and in
+the tests, which is the honest reason this shipped.
+
+**My share of this.** The plan contributed and the record should say so. §3.7
+said the comparison happens "after a successful finalize, and **before any
+send**" — the intent — while §3.8's pipeline diagram placed `reconcile` inside
+step 4, sharing step 4's skip predicate, which cannot honour that intent on a
+request that skips step 4. The two disagreed and the implementer followed the
+diagram, which is the reasonable thing to do with a diagram. That is a fourth
+plan self-contradiction on top of QA's Finding 3, and it is mine. I still concur
+with the implementation-level routing: the approach is sound and the fix is a
+placement change in one function, not a re-plan.
+
+### 2. The ruling QA escalated — the currency half of the comparison
+
+QA established that the amount half is rebuildable from the mirror
+(`amountDueMinor` and `totalMinor` are both on the row) but the currency half is
+not: the mapper emits no `currency` key and `SNAPSHOT_COLUMNS` has no currency
+column, so after a resume there is nothing to compare a currency against. He
+correctly routed it here rather than improvising a schema change mid-rework.
+
+**Decision: drop the currency comparison. Do not add a column. The full ruling,
+with the reasoning and the three things that now carry the weight, is written
+into §3.7 above — read it there; it is the design constraint the fix must
+satisfy, not a footnote.** In brief:
+
+- **Chosen:** one guard, mirror-based, amount-only, evaluated in `run()` on both
+  routes and every path. Uniform: one predicate, one place, one statement of what
+  is guaranteed.
+- **Rejected — a `stripe_currency` column on the invoice mirror.** It is an AS-39
+  schema change, and under AS-39's migration discipline (migrations are new
+  files, never edits; the schema is not split) it needs a **new migration file**,
+  `SCHEMA_VERSION` 1→2, three literals in `repositories/invoices.js`, an eleventh
+  key in the mapper AS-44 inherits, and moved literals in `repositories.test.js`
+  and `db.test.js`. It breaks AC 17 and §2's file scope, both of which QA
+  verified as met. **A rework cycle must not quietly become a schema change**,
+  and least of all on the one table AS-44 is about to start writing. If the
+  currency half ever *is* needed, that column is the right answer — as its own
+  task, planned, with its own migration, not smuggled in here.
+- **Also rejected — `GET /v1/invoices/{id}` on the resumed path** to re-derive
+  both halves fresh. It is already on AS-38's allowlist, so it would cost no
+  custody change and no migration — but it breaks the "five POSTs, zero GETs"
+  property AC 3 pins and R6/R15's exact call-count literals encode; it adds a
+  network round trip and a new failure mode (the GET fails → 502 on a send that
+  would otherwise be correct) to a question local state can answer; and it is
+  *weaker* where it matters, because it verifies Stripe against our line items
+  but not our own mirror against them. Paying a round trip for a comparison that
+  is not load-bearing is worse than paying a column for it, and I am not paying
+  either.
+- **Why dropping is safe, in one line:** `SUPPORTED_CURRENCIES` has exactly one
+  member, we send that currency explicitly on calls 2 and 3, and Stripe rejects
+  an item whose currency differs from its invoice's — so "ours" and "theirs" are
+  the same constant. **What now carries the weight:** `lib/db/money.js`'s
+  one-member set, **pinned by R26** so the day it grows, a test goes red naming
+  this ruling; R6's exact-body assertions on the explicit `currency` parameter;
+  and one **named assumption** — that Stripe echoes an explicitly-sent currency —
+  routed to AS-50's acceptance run, which should record the real response's
+  `currency` alongside its `amount_due`.
+
+### 3. What the fix must include beyond the code change
+
+The code change alone is small. **These are not optional; a fix whose test stops
+at the same request the old tests did is not a fix.**
+
+1. **`reconcile()` moves out of `finalizeInvoice()` into `run()`**, after the
+   `if (invoice.status === 'draft')` block, before the `through === 'send'`
+   branch, with **no predicate of its own** (§3.7, §3.8). `finalizeInvoice()`
+   keeps writing the snapshot first and returning the updated row — that order is
+   unchanged and still decided.
+2. **The predicate becomes `invoice.amountDueMinor === invoice.totalMinor`** on
+   the mirror row. `AmountMismatchError`'s payload loses `theirs.currency` (there
+   is no such value to report); **`step` stays `'reconcile'` and the route body
+   stays byte-identical** — `AmountMismatchError: reconcile\n` — so R12's and
+   M3's body assertions do not move.
+3. **R12 extended** to retry: second `POST …/send` → 409, cumulative `/send`
+   calls still 0, `sentAt` still null; and `POST …/finalize` on the same invoice
+   → 409, not 303. Its **currency sub-case is deleted** per the ruling.
+4. **M3 extended** the same way, **and honestly labelled**: because stripe-mock
+   is stateless its mirror stays at `draft`, so M3's second request re-runs
+   steps 3–4 and is refused by the *finalizing* path, not the resumed-skip path.
+   It proves the refusal is stable across requests against a spec-shaped
+   response; it does not cover the defect. **R12 is the load-bearing case and M3
+   must not be allowed to stand in for it.** (I got this wrong in my first draft
+   of F8 and caught it by reasoning it through the pipeline — which is the whole
+   discipline §7's preamble asks for. Recorded so the next reader sees the trap
+   rather than only the answer.)
+5. **The false-positive direction, which is the one nobody remembers:** the new
+   guard runs on *every* resumed send, so prove it does **not** block a good one.
+   R11's resumption (finalize succeeded, send failed, retry) must still reach
+   exactly one `/send` call and 303. If R11 does not already cover the
+   resumed-send shape end to end, widen it until it does.
+6. **F8 (§7), mandatory** — restore the defect as a mutation and observe **R12,
+   and only R12**, go red on its second request (the M-cases cannot catch it; see
+   item 4 and F8's own row). A guard seen only passing has proven nothing, and
+   this guard has already been shipped once in a form that only ever passed. If
+   R12 stays green under F8, item 3 was not really done.
+7. **R24, R25, R26 added** (§5.3) — the two route-level taxonomy cases QA's
+   Finding 5 named, and the currency-invariant pin the ruling rests on.
+8. **Falsification re-runs: F1, F2, F3, F3b, F5, F8 only.** Those mutate
+   `lifecycle.js`, which this cycle moves. F4 (`mapping.js`), F6 (test-file
+   presence) and F7 (dependency-policy literal) are untouched by the rework and
+   need not be re-run — that is a deliberate time-box, not an omission. The
+   corrected sets in §7 are **observations at cycle-1 HEAD (`42efa8a`)**, not
+   fresh predictions: re-derive them after the rework and **record any divergence
+   as a finding**, exactly as QA did. Do not narrow a test to match a set.
+
+### 4. Convention findings, and what I corrected in the plan in place
+
+QA's Findings 2, 3 and 5 are convention records routed to me. **I have applied
+the corrections to the plan text in place, marked as post-review corrections
+rather than silently rewritten** — the same handling this plan gave AS-41's §7,
+and for the same reason: a plan whose predictions are quietly fixed teaches the
+next planner that predictions are cheap.
+
+Corrected in place (each carries an inline `[CORRECTED IN PLACE 2026-09-02]`
+marker at the site):
+
+- **§7 F2** — predicted set was wrong in four memberships. Corrected to
+  `{R6, R9, R10, R11, R12, R13, R15, R22}` with the corrected rationale: the
+  mutation applies to *one call site*, so R14 (never reaches step 4) and R18
+  (dies at the first call on `requireKey`) stay green, while R9 and R10 go red
+  because only their *second* action skips step 4. F2 repeated the exact class of
+  error §7's own preamble was written to avoid.
+- **§7 F3** — the stated *mechanism* was falsified. The fixture models Stripe's
+  idempotency window (it must, or R11 is untestable), so a duplicate under the
+  same key is absorbed and the guard never fires. Corrected set
+  `{R6, R9, R15, R22}`, caught by call-count assertions only. **F3b promoted to a
+  standing recipe** — duplicating under a *different* key is what actually
+  reaches the guard, and both the implementer and the reviewer independently
+  added it, which is a strong signal it was missing.
+- **§7 F4** — the assert-applied step was unrunnable: `grep -c sentAt
+  mapping.js` has a baseline of 2 (comment lines), not 0, so a reviewer following
+  it literally would abort a good recipe. Anchored to the object literal plus a
+  marker.
+- **§7 F5** — mislabelled `EXACT`; it is a lower bound throughout. Corrected to
+  `{R9, R10, R11, R14, R16}`.
+- **§3.5** — the "plus `quantity` for display" prose contradicted the Params
+  column, R6 and AC 3. The table wins; `quantity` is local-only and not sent.
+- **§3.1** — "Both files get a one-line comment" contradicted §2 and AC 17 for
+  `routes/connect.js`. AC 17 wins; both comments live in `routes/invoices.js`.
+- **§3.3** — R5's stated rationale was stale. body-parser 2.x sets `qs`'s
+  `arrayLimit` to `Math.max(100, <request parameter count>)`, a threshold that
+  moves with the request; 25 items arrive as a dense array and the object branch
+  is reachable only above ~100, i.e. always a refusal at `MAX_LINE_ITEMS = 50`.
+  Both branches stay — a limit derived from request size is a stronger reason not
+  to depend on it. The requirement survived; only the reasoning was wrong.
+- **§3.2, §3.7, §3.8, §5.3 (R12, M3, +R24–R26), §6 AC 10** — reworked for the
+  ruling and the guard's placement, as described above.
+
+QA's **Finding 4** (size: 1,844 changed lines against the ~1,400 pre-agreed split
+line) needs no action — already ruled "not splitting", and QA independently
+derived the number and concurred. QA's **§5** note on restore proofs (a content
+hash plus `git status --porcelain` catches a stray extra file, which byte
+comparison against a backup does not) is a defect in the *house recipe template*
+and stays routed to the metawork layer, not fixed inside this task.
+
+### 5. Explicitly NOT in scope for this cycle
+
+The rework is a guard placement, its tests, and the three added cases. It must
+not grow. Out of scope, each for a stated reason:
+
+- **Any schema change, any migration, any edit under `lib/db/**`** — that is the
+  ruling in §2 above, not an oversight. `SCHEMA_VERSION` stays 1, `MIGRATIONS`
+  stays one row. **AC 17 and §2's file-level scope stand unchanged and get
+  re-verified.**
+- **`GET /v1/invoices/{id}`** — rejected above. Five POSTs, zero GETs stands; no
+  allowlist row, no `custody.js` edit.
+- **The mapper's ten-key set** — unchanged. AS-44's handoff contract does not
+  move in a rework cycle.
+- **Voiding, refunding, or cleaning up a mismatched invoice from our side** —
+  §9 Q4's default stands: refuse the send, record the snapshot, leave resolution
+  to the freelancer in their own Stripe Dashboard.
+- **`auto_advance`** — §9 Q2 stays boxed to AS-50.
+- **Re-litigating the split** (§8) — ruled; the plan's backstop stands as
+  written: if review reaches cycle 2 *on scope grounds*, §8's split line applies.
+- **The falsification-recipe template defect** — routed to the metawork layer.
+- **The 238 dangling docker images the implementer observed** — a real
+  housekeeping backlog and a candidate for its own small task; not this one, and
+  not to be tidied inside it.
+- **Anything in `apps/` outside `apps/invoicing/`, and every protected top-level
+  markdown file** — unchanged, as in cycle 1.
