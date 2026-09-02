@@ -890,3 +890,5 @@ as standing recipes for the concept row. The corrections are marked as
 post-review corrections, not silently rewritten: a plan whose predictions are
 quietly fixed teaches the next planner that predictions are cheap. This plan's §7
 inherits the lesson explicitly.
+
+## Reset 2026-09-02 by agent:cto-owen
