@@ -1,0 +1,62 @@
+# §8.4 tree-guard falsification — run in a scratch COPY (git-initialized
+# under the session scratchpad), never the task worktree. A throwaway test
+# file (zz-dirty.test.mjs, source below) dirties the copy's tree; the
+# suite's per-file porcelain guard must fail. Plant asserted applied by the
+# scratch tree's porcelain after the run (bottom).
+
+$ node --test 'tools/lanes/test/zz-dirty.test.mjs'   # in the scratch copy
+✔ deliberately dirty the real tree (5.897375ms)
+✖ /private/tmp/claude-503/-Users-forrest-Code-american-software-company/2228dc89-9b48-4690-8e5d-4e9ede94d004/scratchpad/guard-falsify/tools/lanes/test/zz-dirty.test.mjs (13.095291ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 77.592875
+
+✖ failing tests:
+
+test at tools/lanes/test/zz-dirty.test.mjs:11:1
+✖ /private/tmp/claude-503/-Users-forrest-Code-american-software-company/2228dc89-9b48-4690-8e5d-4e9ede94d004/scratchpad/guard-falsify/tools/lanes/test/zz-dirty.test.mjs (13.095291ms)
+  AssertionError [ERR_ASSERTION]: §8.4: real tree must be byte-identical before and after this suite
+  + actual - expected
+  
+  + '?? GUARD-TRIP.txt\n?? tools/lanes/test/zz-dirty.test.mjs\n'
+  - '?? tools/lanes/test/zz-dirty.test.mjs\n'
+  
+      at TestContext.<anonymous> (file:///private/tmp/claude-503/-Users-forrest-Code-american-software-company/2228dc89-9b48-4690-8e5d-4e9ede94d004/scratchpad/guard-falsify/tools/lanes/test/zz-dirty.test.mjs:11:22)
+      at TestHook.runInAsyncScope (node:async_hooks:214:14)
+      at TestHook.run (node:internal/test_runner/test:1103:25)
+      at TestHook.run (node:internal/test_runner/test:1424:18)
+      at TestHook.run (node:internal/util:589:20)
+      at Test.runHook (node:internal/test_runner/test:1021:20)
+      at after (node:internal/test_runner/test:1061:20)
+      at Test.run (node:internal/test_runner/test:1129:13) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '?? GUARD-TRIP.txt\n?? tools/lanes/test/zz-dirty.test.mjs\n',
+    expected: '?? tools/lanes/test/zz-dirty.test.mjs\n',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+exit code: 1
+
+$ git status --porcelain   # the plant, applied:
+?? GUARD-TRIP.txt
+?? tools/lanes/test/zz-dirty.test.mjs
+
+--- zz-dirty.test.mjs ---
+// Deliberate §8.4 guard falsification (run only in a scratch COPY of the
+// tree, never the task worktree): this test dirties the containing tree, so
+// the suite's real-tree byte-identical guard must fail.
+import { before, after, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { realTreeRoot, realTreeSnapshot } from './fixture.mjs';
+let snap;
+before(() => { snap = realTreeSnapshot(); });
+after(() => { assert.equal(realTreeSnapshot(), snap, '§8.4: real tree must be byte-identical before and after this suite'); });
+test('deliberately dirty the real tree', () => { writeFileSync(join(realTreeRoot(), 'GUARD-TRIP.txt'), 'dirt\n'); });
