@@ -1,6 +1,13 @@
 {
   "assigned_to": "agent:developer-marcus",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-44-webhook-receiver",
+      "linked_at": "2026-09-02T12:26:52Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
   "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
@@ -10,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34NNR5ZWQD9YK6ETPKQFC",
-  "last_event_id": "ev_01M1H1C2567XZJ2VYPQEEN4GQA",
+  "last_event_id": "ev_01M1H1C86Y088K99X9H9W7R964",
   "last_status_changed_at": "2026-09-02T12:26:46Z",
   "priority": "high",
   "relationships_out": [
@@ -42,6 +49,6 @@
   ],
   "title": "D1 v1: webhook receiver \u2014 signature verification, idempotency, invoice state sync",
   "type": "task",
-  "updated_at": "2026-09-02T12:26:46Z",
+  "updated_at": "2026-09-02T12:26:52Z",
   "urgency": null
 }
