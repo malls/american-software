@@ -474,6 +474,29 @@ test('H1: sign-up creates exactly one freelancer and one credential, and sets on
   });
 });
 
+test('H1b: no hash reaches the freelancer row — the PROJECTION and the COLUMNS, both (AC 12)', async () => {
+  await withApp({}, async ({ base, config, repos }) => {
+    await signUp(base);
+    const id = repos.freelancers.findByEmail(EMAIL).id;
+    // (a) what mapRow PROJECTS.
+    const keys = Object.keys(repos.freelancers.getById(id)).sort();
+    assert.equal(keys.length, 5, `expected exactly 5 keys, found ${keys.length}: ${keys.join(', ')}`);
+    assert.deepEqual(keys, ['createdAt', 'displayName', 'email', 'id', 'updatedAt']);
+    // (b) what the ROW holds. (a) may not ship alone: it pins the projection,
+    // so a password_hash column added to the freelancers table survives it
+    // untouched — and nothing else sees one either, since D3 pins table names,
+    // index names, an autoindex count and STRICT-ness, never a column list.
+    const db = openDatabase(config.dbPath);
+    try {
+      const columns = db.prepare('PRAGMA table_info(freelancers)').all().map((c) => c.name).sort();
+      assert.equal(columns.length, 5, `expected exactly 5 columns, found ${columns.length}: ${columns.join(', ')}`);
+      assert.deepEqual(columns, ['created_at', 'display_name', 'email', 'id', 'updated_at']);
+    } finally {
+      db.close();
+    }
+  });
+});
+
 test('H2: the Set-Cookie matches the measured shape, with every attribute asserted individually', async () => {
   await withApp({}, async ({ base }) => {
     const res = await signUp(base);
