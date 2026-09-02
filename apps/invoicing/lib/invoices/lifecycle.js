@@ -239,7 +239,11 @@ export function createInvoiceLifecycle({ repos, stripe, now = () => new Date().t
     }
   }
 
-  /** Step 4 — finalize, then reconcile, then hand back the updated mirror.
+  /** Step 4 — finalize, then hand back the updated mirror. The reconciliation
+   *  guard is deliberately NOT here: it runs one level up, in run(), with no
+   *  predicate of its own, so it still fires on a request that skips this step.
+   *  Review cycle 1 shipped it inside this function, where it inherited step
+   *  4's skip predicate and stopped existing for an invoice after one fire.
    *
    *  auto_advance:false again: the invoice is emailed exactly once, by our
    *  explicit call 5. Leaving Stripe's automatic collection on risks a second
