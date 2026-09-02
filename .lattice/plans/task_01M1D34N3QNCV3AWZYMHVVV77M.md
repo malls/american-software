@@ -1081,3 +1081,62 @@ No change proposed to `PHILOSOPHY.md` or `agents.md`.
 10. **`apps/chat/lib/store.js`** sets `foreign_keys=ON` explicitly and uses WAL + 5000 ms
     busy timeout — this task follows the same three settings, so a future "why do the
     two apps differ" question has the answer "they don't".
+
+---
+
+## 11. Review cycle 1 — PASS (25/25 ACs); plan corrections and measured deviations
+
+Recorded by the orchestrator on merge (`6507acd`), from qa-priya's `--role review`
+comment (the 6th on the task) and developer-marcus's implementation report (the 4th).
+Priya read the implementer's report last and disclosed the order. **Cardinality first:**
+25 acceptance criteria examined, 25 passed; 18 falsification rows run (M1–M15, P1, P2,
+V1), all 18 shown red for their own mutation, 0 narrower than predicted; suite 195 tests
+across exactly 10 files (183 pass / 0 fail / 12 skipped offline), contract service 195/195
+against stripe-mock; measured diff 26 files, +3,104/−57.
+
+### 11.1 Corrections to THIS plan's text (the code is right; these lines were wrong)
+
+| Where | Says | Should say |
+|---|---|---|
+| AC 9 | "5 indexes" | **4** — the DDL in §2.4 defines four named indexes (plus 13 SQLite auto-indexes); D3 correctly pins 4. |
+| AC 11 | M7's failing set is "F4, F5 and nothing else" | F4, F5 **and D8** — D8's 2067 case genuinely runs through the email unique index, so dropping uniqueness must take it red. §6's own M7 row hedged this ("if it uses this index, record which"); the AC did not. |
+| §2.10 | the X group is 8 tests | **9** — the composite-FK row is two tests (contracts and invoices). |
+| §6, V1 row | `$COMPOSE run --rm -e ASC_SELFTEST_MUTATE=1 test` | needs `--build`; run without it after a preceding row, the stale mutant image produces a phantom second failure. Marcus hit this and self-reported it. |
+
+### 11.2 Predicted-set misses (all genuine extra witnesses, no guard weakened)
+
+Five rows failed wider than §6 predicted; both reviewer and implementer classified each
+as a real second witness, not a vacuous or over-broad guard:
+`M2 +D8` (its 787 case needs `foreign_keys` ON), `M11 +deploy-shape "no service
+bind-mounts a host path"` (that test pins the complete volume list, so any volume edit
+trips it by design), `M13 +D18`, `M14 +D17` (the mutant probe *created* the missing file
+— precisely the write §2.7 forbids, so M14 is a stronger recipe than written), and
+`P1 +3` for the reviewer vs `+2` for the implementer. The P1 divergence is itself the
+finding: the extra failures appeared only against a populated volume, i.e. P1's blast
+radius is state-dependent — which is exactly the non-hermeticity P1 exists to catch.
+M7 and M9 matched open-ended predictions with the sets now recorded (M7 → F4, F5, D8;
+M9 → D4, D15, D18).
+
+### 11.3 Corrections to the implementation report (record only; no code effect)
+
+Priya re-derived three of the report's claims and found them wrong: (a) deviation 7's
+premise — master's AC 21 literals were `8`/`14` and the plan was correct; `9`/`19` are
+values from the branch's own first commit; (b) "node:sqlite allowlist unchanged" — master
+had `[]` and the branch adds `lib/db/connection.js`, exactly as §4 requires; (c) the
+probe-order deviation is real (M14 confirms it) but the implementation still omits the
+plan's "regular file" check — carried as a residual, not a blocker.
+
+### 11.4 §7 outcome
+
+The split line was not used; see the §7 addendum for the reasoning. Review took one
+cycle at 3,161 lines, as AS-37 did at 3,113. The estimate miss (source 1,418 vs ~900,
+tests ~1,600 vs ~650) is the calibration lesson: count one test per acceptance row, and
+budget validation at ~40% of each repository module.
+
+### 11.5 Residuals
+
+Filed as a separate task (see the task's link/comments): unbounded money values, untrimmed
+emails, raw driver errors surfacing from `contracts.variables`, the missing `isFile()` in
+`probe()`, D18's TypeError failure shape, the README note about `compose down` leaving a
+profile-gated stripe-mock up, and the §11.1 plan-text corrections. `/healthz` publishing
+`dbPath` stays with AS-58 item 4 rather than being duplicated.
