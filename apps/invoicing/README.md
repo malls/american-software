@@ -30,8 +30,10 @@ the run container). Plain `docker compose down` after `up` is unchanged.
 Stripe-hosted onboarding), `GET /connect-stripe/return` (fresh readiness read —
 the return itself is never trusted — then 303 to the screen) and
 `GET /connect-stripe/refresh` (mint a fresh link, 303 straight back into the
-hosted flow). All three take `?freelancer=<id>` until AS-40 lands sessions, and
-all three 303 targets include `/connect-stripe`, which 404s until AS-45 lands
+hosted flow). All three are behind the auth boundary (AS-40) and read the acting
+freelancer from the session; Stripe's return and refresh arrive with the cookie
+because they are top-level GET navigations and the cookie is `SameSite=Lax`. All
+three 303 targets include `/connect-stripe`, which 404s until AS-45 lands
 screen 2 — deliberate: the Location header is the contract, and AS-45 depends
 on this task. It also serves the four invoice routes (AS-43) — see
 [Issuing an invoice](#issuing-an-invoice). Port 8348 is deliberate: 8347 is `asc-chat-server-1` and must not
@@ -190,14 +192,15 @@ distinct `-p` project name so the main checkout's running `web` is never touched
 ## Issuing an invoice
 
 Four routes (AS-43), all `POST`, all answering **303** on success and a one-line
-`text/plain` error otherwise, all taking `?freelancer=<id>` until AS-40:
+`text/plain` error otherwise, all behind the auth boundary (AS-40) and all acting
+for the session's freelancer:
 
 | Route | Does | 303 to |
 |---|---|---|
-| `/invoices` | create a LOCAL draft — **zero Stripe calls** | `/invoices/{id}/edit?freelancer=` |
-| `/invoices/{id}` | update a LOCAL draft — **zero Stripe calls** | `/invoices/{id}/edit?freelancer=` |
-| `/invoices/{id}/finalize` | the gate, then the pipeline **through finalize** | `/invoices/{id}?freelancer=` |
-| `/invoices/{id}/send` | the gate, then the pipeline **through send** | `/invoices/{id}?freelancer=` |
+| `/invoices` | create a LOCAL draft — **zero Stripe calls** | `/invoices/{id}/edit` |
+| `/invoices/{id}` | update a LOCAL draft — **zero Stripe calls** | `/invoices/{id}/edit` |
+| `/invoices/{id}/finalize` | the gate, then the pipeline **through finalize** | `/invoices/{id}` |
+| `/invoices/{id}/send` | the gate, then the pipeline **through send** | `/invoices/{id}` |
 
 `/invoices/{id}` and `/invoices/{id}/edit` 404 until AS-48 (screens 3 and 5) and
 AS-46 (screen 4) land — the same deliberate dangle as `/connect-stripe` above.
@@ -367,6 +370,125 @@ latency, the live header shape, whether 300 s is comfortable against real clock
 skew, and poison-pill behaviour all belong to the acceptance run —
 stripe-mock emits no webhooks.
 
+## Accounts
+
+Chain link 1 (AS-40). Three routes, and one boundary that everything else sits
+behind.
+
+| Route | Public? | On success |
+|---|---|---|
+| `POST /signup` | public | create the freelancer and the credential in ONE transaction, issue a session, 303 to `next` (validated) or `/` |
+| `POST /signin` | public | verify, re-hash if the stored parameters are behind the default, issue a session, 303 |
+| `POST /signout` | guarded | delete the row, clear the cookie, 303 to `/signin` |
+
+`GET /signin` **404s until AS-45 lands screen 1** — the `Location` header is the
+contract, exactly as `/connect-stripe` has 404'd since AS-41. The guard
+deliberately does **not** guard that path, or a signed-out visitor would bounce
+between it and itself forever.
+
+**Passwords** are hashed with `scrypt` from `node:crypto` — no new dependency —
+at `N=16384, r=8, p=1, keylen=32`, 16-byte salt, `maxmem` passed explicitly.
+scrypt over pbkdf2 because it is **memory-hard**: a guess needs ~16 MiB, so an
+attacker's parallelism is bounded by memory bandwidth rather than ALU count.
+Measured in the pinned image (emulated amd64, an upper bound): **median 40 ms**,
+against an accepted interactive budget of 250 ms. `N=32768` also fits the budget
+but **throws** under Node's default `maxmem`, so 2^14 is the strongest set whose
+failure mode under a forgotten argument is benign.
+
+The stored value is self-describing — `scrypt$N=…,r=…,p=…,l=…$salt$key` — so
+raising the parameters never invalidates an account: the next successful sign-in
+re-hashes at the new default. Passwords are normalised to **NFC** at both ends
+and **never trimmed** (a trailing space is a character of the secret).
+
+**Sessions** are server-side rows, not signed tokens — chosen for revocation
+(sign-out is a `DELETE`, so the session is genuinely gone) and for testable
+expiry. The cookie carries 32 random bytes; the table stores their SHA-256, and
+that digest is the primary key, so a leaked database file yields nothing usable.
+Two `CHECK` constraints make the two worst mistakes impossible at the engine:
+a `password_hash` that is not `scrypt$…`, and a session id that is not 64 hex
+characters (a raw 43-character token fails on length).
+
+Lifetime is a fixed **14 days**, no renewal — it must comfortably exceed the
+Stripe hosted-KYC detour, which can run for days. Expired rows are deleted by
+the request that finds them, plus an opportunistic sweep on every sign-in; there
+is no scheduler to forget to start.
+
+`SameSite=Lax`, not `Strict`, and the reason is load-bearing: Stripe returns the
+freelancer by a **cross-site top-level GET navigation**, which `Strict` would
+strip the cookie from — silently breaking chain link 2. `Secure` is derived from
+`INVOICING_APP_BASE_URL`, so the first HTTPS deployment gets it with no new
+setting and no code change. **AS-40 adds no config row and needs no secret:** the
+token is random rather than signed, so there is nothing to configure or leak.
+
+CSRF is `SameSite=Lax` **plus** a same-origin check on every unsafe method
+(`Origin`'s host against `Host`, falling back to `Referer`, failing closed when
+both are absent). No CSRF token in v1 — that would need every form template to
+cooperate, four cross-task obligations whose failure mode is a broken form found
+late. **Trigger to add one:** the first form submitted to us from a page we do
+not render. Note the ordering consequence: the origin check sits **above** the
+auth boundary, so an unsafe request with no `Origin` and no `Referer` is a
+`403` before the guard ever runs — a browser always sends one.
+
+### A forgotten password
+
+**There is no self-service recovery and no password-change screen.** Email is
+out of v1 by two independent rules, so a freelancer who forgets their password
+is a support case. The operator — someone with shell access, which in v1 is the
+company — computes a new hash with the app's own function and updates the one
+row:
+
+```sh
+# 1. compute the encoded hash (prints scrypt$N=...,r=...,p=...,l=...$salt$key)
+docker compose exec web node --input-type=module -e \
+  "import('./lib/auth/password.js').then(async m => console.log(await m.hashPassword(process.argv[1])))" \
+  -- '<temporary password>'
+
+# 2. write it to the one row, with the freelancer's id
+docker compose exec web node --input-type=module -e \
+  "import('./lib/db/database.js').then(({ prepareDatabase, createRepositories }) => { \
+     const { db } = prepareDatabase({ dbPath: '/app/data/invoicing.sqlite' }); \
+     createRepositories(db).credentials.updateHash(process.argv[1], process.argv[2]); \
+     db.close(); })" \
+  -- '<freelancer id>' '<the encoded hash from step 1>'
+```
+
+Three consequences, said out loud: the temporary password **is** the account's
+password from then on (there is no change screen); it appears in the operator's
+shell history and process list; and it is a support case with no ticket and no
+audit trail beyond `credentials.updated_at`. All three are acceptable at v1's
+scale and all three are resolved by the milestone that brings email.
+
+### What AS-40 decided NOT to do, with triggers
+
+- **No rate limiting or lockout.** The unauthenticated surface is reachable only
+  from the host running the container — `test/deploy-shape.test.js` pins the
+  port map to `127.0.0.1` and `config.test.js` pins the app's own default bind
+  to loopback. That matters here specifically because sign-in performs a
+  deliberate ~40 ms / 16 MiB derivation on **every** attempt including failures.
+  **Two triggers, either of which makes it mandatory in the same task:** the
+  first task that serves this app on a non-loopback interface, and any committed
+  manifest setting `INVOICING_BIND` or a published port to something that is not
+  a loopback address.
+- **No "sign out everywhere" and no absolute cap beyond the 14 days.** Both
+  bound a stolen cookie, and the capability that makes them necessary is
+  credential change, which v1 has none of. **Trigger:** the first task that lets
+  a credential change (a reset flow, or a password-change screen) must land
+  `sessions.deleteForFreelancer` and call it on the change, in the same task.
+- **No `__Host-` cookie prefix.** It would force `Secure` unconditionally, which
+  conflicts with loopback. **Trigger:** the first HTTPS deployment on a real
+  domain adopts it in the task that configures the domain.
+- **No scheme comparison in the origin check.** It would require
+  `app.set('trust proxy', …)` the moment a TLS-terminating proxy appeared, and
+  would fail closed on every POST until someone realised. **Trigger:** adopt it
+  together with `trust proxy` in the task that first puts TLS in front of this
+  app.
+- **No invite-only switch on sign-up.** Same trigger as rate limiting; decide
+  both together in that task, or neither.
+
+**`public/` is world-readable without a session** — `express.static` is mounted
+above the boundary so a signed-out browser can load the sign-in page's
+stylesheet. Nothing per-user may ever be written there.
+
 ## Layout
 
 ```
@@ -491,13 +613,12 @@ declaration count are committed literals. Update them in the same commit.
   overrides the path (absolute, not `:memory:`); the default is the single
   source of truth and `test/deploy-shape.test.js` checks compose and the
   Dockerfile against it.
-- **AS-41 landed Connect onboarding server-side; two handoffs are open.**
-  **AS-40 (sessions):** every connect route resolves the acting freelancer
-  through ONE exported seam, `resolveFreelancerId` in `routes/connect.js`
-  (marked `AS-40 OBLIGATION`); replace its body with session-derived identity
-  and delete the `?freelancer` parameter from start — return/refresh keep
-  working because a Stripe redirect is a top-level GET navigation carrying
-  session cookies. **AS-45 (screen 2):** `GET /connect-stripe` 404s until the
+- **AS-41 landed Connect onboarding server-side; its AS-40 handoff is
+  DISCHARGED and one remains.** The interim `resolveFreelancerId` seam and the
+  `?freelancer=` parameter are gone: every connect route now reads the session
+  (§ Accounts below). Return and refresh keep working, as AS-41 predicted,
+  because a Stripe redirect is a top-level GET navigation and the cookie is
+  `SameSite=Lax`. **AS-45 (screen 2):** `GET /connect-stripe` 404s until the
   screen lands; the redirect target is one constant in
   `lib/connect/onboarding.js` plus its test assertions if AS-45 renames the
   route. Readiness discipline for every future writer (AS-44 included): write
@@ -518,10 +639,10 @@ declaration count are committed literals. Update them in the same commit.
   own moment; R23 is that rule under test). **AS-46 (screen 4)** owns `/invoices/{id}/edit` and
   **AS-48 (screens 3 and 5)** owns `/invoices/{id}`; both paths are already
   load-bearing in shipped `Location` headers, so treat them as settled unless
-  you also change AS-43's redirects. **AS-40 (sessions):** these routes import
-  `resolveFreelancerId` from `routes/connect.js` rather than copying it — one
-  seam, one replacement point. A **third** consumer (AS-42) is the trigger to
-  extract it to `lib/http/identity.js`.
+  you also change AS-43's redirects — note that AS-40 removed the `?freelancer=`
+  query string from both of them, so the shipped targets are now bare paths.
+  **AS-40 (sessions): DISCHARGED.** These routes no longer import anything from
+  `routes/connect.js`; both read the session through `actingFreelancerId`.
 - **AS-44 landed the webhook receiver; two handoffs are open.** See
   § Receiving webhooks above for what it does. **AS-48 (screens 3 and 5):** the
   mirror row is the only thing a screen should render — `status`, `paidAt`,
@@ -540,6 +661,26 @@ declaration count are committed literals. Update them in the same commit.
   the live header shape falls out of the same line. Also worth recording for its
   own sake: the full event sequence Stripe emits for one invoice, which settles
   whether `invoice.sent` fires for an invoice sent by our own `/send` call.
+- **AS-40 landed accounts; three handoffs are open.** **AS-45 (screen 1):**
+  `GET /signin` 404s — that is the contract, not a bug. Every failure on the
+  auth routes is emitted through ONE function, `renderSignIn` in
+  `routes/auth.js` (marked `AS-45 OBLIGATION`); replace its body with a render
+  of the template, preserving `email` and `next` and **never** the password. If
+  AS-45 renames the screen route, the whole diff is `SIGNIN_PATH` in
+  `lib/auth/guard.js` plus its assertions. **AS-45/AS-48 (the landing point):**
+  a successful sign-in with no `next` lands on `POST_SIGNIN_LANDING`, one
+  constant in the same file — whichever task lands the Dashboard route first
+  changes it and its assertions. **AS-50 (acceptance run):** everything this
+  suite cannot see — whether a real browser sends the cookie on Stripe's return
+  navigation (the cheapest confirmation is one line in the run record: did the
+  return land on the connect handler as a signed-in freelancer, or bounce to
+  `/signin`?), one real sign-in's wall-clock on the deploy target, and whether
+  14 days is the right lifetime.
+- **Adding a route is a two-file change, deliberately.** `test/auth.test.js`
+  walks the built app's router tree and compares it to a committed
+  `(method, path)` list; a new route turns that red until its author adds it and
+  classifies it in `PUBLIC_ROUTES` or leaves it protected. There is no path from
+  "someone added a route" to "it is unprotected and nobody noticed".
 - **The dependency budget is 2.** A third turns the suite red and goes through
   all six rules in the stack decision §11 first. Install with
   `npm install --save-exact` — plain `npm install` writes a caret range, which
