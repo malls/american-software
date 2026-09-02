@@ -64,8 +64,15 @@ function minorUnits(value, field) {
 
 /** Epoch seconds → ISO-8601 UTC with milliseconds, which is the ONE timestamp
  *  shape the database stores (AS-39's assertTimestamp). Absent or null stays
- *  null: a draft has no finalized_at, and that is a fact, not a failure. */
-function isoFromEpochSeconds(value, field) {
+ *  null: a draft has no finalized_at, and that is a fact, not a failure.
+ *
+ *  EXPORTED for AS-44, which converts an event envelope's `created` with it.
+ *  It stays here at two consumers, exactly as AS-43 kept resolveFreelancerId in
+ *  routes/connect.js at two: the trigger to extract it to a shared module is a
+ *  THIRD consumer, or any consumer outside lib/invoices/ and lib/webhooks/.
+ *  Exporting a function adds no key to SNAPSHOT_KEYS — the ten-key contract is
+ *  exactly as it shipped. */
+export function isoFromEpochSeconds(value, field) {
   if (value === undefined || value === null) return null;
   if (!Number.isSafeInteger(value)) throw new TypeError(`invoice mapping: ${field} is not an epoch-seconds integer`);
   const at = new Date(value * 1000);

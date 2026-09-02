@@ -76,7 +76,11 @@ export async function withServer(config, fn, { stripe } = {}) {
  * make every row count flaky. The real default path is exercised by exactly one
  * test (db.test.js D18), which passes it explicitly, read from SCHEMA.
  *
- * @param {{vendorDir?: string, viewsDir?: string, publicDir?: string, dbPath?: string, appBaseUrl?: string, port?: number|string, bind?: string, logLevel?: string, env?: string}} overrides
+ * `webhookSecret` (AS-44) is the one override with no real default: unset means
+ * the receiver registers no route at all, which is the normal state of every
+ * test that is not about webhooks.
+ *
+ * @param {{vendorDir?: string, viewsDir?: string, publicDir?: string, dbPath?: string, appBaseUrl?: string, port?: number|string, bind?: string, logLevel?: string, env?: string, webhookSecret?: string}} overrides
  */
 export function configFor(overrides = {}) {
   const env = {};
@@ -89,6 +93,7 @@ export function configFor(overrides = {}) {
   if (overrides.bind !== undefined) env.INVOICING_BIND = overrides.bind;
   if (overrides.logLevel !== undefined) env.INVOICING_LOG_LEVEL = overrides.logLevel;
   if (overrides.env !== undefined) env.NODE_ENV = overrides.env;
+  if (overrides.webhookSecret !== undefined) env.INVOICING_STRIPE_WEBHOOK_SECRET = overrides.webhookSecret;
   return loadConfig(env);
 }
 
