@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 4,
+  "comment_count": 5,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
   "created_by": "agent:cto-owen",
@@ -17,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34NJ0J56XFF6SEC2MTST1",
-  "last_event_id": "ev_01M1GT6J3D24G6HS8G97T8HTPT",
+  "last_event_id": "ev_01M1GT8G86K6PG1DP4313TEJ7Z",
   "last_status_changed_at": "2026-09-02T10:21:25Z",
   "priority": "high",
   "relationships_out": [
@@ -49,6 +49,6 @@
   ],
   "title": "D1 v1: invoice lifecycle (server) \u2014 customer mirror, draft, finalize, send",
   "type": "task",
-  "updated_at": "2026-09-02T10:21:25Z",
+  "updated_at": "2026-09-02T10:22:29Z",
   "urgency": null
 }
