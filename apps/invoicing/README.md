@@ -500,6 +500,56 @@ scale and all three are resolved by the milestone that brings email.
 above the boundary so a signed-out browser can load the sign-in page's
 stylesheet. Nothing per-user may ever be written there.
 
+## Contracts
+
+Chain link 3 (AS-42). One route, `POST /contracts`, below the auth boundary. It
+takes an existing `clientId`, an optional `templateId`, and one field per
+form-sourced template variable; on success it answers `303` to
+`/contracts/<id>`, which 404s until AS-47 lands the screens. **It is the one
+feature in this app with no Stripe dimension at all** — `contractRoutes` takes
+`{ repos }`, not `{ repos, stripe }`, and nothing under `lib/contracts/` names
+Stripe in code or in a comment (asserted, not asserted-by-comment).
+
+**A template is code.** `lib/contracts/templates/` holds frozen declarations
+that ship in the image; there is no user-supplied template path, and no
+substitution *syntax* anywhere — a body is structured segments that are either
+template-authored text or a named slot, so there is no parser to confuse. Every
+text node, template-authored and user-supplied alike, goes through the one
+`escapeHtml` in `lib/contracts/render.js` (pinned there by a dependency-policy
+concept row), and no data ever reaches an attribute position: every attribute in
+the output is a renderer-authored constant.
+
+**The version rides in the template id** (`independent-contractor-agreement@1`).
+Replacing the placeholder body is a NEW declaration at `@2`, never an edit to
+`@1`, so already-issued contracts keep reproducing:
+`renderContract(getTemplate(c.templateId), c.variables)` equals
+`c.renderedHtml` byte for byte. A digest committed in `test/contracts.test.js`
+turns the suite red if the content moves without the id moving with it.
+
+**THE CLASS NAMES INSIDE A STORED `rendered_html` ARE A FROZEN CONTRACT, and
+this is the price of storing rendered output.** A contract issued today carries
+`contract-doc`, `contract-doc__notice`, `contract-doc__notice-title`,
+`contract-doc__title`, `contract-doc__body`, `contract-doc__attribution` and
+`contract-doc__multiline` forever. They may be **added to**; they may **never be
+renamed**, or every already-issued document loses its styling. Whoever styles
+these screens sets `white-space: pre-wrap` on the last one and renames nothing.
+
+**A contract is immutable, and that is implemented as absence.** There is no
+`POST /contracts/:id`, no `PATCH`, no `DELETE`, and no handler whose job is to
+say "no" — nothing serves such a request, so it 404s. A freelancer who made a
+mistake generates a new contract with the corrected values; v1 never delivers a
+contract, so the superseded row is one nobody outside their account has seen.
+
+**The body text is a clearly-marked placeholder pending a lawyer-agent review**,
+marked three independent ways inside the document itself (the title, the notice
+section, and three `[PLACEHOLDER — …]` labels) so losing one marker does not
+silently unmark it. Its attribution line deliberately does **not** credit Common
+Paper: this text is adapted from nothing, and saying otherwise would misattribute
+authorship and make the document look more authoritative than it is. The
+mechanism that will carry a real credit is already built and already exercised —
+a declaration that names a `sourceTemplate` whose licence is absent from its
+attribution fails at module load.
+
 ## Layout
 
 ```
@@ -549,8 +599,18 @@ lib/webhooks/    the inbound half (AS-44) — the only feature that calls Stripe
 lib/health.js    the checks, as data
 lib/vendor.js    assets consumed from outside this app (registry)
 lib/views.js     the template registry + the health check's render probe
+lib/contracts/   contract templates and generation (AS-42) — the one feature
+                 with no Stripe dimension:
+  templates.js     the registry, getTemplate(), and the load-time invariants
+                   (both slot directions; the attribution/licence cross-check)
+  templates/       one file per frozen declaration; never edited once issued
+  render.js        the pure renderer: the ONE escapeHtml, the closed tag
+                   vocabulary, the 12-entry month table (never Intl)
+  generation.js    validate -> resolve -> render -> persist; the ONE form-key
+                   check, so the route keeps no allowlist that could drift
 routes/          health.js, webhooks.js, assets.js, pages.js, connect.js,
-                 invoices.js — mounted in that order, which is load-bearing
+                 invoices.js, contracts.js — mounted in that order, which is
+                 load-bearing
 views/           one template file per screen
 public/          app-owned static assets, served by express.static
 vendor/          created by the Dockerfile — see below. Not in version control
