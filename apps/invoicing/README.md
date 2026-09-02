@@ -25,9 +25,28 @@ the trailing `down` stops the mock that `depends_on` started (`--rm` removes onl
 the run container). Plain `docker compose down` after `up` is unchanged.
 
 `web` serves on **http://127.0.0.1:8348** — `/` (scaffold page), `/healthz`,
-`/tokens.css`. Port 8348 is deliberate: 8347 is `asc-chat-server-1` and must not
+`/tokens.css`, and the Stripe Connect onboarding routes (AS-41):
+`POST /connect-stripe/start` (create-or-reuse the connected account, 303 to
+Stripe-hosted onboarding), `GET /connect-stripe/return` (fresh readiness read —
+the return itself is never trusted — then 303 to the screen) and
+`GET /connect-stripe/refresh` (mint a fresh link, 303 straight back into the
+hosted flow). All three take `?freelancer=<id>` until AS-40 lands sessions, and
+all three 303 targets include `/connect-stripe`, which 404s until AS-45 lands
+screen 2 — deliberate: the Location header is the contract, and AS-45 depends
+on this task. Port 8348 is deliberate: 8347 is `asc-chat-server-1` and must not
 be disturbed. The compose project is named `asc-invoicing`, so `docker compose
 down` here cannot take the chat app with it.
+
+### The app's own base URL
+
+`INVOICING_APP_BASE_URL` (`appBaseUrl`, AS-41) is the base minted account
+links redirect back to: `return_url`/`refresh_url` are built from it. It must
+be a bare http(s) origin — no path, query, fragment, credentials, or trailing
+slash; anything else fails at boot naming the variable. The default,
+`http://127.0.0.1:8348`, IS the local-compose reality (the host side of the
+port map), so `compose.yaml` is unchanged; deployment (M1) overrides it at the
+real domain. Whether Stripe test mode accepts loopback return/refresh URLs is
+AS-50's acceptance question, not this app's.
 
 ### Giving the app a key
 
@@ -108,8 +127,10 @@ which is the whole reason `lib/stripe/custody.js` exists.
 
 Why this is not a signup, and not an account: pulling a public image creates no
 credential and no relationship with Stripe. The mock checks only that the key
-has a test-mode prefix; the placeholder the test file uses is the **one**
-key-shaped literal in the repository, and it never leaves the compose network. The `contract` and
+has a test-mode prefix; the placeholder is the one key-shaped VALUE in the
+repository (spelled in exactly two mock-gated test files —
+`stripe-mock.test.js` and, since AS-41, `connect.test.js` — deliberately the
+identical literal so one grep finds both), and it never leaves the compose network. The `contract` and
 `stripe-mock` services sit on an `internal: true` network with no gateway; `web`
 is not on it; `test` still has no network at all. The first `contract` run pulls
 the image once (registry access at pull time, like `npm ci` at build time); every
@@ -183,10 +204,17 @@ lib/stripe/      the ONLY outbound HTTP in the product (AS-38):
   client.js        createStripeClient(): validate -> build -> guard -> requireKey
                    -> sign -> transport -> interpret; encodeForm(); the error classes
   transport.js     fetchTransport(): the one `fetch` token in product source
+lib/connect/     Stripe Connect onboarding (AS-41):
+  readiness.js     the ONE account-object -> readiness-patch mapper; AS-44's
+                   account.updated handler reuses it (`ready` itself is derived
+                   in lib/db's row mapper, nowhere else)
+  onboarding.js    the three platform Stripe calls + create-or-reuse + the sync
+                   moments — the only file with `platform: true` call sites,
+                   pinned by dependency-policy
 lib/health.js    the checks, as data
 lib/vendor.js    assets consumed from outside this app (registry)
 lib/views.js     the template registry + the health check's render probe
-routes/          health.js, assets.js, pages.js
+routes/          health.js, assets.js, pages.js, connect.js
 views/           one template file per screen
 public/          app-owned static assets, served by express.static
 vendor/          created by the Dockerfile — see below. Not in version control
@@ -260,6 +288,19 @@ declaration count are committed literals. Update them in the same commit.
   overrides the path (absolute, not `:memory:`); the default is the single
   source of truth and `test/deploy-shape.test.js` checks compose and the
   Dockerfile against it.
+- **AS-41 landed Connect onboarding server-side; two handoffs are open.**
+  **AS-40 (sessions):** every connect route resolves the acting freelancer
+  through ONE exported seam, `resolveFreelancerId` in `routes/connect.js`
+  (marked `AS-40 OBLIGATION`); replace its body with session-derived identity
+  and delete the `?freelancer` parameter from start — return/refresh keep
+  working because a Stripe redirect is a top-level GET navigation carrying
+  session cookies. **AS-45 (screen 2):** `GET /connect-stripe` 404s until the
+  screen lands; the redirect target is one constant in
+  `lib/connect/onboarding.js` plus its test assertions if AS-45 renames the
+  route. Readiness discipline for every future writer (AS-44 included): write
+  through `connectedAccounts.updateReadiness` only, with a snapshot freshly
+  read from Stripe, mapped by `lib/connect/readiness.js` — never inferred from
+  a redirect, never cached, last writer wins.
 - **The dependency budget is 2.** A third turns the suite red and goes through
   all six rules in the stack decision §11 first. Install with
   `npm install --save-exact` — plain `npm install` writes a caret range, which
