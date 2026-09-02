@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 5,
+  "comment_count": 7,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
   "created_by": "agent:cto-owen",
@@ -17,8 +17,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34NAX4QTQ3HMJ7P5EBGK9",
-  "last_event_id": "ev_01M1GGDEWXSV2M5AJYPH94VJZX",
-  "last_status_changed_at": "2026-09-02T06:54:51Z",
+  "last_event_id": "ev_01M1GHBC6D1W65C6R4NJ70QXVW",
+  "last_status_changed_at": "2026-09-02T07:46:46Z",
   "priority": "high",
   "relationships_out": [
     {
@@ -39,7 +39,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-41",
-  "status": "in_progress",
+  "status": "review",
   "tags": [
     "d1",
     "v1",
@@ -49,6 +49,6 @@
   ],
   "title": "D1 v1: Stripe Connect onboarding (server) \u2014 account, account_links, return/refresh, readiness",
   "type": "task",
-  "updated_at": "2026-09-02T07:30:26Z",
+  "updated_at": "2026-09-02T07:46:46Z",
   "urgency": null
 }
