@@ -30,6 +30,7 @@ import { createAccounts } from './lib/auth/accounts.js';
 import { loadSession, requireSameOrigin, requireSession } from './lib/auth/guard.js';
 import { assetRoutes } from './routes/assets.js';
 import { publicAuthRoutes, sessionAuthRoutes } from './routes/auth.js';
+import { clientRoutes } from './routes/clients.js';
 import { connectRoutes } from './routes/connect.js';
 import { contractRoutes } from './routes/contracts.js';
 import { healthRoutes } from './routes/health.js';
@@ -159,6 +160,16 @@ export function createApp(config, deps) {
   //     asserted in test/contracts.test.js, not left to the eye. Its body
   //     parser is mounted per route inside that router, never here.
   app.use(contractRoutes(config, { repos }));
+  // 13. Client creation (AS-65): one route, POST /clients, whose exact path
+  //     shadows nothing and is the only path in the app beginning /clients. It
+  //     is the shared creation surface both AS-46's and AS-47's screens post
+  //     to, so a client is never a side effect of the resource being drafted.
+  //     `{ repos }` alone, like its neighbour above and for the same reason —
+  //     creating a client makes no external call. Protected by POSITION alone:
+  //     it adds no third publicness mechanism and does not touch
+  //     lib/auth/guard.js. Its body parser is mounted per route inside that
+  //     router, never here.
+  app.use(clientRoutes(config, { repos }));
 
   return app;
 }
