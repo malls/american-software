@@ -12,6 +12,11 @@ findable. A `docs/org/` split is the eventually-correct shape; noted, not acted 
 — moving one record to create a directory of one is churn, and the trigger is a
 third org record.
 
+> **Amended 2026-09-02 (Carla Voss, CEO):** §5 trigger 4 fired and this decision
+> was re-taken per its own terms — **the answer changed**. See **§9 Forced
+> revisit**: the §7 falsifier tripped and the §5.1 pair was hired. §1 below
+> stands unedited as the record of the 2026-09-01 decision, superseded by §9.
+
 ## 1. Decision
 
 **No second developer hire today.** Engineering headcount is mine, the standing
@@ -247,3 +252,204 @@ markdown), under the **Org Chart** section, immediately after the PM-hire bullet
 >   mid-cycle implementer termination, or (forced revisit) the ready queue first
 >   reaching 4+ unblocked D1 build tasks. Lane split and role shape are
 >   pre-agreed in the record §6.
+
+## 9. Forced revisit (2026-09-02) — trigger 4 fired; decision re-taken: hire the pair
+
+**Author:** Carla Voss, CEO (`agent:ceo-carla`), directed by the board's tick to
+re-take this decision per §5.4's own clause: *"This decision must be explicitly
+re-taken there; silence is not a re-decision."* Owen Kessler consulted in-session
+(DM conversation 11, msgs 426/427); engineering headcount remains his domain and
+every judgment below that is his is attributed to him.
+
+### 9.1 Decision
+
+**Hire the pair, now.** `developer-lena` (Lena Fischer) and `qa-ruben`
+(Ruben Ochoa) — the §5.1 pre-committed pair, so **no review queue in front of
+Priya is being accepted**, silently or otherwise. Both `ic`, both
+`reports_to: agent:cto-owen`, both at model parity with their counterparts
+(fable), per §6. Dossiers: `personnel/developer-lena-fischer.md`,
+`personnel/qa-ruben-ochoa.md`, hired 2026-09-02. Executed by the CEO in the
+revisit session on the CTO's recorded concurrence (msg 427: *"The pre-committed
+action binds: I hire the pair"*); the CTO countersigns next tick. The board's
+standing grant (chat msg 53) covers the hires; zero cash spend.
+
+This is not the trigger-2 payments specialist — trigger 2 has **not** fired
+(zero domain-level rework bounces on `apps/invoicing`). That branch stays
+dormant, and a trigger-2 firing still produces a different hire.
+
+### 9.2 What fired, verified independently
+
+The §5.4 backstop: ready queue at 4+ unblocked, unassigned, non-board-gated D1
+build tasks. Verified against the board, not taken from the tick's count:
+
+1. **AS-40** — depends only on AS-39 (done). Unassigned. No accounts, no
+   network. Unblocked.
+2. **AS-41** — depends on AS-38 + AS-39 (both done). Unassigned. Its own
+   description: *"this task opens nothing and assumes no account exists."*
+   Unblocked.
+3. **AS-42** — depends only on AS-39 (done). Unassigned. Ships clearly-marked
+   placeholder text precisely so the lawyer-review gate does not block the
+   build. Unblocked.
+4. **AS-43** — depends on AS-38 + AS-39 (both done). Unassigned. stripe-mock
+   verification with named residuals deferred to AS-50. Unblocked.
+
+AS-44 is blocked on AS-43 and correctly excluded. **AS-51 (the board's Stripe
+test-mode account) gates only AS-50 in practice**, not AS-41/AS-43 — both were
+deliberately written to close on stripe-mock. Count: exactly 4. Trigger fired
+the moment AS-39 went `done` (2026-09-02T04:21:42Z), as §5.4 predicted ("as soon
+as AS-38 and AS-39 both land").
+
+### 9.3 Re-derived measurement
+
+Same query as §3 — interval extraction over `status_changed` events in
+`.lattice/events/task_*.jsonl` (active = `in_planning`|`in_progress`|`review`;
+sweep-line max concurrency; union-of-intervals over elapsed). 186 status
+transitions at measurement time (was 162). Owen re-derived independently with a
+different algorithm (global state replay) and the numbers held; both
+derivations reproduce §3's originals exactly on the original window, so the
+three regimes below are comparable.
+
+| Window | Elapsed | Max concurrent active | Utilization | Idle |
+|---|---|---|---|---|
+| §3 original (…→ 09-01T15:47Z), reproduced | 62.8h | **1** | **44.8%** | 55.2% |
+| Full life (08-30T00:56:29Z → 09-02T04:23:09Z) | 75.4h | **1** | **51.9%** | 48.1% |
+| Since signing (09-01T15:47Z → 09-02T04:23:09Z) | 12.6h | **1** | **87.7%** | 12.3% |
+
+Cross-task overlapping pairs remain **0** in every stage, in every window — 34
+planning / 39 implementation / 40 review windows lifetime. Owen's refinement:
+measured to consultation time rather than the last event, since-signing reads
+85.9% (the idle tail after AS-39 closed); the ruling is unchanged either way.
+
+**What moved since 2026-09-01, in order of consequence:**
+
+1. **Utilization: 44.8% → 87.7% in the operative regime.** The tick-rate lever
+   §4 called "cheaper, available today" got pulled, and it worked. Gaps no
+   longer dominate: full-life is now 39.2h in-stage vs 36.3h idle, and the
+   recent regime idles 12.3%.
+2. **The ready queue deepened while the line was saturated: 2 → 4.**
+3. **Task size inverted §3's evidence 3 on the D1 line.** Per-stage totals for
+   the three biggest tasks the company has done — AS-37: 18m plan / 381m
+   implement / 177m review (576m in-stage); AS-38: 39/70/43 (152m); AS-39:
+   47/88/60 (196m) — against the old company-wide ~7m medians. Company-wide
+   p75s moved with them: implementation 31m, review 39m. The work is no longer
+   cheap relative to the lifecycle; a saturated single lane is now a real cap,
+   not a theoretical one.
+
+**What did not move:** max concurrency is still exactly 1 and still structurally
+pinned by the single-flight lock and the one-task-per-tick bound (§3 evidence
+4). Hiring alone still adds zero throughput today. That claim was true on
+09-01, is true now, and stays true until the §4 lanes change ships — which is
+why §9.5 exists.
+
+### 9.4 §7 falsifier ruling: TRIPPED
+
+§7: *"if line utilization climbs above ~80% while the ready queue stays deep,
+capacity was the constraint and I was wrong."* The clause has a window
+ambiguity — full-life reads 51.9% (not tripped), since-signing reads 87.7% with
+the queue deepening (tripped). Put to the CTO as an open question; his ruling,
+recorded from msg 427: **the since-signing reading is the intended one, and it
+trips.** His two grounds: (a) §7's own reciprocal clause ("stays under ~50% for
+*another week*") runs a forward clock from signing, and symmetry gives the trip
+condition the same clock; (b) the full-life reading would be a fake falsifier —
+with 36.3 idle hours banked, lifetime utilization cannot arithmetically reach
+80% in under ~4.4 days of *perfect* saturation, so it could never fire inside
+its own reciprocal's horizon (verified: 0.2t = 21.1h → t ≈ 105.5h).
+
+Said plainly, per the §7 pre-commitment, in the CTO's agreed wording: **the
+headcount-adds-zero-throughput claim is now stale.** The 2026-09-01 measurement
+was correct on its date — independently reproduced twice in this revisit — and
+the constraint moved exactly where §3's two-term decomposition predicted:
+cadence was the binding constraint, the cadence lever was pulled, and WIP is
+the term left. The CTO posts his own §7 note to `#board` when he countersigns.
+
+Three record defects acknowledged (the CTO's own list, so the next record does
+better): (a) §7 never stated its measurement window; (b) §5.4 and §7 disagree
+on timescale — the fast clause won by ~5 days; (c) §3 evidence 3 ("the work
+itself is cheap") was regime-dependent and inverted at product scale.
+
+### 9.5 Lane doctrine — supersedes §6's static split (CTO's design, msg 427)
+
+§6's trigger-1 split ("new dev takes `apps/chat`, Marcus stays on D1") was
+written for a different trigger and **does not survive trigger 4 as a static
+assignment**. Its underlying principle — put the new person where the ramp is
+shortest — does. Replacement doctrine:
+
+1. **Lanes are capacity, not territories.** Per-tick priority assignment with a
+   file-disjointness check between concurrently claimed tasks.
+2. **Steady state: both lanes on D1 while its ready-width ≥ 2.** Marcus takes
+   the spine highs (AS-41 → AS-43), where his scaffold context compounds; Lena
+   takes the self-contained mediums (AS-40, AS-42 — no Stripe, no network),
+   the shortest cold ramp on the board.
+3. **The spike's measured pair is maximally disjoint: Marcus on AS-41 + Lena on
+   AS-34** (one D1 + one chat task) — isolates loop mechanics from merge
+   mechanics while the lanes machinery is unproven, and delivers the board's
+   literal "one on chat, one on invoicing" on day one.
+4. If D1 ready-width drains below 2 before lanes ship, Lena's D1 rotation
+   expires and she works the internal-tools queue.
+
+### 9.6 What this hire does not fix (riders, CTO's, so nobody over-reads the yes)
+
+1. **WIP stays 1 until the §4 parallel-lanes change ships.** The hire fixes the
+   occupancy half only. Cadence remains a live requirement — the line was idle
+   at revisit time because nothing ticks; the loop must actually run.
+2. **At 2x build speed, AS-51 becomes the critical path.** Everything through
+   AS-49 closes on stripe-mock; then the line parks on the board's Stripe
+   test-mode account. This revisit carries a board re-ping.
+3. **A faster build concentrates the unvalidated-demand risk.** The 3–5 warm
+   freelancer intros (decision memo §4) are still the standing board ask;
+   shipping v1 sooner makes their absence more expensive, not less.
+4. **Headcount reaches 10 with AS-33 (org validator) still in backlog.** Queue
+   it after AS-34; grepping frontmatter is still the org chart until then.
+5. If hire and lanes-spike ever decouple (spike abandoned), §5.1's
+   accepted-review-queue clause is to be recorded in writing, never slid into.
+
+### 9.7 Engineering work this implies (the CTO files it; not filed this session)
+
+The §4 parallel-lanes spike, next tick, at **high** — raised from §4's "medium,
+does not preempt," which was priced at 44.8% utilization when cadence was the
+cheaper lever. At ~88% with a 4-wide queue, WIP is the only term left and the
+spike is the highest-leverage engineering task on the board (~30 stage
+lifecycles remain in D1 v1; lanes break even inside their first day). Unchanged
+from §4: written spike result before the loop change ships, and the board's
+veto opportunity surfaces in `#board` first. This session filed no Lattice
+tasks and changed no statuses.
+
+### 9.8 Next re-decision point (so this does not become a standing item)
+
+**The lanes spike's written result.**
+
+1. **Spike ships clean** → lanes get occupants immediately (already hired), and
+   the §3 overlap query must show a non-zero overlapping-pair count within one
+   day of lanes shipping. If it stays 0, the machinery is not being used — that
+   is its own finding and comes back here as a dated addendum.
+2. **Spike fails or is abandoned** → dated addendum re-taking pair retention at
+   then-current utilization (WIP=1 forever changes the math back).
+3. Nobody reopens engineering headcount before the spike verdict — the §7
+   reciprocal's logic, carried forward.
+
+### 9.9 Signatures
+
+- **Carla Voss, CEO** — TAKEN, 2026-09-02. Re-derivation, queue verification,
+  falsifier ruling put to the CTO as an open question, decision recorded.
+- **Owen Kessler, CTO** — consulted in-session (DM msgs 426/427; concurrence,
+  lane doctrine, and spike priority are his). Countersignature slot open for
+  his next tick: ☐
+
+### 9.10 Proposed metawork edit (for the orchestrator; employees do not edit CLAUDE.md)
+
+Replace the CLAUDE.md Org Chart bullet beginning **"Second developer hire:
+decided 'not yet' 2026-09-01"** with:
+
+> - **Second developer hire: re-decided "hire the pair" 2026-09-02** (forced
+>   revisit, record `docs/strategy/11-second-developer-decision.md` §9 —
+>   trigger 4 fired at D1 ready-width 4 when AS-38/39 landed). The §7 falsifier
+>   tripped: 87.7% line utilization over the 12.6h since the record signed,
+>   ready queue 2→4, so "headcount adds zero throughput" is stale — cadence was
+>   fixed by running the loop, WIP is the term left. Hired the §5.1 pair (no
+>   accepted review queue in front of Priya): `developer-lena` and `qa-ruben`,
+>   both `ic` under `agent:cto-owen`, model parity with counterparts. Lane
+>   doctrine supersedes §6's static split: lanes are capacity, not territories
+>   — both lanes on D1 while its ready-width ≥ 2 (Marcus: spine highs; Lena:
+>   self-contained mediums), spike's measured pair one-D1 + one-chat. WIP stays
+>   1 until the CTO's parallel-lanes spike (record §4, filed at high) ships;
+>   next re-decision is that spike's written result (record §9.8).
