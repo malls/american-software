@@ -371,7 +371,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 29, `expected 29 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 32, `expected 32 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/config.js',
@@ -390,6 +390,8 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/db/repositories/invoices.js',
     'lib/db/repositories/stripe-events.js',
     'lib/health.js',
+    'lib/invoices/lifecycle.js',
+    'lib/invoices/mapping.js',
     'lib/stripe/client.js',
     'lib/stripe/custody.js',
     'lib/stripe/transport.js',
@@ -399,6 +401,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'routes/assets.js',
     'routes/connect.js',
     'routes/health.js',
+    'routes/invoices.js',
     'routes/pages.js',
     'server.js',
     'views/scaffold.ejs',
@@ -552,7 +555,7 @@ function scanConcept(name, pattern, allowed, { raw = false } = {}) {
   assert.deepEqual(hits, [...allowed].sort(), `${name}: found in [${hits.join(', ')}], allowed in exactly [${allowed.join(', ')}]`);
 }
 
-test('the Stripe concepts live exactly where AS-38, AS-39 and AS-41 put them, and nothing AS-44 owns has leaked in', () => {
+test('the Stripe concepts live exactly where AS-38, AS-39, AS-41 and AS-43 put them, and nothing AS-44 owns has leaked in', () => {
   // The `stripe` npm module is banned everywhere, permanently: `new Stripe(key)`
   // is the documented bypass of the custody guard (stack decision §8.1).
   scanConcept('stripe module import', /(from|require\s*\(|import\s*\()\s*['"]stripe['"]/, []);
@@ -607,12 +610,25 @@ test('the Stripe concepts live exactly where AS-38, AS-39 and AS-41 put them, an
   // repositories and database.js never touch the words. The custody table is
   // exempt because its citations quote Stripe's own parameter names
   // (application_fee_amount) and reasons — and it MUST match there, or the
-  // exemption is stale. Everything else, client.js and transport.js included,
-  // stays clear of the words even in comments (RAW text, not stripped).
+  // exemption is stale. AS-43 adds the three files that carry a line total onto
+  // the wire and back: the lifecycle builds each item's extended amount, the
+  // mapper maps amount_due/amount_paid, and the route parses unitAmountMinor.
+  // app.js is deliberately NOT among them — the mount line and its comment are
+  // money-word-free, and that is a claim this row checks. Everything else,
+  // client.js and transport.js included, stays clear of the words even in
+  // comments (RAW text, not stripped).
   scanConcept(
     'money representation',
     /amount|currency|money/i,
-    ['lib/db/migrations/0001-initial.js', 'lib/db/money.js', 'lib/db/repositories/invoices.js', 'lib/stripe/custody.js'],
+    [
+      'lib/db/migrations/0001-initial.js',
+      'lib/db/money.js',
+      'lib/db/repositories/invoices.js',
+      'lib/invoices/lifecycle.js',
+      'lib/invoices/mapping.js',
+      'lib/stripe/custody.js',
+      'routes/invoices.js',
+    ],
     { raw: true },
   );
 });

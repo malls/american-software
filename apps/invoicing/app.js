@@ -29,6 +29,7 @@ import express from 'express';
 import { assetRoutes } from './routes/assets.js';
 import { connectRoutes } from './routes/connect.js';
 import { healthRoutes } from './routes/health.js';
+import { invoiceRoutes } from './routes/invoices.js';
 import { pageRoutes } from './routes/pages.js';
 
 /**
@@ -64,7 +65,12 @@ export function createApp(config, deps) {
   // 4. Stripe Connect onboarding (AS-41): after pages, before static — the
   //    three routes are exact paths under /connect-stripe/ and shadow nothing.
   app.use(connectRoutes(config, { repos, stripe }));
-  // 5. App-owned static files last. express.static rather than chat's
+  // 5. Invoice lifecycle (AS-43): draft, edit, finalize, send. Exact paths
+  //    under /invoices/ that shadow nothing; its body parser is mounted per
+  //    route inside that router, never here, so AS-44's webhook keeps its raw
+  //    request body by construction.
+  app.use(invoiceRoutes(config, { repos, stripe }));
+  // 6. App-owned static files last. express.static rather than chat's
   //    STATIC_FILES allowlist: the allowlist's failure mode is a two-edit change
   //    where the second edit is forgotten, which is exactly AS-17. This has no
   //    second edit, and its own failure mode (a file lands here and is served,
