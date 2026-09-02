@@ -1,0 +1,34 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "low",
+  "created_at": "2026-09-02T16:52:57Z",
+  "created_by": "agent:qa-ruben",
+  "custom_fields": {},
+  "description": "Three convention findings from the AS-40 cycle-2 QA review (qa-ruben, 2026-09-02; verdict PASS 27/27, none blocked the merge). AS-40 merged at 7d12810. All three are text or a small guard-documentation gap; none changes behaviour today.\n\n1. SECOND PUBLICNESS MECHANISM, UNDOCUMENTED. lib/auth/guard.js carries an early return for the sign-in path, so a route can be public either by being mounted above the boundary OR by matching that path inside the guard. The plan's mount-order sections describe only the first. Nothing is open today, and the carve-out is correct \u2014 a guard that redirects /signin to /signin is an infinite loop, which is why it exists. The risk is the AS-45 author mounting the sign-in screen BELOW the boundary and getting a working page for a reason no document explains, then someone later deleting the carve-out as dead code. Fix: document the second mechanism where the first is documented, and add a test that pins it (a request to the sign-in path below the boundary must still be served, and deleting the carve-out must turn that test red).\n\n2. ACCEPTANCE-CRITERION WORDING. AC 3 as written says all three rejection reasons (absent, invalid, expired) are exercised against EVERY protected route; the implementation exercises absent against all nine and invalid/expired against one each. That is the right shape \u2014 the reason is resolved app-wide in one function, so per-route repetition would test the same line nine times \u2014 but the criterion should say what is actually required. Reword; do not add 18 redundant cases to satisfy the literal text.\n\n3. FALSIFICATION-RECIPE PREDICTED SETS MIX UNITS, and one names cases that do not exist: recipe F3 predicts a set of four case ids that are not present in the suite. Two separate unit mismatches were also found during the rework (a prediction naming assertions inside a single executable case, and an enumerated set narrower than its own prose rule). Fix all of them in the plan's section 7 by predicting EXECUTABLE CASE NAMES as they appear in test output, and verify each predicted name exists before writing it down.\n\nALSO CARRIED, for whoever plans this: the reviewer confirmed a residual in the route-attribution mechanism that is real rather than contrived. He planted the route a plausible future author would write \u2014 one that catches the acting-freelancer error and redirects to the sign-in path itself, using sanctioned APIs only \u2014 and the whole suite stayed green. Only the standing mutation recipe catches it. That is not a defect to fix here; it is the reason the recipe must be re-run whenever the route partition changes, and that obligation should be written where a future implementer will see it rather than living in a review comment.\n\nACCEPTANCE: item 1 has a test that fails without the carve-out, shown red once per the house technique (assert the mutation applied on disk and in the built image, record the exact failing set, restore, prove restoration by content hash plus git status --porcelain, rebuild before re-running). Items 2 and 3 are plan text and need no test. Suite stays green; no new dependencies; no protected top-level file edited; no running container touched. Complexity low.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1HGKENMXKFTY4H9TRZ3BVJS",
+  "last_event_id": "ev_01M1HGKEVMXRJW9ZKADAR367W2",
+  "last_status_changed_at": "2026-09-02T16:52:57Z",
+  "priority": "low",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-02T16:52:57Z",
+      "created_by": "agent:qa-ruben",
+      "note": null,
+      "target_task_id": "task_01M1D34N7AX09RCFM43PZ022A4",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-64",
+  "status": "backlog",
+  "tags": null,
+  "title": "apps/invoicing: plan-text corrections and the second publicness mechanism from AS-40 review",
+  "type": "task",
+  "updated_at": "2026-09-02T16:52:57Z",
+  "urgency": null
+}
