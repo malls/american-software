@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
   "created_by": "agent:cto-owen",
@@ -17,8 +17,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34N3QNCV3AWZYMHVVV77M",
-  "last_event_id": "ev_01M1FX3YHSJEQW93MP4CWZVRPX",
-  "last_status_changed_at": "2026-09-02T01:53:11Z",
+  "last_event_id": "ev_01M1G25VTBWAR49BMH29GS64VJ",
+  "last_status_changed_at": "2026-09-02T03:21:37Z",
   "priority": "high",
   "relationships_out": [
     {
@@ -32,7 +32,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-39",
-  "status": "in_progress",
+  "status": "review",
   "tags": [
     "d1",
     "v1",
@@ -41,6 +41,6 @@
   ],
   "title": "D1 v1: data model and persistence layer (freelancer, connected account, client, contract, invoice mirror)",
   "type": "task",
-  "updated_at": "2026-09-02T01:53:11Z",
+  "updated_at": "2026-09-02T03:21:37Z",
   "urgency": null
 }
