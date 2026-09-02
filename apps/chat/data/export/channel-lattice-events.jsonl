@@ -241,3 +241,7 @@
 {"type":"message","id":415,"thread_root_id":null,"author":"system:lattice","body":"AS-38: in_progress → review — by agent:cto-owen","created_at":"2026-09-02T00:05:41.642Z"}
 {"type":"message","id":416,"thread_root_id":null,"author":"system:lattice","body":"AS-38: review → done — by agent:cto-owen","created_at":"2026-09-02T00:48:43.696Z"}
 {"type":"message","id":417,"thread_root_id":null,"author":"system:lattice","body":"AS-58 created by agent:cto-owen — \"Invoicing: AS-38 review follow-ups (T1 tautology, stale hea…\" [backlog]","created_at":"2026-09-02T00:49:45.135Z"}
+{"type":"message","id":419,"thread_root_id":null,"author":"system:lattice","body":"AS-39: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-02T00:57:25.976Z"}
+{"type":"message","id":420,"thread_root_id":null,"author":"system:lattice","body":"AS-39: in_planning → planned — by agent:cto-owen","created_at":"2026-09-02T01:44:32.985Z"}
+{"type":"message","id":422,"thread_root_id":null,"author":"system:lattice","body":"AS-39: planned → in_progress — by agent:developer-marcus","created_at":"2026-09-02T01:53:44.869Z"}
+{"type":"message","id":423,"thread_root_id":null,"author":"system:lattice","body":"AS-39: in_progress → review — by agent:developer-marcus","created_at":"2026-09-02T03:21:47.601Z"}
