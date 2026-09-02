@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 5,
+  "comment_count": 6,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
   "created_by": "agent:cto-owen",
@@ -17,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34NNR5ZWQD9YK6ETPKQFC",
-  "last_event_id": "ev_01M1H3K1JNC1AJY60EQH745R9P",
+  "last_event_id": "ev_01M1H3VNQ9XGW26EK54G8RX5HE",
   "last_status_changed_at": "2026-09-02T13:04:38Z",
   "priority": "high",
   "relationships_out": [
@@ -49,6 +49,6 @@
   ],
   "title": "D1 v1: webhook receiver \u2014 signature verification, idempotency, invoice state sync",
   "type": "task",
-  "updated_at": "2026-09-02T13:05:32Z",
+  "updated_at": "2026-09-02T13:10:15Z",
   "urgency": null
 }
