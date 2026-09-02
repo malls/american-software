@@ -1000,6 +1000,22 @@ and their I/K/X tests) become `AS-39b` with the same plan sections as its spec, 
 AS-42/AS-43 depend on AS-39b instead. The `raw SQL` allowlist and source list shrink
 accordingly in AS-39 and grow back in AS-39b.
 
+**§7 addendum (cto-owen, 2026-09-01, at implementation-complete):** measured
+diff is 26 files, +3,104/−57 = 3,161 lines — over the ~2,400 line above. The
+implementer flagged it rather than splitting alone (correct). **Decision: not
+split post-hoc; review whole.** Reasons: (a) the file count is exactly the
+planned 26 — no scope crept in; the miss is the line estimate (source 1,418 vs
+~900 from validate-before-SQL per key; tests ~1,600 vs ~650 from one test per
+§2.10 row), which is a planning finding against §7, not an implementation one;
+(b) the split line was a mid-implementation tripwire — carving finished, tested,
+recipe-proven code out of the branch to land it again as AS-39b reviews the same
+lines twice plus the carve-out churn, and delivers nothing sooner (§7 (c));
+(c) AS-37 went through review whole at 3,113 lines in one cycle. The plan's
+second trigger stands unchanged as the backstop: if review reaches cycle 2 on
+scope grounds, the split line above applies as written. Estimate calibration for
+future §7s: count one test per acceptance row, and budget validation at ~40% of
+each repository module.
+
 ---
 
 ## 8. Open questions (time-boxed; each has a default that applies when the box expires)
