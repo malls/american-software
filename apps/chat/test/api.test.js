@@ -780,6 +780,12 @@ test('api: AS-26 — GET /api/file serves allowlisted repo markdown; every probe
   mkdirSync(join(root, 'dir.md')); // a directory that passes the syntax gate
   writeFileSync(join(outside, 'secret.md'), 'outside the repo\n');
   symlinkSync(join(outside, 'secret.md'), join(root, 'escape.md')); // symlink escape
+  // AS-34 artifacts: in-repo symlinks (absolute in-scratch targets) + control.
+  mkdirSync(join(root, 'docs'));
+  writeFileSync(join(root, 'docs', 'ok.md'), 'docs ok\n');
+  symlinkSync(join(root, '.lattice'), join(root, 'latticelink')); // non-dot alias of a dot dir
+  symlinkSync(join(root, 'docs'), join(root, 'docslink')); // dir symlink to a servable target
+  symlinkSync(join(root, 'README.md'), join(root, 'alias.md')); // file symlink to a servable target
   const { get } = await bootServer(t, root);
 
   // Happy paths: plain repo file, nested fixture file, .lattice plan file.
@@ -790,6 +796,11 @@ test('api: AS-26 — GET /api/file serves allowlisted repo markdown; every probe
   const plan = await get('/api/file?path=.lattice/plans/task_TEST.md');
   assert.equal(plan.status, 200);
   assert.equal(plan.data.content, 'plan body\n');
+  // AS-34 positive control: a symlink target serves under its real name, so
+  // the symlink probes below 404 because of the alias alone, not the target.
+  const direct = await get('/api/file?path=docs/ok.md');
+  assert.equal(direct.status, 200);
+  assert.equal(direct.data.content, 'docs ok\n');
 
   // Probe battery (edge case 12 + symlink edge case 13): all 404, all with
   // the byte-identical body of a nonexistent .md — no leaked distinctions.
@@ -813,6 +824,9 @@ test('api: AS-26 — GET /api/file serves allowlisted repo markdown; every probe
     'escape.md', // repo-internal symlink pointing outside (realpath prefix)
     'apps/chat/data/chat.db', // non-md repo file
     encodeURIComponent('..%2f..%2fetc/passwd.md'), // double-encoded separators -> '%' fails charset
+    'latticelink/plans/task_TEST.md', // AS-34: non-dot symlink laundering a dot dir (served 200 pre-fix)
+    'docslink/ok.md', // AS-34: dir symlink to a servable target — symlinks are refused outright
+    'alias.md', // AS-34: file symlink to a servable target — symlinks are refused outright
   ];
   for (const p of probes) {
     const res = await get(`/api/file?path=${encodeURIComponent(p)}`);
