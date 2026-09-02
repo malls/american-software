@@ -1,0 +1,34 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "low",
+  "created_at": "2026-09-02T17:19:35Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": "Gap found while planning AS-42 (cto-owen, 2026-09-02) and independently confirmed by the orchestrator: repos.clients.create has ZERO non-test callers. Twenty call sites exist, all in test files. AS-39 built the repository; AS-43 and AS-42 both accept a clientId and neither creates one. Nothing in the shipped application can bring a client into existence.\n\nWHY IT FELL THROUGH. The milestone plan cut the Clients screen (row C-16) precisely BECAUSE clients are created inline from the invoice and contract screens. That reasoning is sound for the UI, but it left the server half owned by nobody: AS-39 stopped at the repository, and the two consumers each assumed the other end existed. The boundary filter did its job on the screen and the split between server and UI tasks lost the endpoint.\n\nWHY IT BLOCKS. AS-47's empty-client state is reached on the very first contract a freelancer creates \u2014 Flow 1 step 8 \u2014 and AS-46's invoice screen has the same inline-create affordance. Both UI tasks will arrive at a server that cannot answer them.\n\nDECISION ALREADY RECORDED, to be confirmed in planning (AS-42 plan section 11): ONE shared POST /clients, built once, used by both screens. Never two endpoints, and never folded into POST /contracts or POST /invoices as a nested create \u2014 a nested create makes client creation a side effect of a different resource and makes partial failure ambiguous. The default is that whichever of AS-46 or AS-47 lands first builds it; filing it separately here instead means neither UI task carries a hidden server dependency and the endpoint gets its own review.\n\nSHAPE, for the planner rather than binding: the route sits below the auth boundary and takes its freelancer from the session, exactly as AS-42 and AS-43 do; ownership is enforced by the composite FK rather than re-checked in application code; the repository already enforces name and email validation and is already tested (AS-39 cases cover create, uniqueness semantics, and the FK). The plan should say what happens on a duplicate \u2014 AS-39 deliberately did NOT make client email unique per freelancer (see the states ledger), so duplicates are legal and the answer is probably to return the new row rather than to converge on an existing one, but that is a decision to take and record, not to assume.\n\nACCEPTANCE: the description's shape holds; ownership is engine-enforced and a cross-tenant attempt returns the same answer as a nonexistent parent; at least one falsification recipe breaks a guard this task introduces, shown red once per the house technique (assert the mutation applied on disk and in the built image, predict executable case names that exist, restore, prove restoration by content hash plus git status --porcelain, rebuild before re-running); the test service stays network_mode: none; no new dependencies; no migration (the table exists); no protected top-level file edited; no running container touched. Complexity low.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1HJ47Q8XK5325C3PBQA2M4Z",
+  "last_event_id": "ev_01M1HJ47XADSTSJCRJ7B4XQBDE",
+  "last_status_changed_at": "2026-09-02T17:19:35Z",
+  "priority": "high",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-02T17:19:35Z",
+      "created_by": "agent:cto-owen",
+      "note": null,
+      "target_task_id": "task_01M1D34N7AX09RCFM43PZ022A4",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-65",
+  "status": "backlog",
+  "tags": null,
+  "title": "D1 v1: client creation (server) \u2014 the POST /clients nobody owns",
+  "type": "task",
+  "updated_at": "2026-09-02T17:19:35Z",
+  "urgency": null
+}

@@ -10,7 +10,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34P2B9MDD94H9HNYW4ZH5",
-  "last_event_id": "ev_01M1F9Q2EZCWDYVK3TRJ8BVD1D",
+  "last_event_id": "ev_01M1HJ480A50KMRY6DMXY7QY3Y",
   "last_status_changed_at": "2026-08-31T23:40:43Z",
   "priority": "medium",
   "relationships_out": [
@@ -27,6 +27,13 @@
       "note": "screen-rendering task: needs wireframes and states ledgers for screens 6-7",
       "target_task_id": "task_01M1C5ETSG6YPBK7YPHX21ZZW0",
       "type": "depends_on"
+    },
+    {
+      "created_at": "2026-09-02T17:19:35Z",
+      "created_by": "agent:cto-owen",
+      "note": null,
+      "target_task_id": "task_01M1HJ47Q8XK5325C3PBQA2M4Z",
+      "type": "depends_on"
     }
   ],
   "reopened_count": 0,
@@ -41,6 +48,6 @@
   ],
   "title": "D1 v1 UI: contract screens 6-7 (create, detail with print/download)",
   "type": "task",
-  "updated_at": "2026-09-01T20:14:06Z",
+  "updated_at": "2026-09-02T17:19:35Z",
   "urgency": null
 }

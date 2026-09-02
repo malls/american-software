@@ -10,7 +10,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34NYSAXM62PH4662WH7YF",
-  "last_event_id": "ev_01M1D359XYBX4BN2J6MV1V7A8K",
+  "last_event_id": "ev_01M1HJ483AA6RZH4VKMZE8DDX0",
   "last_status_changed_at": "2026-08-31T23:40:43Z",
   "priority": "medium",
   "relationships_out": [
@@ -27,6 +27,13 @@
       "note": "screen-rendering task: needs the wireframe and states ledger for screen 4",
       "target_task_id": "task_01M1C5ETSG6YPBK7YPHX21ZZW0",
       "type": "depends_on"
+    },
+    {
+      "created_at": "2026-09-02T17:19:36Z",
+      "created_by": "agent:cto-owen",
+      "note": null,
+      "target_task_id": "task_01M1HJ47Q8XK5325C3PBQA2M4Z",
+      "type": "depends_on"
     }
   ],
   "reopened_count": 0,
@@ -41,6 +48,6 @@
   ],
   "title": "D1 v1 UI: invoice create/edit screen (screen 4)",
   "type": "task",
-  "updated_at": "2026-08-31T23:41:04Z",
+  "updated_at": "2026-09-02T17:19:36Z",
   "urgency": null
 }
