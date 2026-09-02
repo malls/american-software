@@ -52,7 +52,7 @@ const form = (fields) => new URLSearchParams(fields).toString();
 async function withRepos(fn) {
   const { db } = prepareDatabase({ dbPath: freshDbPath() });
   try {
-    return await fn(createRepositories(db));
+    return await fn(createRepositories(db), db);
   } finally {
     db.close();
   }
@@ -302,44 +302,69 @@ test('A16: the FK refuses a session for a freelancer that does not exist', () =>
   });
 });
 
-test('A17: THE DDL refuses a plaintext password_hash — the engine, not the repository', () => {
-  withRepos((repos) => {
+test('A17: a plaintext password_hash is refused TWICE — by the repository, and by the DDL underneath it', () => {
+  // TWO INDEPENDENT HALVES, and the split is the point. A single assertion
+  // through the repository would pass while the CHECK constraint was pure
+  // decoration, because the repository's own prefix assertion runs first and
+  // would answer for it. Each half is separately falsifiable: deleting the
+  // repository assertion reddens (a); deleting the CHECK reddens (b).
+  withRepos((repos, db) => {
     const freelancer = repos.freelancers.create({ email: EMAIL, displayName: NAME });
-    // Straight to the engine, bypassing the repository's own prefix assertion,
-    // so this proves the CHECK constraint and not the validator in front of it.
-    // The two layers are shown to AGREE rather than assumed to.
-    assert.throws(
-      () => repos.transaction(() => {
-        repos.credentials.create(freelancer.id, `scrypt$N=16384,r=8,p=1,l=32$c2FsdA$${'k'.repeat(43)}`);
-        throw new Error('rollback');
-      }),
-      /rollback/,
-      'the well-formed control is accepted by both layers',
-    );
-    // And the refusal itself, at the repository (the friendly error)…
+    const at = new Date().toISOString();
+    const insert = (hash) => db
+      .prepare('INSERT INTO credentials (freelancer_id, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?)')
+      .run(freelancer.id, hash, at, at);
+
+    // (a) the repository refuses, with the friendly named-field error.
     assert.throws(() => repos.credentials.create(freelancer.id, PASSWORD), ValidationError);
     assert.equal(repos.credentials.getByFreelancer(freelancer.id), null, 'nothing was written');
+
+    // (b) THE ENGINE refuses, reached past the repository entirely. This is the
+    // assertion that makes "credentials are never stored in plaintext" a fact
+    // about SQLite rather than about our discipline.
+    assert.throws(() => insert(PASSWORD), (err) => err.code === 'ERR_SQLITE_ERROR' && /CHECK constraint failed/.test(err.message));
+    assert.throws(() => insert(''), (err) => err.code === 'ERR_SQLITE_ERROR');
+    assert.throws(() => insert('bcrypt$2b$12$abcdef'), (err) => err.code === 'ERR_SQLITE_ERROR');
+
+    // THE CONTROL: a well-formed value goes in through the same raw statement,
+    // so half (b) cannot be passing because the INSERT is simply broken.
+    insert(`scrypt$N=16384,r=8,p=1,l=32$c2FsdA$${'k'.repeat(43)}`);
+    assert.notEqual(repos.credentials.getByFreelancer(freelancer.id), null, 'the control really was inserted');
   });
 });
 
-test('A18: THE DDL refuses a 43-character session id — the token, not its digest', () => {
-  withRepos((repos) => {
+test('A18: a raw token as a session id is refused TWICE — by the repository, and by the DDL underneath it', () => {
+  // Same two-half structure as A17, for the same reason. Storing the cookie
+  // value instead of its digest is the single worst mistake available in this
+  // design, and it must be impossible at the engine rather than merely
+  // validated against.
+  withRepos((repos, db) => {
     const freelancer = repos.freelancers.create({ email: EMAIL, displayName: NAME });
-    const { token } = mintToken();
-    assert.equal(token.length, 43);
-    // This is the single worst mistake available in the design — storing the
-    // cookie value instead of its digest — and it fails on length.
-    assert.throws(
-      () => repos.sessions.create({ id: token, freelancerId: freelancer.id, expiresAt: new Date().toISOString() }),
-      ValidationError,
-    );
-    for (const bad of ['A'.repeat(64), `${'0'.repeat(63)}g`, '0'.repeat(63), '0'.repeat(65)]) {
-      assert.throws(
-        () => repos.sessions.create({ id: bad, freelancerId: freelancer.id, expiresAt: new Date().toISOString() }),
-        ValidationError,
-        bad.slice(0, 12),
-      );
+    const { token, id } = mintToken();
+    assert.equal(token.length, 43, 'the token really is the shorter, non-hex thing');
+    const at = new Date().toISOString();
+    const insert = (sessionId) => db
+      .prepare('INSERT INTO sessions (id, freelancer_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
+      .run(sessionId, freelancer.id, at, at);
+
+    const bad = [token, 'A'.repeat(64), `${'0'.repeat(63)}g`, '0'.repeat(63), '0'.repeat(65)];
+    assert.equal(bad.length, 5, 'cardinality first: the committed list of rejected id shapes');
+
+    // (a) the repository refuses each one, before any SQL runs.
+    for (const value of bad) {
+      assert.throws(() => repos.sessions.create({ id: value, freelancerId: freelancer.id, expiresAt: at }),
+        ValidationError, value.slice(0, 12));
     }
+
+    // (b) THE ENGINE refuses each one too, reached past the repository.
+    for (const value of bad) {
+      assert.throws(() => insert(value),
+        (err) => err.code === 'ERR_SQLITE_ERROR' && /CHECK constraint failed/.test(err.message), value.slice(0, 12));
+    }
+
+    // THE CONTROL: the digest goes in through the same raw statement.
+    insert(id);
+    assert.notEqual(repos.sessions.getById(id), null, 'the control really was inserted');
   });
 });
 
