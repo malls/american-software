@@ -1,6 +1,13 @@
 {
   "assigned_to": "agent:developer-marcus",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-41-connect-onboarding",
+      "linked_at": "2026-09-02T06:31:08Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
   "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
@@ -10,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34NAX4QTQ3HMJ7P5EBGK9",
-  "last_event_id": "ev_01M1GD0MCW5BGVFHJ03F2VM26G",
+  "last_event_id": "ev_01M1GD0WHRR28P8KED8G71152N",
   "last_status_changed_at": "2026-09-02T06:31:00Z",
   "priority": "high",
   "relationships_out": [
@@ -42,6 +49,6 @@
   ],
   "title": "D1 v1: Stripe Connect onboarding (server) \u2014 account, account_links, return/refresh, readiness",
   "type": "task",
-  "updated_at": "2026-09-02T06:31:00Z",
+  "updated_at": "2026-09-02T06:31:08Z",
   "urgency": null
 }
