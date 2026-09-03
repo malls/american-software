@@ -1,0 +1,34 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": null,
+  "created_at": "2026-09-03T23:09:34Z",
+  "created_by": "agent:qa-priya",
+  "custom_fields": {},
+  "description": "From the AS-27 QA review (qa-priya, 2026-09-03), finding F2.\n\nopenStream() in the chat test harness awaits the on-connect frame before the caller can register close(), and throws without aborting its own AbortController. Consequence: when a stream regression exists, plain \"node --test\" HANGS rather than failing. Priya hit this during mutation M7 \u2014 killed it at 10 minutes and needed --test-force-exit to see the 7 red tests waiting behind it.\n\nWhy it matters beyond convenience: a wedged runner is indistinguishable from a slow one, and a CI that hangs on regression is strictly worse than one that fails on it \u2014 nobody reads a timeout as a defect report.\n\nFix: try/finally with ctrl.abort() around the await, plus a bounded (short) timeout on that single on-connect await so a missing frame surfaces as an assertion failure.\n\nAcceptance: with the AS-27 SSE on-connect frame deliberately removed, a plain \"node --test\" run (no --test-force-exit) terminates on its own and reports red.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1MRHST1YSHFRF09WBS0BJWB",
+  "last_event_id": "ev_01M1MRK4V9T2C8YZP1R44CWSHH",
+  "last_status_changed_at": "2026-09-03T23:09:34Z",
+  "priority": "low",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-03T23:09:57Z",
+      "created_by": "agent:qa-priya",
+      "note": null,
+      "target_task_id": "task_01M1AQ5618X4KC89FQ9Z43HMCV",
+      "type": "subtask_of"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-81",
+  "status": "backlog",
+  "tags": null,
+  "title": "Chat test harness: openStream() hangs the runner instead of failing \u2014 a stream regression wedges CI",
+  "type": "task",
+  "updated_at": "2026-09-03T23:10:18Z",
+  "urgency": null
+}

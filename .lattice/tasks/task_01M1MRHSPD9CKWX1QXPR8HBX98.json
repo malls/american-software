@@ -1,0 +1,34 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": null,
+  "created_at": "2026-09-03T23:09:34Z",
+  "created_by": "agent:qa-priya",
+  "custom_fields": {},
+  "description": "From the AS-27 QA review (qa-priya, 2026-09-03), finding F1.\n\nThe test \"stream: AS-27 \u2014 close() clears the loop poll timer\" proves nothing. Mutation M4 deleted the clearInterval(loopPoll) call outright and all 255 tests stayed green, because close() empties the streams set first, so a leaked timer fans out to nobody and no assertion can see it.\n\nThe BEHAVIOUR is correct \u2014 the timer is cleared, and loopPoll.unref() means the process exits either way. This is a guard defect, not a bug: the assertion cannot fail, which is exactly the vacuous-pass shape CLAUDE.md requires guards to be proven against.\n\nFix: one test that samples process.getActiveResourcesInfo() either side of close() and asserts the timer count drops. Priya deliberately did NOT author it \u2014 writing an assertion and then verifying it herself is the conflict the review gate exists to prevent, so this needs a different author.\n\nAcceptance: the new test goes RED when clearInterval(loopPoll) is deleted, and the mutation is demonstrated (not assumed) on a scratch copy.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1MRHSPD9CKWX1QXPR8HBX98",
+  "last_event_id": "ev_01M1MRJSZXA3XNRJH07ETJ2Z19",
+  "last_status_changed_at": "2026-09-03T23:09:34Z",
+  "priority": "low",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-03T23:09:57Z",
+      "created_by": "agent:qa-priya",
+      "note": null,
+      "target_task_id": "task_01M1AQ5618X4KC89FQ9Z43HMCV",
+      "type": "subtask_of"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-80",
+  "status": "backlog",
+  "tags": null,
+  "title": "Chat: the AS-27 close()-clears-timer guard is vacuous \u2014 deleting clearInterval leaves the suite green",
+  "type": "task",
+  "updated_at": "2026-09-03T23:10:07Z",
+  "urgency": null
+}
