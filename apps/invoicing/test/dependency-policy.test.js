@@ -371,7 +371,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 48, `expected 48 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 49, `expected 49 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/auth/accounts.js',
@@ -413,6 +413,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'public/scaffold.css',
     'routes/assets.js',
     'routes/auth.js',
+    'routes/clients.js',
     'routes/connect.js',
     'routes/contracts.js',
     'routes/health.js',
@@ -593,7 +594,10 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43 a
   // exactly the reason this row exists. Widening the row is the only way to
   // mount a parser at all; what the row actually guards — no app-wide parser
   // in app.js — is unchanged, and app.js is still not a member.
-  scanConcept('body parser', /express\.(json|urlencoded|raw|text)\s*\(/, ['routes/auth.js', 'routes/contracts.js', 'routes/invoices.js', 'routes/webhooks.js']);
+  // AS-65 adds routes/clients.js on the same terms: its form parser is
+  // mounted PER ROUTE for exactly the reason this row exists, and app.js is
+  // still not a member.
+  scanConcept('body parser', /express\.(json|urlencoded|raw|text)\s*\(/, ['routes/auth.js', 'routes/clients.js', 'routes/contracts.js', 'routes/invoices.js', 'routes/webhooks.js']);
   // ONE verifier, not two. Measured before AS-44: zero hits anywhere. A second,
   // home-rolled comparison in the route or the receiver is the `new Stripe(key)`
   // of this boundary.

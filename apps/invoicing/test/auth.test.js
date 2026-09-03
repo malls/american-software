@@ -737,6 +737,7 @@ const ALL_ROUTES = [
   'GET /connect-stripe/return',
   'GET /healthz',
   'GET /tokens.css',
+  'POST /clients',
   'POST /connect-stripe/start',
   'POST /contracts',
   'POST /invoices',
@@ -767,7 +768,7 @@ test('G1: the route walk finds the EXACT committed list — cardinality first', 
     const found = discoverRoutes(app);
     // Never `> 0`: a walk that silently returned nothing would otherwise pass
     // every rule below it on an empty set (the AS-31 lesson).
-    assert.equal(found.length, 15, `expected exactly 15 routes, found ${found.length}: ${found.join(', ')}`);
+    assert.equal(found.length, 16, `expected exactly 16 routes, found ${found.length}: ${found.join(', ')}`);
     assert.deepEqual(found, ALL_ROUTES);
   });
 });
@@ -777,7 +778,7 @@ test('G1b: with NO webhook secret the surface is the same list minus the webhook
   // committed list above is config-dependent and says so in both directions.
   await withApp({ secret: null }, async ({ app }) => {
     const found = discoverRoutes(app);
-    assert.equal(found.length, 14, found.join(', '));
+    assert.equal(found.length, 15, found.join(', '));
     assert.deepEqual(found, ALL_ROUTES.filter((r) => r !== 'POST /webhooks/stripe'));
   });
 });
@@ -795,6 +796,7 @@ test('G2: the public/protected partition is exact in BOTH directions', async () 
       'GET /',
       'GET /connect-stripe/refresh',
       'GET /connect-stripe/return',
+      'POST /clients',
       'POST /connect-stripe/start',
       'POST /contracts',
       'POST /invoices',
@@ -823,19 +825,19 @@ test('G3: every protected route\'s cookieless answer is ATTRIBUTABLE to the guar
     // property is "if the guard's rejection changed, this route's response
     // would change", enforced here by comparing every member against the
     // guard's OWN rejection in this same app, and in §7's recipe F12 by moving
-    // that rejection and requiring all nine members to move with it.
+    // that rejection and requiring all eleven members to move with it.
     assert.equal(found.includes(`POST ${UNROUTED_PATH}`), false, 'something now serves the reference path — it is no longer the guard that answers it');
     const ref = await fetch(`${base}${UNROUTED_PATH}`, { method: 'POST', redirect: 'manual', headers: { origin: base } });
     const refLocation = ref.headers.get('location');
     // Cardinality on the INSTRUMENT before quantifying with it: with the guard
-    // deleted this probe 404s with no Location, and nine 404s compared against
+    // deleted this probe 404s with no Location, and eleven 404s compared against
     // a 404 would be a vacuous green.
     assert.ok(ref.status >= 300 && ref.status < 400, `the reference probe was not answered by a redirect (${ref.status}) — requireSession is not answering ${UNROUTED_PATH}`);
     assert.equal(refLocation, '/signin', 'the guard redirects to the sign-in path — the contract AS-45 renders');
     assert.equal(ref.headers.getSetCookie().length, 0, 'the guard sets NO cookie: that silence is what distinguishes it from a handler');
 
     const protectedRoutes = found.filter((r) => !PUBLIC_ROUTES.includes(r));
-    assert.equal(protectedRoutes.length, 10, 'cardinality before quantification');
+    assert.equal(protectedRoutes.length, 11, 'cardinality before quantification');
     for (const entry of protectedRoutes) {
       const [method, path] = entry.split(' ');
       const url = new URL(`${base}${path.replaceAll(':id', 'some-id')}`);
@@ -997,7 +999,7 @@ test('G14: actingFreelancerId throws rather than act as nobody', () => {
 test('G15: the whole app is constructible and the boundary survives a rebuild', async () => {
   // A cheap guard against the enumeration above being satisfied by a stale app.
   await withApp({}, async ({ app, base }) => {
-    assert.equal(discoverRoutes(app).length, 15);
+    assert.equal(discoverRoutes(app).length, 16);
     assert.equal((await fetch(`${base}/`, { redirect: 'manual' })).status, 303);
   });
 });
