@@ -6,9 +6,20 @@
 // the `test` service at network_mode: none by nature rather than by mocking.
 //
 // ONE GROUP, L, for the one route. The numbering is referenced by name from the
-// plan's falsification recipes: F1 predicts L8 alone, F2 predicts L3 alone, F3
-// predicts L6 (and asks whether L7 moves with it), and F4 predicts every case
-// here except L10.
+// plan's falsification recipes: F1 predicts L8 alone, F2 predicts L3 alone, F4
+// predicts every case here except L10 — and, since review cycle 1, F3a (drop
+// the check on the INPUT) predicts L6 alone while F3b (drop the check on the
+// EMITTED string) predicts L12 alone. Those two are narrow on purpose: the
+// route now runs two independent guards, and a recipe whose predicted set
+// spanned both would hide which guard carries which property, which is the
+// conflation that shipped an open redirect from here in the first place.
+//
+// L6, L7 and L12 partition the return-path input space, and the partition is
+// the point: L6 is what safeNext REFUSES, L7 is what it accepts and
+// normalization leaves alone, L12 is what it ACCEPTS and normalization CHANGES.
+// The last of those is where the defect lived, and no case could observe it
+// until L12 existed — L7's four inputs are identical before and after
+// composition, so they cannot tell a correct composition from a broken one.
 //
 // CARDINALITY BEFORE QUANTIFICATION, everywhere. Every case that counts rows
 // asserts a committed number, never `> 0`: a query that silently returned
@@ -19,6 +30,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { openDatabase } from '../lib/db/connection.js';
 import { createRepositories, prepareDatabase } from '../lib/db/database.js';
+import { safeNext } from '../lib/auth/guard.js';
 import { clientRoutes } from '../routes/clients.js';
 import {
   APP_DIR,
@@ -231,7 +243,21 @@ test('L4: a missing or blank name or email is a 400 and creates nothing', async 
 
 test('L5: an unknown body field is a 400 and creates nothing — the route contributes NO allowlist of its own', async () => {
   await withClientApp(async ({ base, config, repos, freelancer }) => {
-    for (const extra of [{ phone: '555' }, { Name: 'wrong case' }, { notes: 'hello' }, { 'contacts[0][name]': 'x' }]) {
+    // Cardinality before quantification — six unknown-field bodies, one request
+    // each. `constructor` and `__proto__[polluted]` are here because they are
+    // the inherited-name neighbours of the carve-out below: both DO reach the
+    // repository's allowlist, and both must keep answering 400 for that
+    // carve-out to be about the parser rather than about this route.
+    const unknown = [
+      { phone: '555' },
+      { Name: 'wrong case' },
+      { notes: 'hello' },
+      { 'contacts[0][name]': 'x' },
+      { constructor: 'x' },
+      { '__proto__[polluted]': '1' },
+    ];
+    assert.equal(unknown.length, 6);
+    for (const extra of unknown) {
       const label = JSON.stringify(extra);
       const { res, body } = await post(`${base}/clients`, { ...CLIENT_INPUT(), ...extra, next: '/invoices/new' });
       assert.equal(res.status, 400, `${label}: ${body}`);
@@ -245,6 +271,32 @@ test('L5: an unknown body field is a 400 and creates nothing — the route contr
       () => repos.clients.create(freelancer.id, { ...CLIENT_INPUT(), phone: '555' }),
       (err) => err.name === 'ValidationError' && err.field === 'client.phone',
     );
+
+    // THE ONE CARVE-OUT, PINNED RATHER THAN FIXED (review cycle 1, finding
+    // F-3). A bare `__proto__` is the single unknown field that answers 303:
+    // the body parser drops the key before the route sees a body at all, so it
+    // never reaches the repository's allowlist. The route adds no allowlist of
+    // its own and must not grow one for this — a route-level copy is the second
+    // source of truth the design refuses.
+    //
+    // THREE ASSERTIONS, NOT ONE. Pinning only the 303 would stay green on the
+    // day a parser upgrade lets the key back into the parsed body, which is the
+    // exact event this pin exists to catch: it would then be vacuous in
+    // precisely the way L7 was. So the status, the absence of pollution, and
+    // the neighbours' 400s are asserted together. The raw body string is
+    // deliberate — `{ __proto__: 'x' }` in an object literal sets a prototype
+    // instead of a key, so a literal could not send this field at all.
+    const before = { ...Object.prototype };
+    const carveOut = await post(`${base}/clients`, 'name=Client+Co&email=client%40example.test&next=%2Finvoices%2Fnew&__proto__=polluted');
+    assert.equal(carveOut.res.status, 303, carveOut.body);
+    assert.equal(Object.prototype.polluted, undefined, 'Object.prototype was polluted');
+    assert.equal({}.polluted, undefined, 'a fresh object inherited a polluted key');
+    assert.deepEqual({ ...Object.prototype }, before, 'Object.prototype gained an own key');
+    const rows = repos.clients.listByFreelancer(freelancer.id);
+    assert.equal(rows.length, 1, 'the carve-out creates exactly one row, and it is the first of this case');
+    assert.equal(Object.getPrototypeOf(rows[0]), Object.prototype, 'the created row carries a poisoned prototype');
+    assert.equal(rows[0].name, 'Client Co');
+    assert.equal(countRows(config, 'clients'), 1);
   });
 });
 
@@ -440,5 +492,99 @@ test('L11: the error taxonomy is exact in BOTH directions', async () => {
     seen.add((await post(`${base}/clients`, { ...CLIENT_INPUT(), next: '/invoices/new' })).res.status);
     assert.deepEqual([...seen].sort(), [303, 400, 413], 'the reachable status set');
     assert.equal(countRows(config, 'clients'), 1, 'only the accepted submission wrote a row');
+  });
+});
+
+test('L12: a next safeNext ACCEPTS but normalization turns hostile is refused at emission — and the row it already wrote stays', async () => {
+  await withClientApp(async ({ base, config, repos, freelancer }) => {
+    // THE CLASS NO CASE COULD SEE. RFC 3986 §4.2 decides "network-path
+    // reference" on the RAW reference, before §5.2.4 dot-segment removal — so
+    // `/.//evil.test` is path-absolute, stays on this origin if it is emitted
+    // as it arrived, and safeNext accepts it CORRECTLY. `new URL(...)` performs
+    // that removal and hands back `//evil.test`, which re-emitted standalone is
+    // a network-path reference to somebody else's host. The escape is not in
+    // the input; composition manufactures it, and only a check on the composed
+    // string can see it.
+    //
+    // CLASS (b) IS NOT DECORATION. Without it, "refuse anything normalization
+    // touched" would pass this case — a different and more brittle rule than
+    // the one this route implements, and one that 400s legitimate screens.
+    // Class (c) is what tells a working route from one that refuses everything.
+    const cases = [
+      // (a) accepted, and normalization makes it hostile.
+      { klass: 'a', next: '/.//evil.test' },
+      { klass: 'a', next: '/..//evil.test' },
+      { klass: 'a', next: '/%2e//evil.test' },
+      { klass: 'a', next: '/%2E%2E//evil.test' },
+      { klass: 'a', next: '/a/..//evil.test' },
+      { klass: 'a', next: '/.//user:pass@evil.test/x' },
+      { klass: 'a', next: '/.//evil.test:8080/x' },
+      { klass: 'a', next: '/.//evil.test/path?a=b#frag' },
+      { klass: 'a', next: '/.//' },
+      // (b) accepted, normalization CHANGES it, and the result is benign.
+      { klass: 'b', next: '/a/../invoices/new', expect: (id) => `/invoices/new?clientId=${id}` },
+      { klass: 'b', next: '/invoices/./new', expect: (id) => `/invoices/new?clientId=${id}` },
+      // (c) accepted, normalization changes nothing — the control.
+      { klass: 'c', next: '/contracts/new', expect: (id) => `/contracts/new?clientId=${id}` },
+    ];
+    // CARDINALITY BEFORE QUANTIFICATION, and per class: an input set is
+    // specified by the discriminating inputs it must contain, never by a count,
+    // so the count of each CLASS is what is pinned here.
+    assert.equal(cases.length, 12);
+    assert.equal(cases.filter((c) => c.klass === 'a').length, 9);
+    assert.equal(cases.filter((c) => c.klass === 'b').length, 2);
+    assert.equal(cases.filter((c) => c.klass === 'c').length, 1);
+
+    let n = 0;
+    for (const { klass, next, expect } of cases) {
+      n += 1;
+      // A DISTINCT email per input, so this case stays green under the
+      // duplicate-convergence recipe and reddens for its own reason alone.
+      const email = `l12-${n}@example.test`;
+      // EVERY INPUT IS IN THE ACCEPTED CLASS, asserted rather than claimed:
+      // safeNext returns the value unchanged, so a 400 below can only have come
+      // from the check on the EMITTED string.
+      assert.equal(safeNext(next), next, `${next} is not in the accepted class`);
+      const normalized = new URL(next, 'http://placeholder.invalid').pathname;
+      if (klass === 'a') {
+        assert.equal(normalized.startsWith('//'), true, `${next} does not normalize to a network-path reference`);
+      } else if (klass === 'b') {
+        assert.notEqual(normalized, next.split('?')[0], `${next} is not changed by normalization`);
+        assert.equal(normalized.startsWith('//'), false, `${next} is not benign after normalization`);
+      } else {
+        assert.equal(normalized, next, `${next} is changed by normalization`);
+      }
+
+      const { res, body } = await post(`${base}/clients`, { name: `Client ${n}`, email, next });
+      if (klass === 'a') {
+        assert.equal(res.status, 400, `${next}: ${body}`);
+        assert.match(res.headers.get('content-type'), /text\/plain/, next);
+        // BY CLASS, NEVER BY TEXT — the same body the input check answers with.
+        // Which guard fired is told apart by the row count, below, not here.
+        assert.equal(body, 'ValidationError: create\n', next);
+        assert.equal(res.headers.get('location'), null, `${next} emitted a Location anyway`);
+      } else {
+        assert.equal(res.status, 303, `${next}: ${body}`);
+        const location = res.headers.get('location');
+        assert.equal(location, expect(mintedId(res)), next);
+        assert.equal(location.startsWith('//'), false, next);
+        assert.equal(location.includes('://'), false, next);
+        assert.equal(new URL(location, 'http://placeholder.invalid').host, 'placeholder.invalid', next);
+      }
+
+      // A REFUSAL AT THE SECOND CHECK LEAVES THE ROW, and that is the ruled,
+      // accepted cost — asserted as an EXISTENCE, deliberately. An implementer
+      // reading "400" as "no row" would move that check somewhere it can no
+      // longer see what is emitted, which is exactly how the defect happened:
+      // this route creates unconditionally by design, and here only the return
+      // trip failed. The row is fully formed and owned by the session.
+      const written = repos.clients.findByEmail(freelancer.id, email);
+      assert.equal(written.length, 1, `${next}: exactly one row for this input`);
+      assert.equal(written[0].name, `Client ${n}`, next);
+      assert.equal(written[0].freelancerId, freelancer.id, next);
+      assert.equal(countRows(config, 'clients'), n, `${next}: one row per input, cumulative`);
+    }
+    assert.equal(countRows(config, 'clients'), cases.length, 'twelve inputs, twelve rows');
+    assert.equal(repos.clients.listByFreelancer(freelancer.id).length, cases.length);
   });
 });

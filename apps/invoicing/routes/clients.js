@@ -56,10 +56,24 @@ function statusFor(err) {
 /**
  * Compose the redirect target from the caller's validated return path.
  *
- * The base is a PARSE TARGET ONLY: taking pathname + search + hash back off
- * means this cannot emit an absolute URL even if the guard's validator were
- * weakened later. The caller's own query survives, which is how the screens
- * carry a half-filled form across the round trip.
+ * THIS FUNCTION IS NOT A SAFETY LAYER. It is the step the output check below
+ * exists for, and the note that stood here — "taking pathname + search + hash
+ * back off means this cannot emit an absolute URL" — was true of the word
+ * ABSOLUTE and false of the property this route actually promises, which is
+ * APP-RELATIVE.
+ *
+ * `new URL(...)` performs RFC 3986 §5.2.4 dot-segment removal. That decision is
+ * made on the RAW reference, so `/.//evil.test` is path-absolute and stays on
+ * this app's origin when it is emitted as it arrived — and safeNext therefore
+ * accepts it, correctly. Parsing it and reading `.pathname` back off yields
+ * `//evil.test`, which re-emitted standalone IS a network-path reference and
+ * sends the freelancer, and the id just minted for them, to somebody else's
+ * host. The escape was not in the input; composition manufactured it.
+ *
+ * So nothing this returns is trusted. The caller re-validates the exact string
+ * it is about to write to the header, with the same predicate that accepted the
+ * input. What is preserved deliberately: the caller's own query, which is how
+ * the screens carry a half-filled form across the round trip.
  */
 function landing(returnPath, id) {
   const url = new URL(returnPath, 'http://placeholder.invalid');
@@ -117,7 +131,40 @@ export function clientRoutes(config, { repos }) {
         throw new ValidationError('next', 'must be a single app-relative path this app will redirect to');
       }
       const client = repos.clients.create(freelancerId, fields);
-      res.redirect(303, landing(returnPath, client.id));
+      // CHECK 2 — VALIDATION IS THE LAST STEP BEFORE EMISSION, NOT THE FIRST
+      // STEP AFTER PARSING. The bytes written to Location must be the exact
+      // bytes a validator last accepted, so the composed string is re-checked
+      // by the SAME predicate, on the exact value that reaches the header.
+      //
+      // The two calls are two different jobs, and neither substitutes for the
+      // other. Check 1 is the INPUT contract: an absent or refused `next` is a
+      // caller bug and leaves no row. Check 2 is the SECURITY guarantee:
+      // safeNext-clean means one leading slash, no `://` and no control
+      // character, hence path-absolute per RFC 3986 §4.2, hence resolved
+      // against this app's own origin — always, whatever composition did.
+      //
+      // This is a CHECK and not a proof, deliberately. Reasoning that a
+      // composition step "cannot weaken" an already-validated path is exactly
+      // what shipped an open redirect from this file in review cycle 1; there
+      // is now no inference standing between the predicate and the header.
+      //
+      // A REFUSAL HERE LEAVES THE ROW, and that is the accepted cost. The row
+      // is exactly what was submitted, owned by the session's freelancer, and
+      // no external call was made; only the return trip failed. Moving this
+      // check earlier to avoid the row would move it somewhere it can no longer
+      // see what is emitted, which is how the defect happened the first time.
+      // Both refusals answer the same body — the taxonomy maps by class, never
+      // by text — and which one fired is told apart by the row count.
+      //
+      // Nothing may transform this value afterwards. res.redirect delegates to
+      // res.location, which runs encodeurl: it only percent-encodes, and never
+      // inserts `/`, `:` or a control character, so it cannot turn a
+      // path-absolute reference into a network-path one.
+      const composed = landing(returnPath, client.id);
+      if (safeNext(composed) === null) {
+        throw new ValidationError('next', 'normalizes to a path this app will not redirect to');
+      }
+      res.redirect(303, composed);
     } catch (err) {
       fail(res, 'create', err);
     }
