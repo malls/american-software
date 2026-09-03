@@ -1,0 +1,37 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "medium",
+  "created_at": "2026-09-03T16:24:16Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": "Board request: DM conversation 7, msg 521 (2026-09-03), \"set up posthog and sentry, low priority, observability needs to be on the radar\". Depends on the observability design task (see depends_on link); do not start before that design note exists at docs/engineering/04-observability-posture.md and its board ask has been ANSWERED.\n\nWHAT: product analytics for apps/invoicing \u2014 the D1 core-loop funnel as events: account created, Connect onboarding started/returned/ready, first client created, first contract generated, first invoice drafted/finalized/sent, invoice paid (from the webhook state sync). This is the instrumentation that tells us where freelancers drop out of the loop; it has no value until there are users to measure, which is why it sits behind Sentry-on-invoicing in the sequencing.\n\nHOW (bounded by the design note, which decides SDK vs raw ingest, and self-hosted vs cloud): server-side event emission from exactly one egress module (mirror of lib/stripe's shape), sanctioned in the dependency-policy scan the same way as the Sentry egress module \u2014 and only that module may reach the vendor host; the guard is proven by breaking it. Config: INVOICING_POSTHOG_API_KEY (secret) and INVOICING_POSTHOG_HOST, both default null; with no key the module is a no-op and the suite passes under --network none. Client-side (browser) capture is OUT of scope for this task by default: the product is server-rendered, the funnel is fully observable from the server, and a browser snippet is a second data-egress channel plus a third-party script on a page that handles financial data \u2014 if the design note argues for it, it is a separate task with its own gate.\n\nDATA POSTURE \u2014 this is the part that makes it a decision, not plumbing: analytics events must carry opaque ids and event names only. Never: client names or emails, invoice amounts, line items, currency totals, contract text, Stripe account/customer/invoice ids, or anything from the invoice mirror. An analytics pipeline that mirrors invoice contents would put freelancer and client financial data with a third party for no analytical gain; \"never in the flow of funds\" is a custody rule on money, and the same posture applies to the data about it. The event schema is a fixed allow-list in the egress module and a test asserts an event with an off-schema property is rejected before transport. Distinct id is the internal freelancer id hashed with an app-side salt, not the email.\n\nBOARD GATE: a PostHog account (cloud, free tier or otherwise) or a self-hosted PostHog deployment (a multi-service stack, which on Digital Ocean is spend) is an external service commitment and is board-gated per CLAUDE.md \u2014 including free accounts. The implementer does NOT sign up, does NOT create a project or API key, and does NOT point the app at any host on their own initiative. Keys arrive from the board via .env.local, never committed. If the ask is unanswered when this is picked up: build the no-key path, prove the guards, move to needs_human with the one-line ask.\n\nPRIORITY: low (board's words). Sequencing: after Sentry-on-invoicing and after there are non-employee users; does not block any D1 v1 task and does not jump the D1 line or the chat cluster.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1M1BMZ636ZDJK8WT4MXAZXV",
+  "last_event_id": "ev_01M1M1BW3114EKHS932WGBBDT0",
+  "last_status_changed_at": "2026-09-03T16:24:16Z",
+  "priority": "low",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-03T16:24:23Z",
+      "created_by": "agent:cto-owen",
+      "note": null,
+      "target_task_id": "task_01M1M1BMRVY1BNPA94XS5SJS8Y",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-78",
+  "status": "backlog",
+  "tags": [
+    "observability",
+    "invoicing"
+  ],
+  "title": "Observability: PostHog product analytics for apps/invoicing \u2014 server-side core-loop funnel events, fixed allow-list schema, board-gated key",
+  "type": "task",
+  "updated_at": "2026-09-03T16:24:23Z",
+  "urgency": "low"
+}
