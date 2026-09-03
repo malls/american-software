@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync, cpSync, writeFileSync, mkdirSync, symlinkSync } fr
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { createChatServer } from '../server.js';
 
 const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
@@ -397,6 +398,7 @@ test('api: AS-8 — roster joins personnel, lattice work status, and DM state', 
     title: 'Fixture Engineer',
     class: 'ic',
     team: 'engineering',
+    reportsTo: 'agent:cto-owen', // AS-33: the reporting edge rides the roster row
     registered: false, // not in the identities table yet
     dmConversationId: null,
     unread: 0,
@@ -902,4 +904,92 @@ test('api: AS-54 — served app.js autolinks through markdown.js and never insid
   );
 
   assert.doesNotMatch(app, /\.innerHTML/, 'zero innerHTML use — the house rule holds');
+});
+
+// --- AS-33: the org chart endpoint, the served module, and CLI/API parity ---
+
+test('api: AS-33 — /api/org reports violations from the fixture root', async (t) => {
+  const { get } = await bootServer(t);
+  const res = await get('/api/org');
+  assert.equal(res.status, 200);
+  assert.deepEqual(Object.keys(res.data).sort(), ['employees', 'violations']);
+
+  // Active only, name-sorted, with the reporting edge and nothing
+  // viewer-relative (no me, no DM state, no Lattice work).
+  assert.deepEqual(res.data.employees, [
+    {
+      actorId: 'agent:eng-ada',
+      name: 'Ada Fixture',
+      title: 'Fixture Engineer',
+      class: 'ic',
+      team: 'engineering',
+      reportsTo: 'agent:cto-owen',
+    },
+    {
+      actorId: 'agent:qa-bob',
+      name: 'Bob Fixture',
+      title: 'QA Engineer',
+      class: 'ic',
+      team: 'quality',
+      reportsTo: 'agent:cto-owen',
+    },
+  ]);
+
+  // LOAD-BEARING FIXTURE PROPERTY (plan §10.5): test/fixtures/repo has never
+  // been a valid org — ada and bob both point at agent:cto-owen, who has no
+  // dossier there, and two of its six files are fenced but unparseable. That
+  // is precisely why it is the on-disk dirty case. Do not "fix" the fixture.
+  // The whole array is asserted, not a subset: extra output is a finding too.
+  assert.deepEqual(res.data.violations, [
+    {
+      rule: 'orphan_reports_to',
+      actorId: 'agent:eng-ada',
+      file: 'engineer-ada-fixture.md',
+      detail: 'reports to agent:cto-owen, who has no dossier',
+    },
+    {
+      rule: 'orphan_reports_to',
+      actorId: 'agent:qa-bob',
+      file: 'qa-bob-fixture.md',
+      detail: 'reports to agent:cto-owen, who has no dossier',
+    },
+    {
+      rule: 'unparsed_dossier',
+      actorId: null,
+      file: 'bad-actor-eve.md',
+      detail: 'dossier yielded no employee (invalid_actor_id)',
+    },
+    {
+      rule: 'unparsed_dossier',
+      actorId: null,
+      file: 'broken-mallory.md',
+      detail: 'dossier yielded no employee (malformed_frontmatter)',
+    },
+  ]);
+});
+
+test('api: AS-33 — /api/org degrades to empty on a root with no personnel/', async (t) => {
+  // Same contract as the roster endpoint: a missing mount or a malformed
+  // dossier is an empty org and a 200, never a 500 and never a refusal to
+  // boot. One bad frontmatter line must not take out chat for everyone.
+  const bareRoot = mkdtempSync(join(tmpdir(), 'chat-org-bare-'));
+  t.after(() => rmSync(bareRoot, { recursive: true, force: true }));
+  const { get } = await bootServer(t, bareRoot);
+  const res = await get('/api/org');
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.data, { employees: [], violations: [] });
+});
+
+test('api: AS-33 — /api/roster keeps its envelope while gaining the reporting edge', async (t) => {
+  // §3.8: violations were NOT bolted onto /api/roster. That endpoint is
+  // fetched by every client every 60s and joined against Lattice and DM state;
+  // the org view is opened occasionally and needs neither join.
+  const { get } = await bootServer(t);
+  const res = await get('/api/roster');
+  assert.deepEqual(Object.keys(res.data), ['roster']);
+  assert.deepEqual(
+    res.data.roster.map((r) => r.reportsTo),
+    ['agent:cto-owen', 'agent:cto-owen']
+  );
+  assert.ok(!('violations' in res.data), 'violations live on /api/org, not here');
 });

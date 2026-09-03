@@ -187,6 +187,7 @@ function createDirectBackend(dbPath) {
             title: e.title,
             class: e.class,
             team: e.team,
+            reportsTo: e.reportsTo,
             registered: !!store.getIdentity(e.actorId),
             work: tasks[0] ?? null,
             moreTasks: Math.max(0, tasks.length - 1),
