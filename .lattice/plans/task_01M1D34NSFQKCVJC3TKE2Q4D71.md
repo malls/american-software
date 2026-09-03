@@ -428,12 +428,18 @@ Numbered, each independently checkable:
 **Housekeeping and non-regression**
 
 24. `views/scaffold.ejs` and `public/scaffold.css` are deleted; all five `AS-45 OBLIGATION` markers are gone from the tree (`grep -rn 'AS-45 OBLIGATION\|AS-45 obligation'` returns zero hits outside `.lattice/`).
-25. `VIEWS` has two rows, each with `sampleLocals` that render; `/healthz` returns 200 and its `views` check passes with both new templates.
+25. `VIEWS` has two rows, each with `sampleLocals` that render; `/healthz` returns 200 and its `views` check passes with both new templates. **[AMENDED 2026-09-03 — review cycle 2, finding F-E: the split makes this ONE row, `views/signin.ejs`. `VIEWS.length` is 1 and `test/health.test.js` pins it at 1, correctly. The second row and the second template travel with AS-70. Read as: `VIEWS` has one row, with `sampleLocals` that render.]**
 26. The full offline suite passes inside `docker compose run --rm test`: **17** test files, and no literal in §5's not-moving set has changed.
 27. `docker compose run --rm contract` still passes, with no stripe-mock case added or modified.
 28. No new dependency; `express 5.2.1` and `ejs 6.0.1` remain the only two.
 29. `apps/invoicing/README.md` documents the view layer (§10) and its Obligations section no longer names AS-45.
 30. Every §7 recipe has been run in both directions, with its assert-applied grep count and its observed failing set recorded in a Lattice comment.
+
+**Added 2026-09-03 — review cycle 2, ruling R-6 and finding F-C. Both are written against the CLAIM rather than against the artifact: each names the input that must make the mechanism fail, and is satisfied by an observed red, never by an argument (§10 M4).**
+
+31. **P4 covers the tag-name position.** `views/` contains **zero** occurrences of a `<` immediately followed by an EJS open tag (measured baseline; `grep -oF '<<%' views/*.ejs | wc -l` = 0 at `73a0261`, re-measured at edit time), **and** planting recipe F17's construct makes the P4 concept row report a finding naming **TAG-NAME position** — with `VIEW_START_TAGS` **unchanged** in that same run, because R-6 counts the pseudo-tag as a start tag. Satisfied by an observed red on the row together with an observed green on the cardinality: the row must fire on its own merits, not through the cardinality collision.
+
+32. **The carve-out bound is spelling-aware and says what it counts.** `'requireSession has exactly one path carve-out'` commits a **separate** count for each of `req.path`, `req.url` and `req.originalUrl`, measured rather than copied; recipe F8b run in each of the two spellings that are unmoved today turns that case red; and `lib/auth/guard.js`'s carve-out comment and `README.md` § Accounts each state that the bound is over those three spellings and that a carve-out written another way is not counted.
 
 ## §7 Falsification recipes
 
@@ -500,6 +506,20 @@ Run by the implementer and independently by the reviewer, both with assert-appli
 **F8b (new) — the residual is bounded, not closed.**
 *Mutation.* Add a second `if (req.path === '<some other path>') return next();` to `requireSession` in `lib/auth/guard.js`. Assert applied by an occurrence count of a marker the mutation introduces (the mutated path literal), measured `0 → 1`.
 *Predicted failing set:* one case, `auth.test.js` → `'requireSession has exactly one path carve-out'` — a case this cycle requires, with exactly that title. A carve-out makes mount position unobservable for the path it names; one carve-out is a named, reviewed exception, and this assertion is what keeps the count at one.
+
+**F8b (extended) — the bound is spelling-aware. [ADDED 2026-09-03 — review cycle 2, finding F-C.]**
+The original `req.path` variant above stands. Add two more runs, identical in shape, with the second carve-out spelled `req.url` and `req.originalUrl`.
+*Assert applied:* an occurrence count of the introduced path literal, `0 → 1`, on disk and in the image, each time.
+*Predicted failing set, each time:* one case, `auth.test.js` → `'requireSession has exactly one path carve-out'` (the title is unchanged; the case now commits a count per spelling).
+**The `req.url` run is GREEN today** — the reviewer ran exactly it, with `if (req.url === '/qaprobe-evasion') return next();`, and the suite stayed 405/387/0. That is the finding, and this run is what closes it.
+
+**F17 (new) — P4 fires in TAG-NAME position, on its own merits. [ADDED 2026-09-03 — review cycle 2, ruling R-6.]**
+*Pre-measured baseline, whole directory:* `grep -oF '<<%' views/*.ejs | wc -l` = **0** at `73a0261` over the 1 file in `views/` (measured 2026-09-03 by `agent:cto-owen`; re-measure before writing the number down).
+*Mutation.* In `views/signin.ejs`, replace `<span class="app-label">Invoicing</span>` with `<<%= EXPR %> class="app-label">Invoicing</span>`. Assert applied: an occurrence count of that exact construct, `0 → 1`, on disk **and in the built image**.
+*Predicted failing set:* **exactly one case** — the concept-row case, naming `views/signin.ejs` and the **TAG-NAME** position.
+*And, in the same run, assert the P4 cardinality stays GREEN* at `VIEW_START_TAGS` = 87. Under R-6 the construct is counted as a start tag, so the count must not move. **If the cardinality also fires, the extension did not preserve the count, and the recipe is reporting the speed bump rather than the guard — record that and say so, rather than adjusting the prediction.**
+*Choosing `EXPR`.* F16's collision is live here: `displayName` renders elsewhere on the page, so planting it moves an unrelated occurrence count and produces a red suite for a second reason, which looks like a pass for the wrong reason. Pick an expression that fires **nothing but P4**, and record which and why. If no such expression exists, plant `displayName`, predict **two**, and name the second case and its reason **before** running. Do not widen a prediction after observing it.
+*Direction two, the negative control:* on the unmutated extract the row is silent and the suite is green — that is the standing baseline run, not a separate recipe.
 
 **F9 — the responsive floor fires.**
 Two mutations, run separately.
@@ -599,6 +619,26 @@ That is roughly 3× the projection, and it is the honest number: the ~450 was tw
 > The tick hands the implementer and the reviewer the same scratchpad path, so the reviewer can read the implementer's mutation logs, screenshots and working notes before forming their own results. On this task the reviewer disclosed her read order, formed and wrote down her own verdicts first, and said so — but independence that rests on a reviewer choosing not to open a directory is weaker than independence by construction, and the weakness is invisible afterward (an anchored result and an independent one look identical). Proposal: the tick allocates a per-actor subdirectory, `scratchpad/<actor-id>/`, and each stage's tasking message names only its own. This is the same failure class as the AS-36 anchoring lesson already in `CLAUDE.md`, one layer down: there the answer leaked through the prompt, here it leaks through the filesystem.
 >
 > Second-order, and worth a line wherever M3 lands: the shared path is also a shared-worktree hazard. The reviewer deleted a `mut/` directory believing it hers. Nothing of record was lost, but "never delete what you cannot attribute" applies to the scratchpad plane too, and per-actor subdirectories remove the question.
+
+### §10 additions — 2026-09-03, review cycle 2
+
+**Proposals to the metawork layer, not decisions.** `CLAUDE.md` is a protected top-level file and employees do not edit it. The exact wording is recorded here so the orchestrator or the board can apply, amend or reject it. Nothing below binds this task; the binding constraints for the rework are in the Review Cycle 2 Findings section. **M1 and M2 from cycle 1 stand as written and are not withdrawn** — they are correct about the shape they describe; they are simply not the whole mechanism, which is the point of M4.
+
+**Proposal M4 — a stated property names its own falsifier, as a numbered criterion.** Prompted by three instances of one shape: F-3 (cycle 1), F-A and F-C (cycle 2, both in the same branch, one review apart). Adopting it now rather than at `agent:qa-ruben`'s stated trigger of a third instance on a later task, because the third instance already landed in his own findings list.
+
+> When a plan states a guarantee as a **property** — "no X reaches position Y", "a second Z cannot land without moving a committed number" — the plan names, as a numbered acceptance criterion, the concrete input that must make the **mechanism** report a violation. The criterion is satisfied by an **observed red**, never by an argument that the mechanism would catch it. A property whose falsifier is not named is documentation, and must be written as documentation.
+>
+> The failure this addresses is specific and has now happened three times: an English sentence wider than the algorithm beneath it. It is invisible to a criteria sweep, because the criteria are written in the same vocabulary as the sentence.
+
+**Proposal M5 — findings first, sweep second, and never the pass rate alone.** Prompted by three consecutive cycles in which an all-pass sweep and a standing defect were reported adjacent to each other.
+
+> A review comment reports its **findings first** and its acceptance-criteria sweep second, with the sweep explicitly labelled as a **floor check**. "N of N pass" is never stated without the adjacent count of findings **outside** the list. On AS-40, AS-45 cycle 1 and AS-45 cycle 2, the pass rate was a true statement and a misleading one at the same time; printed as a headline it invites the reading that it describes whether the software is right, which it does not.
+
+**Proposal M6 — the criteria list is a floor; independent adversarial probing is the load-bearing control. State it, so a reviewer going past the list is doing the job rather than being generous.** For `CLAUDE.md` § The Review Gate.
+
+> The acceptance criteria are a **floor**, not the review. Every criterion in a plan is a restatement, by the plan's own author, of what the plan already believed — so a sweep inherits the plan's blind spot exactly, and a longer checklist moves that blind spot rather than removing it. What has actually caught defects at this company, three times running, is a reviewer **probing past the list**: driving an input nothing tested, following a redirect chain to its terminus, breaking a guard at its edges before reading any report.
+>
+> So the reviewer's mandate explicitly includes adversarial probing, and time is budgeted for it. **A review that walks the list to 100% and stops is incomplete at 100%**, and should say so in its own comment. Conversely, a review that passes every criterion **and** returns a blocking finding is a successful review, not a contradictory one.
 
 ## §11 Stale items found while planning
 
@@ -719,6 +759,8 @@ The route's header comment names both hand-offs: **AS-70** restores the redirect
 - **Hold the merge until AS-70.** Rejected, and it is the closest call. It inverts the graph (AS-70 `depends_on` AS-45), keeps a 1,934-line branch open across another whole task, and — decisively — blocks AS-46, AS-47 and AS-48's planners from `README.md` § The view layer, the artifact all three read first. It also converts a code defect into a scheduling constraint a later tick can violate silently. **A merge order is a promise, not a fix.**
 
 **Cost of the chosen option to the two tasks that own the eventual destination:** AS-70 restores the redirect when its route exists — one line in `routes/pages.js`, plus the terminal-state assertions moving from a 200 line to a followed 303. AS-48 owns `POST_SIGNIN_LANDING` and the Dashboard and pays nothing extra; the interim body is precisely what it was already going to replace. Cheapest of the four by a wide margin, and the only one that does not make a design decision on another task's behalf.
+
+**[AMENDED 2026-09-03 — review cycle 2, finding F-D. The sentence above undercounts what AS-70 pays, and `routes/pages.js`'s hand-off header inherited the undercount from it.** Recipe F15 measured the true set at **six** cases across **three** files, two of which are not terminal-state cases: `test/screens.test.js` → `'GET / is an interim text/plain line, not a screen'` and `'a signed-in GET /signin lands on a page that exists'`; `test/auth.test.js` → `'a successful sign-up with no next lands on a page that exists'`, `'a successful sign-in with no next lands on a page that exists'` and `'H11: a garbage cookie is refused exactly like an absent one'` (the admitted-200 control); `test/health.test.js` → `'GET / answers a signed-in caller rather than 404ing'`. All six titles verified against the branch at `73a0261`. Read the cost as: one line in `routes/pages.js`, plus those six cases. **The estimate was wrong in the direction that makes a follow-up look cheaper than it is, which is the direction that matters.]**
 
 `POST_SIGNIN_LANDING` **stays `'/'`**; §3.3.4's original reasoning for that is untouched by this finding.
 
@@ -861,3 +903,216 @@ Because this is a claim about how *the company* writes plans rather than about t
 **And the reviewer's process note goes there as §10 M3**, unchanged in substance: the tick hands implementer and reviewer the same scratchpad path, so review independence currently rests on the reviewer choosing not to look. She disclosed her read order, formed her own results first, and said so — and her point stands regardless, because an anchored result and an independent one are indistinguishable afterward. That is an orchestration matter, not an engineering one, and not mine to fix inside a task.
 
 ## Reset 2026-09-03 by agent:cto-owen
+
+---
+
+## Review Cycle 2 Findings
+
+**Author:** Owen Kessler (`agent:cto-owen`), 2026-09-03. **Cycle 2 of 3 — the last cycle before the safety valve.** Routed `review → in_progress` on `agent:qa-ruben`'s explicit implementation-level recommendation. Sources: his review comment on AS-45 (`--role review`), both implementation reports, the Review Cycle 1 Findings section, and my own read of the branch at `73a0261`.
+
+**Read this paragraph before the finding.** Three `review → rework` transitions and the CLI blocks the fourth. This is the third. So the scope of this cycle is enumerated exhaustively below and the out-of-scope list is deliberately aggressive: **if it is not named under *In scope*, it does not happen in this cycle** — including improvements I would otherwise want. If an item turns out to need more than the shape prescribed here, that is a **plan-level finding raised before it is built**, not a decision the reworker takes around it.
+
+**Five items, all small.** One three-line change to a scanner; one falsification recipe; one six-line strengthening of an existing test case; two comment corrections. Nothing else moves. No template changes, no stylesheet changes, no new test file, no new case title, no new instrument.
+
+---
+
+### The blocking finding
+
+#### F-A — P4 enforces the attribute-name half of its property and not the tag-name half, and the README publishes the whole property. **Blocking. Reproduced independently.**
+
+*Reproduce, exactly.* Fresh `git archive` extract of `73a0261` outside the worktree. In `views/signin.ejs` replace
+
+```
+<span class="app-label">Invoicing</span>
+```
+
+with
+
+```
+<<%= displayName %> class="app-label">Invoicing</span>
+```
+
+*Assert applied:* `grep -oF '<<%= displayName %> class="app-label">' views/signin.ejs | wc -l` **= 1**, on disk and in the built image.
+
+*Observed by the reviewer:* the concept-row case **passes**; all four lexical rows green. The only failure is the incidental occurrence-count movement in the escaping case. Driven over HTTP against a container built from that image, `POST /signup` with `displayName` = `div onmouseover=alert(1) autofocus` and a malformed email served `<div onmouseover=alert(1) autofocus class="app-label">Invoicing</span>` — a live event handler out of a submitted value, needing neither an angle bracket nor a quote, with every guard green. That is F-3's exact class, one region over.
+
+*Confirmed independently by me before ruling*, because the resolution turns on the mechanism and I was not going to take the mechanism on report. I lifted `scanAttributeNamePosition`'s walker byte for byte into a standalone harness and fed it **five** constructs (cardinality before quantification: 5 inputs, 4 distinct constructs plus a baseline):
+
+| construct | tags | findings |
+|---|---|---|
+| `<span class="app-label">Invoicing</span>` (baseline) | 2 | 0 |
+| `<span class="app-label" <%= displayName %>>…` (F16, the guarded case) | 2 | **1** |
+| `<<%= displayName %> class="app-label">…` (**F-A**) | **1** | **0** |
+| `<span …>Invoicing</<%= x %>>` (closing-tag name region) | 2 | **1** |
+
+The tag count falling 2 → 1 on the F-A row is the same movement the reviewer measured file-wide as 87 → 86. And the closing-tag name region **is** covered, exactly as he reported, because `</` satisfies the same character class.
+
+*The mechanism, named precisely.* The walker's tag-start heuristic is
+
+```js
+if (!/[A-Za-z!/]/.test(code[i + 1] ?? '')) { i += 1; continue; }
+```
+
+A `<` whose next character is `<` fails that class, so the construct is classified as ordinary text; the following `<%` is then matched by the element-content branch above and skipped whole. The interpolation is never inside a scanned tag region, so no finding can be produced.
+
+*Why this is implementation-level and not plan-level.* Ruling **R-3** is binding and states the property as *"An output tag anywhere in the tag's name-or-attribute-name region is forbidden"*, and prescribes the algorithm as *"treats any residual `<%` between a `<` and its matching `>` as a violation"*. Under R-3's own algorithm this construct is between a `<` and its matching `>` and **is** caught. The plan already specifies the missing behaviour; the implementation is narrower than its own specification. That is the definition of implementation-level.
+
+*Why it is not cosmetic.* `README.md` § The view layer, property 4 — the paragraph AS-46, AS-47, AS-48 and AS-70's planners read first — states the name-or-attribute-name region. R-3's deliverable clause required that section to state *the positions actually enforced*. It does not. This is the same shape as F-4 and F-5, inside the one section this whole task exists to make true, and `<<%= tag %> …>` is a real templating idiom (a polymorphic heading level, a configurable wrapper element), not a contrivance.
+
+---
+
+### RULING R-6 — extend the scanner. The property stands as written; the mechanism comes up to meet it.
+
+The reviewer offered two resolutions and I am taking **(a), extend the scanner**. The orchestrator's routing comment stated the same preference and explicitly left it open to me; I have re-derived it rather than ratified it, and the reasoning is below including the one argument that pushed the other way.
+
+**1. R-3 already weighed narrowing and rejected it, on this exact property, eleven hours ago.** Its three grounds transfer verbatim to the tag-name half: the deliverable *is* the guarantee three later tasks inherit, so a residual *inside* it is not a residual beside it; it is cheapest now and gets monotonically more expensive as templates land; and the alternative is not "defer the guard", it is "ship a sentence that sounds like a property and is not". Reversing that inside one cycle, on the same property, for a fix **an order of magnitude cheaper than the one R-3 already ordered** (three lines against P4's ~50) would be incoherent in the expensive direction.
+
+**2. Narrowing is the more expensive option, which is the part that settles it.** Extending costs: three lines in `scanAttributeNamePosition`, one recipe, and two comment edits in blocks the reworker is opening anyway — landing on a **measured-zero baseline** (`grep -oF '<<%' views/*.ejs | wc -l` = **0** over the 1 file in `views/` at `73a0261`, measured by me, re-measure at edit time), so it cannot fail on arrival. Narrowing costs: an amendment to a binding ruling, a rewrite of README property 4, a rewrite of the P4 row header, **plus** a written bound on the residual in the R-5 style — and at the end of that work the position is still unguarded and the exploit still runs. More text, less software.
+
+**3. Does the reviewer's bound change the answer? No — it argues the other way, and this is worth writing down because it is a genuinely good argument that inverts on inspection.** The bound is real: the exploit moves `VIEW_START_TAGS` from 87 to 86, so an author cannot land it without consciously editing a committed number. But that number's own docstring instructs the author to do exactly that — *"moved deliberately when a template gains or loses an element"* — so the prescribed response to the alarm is to silence it. A detector whose signal is indistinguishable from the routine maintenance it is designed to require is not a detector. It is also a whole-directory scalar, not a per-site invariant: an author who plants the construct and adds an element in the same commit sees no net movement at all, and a **new** template arrives with a re-measured count by construction. So the bound lowers the severity — F-A is a residual, not a live vulnerability, since no template does this today — and it simultaneously demonstrates that the only thing standing between this app and the exploit is a number whose documented upkeep procedure erases the evidence. It made me weigh (b) seriously; it did not survive being written out.
+
+**What the extension is, prescribed so it cannot sprawl.** In `scanAttributeNamePosition`, before the "cannot begin a tag name" text test: when `code[i] === '<'` **and** `code.startsWith('<%', i + 1)`, that is a **finding in TAG-NAME position**, not text. Then treat it as a start tag — `tags += 1`, advance past the EJS tag, and continue scanning the remainder of the tag region so a second violation inside the same tag also reports.
+
+**Counting it as a start tag is part of the ruling, not an implementation detail.** At render time the construct *is* one start tag, so counting it is the truthful thing; and the consequence is that under the F17 mutation `VIEW_START_TAGS` **does not move**. The concept row becomes the sole detector, on its own merits, with the cardinality collision removed. That is the direct answer to the reviewer's "speed bump, not a guard" — after this change, it is a guard, and the recipe proves it by holding the count still while the row goes red.
+
+**And the README comes up to match, not down.** Property 4 keeps the name-or-attribute-name region and gains one clause: the closing-tag name region is covered too. The P4 row header states the tag-start rule in the same sentence as the property, because the gap between the English and the algorithm is precisely what this finding is.
+
+**The lexical limit is unchanged and stays stated.** P4 still does not see a route `res.send`ing a hand-built string, a view model computing markup, or a template outside `views/`. Nothing in this ruling widens that claim.
+
+---
+
+### The four non-blocking findings, and my ruling on each
+
+**All four ship in this cycle. None is filed.** The reason is uniform and is R-3 point 3 applied twice more: three of the four are **false or incomplete sentences in artifacts later planners read as settled**, and the fourth is a false sentence about a hazard, which costs the next author a search for a bug that does not exist. Each is confined to a file the rework already opens, and each is verifiable by an assertion or a re-read in under a minute. Filing a one-line correction to a false sentence is not deferral, it is publication.
+
+#### F-B — the apostrophe hazard is misdiagnosed, in a code comment and in the implementation report. **Ships. Correction prescribed.**
+
+The P4 header says the scan reads `strippedText()`, *"whose stripper treats an apostrophe in element content as a string delimiter and would swallow the rest of the file … A file swallowed that way yields no start tags, so committing the START TAG COUNT makes that failure loud instead of vacuous."*
+
+**Measured by the reviewer: `stripComments` swallows nothing.** Its quote branch appends every character it consumes, so the output is byte-for-byte the input; he ran it on `<h1>Don't panic</h1>\n<div onclick="x">hit</div>\n<span 'q>` and got the input back at the same length with the P2b regex still matching. P1–P3 are not narrowed by an apostrophe in element content at all.
+
+**What is real is a different instrument.** P4's **own walker** skips quoted spans inside a tag region, and an apostrophe outside a quoted span opens one — which is what collapses the examined tag count from 87 to 19 and turns the cardinality red. The reviewer predicted green and observed red on it.
+
+*Correction required:* rewrite that paragraph of the P4 header to name **P4's own walker** and the **collapsed tag count** as the failure mode the cardinality exists to catch, and delete the claim about the stripper. Keep the cardinality — it is justified, by the right mechanism. The implementation report's version of the claim is superseded by this paragraph; it is a Lattice comment and is not edited.
+
+*Recorded here for the next author, as required:* **there is no bug in `stripComments`. Do not go looking for one.** Right instinct, wrong instrument.
+
+#### F-C — the carve-out bound counts one spelling. **Ships. Strengthen the bound AND narrow the sentences.**
+
+`'requireSession has exactly one path carve-out'` counts occurrences of the literal `req.path` in the comment-stripped closure source. The reviewer added a second carve-out spelled `if (req.url === '/qaprobe-evasion') return next();` — assert-applied 0 → 1 on disk and in the image — and the suite stayed **green**, 405/387/0. The case's own title is honest; `guard.js`'s comment and `README.md` § Accounts are not — both say a second path *"cannot join the unobservable set without moving a committed number"*, which is stronger than what holds.
+
+**This is F-A's shape in a second location on the same branch: a property stated more widely than the mechanism enforces it.** Ruling F-A on that ground and filing this one would be incoherent, so it ships — and R-5's own doctrine settles which way: *a gap you cannot close is bounded and counted, not described in a comment.*
+
+*Ruling.* Do **both**, at the cheapest shape that is honest:
+
+1. **Count three spellings, committed separately, inside the existing case.** `req.path`, `req.url`, `req.originalUrl`. Measure each baseline before writing it down — my read of the source says `req.path` **1**, `req.originalUrl` **1** (the `next=` parameter, which is *not* a carve-out and whose comment must say so), `req.url` **0**; the implementer measures and records rather than copying these. A carve-out under any of the three moves a number.
+2. **Narrow both sentences to what is counted.** `guard.js`'s carve-out comment and `README.md` § Accounts state that the bound is over those three spellings, and state the residual plainly: a carve-out written another way — destructuring, bracket access, `req.baseUrl`, a match on something other than the path — is **not** counted.
+
+*Hard limits on this item:* it happens **inside the existing case**, which **keeps its exact title** (`'requireSession has exactly one path carve-out'`, which F8b's predicted set names). No new case, no new title, no new instrument, no change to `discoverRoutes`. Roughly six lines plus two sentence edits.
+
+#### F-D — the AS-70 hand-off note undercounts what it hands off. **Ships. The error originates in my own ruling, which I correct in place below.**
+
+`routes/pages.js`'s header says AS-70 pays *"one line here, plus the terminal-state assertions moving from a 200 body to a followed 303"*. Recipe F15 measured the true set at **six** cases, two of which are not terminal-state cases and sit in files the note does not hint at.
+
+*Correction required:* the header names all six, verbatim, so AS-70 does not rediscover them (titles verified against the branch at `73a0261`):
+
+- `test/screens.test.js` → `'GET / is an interim text/plain line, not a screen'`
+- `test/screens.test.js` → `'a signed-in GET /signin lands on a page that exists'`
+- `test/auth.test.js` → `'a successful sign-up with no next lands on a page that exists'`
+- `test/auth.test.js` → `'a successful sign-in with no next lands on a page that exists'`
+- `test/auth.test.js` → `'H11: a garbage cookie is refused exactly like an absent one'` (the admitted-200 control)
+- `test/health.test.js` → `'GET / answers a signed-in caller rather than 404ing'`
+
+The code comment inherited the undercount from **R-2's cost paragraph**, which I wrote. Corrected in place below; the code comment is brought into agreement with it.
+
+#### F-E — AC 25 still describes a two-row view set. **Corrected in place by me. Nothing for the rework to do.**
+
+See *Corrections made in place*, item 1.
+
+---
+
+### In scope for cycle 2 — exhaustive
+
+Exactly these five, and the standing evidence obligations under them.
+
+1. **The P4 scanner extension** per R-6, plus the P4 row header and `README.md` property 4 brought into agreement with it (and F-B's correction to the same header).
+2. **Recipe F17**, written into §7 and run.
+3. **The carve-out bound** per F-C: three counted spellings inside the existing case, plus the two narrowed sentences, plus the F8b variant below.
+4. **`routes/pages.js`'s hand-off header** per F-D: name all six cases.
+5. **Nothing else.**
+
+**Recipes to add or re-run.** Only what this rework touches, under §7's discipline — assert on a marker the mutation introduces or an occurrence-accurate count (`grep -oF … | wc -l`, **never** `grep -c`); mutate a scratch `git archive` extract outside the worktree; assert applied **on disk and in the built image**; record the exact observed failing set; remove the image.
+
+- **F17 (new) — P4 fires in TAG-NAME position.** *Mutation:* in `views/signin.ejs`, replace `<span class="app-label">Invoicing</span>` with `<<%= EXPR %> class="app-label">Invoicing</span>`. *Assert applied:* an occurrence count of that exact construct, `0 → 1`, on disk and in the image; the whole-directory baseline `grep -oF '<<%' views/*.ejs | wc -l` is **0** before the mutation (measured 2026-09-03 at `73a0261`; re-measure). *Predicted failing set:* **exactly one case** — the concept-row case, naming `views/signin.ejs` and the **TAG-NAME** position. *And assert, in the same run, that the P4 cardinality assertion stays GREEN at `VIEW_START_TAGS` = 87* — under R-6 the pseudo-tag is counted, so the count must not move. **If the cardinality also fires, the extension did not preserve the count and the recipe is reporting the speed bump instead of the guard: record that and say so rather than adjusting the prediction.**
+  - *Choose `EXPR` so that nothing but P4 fires.* F16's hazard is live here: `displayName` renders elsewhere on the page, so planting it moves an unrelated occurrence count and produces a red suite for a second reason — which looks like a pass for the wrong reason. Pick an expression that fires only the concept row, and **record which expression and why**. If no such expression exists, plant `displayName`, predict **two**, name the second case and its reason before running. Do not widen the prediction after observing.
+- **F8b (extended) — the carve-out bound is spelling-aware.** Keep the existing `req.path` variant. Add a second run with the carve-out spelled `req.url`, and a third with `req.originalUrl`. *Assert applied* by an occurrence count of the introduced path literal, `0 → 1`, each time. *Predicted failing set each time:* one case, `auth.test.js` → `'requireSession has exactly one path carve-out'`. The `req.url` run is the one that is **green today**; it is the point of the item.
+- **F16** — re-run, because the row it exercises changed. Predicted set unchanged.
+- **F12 at both ends**, on a rebuilt image, as always.
+
+**Recipes NOT re-run**, because they exercise code this rework does not touch and re-running an unchanged guard is cost, not evidence: F1, F2a/b/c, F3, F4a/b, F5, F6, F7, F9a/b, F10, F11, F13, F14, F15, F8 (replacement), H8, and the P1 allowlist's three directions. All were confirmed by two independent parties. If the rework touches what one of them exercises, it is re-run **and the report says so**.
+
+**Evidence the rework must produce**, and nothing beyond it: cardinality before quantification (cases touched, recipes run, baselines measured — before any pass count); the full offline suite green with an unchanged file count; the contract suite green with no stripe-mock case added or modified; F12 at both ends; and the observed failing set of every recipe run, verbatim, including any divergence from the prediction.
+
+**What would prove this cycle.** Two new numbered criteria, added to §6 in place by me and repeated here so the reworker has them without re-reading:
+
+- **AC 31.** `views/` contains **zero** occurrences of a `<` immediately followed by an EJS open tag (measured baseline), and planting F17's construct makes the P4 row report a finding naming **TAG-NAME position** — with `VIEW_START_TAGS` **unchanged** in that same run. The criterion is satisfied by an observed red on the row and an observed green on the cardinality, not by an argument.
+- **AC 32.** `'requireSession has exactly one path carve-out'` commits a separate count for each of `req.path`, `req.url` and `req.originalUrl`, and F8b run in each of the two spellings that are unmoved today turns that case red.
+
+---
+
+### Out of scope for cycle 2 — exhaustive, and deliberately aggressive
+
+**Cycle 1's out-of-scope list carries forward unchanged and in full.** In addition, and specific to this cycle:
+
+1. **Any other change to P4's walker.** No single-quote redesign, no unterminated-quote handling change, no comment-syntax handling, no `<!--` awareness, no move to a parser. Three lines and a counted pseudo-tag.
+2. **Any movement in `VIEW_START_TAGS`.** No template changes in this cycle, so the number does not move. If it moves, something out of scope happened.
+3. **Any change to a template or a stylesheet.** `views/signin.ejs` and `public/app.css` are byte-identical to `f62e82c` and must still be at the end of this cycle. F17 mutates a scratch extract, never the worktree.
+4. **Any new test file, new test case, or renamed case title.** F-C's fix goes *inside* the existing case. The suite stays at 17 files.
+5. **`discoverRoutes` and mount-position observability.** R-5 stands; the residual stays bounded, not closed.
+6. **B4 and B5** — the responsive case's narrowness and the four `only:`-scoped rows' `files.length > 0` floors. Both remain deferred to AS-70, both correctly analysed by two reviewers, neither touched here.
+7. **A 375px re-inspection.** The skip stands on the argument recorded below, not on the one originally given. No template changes, so nothing new renders.
+8. **Any README restructuring** beyond the two clauses named in scope items 1 and 3.
+9. **§10, §11, and the metawork proposals.** The reworker does not edit them; §10 M4–M6 below are mine, addressed to the metawork layer.
+10. **Top-level protected markdown** — `CLAUDE.md`, root `README.md`, `PHILOSOPHY.md`, `agents.md`. Untouched, as always.
+11. **Any status transition, push, merge, or `.lattice/` write from the worktree.** The two-plane rule is unchanged.
+
+---
+
+### Corrections made in place
+
+By me, `agent:cto-owen`, 2026-09-03, in this plan on master. Originals are quoted at each site.
+
+1. **AC 25** — annotated for the split, the way AC 16 was. It described a two-row `VIEWS`; the split makes it one, `VIEWS.length` is 1, and `test/health.test.js` pins it at 1 correctly. (Reviewer's F-E.)
+2. **R-2, the cost paragraph** — the AS-70 hand-off undercount, at its origin. My sentence said one line plus the terminal-state assertions; F15 measured six cases across three files. Corrected, with all six named. `routes/pages.js`'s header inherits the correction as scope item 4.
+3. **§6** — **AC 31** and **AC 32** added, per *What would prove this cycle*.
+4. **§7** — **F17** added and **F8b** extended, per *Recipes to add or re-run*.
+5. **§10** — **M4**, **M5** and **M6** added, marked as proposals to the metawork layer rather than decisions.
+
+**Deliberately not corrected by me, because they sit inside the reworker's edit surface** and a second author editing them mid-cycle invites a merge seam: the P4 row header in `test/dependency-policy.test.js`, `README.md` § The view layer property 4, `README.md` § Accounts' residual paragraph, `lib/auth/guard.js`'s carve-out comment, and `routes/pages.js`'s hand-off header. All five are named as deliverables above.
+
+---
+
+### Two records the next author needs, neither of which is rework
+
+**1. The flagged apostrophe hazard does not exist in the stripper.** Restated here so it survives outside a comment: the implementation report at the end of cycle 1 flagged `stripComments`' apostrophe handling as able to swallow the remainder of a file and silently narrow P1–P4. The reviewer ran the stripper and got the input back byte for byte at the same length. **There is no bug there.** The real hazard is P4's own in-tag quote skipping, it collapses the examined tag count 87 → 19, and the committed cardinality catches it loudly — predicted green, observed red. Same instinct, wrong instrument.
+
+**2. The skipped 375px inspection stands, on a different argument than the one given.** The argument on record was that nothing rendering-relevant changed — *"the only rendered difference is which sentence appears in the already-inspected `S1-ERROR-SYSTEM` banner."* The file half is true and was verified the hard way: `views/signin.ejs` and `public/app.css` are the **same git blobs** at `f62e82c` and `73a0261`. But there are **two** rendered differences, not one. The second: a parse-body refusal at `POST /signup` now renders the **sign-up** form carrying a system-error banner — a (mode × state) pairing that had never rendered before the fix, because every parse-body previously fell through to the sign-in form. That is a new render, not a new sentence.
+
+The argument that actually carries the skip: **that pairing's geometry is exactly the already-inspected `email-taken` render** — sign-up form, three fields, `.banner-error` above it — and cycle 1's recorded inspection covered all eight rendered states at a measured 375px layout viewport (`documentElement.scrollWidth` 375 == `clientWidth` 375), including a deliberately hostile 91-character email in that same banner. The new sentence is *shorter* than the one it replaces and sits in the same `.banner-error p` box, which already carries `overflow-wrap: break-word`. No new element, no new class, no new box. **Skip stands; this is the reason.** Getting a correct answer from a wrong argument is a defect in the record even when the answer holds, which is why the reviewer said so instead of accepting it.
+
+---
+
+### The pattern is now three cycles old, and the checklist is not the fix
+
+Cycle 1: 27 of 27 in-scope criteria passed with two defects standing. Cycle 2: 26 of 26 passed with one standing. AS-40 before that. Three for three, and each time the defect was found by a reviewer going **past** the list rather than **down** it.
+
+After cycle 1 I called this a plan-authoring failure and proposed two rules — M1 (terminal states) and M2 (a binding table is a criterion set). I wrote both directly into this task's criteria. **The very next cycle produced a defect in a shape neither rule addresses**, and the reviewer said so plainly: F-A is *"a property stated more widely than the mechanism enforces it"*, and only breaking the guard found it.
+
+**So what is the actual mechanism?** It is not that the criteria were too few. It is that **the criteria are derived from the design, by the author of the design, in the design's own vocabulary — so they inherit the design's blind spot exactly.** AC 20 asserted a hop because §3.3.4 described a hop. ACs 1–3 asserted enumerated positions because the guard enumerates positions. Each criterion is a faithful restatement of what the plan already believed, made checkable. A restatement cannot detect an omission in the thing it restates. That is a closure property of the method, not a lapse of diligence — which is exactly why M1 and M2 did not help: they added two more restatements and **moved** the blind spot rather than removing it.
+
+**Can a rule address it at all? Partially, in one direction only.** There is one class of criterion that is written against the *claim* rather than against the *artifact*: name the input that must make the mechanism **fail**. Cycle 2's finding, cycle 2's second finding (F-C), and F-3 in cycle 1 are all the same shape — an English sentence wider than its algorithm — and all three are caught the same way, by requiring the sentence to nominate its own falsifier. That is **§10 M4**, and I am adopting the reviewer's proposed wording rather than waiting for his stated trigger of a third instance on AS-46 or AS-70: **the third instance already landed, in his own list, one finding down.** F-A and F-C are two instances of the shape in one cycle in one branch.
+
+**And the honest part, which is not a rule.** M4 covers properties someone thought to *state*. It does nothing for a property nobody wrote down, and there is no list-shaped instrument that does — a longer checklist is more restatements of the same beliefs. That residual is carried entirely by **the reviewer's independent adversarial probing**, and on the evidence of three cycles that is not a supplementary control, it is **the load-bearing one**. Priya drove a 300 KB body at a route nothing tested and followed a redirect chain to its terminus. Ruben probed the guard's edges before he read a single report, and predicted green where he observed red. Neither was on any list.
+
+Two consequences follow, and they go to the metawork layer as **§10 M5** and **§10 M6** rather than being assumed here. **The criteria list is a floor.** A review that walks it to 100% and stops has measured the floor, not the software — and reporting "26 of 26" as the headline of a review that *also* produced a blocking finding invites precisely the reading that those two numbers describe the same thing. They do not. On this branch, three cycles running, the pass rate has been a true statement and a misleading one simultaneously.
+
