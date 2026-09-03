@@ -24,9 +24,22 @@
 // 502 — with no template, no interpolation and no data-state.
 //
 // TWO HAND-OFFS, both named:
-//   AS-70 restores the redirect when /connect-stripe exists (one line here,
-//         plus the terminal-state assertions moving from a 200 body to a
-//         followed 303).
+//   AS-70 restores the redirect when /connect-stripe exists: one line here,
+//         plus SIX cases across THREE test files, named in full so AS-70 does
+//         not have to rediscover them (measured by recipe F15, which pointed
+//         this route at a path nothing serves; corrected here in review cycle 2,
+//         finding F-D, from an earlier note that said "the terminal-state
+//         assertions" and undercounted by two — in the direction that makes a
+//         follow-up look cheaper than it is):
+//           test/screens.test.js  'GET / is an interim text/plain line, not a screen'
+//           test/screens.test.js  'a signed-in GET /signin lands on a page that exists'
+//           test/auth.test.js     'a successful sign-up with no next lands on a page that exists'
+//           test/auth.test.js     'a successful sign-in with no next lands on a page that exists'
+//           test/auth.test.js     'H11: a garbage cookie is refused exactly like an absent one'
+//           test/health.test.js   'GET / answers a signed-in caller rather than 404ing'
+//         The last two are NOT terminal-state cases and sit in files the note
+//         used to give no hint of: H11 is the admitted-200 control, and
+//         health.test.js's case asserts / answers a signed-in caller at all.
 //   AS-48 owns POST_SIGNIN_LANDING in lib/auth/guard.js and the Dashboard, and
 //         replaces this route entirely. The interim body is precisely what it
 //         was already going to replace, so it pays nothing extra.

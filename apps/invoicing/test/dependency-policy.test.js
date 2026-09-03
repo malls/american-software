@@ -636,7 +636,7 @@ function scanRawOutput() {
   return { findings, seen };
 }
 
-// --- AS-45 review cycle 1: P4, the ATTRIBUTE-NAME position -------------------
+// --- AS-45: P4, the TAG-NAME and ATTRIBUTE-NAME positions -------------------
 //
 // EJS escapes exactly five characters — & < > " ' — and does NOT escape `=` or
 // a space. So an interpolation that sits between attributes, rather than inside
@@ -656,7 +656,24 @@ function scanRawOutput() {
 //
 // P4 — WITHIN ANY START TAG, EVERY EJS OUTPUT TAG SITS INSIDE AN ATTRIBUTE
 // VALUE. An output tag anywhere in the tag's name-or-attribute-name region is
-// forbidden.
+// forbidden, and BOTH HALVES ARE ENFORCED — which they were not when this row
+// first landed. The attribute-name half is enforced by the in-tag walk below.
+// The tag-name half is enforced by an explicit TAG-START RULE, stated here in
+// the same breath as the property because the gap between the English and the
+// algorithm is exactly what review cycle 2 found: a `<` immediately followed by
+// an EJS open tag opens a start tag whose NAME is interpolated, and is a
+// FINDING rather than text. The CLOSING-tag name region (a closing tag whose
+// name is interpolated) is covered too, by the same in-tag walk, because a
+// closing tag's two-character opener begins a scanned tag region.
+//
+// FINDING F-A, so the reason survives: the first version of this row treated a
+// `<` followed by an EJS open tag as ordinary text, because `<` is not in its
+// tag-start character class. Planting `<INTERPOLATION class="app-label">`
+// produced NO finding with all four lexical rows green, and a container built
+// from that image served `<div onmouseover=alert(1) autofocus …>` out of a
+// submitted value — no angle bracket and no quote required. The property was
+// stated more widely than the mechanism enforced it. Ruling R-6: the mechanism
+// comes up to meet the property, and the property is not narrowed.
 //
 // IT IS SOUND *BECAUSE P3 HOLDS*, and that dependency is the whole design — the
 // same shape as §3.2's stylesheet scope being sound because P2a and P2c hold.
@@ -669,12 +686,22 @@ function scanRawOutput() {
 // res.send-ing a hand-built string, and it does not stop a view model from
 // computing markup. The dynamic half is the falsification recipe, not this row.
 //
-// CARDINALITY BEFORE QUANTIFICATION, and it is not decoration here. The scan
-// reads strippedText(), whose stripper treats an apostrophe in element content
-// as a string delimiter and would swallow the rest of the file — an inherited
-// property of the instrument P1-P3 already use, not introduced here. A file
-// swallowed that way yields no start tags, so committing the START TAG COUNT
-// makes that failure loud instead of vacuous.
+// CARDINALITY BEFORE QUANTIFICATION, and it is not decoration here. The
+// instrument that can silently narrow this scan is THIS ROW'S OWN WALKER. Inside
+// a tag region the walk skips quoted spans; an apostrophe that is not a
+// delimiter — the one in `don't`, sitting in element content — opens a span that
+// runs to the next apostrophe anywhere in the file, and every tag between them
+// goes unexamined. Measured in review cycle 2: the 87 examined start tags
+// collapse to 19. Committing the START TAG COUNT makes that failure loud
+// instead of vacuous, and it did: the reviewer predicted green and observed red.
+//
+// THERE IS NO BUG IN stripComments — DO NOT GO LOOKING FOR ONE (finding F-B).
+// This paragraph used to claim that the stripper treats an apostrophe in element
+// content as a string delimiter and would swallow the rest of the file. It does
+// not: its quote branch appends every character it consumes, so its output is
+// byte-for-byte its input, measured directly on a file carrying all three
+// hazards. P1-P3 are not narrowed by an apostrophe in element content at all.
+// Right instinct, wrong instrument.
 const VIEW_FILES = /^views\//;
 
 /** The number of start tags P4 examines across views/. Measured at the moment
@@ -710,10 +737,30 @@ function scanAttributeNamePosition() {
         i = close === -1 ? code.length : close + 2;
         continue;
       }
-      // A `<` followed by anything that cannot begin a tag name is text.
-      if (!/[A-Za-z!/]/.test(code[i + 1] ?? '')) { i += 1; continue; }
-      tags += 1;
-      i += 1;
+      // TAG-NAME POSITION (review cycle 2, ruling R-6). A `<` immediately
+      // followed by an EJS open tag is not text: at render time it opens ONE
+      // start tag whose NAME came out of the expression. It is COUNTED as a
+      // start tag for that reason — the construct does not move the committed
+      // cardinality, so the findings assertion below is the sole detector and
+      // fires on its own merits. Scanning then continues through the rest of
+      // the tag region, so a second violation inside the same tag also reports.
+      const tagNamed = code.startsWith('<%', i + 1);
+      if (tagNamed) {
+        const close = code.indexOf('%>', i + 1);
+        findings.push(
+          `${file}:${lineAt(code, i)}: EJS interpolation in TAG-NAME position — `
+            + `${code.slice(i + 1, close === -1 ? code.length : close + 2)} — `
+            + 'the element NAME comes out of the expression, so a submitted value renders as markup '
+            + 'STRUCTURE here; an element name must be a literal',
+        );
+        tags += 1;
+        i = close === -1 ? code.length : close + 2;
+      } else {
+        // A `<` followed by anything that cannot begin a tag name is text.
+        if (!/[A-Za-z!/]/.test(code[i + 1] ?? '')) { i += 1; continue; }
+        tags += 1;
+        i += 1;
+      }
       while (i < code.length && code[i] !== '>') {
         if (code[i] === '"' || code[i] === "'") {
           const quote = code[i];
@@ -962,11 +1009,15 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
     [],
     { only: /^(views|public)\// },
   );
-  // P4 — NO INTERPOLATION IN ATTRIBUTE-NAME POSITION (review cycle 1, F-3).
+  // P4 — NO INTERPOLATION IN THE TAG-NAME OR ATTRIBUTE-NAME REGION (review
+  // cycle 1, F-3; the tag-name half added by review cycle 2, ruling R-6).
   // Scoped to views/ alone rather than views/ + public/: a stylesheet has no
   // start tags, so including it would add only false-positive surface (`a > b`)
-  // and no coverage. Cardinality on the instrument FIRST — a stripped file that
-  // swallowed itself yields zero tags and must be red, not green.
+  // and no coverage. Cardinality on the instrument FIRST — a walker whose in-tag
+  // quote skipping has run away examines a collapsed number of tags and must be
+  // red, not green. And note what the cardinality deliberately does NOT do: an
+  // interpolated tag name is counted as a start tag, so planting one leaves this
+  // number unmoved and the findings assertion is the only thing that can catch it.
   const attrName = scanAttributeNamePosition();
   assert.ok(attrName.files > 0, 'P4: the views/ file set is EMPTY — this row is examining nothing');
   assert.equal(
@@ -975,7 +1026,7 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
     `P4 examined ${attrName.tags} start tags across ${attrName.files} template(s), expected ${VIEW_START_TAGS} — `
       + 'a template gained or lost an element, or the scan is seeing less of a file than it should',
   );
-  assert.deepEqual(attrName.findings, [], `interpolation in attribute-name position: ${attrName.findings.join('; ')}`);
+  assert.deepEqual(attrName.findings, [], `interpolation in the tag-name or attribute-name region: ${attrName.findings.join('; ')}`);
 });
 
 test('no file in apps/invoicing exceeds 1,200 lines', () => {

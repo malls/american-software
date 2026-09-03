@@ -422,10 +422,15 @@ means editing `PUBLIC_ROUTES` with a written reason, which is a reviewable act.
 What is **not** observable is publicness-by-placement versus
 publicness-by-carve-out, and `/signin` is the only path where those differ. The
 residual is bounded rather than closed, by `auth.test.js`'s `'requireSession has
-exactly one path carve-out'`: no second path joins the unobservable set without
-moving a committed number. (That case is required by AS-45 review cycle 1 and
-lands with the rework; if it does not exist when you read this, that is itself a
-finding.)
+exactly one path carve-out'`, **and the bound is over three spellings of the
+request path**: the case commits a separate count for `req.path`, `req.url` and
+`req.originalUrl` in the guard's own source, so a second carve-out written any
+of those three ways moves a committed number. What is **not** counted, stated
+plainly rather than implied: a carve-out written another way — destructuring,
+bracket access, `req.baseUrl`, or a match on something that is not the path —
+joins the unobservable set silently. (Review cycle 2, finding F-C: the bound
+previously counted `req.path` alone, and a carve-out spelled `req.url` was shown
+to pass with the suite green while these sentences claimed otherwise.)
 
 **Passwords** are hashed with `scrypt` from `node:crypto` — no new dependency —
 at `N=16384, r=8, p=1, keylen=32`, 16-byte salt, `maxmem` passed explicitly.
@@ -575,18 +580,30 @@ so this section states what is actually enforced and nothing more:
    call at the call site.
 3. **Attribute values carrying data are double-quoted**, because escaping `"`
    only helps if `"` is the delimiter.
-4. **No interpolation in attribute-name position.** Within any start tag in
-   `views/`, every output tag sits **inside a double-quoted attribute value**;
-   an output tag in the tag's name-or-attribute-name region is forbidden. This
-   is the position `<span class="x" INTERPOLATION>` puts a submitted value in,
-   where `x onmouseover=alert(1)` becomes a live event handler and needs neither
-   an angle bracket nor a quote. It is sound **because property 3 holds**: the
-   scan skips quoted spans, which is what makes a `>` inside an attribute value
-   harmless. It is a *lexical* rule, so it cannot assert a render-time property;
-   that half is a falsification recipe that plants the construct, rebuilds, and
-   drives the exploit at a running container. Its non-vacuity floor is a
-   committed start-tag count, so a template the stripper swallowed is red rather
-   than quietly examined-nothing.
+4. **No interpolation in the tag-name or attribute-name region.** Within any
+   start tag in `views/`, every output tag sits **inside a double-quoted
+   attribute value**; an output tag in the tag's name-or-attribute-name region
+   is forbidden. Both halves are enforced, and the second sentence of the
+   property is the rule that enforces the first half, stated here rather than
+   left to the scanner: **a `<` immediately followed by an EJS open tag opens a
+   start tag whose name is interpolated, and is a finding rather than text.**
+   The **closing**-tag name region is covered too, by the same in-tag walk. The
+   two positions are `<span class="x" INTERPOLATION>` and
+   `<INTERPOLATION class="x">`, and a submitted value of `x onmouseover=alert(1)`
+   in either becomes a live event handler needing neither an angle bracket nor a
+   quote — the second of them was unguarded until review cycle 2 found it and
+   ruling R-6 extended the scan (the property was never narrowed to match the
+   mechanism). It is sound **because property 3 holds**: the scan skips quoted
+   spans, which is what makes a `>` inside an attribute value harmless. It is a
+   *lexical* rule, so it cannot assert a render-time property; that half is a
+   falsification recipe that plants each construct, rebuilds, and drives the
+   exploit at a running container. Its non-vacuity floor is a committed
+   start-tag count, which catches the one instrument that can silently narrow
+   the scan — **its own walker**, whose in-tag quote skipping is opened by a
+   stray apostrophe and collapses the examined tag count (measured: 87 to 19).
+   An interpolated tag name is *counted* as a start tag, because at render time
+   it is one, so the count does not move when the construct is planted and the
+   finding stands on its own merits.
 
 Each landed on a **measured baseline of zero**, so none is a hole waiting for a
 tenant. The one exception measured **one**: the scaffold page's

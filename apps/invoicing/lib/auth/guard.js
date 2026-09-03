@@ -185,10 +185,20 @@ export function requireSession(config) {
     // discipline (a new route requires a PUBLIC_ROUTES edit with a written
     // reason) is what enforces it. The residual — publicness by placement
     // versus publicness by carve-out — is bounded rather than closed, by
-    // auth.test.js's 'requireSession has exactly one path carve-out': a second
-    // path cannot join the unobservable set without moving a committed number.
-    // That case is required by review cycle 1 and lands with the rework; if you
-    // are reading this and it does not exist, that is itself a finding.
+    // auth.test.js's 'requireSession has exactly one path carve-out'. THE BOUND
+    // IS OVER THREE SPELLINGS of the request path — req.path, req.url and
+    // req.originalUrl — each counted separately in this function's own source,
+    // so a second carve-out written any of those three ways moves a committed
+    // number. WHAT IT DOES NOT COUNT, said plainly rather than left to be
+    // discovered: a carve-out written another way — destructuring the request,
+    // bracket access, req.baseUrl, or a match on something that is not the path
+    // — joins the unobservable set without moving anything.
+    //
+    // NARROWED 2026-09-03 (review cycle 2, finding F-C). This comment used to
+    // say a second path "cannot join the unobservable set without moving a
+    // committed number", full stop. That was wider than the mechanism: the case
+    // counted req.path alone, and a carve-out spelled `req.url` was added in
+    // review with the whole suite staying green.
     if (req.path === SIGNIN_PATH) return next();
     const target = SAFE_METHODS.has(req.method)
       ? `${SIGNIN_PATH}?next=${encodeURIComponent(req.originalUrl)}`

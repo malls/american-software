@@ -858,13 +858,13 @@ test('requireSession has exactly one path carve-out', () => {
     .filter((line) => !/^\s*\/\//.test(line))
     .join('\n');
   assert.ok(source.includes('req.currentUser'), 'the stripper removed the function body, not just its comments');
-  const carveOuts = source.split('req.path').length - 1;
-  assert.equal(
-    carveOuts,
-    1,
-    `requireSession names req.path ${carveOuts} time(s), expected exactly 1 — a second carve-out widens the `
-      + 'set of paths whose mount position the partition cannot observe, and that set is bounded at one',
-  );
+  // SPELLING-AWARE (review cycle 2, F-C): counting `req.path` alone let a second carve-out spelled `req.url === '/x'`
+  // past with the suite GREEN. Counts measured here, not copied; req.originalUrl's 1 is the `next=` parameter, not a
+  // carve-out. UNCOUNTED, and this is the bound's honest edge: destructuring, bracket access, req.baseUrl, a non-path match.
+  for (const [spelling, expected] of [['req.path', 1], ['req.url', 0], ['req.originalUrl', 1]]) {
+    const seen = source.split(spelling).length - 1;
+    assert.equal(seen, expected, `requireSession names ${spelling} ${seen} time(s), expected ${expected} — a second carve-out widens the set of paths whose mount position the partition cannot observe, and that set is bounded at one`);
+  }
 });
 
 // G1–G13: reachability, CSRF and impersonation
