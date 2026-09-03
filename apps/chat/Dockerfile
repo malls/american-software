@@ -10,9 +10,10 @@ COPY package.json server.js ./
 COPY lib ./lib
 COPY bin ./bin
 COPY public ./public
-# watch/ is HOST-side tooling (AS-7) and never runs in the container; it is
-# copied in only so the mountless test service can import its pure decide()
-# logic — the suite runs the exact bits the repo ships.
+# watch/ is HOST-side tooling (AS-7): main() never runs in the container. It is
+# copied in because two things import it — the mountless test service (pure
+# decide() logic) and, since AS-27, server.js itself, for the one staleness
+# predicate (isLockStale/DEFAULTS.lockStaleMin) behind /api/loop-status.
 COPY watch ./watch
 COPY test ./test
 # Deployment manifests as DATA, not as anything the runtime reads (AS-26):

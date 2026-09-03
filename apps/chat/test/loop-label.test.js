@@ -94,7 +94,7 @@ test('AS-27 label: the no-heartbeat watcher yields the off tone and names the re
     const d = describeLoopStatus(
       status({ state: 'off', watcher: { listening: false, heartbeatAt: null, ageS: null, reason } }), NOW).detail;
     assert.match(d, /^.*Watcher: [a-z]/, `${reason}: prose, not an enum`);
-    assert.doesNotMatch(d, new RegExp(`not listening \\\\(${reason}\\\\)`), `${reason} has a written explanation`);
+    assert.doesNotMatch(d, new RegExp(`not listening \\(${reason}\\)`), `${reason} has a written explanation`);
   }
 });
 
