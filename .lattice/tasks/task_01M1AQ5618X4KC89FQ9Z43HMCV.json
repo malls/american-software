@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 6,
+  "comment_count": 7,
   "complexity": null,
   "created_at": "2026-08-31T01:32:48Z",
   "created_by": "agent:cto-owen",
@@ -17,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1AQ5618X4KC89FQ9Z43HMCV",
-  "last_event_id": "ev_01M1M3AR7GEKFFA58WNMQ29ZGM",
+  "last_event_id": "ev_01M1M3CZWZXWX4EGH34HD1NPVJ",
   "last_status_changed_at": "2026-09-03T16:58:43Z",
   "priority": "medium",
   "relationships_out": [],
@@ -28,6 +28,6 @@
   "tags": null,
   "title": "Chat: surface advance-loop status in the UI \u2014 active loop / single tick in flight / idle",
   "type": "task",
-  "updated_at": "2026-09-03T16:58:43Z",
+  "updated_at": "2026-09-03T16:59:57Z",
   "urgency": null
 }
