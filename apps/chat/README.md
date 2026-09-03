@@ -149,6 +149,21 @@ that emit text and structure, never markup; DOM assembly is
 file viewer. The message input stays plain text: no preview pane, no `\*`
 escaping in v1 (literal asterisks belong in code spans).
 
+**Bare URLs autolink (AS-54).** An `http://` or `https://` URL typed without
+markdown brackets renders as a link — `http://127.0.0.1:8348/` is clickable as
+written. Trailing sentence punctuation (`.` `,` `;` `:` `!` `?`) is read as
+prose and left outside the link, so a URL ending a sentence does not carry the
+full stop into its `href`. A trailing `)`, `]` or `}` joins the URL only when
+its opener is inside it, so `…/wiki/Foo_(bar)` keeps its parenthesis while
+`(see http://x/)` does not. Every other scheme — `javascript:`, `data:`,
+`file://`, `ftp://`, `mailto:` — and scheme-less `www.` stay literal text: the
+allowlist is the same http/https one the `[text](…)` pattern uses, and it lives
+in the regex, so there is nothing to reject after the fact. The URL pass runs
+**first** among the per-leaf passes and its tokens are terminal, which is what
+guarantees an `AS-26`, `msg156` or `README.md` sitting inside a URL is never
+turned into a ref link; the pass is skipped entirely inside a markdown link's
+label, so an autolink can never nest inside one.
+
 ## Links to Lattice (AS-10)
 
 The outbound direction: resolvable `AS-n` refs in any message (including
