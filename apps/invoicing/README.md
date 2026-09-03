@@ -399,9 +399,30 @@ overwrites it.
 **above** the auth boundary, because it is where `requireSession` sends every
 signed-out visitor and a guarded sign-in page is an infinite redirect. The
 guard's carve-out for that path is kept even though the route now sits above it:
-it still answers every unregistered method on the path (`PUT /signin`), and
-`auth.test.js`'s G3 is what proves the two interact — move the route below the
-boundary and the carve-out lets a cookieless request reach the handler.
+it still answers every unregistered method on the path (`PUT /signin`).
+
+**The route partition is a one-directional guarantee, and it is worth knowing
+which direction.** *(Corrected 2026-09-03, AS-45 review cycle 1, finding F-5.
+This paragraph previously read: "`auth.test.js`'s G3 is what proves the two
+interact — move the route below the boundary and the carve-out lets a cookieless
+request reach the handler." That is false; moving the route below the boundary
+leaves the suite green, confirmed independently twice.)* G2 and G3 derive the
+protected set by filtering the discovered routes against the `PUBLIC_ROUTES`
+literal, and the carve-out returns `next()` before `requireSession` can redirect
+— so for `/signin` the mount position is **unobservable**, not tested. What G2
+and G3 **do** prove, and prove strongly: **a route that should be protected but
+is mounted public is caught, provided nobody also adds it to `PUBLIC_ROUTES`** —
+each cookieless answer on the protected side is attributable to the guard (same
+status as an unrouted probe, no `Set-Cookie`, guard-derived `Location`). The
+proviso is the hinge, and the two-file discipline enforces it: adding a route
+means editing `PUBLIC_ROUTES` with a written reason, which is a reviewable act.
+What is **not** observable is publicness-by-placement versus
+publicness-by-carve-out, and `/signin` is the only path where those differ. The
+residual is bounded rather than closed, by `auth.test.js`'s `'requireSession has
+exactly one path carve-out'`: no second path joins the unobservable set without
+moving a committed number. (That case is required by AS-45 review cycle 1 and
+lands with the rework; if it does not exist when you read this, that is itself a
+finding.)
 
 **Passwords** are hashed with `scrypt` from `node:crypto` — no new dependency —
 at `N=16384, r=8, p=1, keylen=32`, 16-byte salt, `maxmem` passed explicitly.

@@ -156,9 +156,32 @@ export function requireSession(config) {
     // line is dead for the case it was written for. IT IS KEPT ON PURPOSE: it
     // still answers every UNREGISTERED METHOD on that path — PUT /signin,
     // DELETE /signin — which would otherwise redirect to itself, and it costs
-    // one comparison. test/auth.test.js's G3 exercises the interaction: move
+    // one comparison. (Note the ordering, measured in review: for an
+    // unregistered method the origin check runs FIRST, so this line is reached
+    // only after requireSameOrigin has let the request past.)
+    //
+    // CORRECTED 2026-09-03 (AS-45 review cycle 1, finding F-5). This comment
+    // used to claim: "test/auth.test.js's G3 exercises the interaction: move
     // GET /signin below the boundary and this carve-out lets a cookieless
-    // request through to the handler, which turns G3 red.
+    // request through to the handler, which turns G3 red." THAT IS FALSE, and it was falsified twice independently — moving
+    // the route below the boundary leaves the whole suite GREEN. Two reasons,
+    // either sufficient alone: G2/G3 derive the protected set by filtering the
+    // discovered routes against the PUBLIC_ROUTES literal, which names
+    // 'GET /signin' regardless of which sub-router registered it; and this
+    // carve-out returns next() before requireSession can redirect, so a
+    // cookieless GET answers 200 from either side. THE CARVE-OUT DOES NOT TEST
+    // THE MOUNT POSITION — IT MAKES THE POSITION UNOBSERVABLE FOR THIS PATH.
+    //
+    // What the partition guarantee IS, one-directionally: a route that should
+    // be protected but is mounted public is caught, PROVIDED nobody also adds
+    // it to PUBLIC_ROUTES. That proviso is the hinge, and the two-file
+    // discipline (a new route requires a PUBLIC_ROUTES edit with a written
+    // reason) is what enforces it. The residual — publicness by placement
+    // versus publicness by carve-out — is bounded rather than closed, by
+    // auth.test.js's 'requireSession has exactly one path carve-out': a second
+    // path cannot join the unobservable set without moving a committed number.
+    // That case is required by review cycle 1 and lands with the rework; if you
+    // are reading this and it does not exist, that is itself a finding.
     if (req.path === SIGNIN_PATH) return next();
     const target = SAFE_METHODS.has(req.method)
       ? `${SIGNIN_PATH}?next=${encodeURIComponent(req.originalUrl)}`
