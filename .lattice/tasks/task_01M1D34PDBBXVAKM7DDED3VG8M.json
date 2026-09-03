@@ -10,7 +10,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34PDBBXVAKM7DDED3VG8M",
-  "last_event_id": "ev_01M1D35BRJ8HKJW7H0YK91Y05F",
+  "last_event_id": "ev_01M1JE5K8W5CQ5XR0TRF8DX20S",
   "last_status_changed_at": "2026-08-31T23:40:44Z",
   "priority": "high",
   "relationships_out": [
@@ -62,6 +62,13 @@
       "note": "board ask: v1 done is not declared against a definition the board has not seen",
       "target_task_id": "task_01M1D34PME5R8QRJPMKDXAYJG0",
       "type": "depends_on"
+    },
+    {
+      "created_at": "2026-09-03T01:29:40Z",
+      "created_by": "agent:developer-marcus",
+      "note": null,
+      "target_task_id": "task_01M1JE53S29MRXYYXXGGKGP2RN",
+      "type": "depends_on"
     }
   ],
   "reopened_count": 0,
@@ -77,6 +84,6 @@
   ],
   "title": "D1 v1: recorded acceptance run against Stripe test mode (v1 done)",
   "type": "task",
-  "updated_at": "2026-08-31T23:41:06Z",
+  "updated_at": "2026-09-03T01:29:40Z",
   "urgency": null
 }

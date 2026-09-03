@@ -10,7 +10,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1JCFK4SGHHPZK18AV4KPX49",
-  "last_event_id": "ev_01M1JCFKB9ADZ2RGE1Z0ZGJ6P0",
+  "last_event_id": "ev_01M1JE5K5V0XEY6TSZG66ZM74A",
   "last_status_changed_at": "2026-09-03T01:00:10Z",
   "priority": "medium",
   "relationships_out": [
@@ -19,6 +19,13 @@
       "created_by": "agent:cto-owen",
       "note": null,
       "target_task_id": "task_01M1D34NSFQKCVJC3TKE2Q4D71",
+      "type": "depends_on"
+    },
+    {
+      "created_at": "2026-09-03T01:29:40Z",
+      "created_by": "agent:developer-marcus",
+      "note": null,
+      "target_task_id": "task_01M1JE53S29MRXYYXXGGKGP2RN",
       "type": "depends_on"
     }
   ],
@@ -29,6 +36,6 @@
   "tags": null,
   "title": "D1 v1: a failed Connect start should land on the Connect screen's error state, not text/plain",
   "type": "task",
-  "updated_at": "2026-09-03T01:00:10Z",
+  "updated_at": "2026-09-03T01:29:40Z",
   "urgency": null
 }
