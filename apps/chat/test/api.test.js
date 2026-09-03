@@ -869,9 +869,36 @@ test('api: AS-54 — served app.js autolinks through markdown.js and never insid
   assert.ok(asAt !== -1, 'appendRefLeaf calls the AS-ref pass');
   assert.ok(urlAt < asAt, 'the URL pass runs first among the leaf passes');
 
+  // Terminality (§3.3): the url branch appends the anchor and `continue`s, so a
+  // url token's text is never handed to the ref chain. Pass order alone does
+  // not give that — dropping the `continue` leaves urlAt < asAt true while the
+  // URL text falls through into three more passes. Scoped to the branch and
+  // asserted as the whole branch body, so a fall-through cannot hide in it.
+  const branchAt = leaf.indexOf("if (u.type === 'url') {");
+  assert.ok(branchAt !== -1, 'appendRefLeaf has a url branch');
+  const urlBranch = leaf.slice(branchAt, leaf.indexOf('\n    }', branchAt));
+  assert.deepEqual(
+    urlBranch.split('\n').slice(1).map((l) => l.trim()).filter(Boolean),
+    ['parent.appendChild(urlLink(u));', 'continue;'],
+    'url tokens are terminal: the branch appends the anchor and continues',
+  );
+
   // The anchor: verbatim href, no transformation between token and attribute.
-  assert.match(app, /function urlLink\(tok\) \{[\s\S]*?a\.href = tok\.href;[\s\S]*?\}/,
-    'urlLink assigns the token href unchanged');
+  // Scoped to urlLink's OWN body on purpose. `a.href = tok.href;` occurs three
+  // times in app.js, so an unbounded /function urlLink\(tok\) \{[\s\S]*?…/ run
+  // is a whole-file assertion wearing this function's name: with the assignment
+  // removed it simply spans on and resolves against the markdown-link branch's
+  // identical line, and the guard passes against an anchor with no href at all
+  // (AS-54 review cycle 1, D1). Listing every a.href assignment in the body and
+  // comparing the whole list also catches a transformed or an extra one.
+  const urlLinkAt = app.indexOf('function urlLink(tok) {');
+  assert.ok(urlLinkAt !== -1, 'urlLink is present in the served app.js');
+  const urlLinkBody = app.slice(urlLinkAt, app.indexOf('\n}\n', urlLinkAt));
+  assert.deepEqual(
+    urlLinkBody.match(/a\.href\s*=[^\n]*/g) || [],
+    ['a.href = tok.href;'],
+    'urlLink assigns the token href unchanged, and makes no other assignment to a.href',
+  );
 
   assert.doesNotMatch(app, /\.innerHTML/, 'zero innerHTML use — the house rule holds');
 });

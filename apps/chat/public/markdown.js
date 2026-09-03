@@ -163,8 +163,13 @@ export function tokenizeUrls(text) {
     if (m.index > last) tokens.push({ type: 'text', text: src.slice(last, m.index) });
     tokens.push({ type: 'url', text: url, href: url });
     last = m.index + url.length;
-    URL_RE.lastIndex = last; // REQUIRED: the trim shortened the match, and
-                             // lastIndex must follow it or the tail is skipped.
+    // Defensive, not required: keep the regex cursor in lockstep with `last` so
+    // the two never disagree about where scanning resumes. It has no observable
+    // effect today — trimUrlTail only ever removes characters in `.,;:!?)]}`,
+    // and no URL can begin inside a run of those, so rescanning the trimmed
+    // tail cannot surface a match. It costs one assignment and stops that
+    // argument from being load-bearing if the trim set ever widens.
+    URL_RE.lastIndex = last;
   }
   if (last < src.length) tokens.push({ type: 'text', text: src.slice(last) });
   return tokens;
