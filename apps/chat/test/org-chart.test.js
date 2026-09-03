@@ -16,6 +16,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -469,6 +470,77 @@ test('org: an empty roster still yields the board node, and junk degrades', () =
   const bare = mkdtempSync(join(tmpdir(), 'org-bare-'));
   try {
     assert.deepEqual(validateOrg(readPersonnel(bare)), []);
+  } finally {
+    rmSync(bare, { recursive: true, force: true });
+  }
+});
+
+// --- the CLI gate (V10, V11) -------------------------------------------------
+// bin/check-org.js is the authoritative gate, so its exit codes are asserted
+// here rather than assumed. `check-org: exits 0 on a clean fixture root` is a
+// checker that has only ever been seen passing until the §6 F2 mutation
+// (repoint dev-fixture.md at a nonexistent id) flips it to 1.
+
+const CHECK_ORG = resolve(HERE, '..', 'bin', 'check-org.js');
+
+/** Run check-org with an explicit root; env kept free of CHAT_REPO_ROOT. */
+function checkOrg(args) {
+  const env = { ...process.env };
+  delete env.CHAT_REPO_ROOT;
+  return spawnSync(process.execPath, [CHECK_ORG, ...args], { env, encoding: 'utf8' });
+}
+
+test('check-org: exits 0 on a clean fixture root', () => {
+  const r = checkOrg(['--root', CLEAN_ROOT]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /3 active of 4 dossiers parsed, 0 unparsed/);
+  assert.match(r.stdout, /No violations\./);
+});
+
+test('check-org: exits 1 and names every violation on the dirty fixture root', () => {
+  // LOAD-BEARING FIXTURE PROPERTY (plan §10.5): test/fixtures/repo has never
+  // been a valid org — ada and bob both point at agent:cto-owen, who has no
+  // dossier there — and that is exactly why it is the on-disk dirty case. Do
+  // not "fix" the fixture to make this pass differently.
+  const r = checkOrg(['--root', FIXTURE_ROOT]);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /2 active of 3 dossiers parsed, 2 unparsed/);
+  assert.deepEqual(
+    r.stdout
+      .split('\n')
+      .filter((l) => /^(orphan_reports_to|unparsed_dossier)\s/.test(l))
+      .map((l) => l.split(/\s{2,}/).slice(0, 2)),
+    [
+      ['orphan_reports_to', 'agent:eng-ada'],
+      ['orphan_reports_to', 'agent:qa-bob'],
+      ['unparsed_dossier', 'bad-actor-eve.md'],
+      ['unparsed_dossier', 'broken-mallory.md'],
+    ]
+  );
+  assert.match(r.stdout, /^4 violations\.$/m);
+});
+
+test('check-org: exits 2 on an unknown flag and on --root without a value', () => {
+  const unknown = checkOrg(['--nope']);
+  assert.equal(unknown.status, 2);
+  assert.match(unknown.stderr, /unknown argument: --nope/);
+  assert.match(unknown.stderr, /usage: check-org/);
+  const dangling = checkOrg(['--root']);
+  assert.equal(dangling.status, 2);
+  assert.match(dangling.stderr, /--root requires a path/);
+});
+
+test('check-org: a root with no personnel/ is exit 0 and says so', () => {
+  // Absence is not a violation: inventing one would make the command useless
+  // in a bare checkout. Mirrors `chat roster`'s degradation wording.
+  const bare = mkdtempSync(join(tmpdir(), 'org-cli-bare-'));
+  try {
+    const r = checkOrg(['--root', bare]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /No personnel records found/);
+    const asJson = checkOrg(['--root', bare, '--json']);
+    assert.equal(asJson.status, 0);
+    assert.deepEqual(JSON.parse(asJson.stdout), { employees: [], violations: [] });
   } finally {
     rmSync(bare, { recursive: true, force: true });
   }
