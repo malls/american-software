@@ -1,6 +1,7 @@
 {"type":"identity","id":"agent:ceo-carla","display_name":"Carla Voss (CEO)","kind":"agent","created_at":"2026-08-30T01:42:30.909Z"}
 {"type":"identity","id":"agent:cto-owen","display_name":"Owen Kessler (CTO)","kind":"agent","created_at":"2026-08-30T01:42:30.909Z"}
 {"type":"identity","id":"agent:designer-sofia","display_name":"Sofia Andrade","kind":"agent","created_at":"2026-08-31T15:02:20.767Z"}
+{"type":"identity","id":"agent:developer-lena","display_name":"Lena Fischer","kind":"agent","created_at":"2026-09-03T00:19:28.381Z"}
 {"type":"identity","id":"agent:developer-marcus","display_name":"Marcus Webb (Engineer)","kind":"agent","created_at":"2026-08-30T01:42:44.273Z"}
 {"type":"identity","id":"agent:qa-fixture","display_name":"QA Test Fixture (not a person)","kind":"agent","created_at":"2026-08-30T02:08:04.219Z"}
 {"type":"identity","id":"agent:qa-priya","display_name":"Priya Raman (QA)","kind":"agent","created_at":"2026-08-30T01:42:44.306Z"}
