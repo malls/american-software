@@ -876,6 +876,7 @@ test('api: AS-54 — served app.js autolinks through markdown.js and never insid
   // asserted as the whole branch body, so a fall-through cannot hide in it.
   const branchAt = leaf.indexOf("if (u.type === 'url') {");
   assert.ok(branchAt !== -1, 'appendRefLeaf has a url branch');
+  assert.ok(branchAt < asAt, 'the url branch precedes the ref chain: moved below it, the branch keeps this exact text while every URL falls through three more passes and renders twice');
   const urlBranch = leaf.slice(branchAt, leaf.indexOf('\n    }', branchAt));
   assert.deepEqual(
     urlBranch.split('\n').slice(1).map((l) => l.trim()).filter(Boolean),
