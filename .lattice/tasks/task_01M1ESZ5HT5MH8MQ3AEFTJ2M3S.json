@@ -14,7 +14,7 @@
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Board request, verbatim (DM msg 367, 2026-09-01): 'urls in chat messages should resolve to links, like http://127.0.0.1:8348/ should be clickable'. Today only markdown-style links work \u2014 bare URLs render as literal text.\n\nRENDER PATH (the real one, read before planning): message bodies are rendered client-side in apps/chat/public/app.js bodyNode() as a structure-first pipeline (AS-26 \u00a76): tokenizeInline (apps/chat/public/markdown.js) over the whole body, then appendRefLeaf() runs three pure ref passes over every plain-text leaf in fixed order \u2014 AS-refs, msg-refs (tokenizeMsgRefs), file-refs (tokenizeFileRefs, both in apps/chat/public/msg-refs.js). Zero innerHTML anywhere; tokenizers emit text and structure, NEVER markup; DOM assembly is el()/createTextNode only. Markdown links [label](https://\u2026) already work via the 'link' pattern in markdown.js with an http/https-only scheme allowlist.\n\nTHE WORK: a new pure tokenizer pass (tokenizeUrls or similar \u2014 pure module, no DOM/fetch/globals, importable from node:test, same pattern as msg-refs.js) that finds BARE absolute URLs in plain-text leaves and emits url tokens; app.js renders them as anchors with target=_blank rel=noopener, href set only from the matched slice.\n\nSCOPE BOUNDARY (CTO calls, bake into the plan):\n- http:// and https:// ONLY \u2014 same allowlist as markdown.js links. No scheme-less www. guessing, no mailto, and javascript:/data: etc. must be structurally impossible (fail the match, stay literal).\n- Trailing-punctuation trim: sentence punctuation (. , ; : ! ?) at the URL end stays literal text; a trailing ')' is part of the URL only if a matching '(' occurs inside it (the '(see http://x/)' idiom).\n- Round-trip invariant holds: concatenating token texts reproduces the input exactly.\n- Runs on code-span inners too \u2014 consistent with the deliberate file-ref precedent (a backticked URL is a common idiom here).\n- Ordering vs existing passes: verify no partial-capture interaction with FILE_RE (its lookbehind should already reject path segments inside URLs \u2014 prove it in tests, e.g. https://github.com/x/blob/main/README.md must yield ONE url token, no fileref) and with msg-ref continuation lists.\n- Nested-anchor hazard: appendRefLeaf also runs on md-link inners (app.js line ~223). The URL pass must not build an <a> inside an existing <a> \u2014 decide the mechanism in the plan (skip the pass for link inners, or render as plain text there).\n\nTests in apps/chat/test following the existing node:test tokenizer-test pattern. Server, store, exports, and CLI output are untouched \u2014 this is a client render-path change only.",
-  "done_at": null,
+  "done_at": "2026-09-03T06:40:41Z",
   "evidence_refs": [
     {
       "id": "ev_01M1JXKGZAEWCJZH39JDF4H8T1",
@@ -28,17 +28,17 @@
     }
   ],
   "id": "task_01M1ESZ5HT5MH8MQ3AEFTJ2M3S",
-  "last_event_id": "ev_01M1JZX8AGNB6HN9D7HZBCRH80",
-  "last_status_changed_at": "2026-09-03T06:13:12Z",
+  "last_event_id": "ev_01M1JZZ2SX0QF4589RYSN1W6HP",
+  "last_status_changed_at": "2026-09-03T06:40:41Z",
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-54",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "Chat: autolink bare http/https URLs in message bodies",
   "type": "task",
-  "updated_at": "2026-09-03T06:39:41Z",
+  "updated_at": "2026-09-03T06:40:41Z",
   "urgency": null
 }
