@@ -843,3 +843,63 @@ test('api: AS-26 — GET /api/file serves allowlisted repo markdown; every probe
   assert.equal(big.status, 400);
   assert.deepEqual(big.data, { error: 'File too large.' });
 });
+
+test('api: AS-54 — served app.js autolinks through markdown.js and never inside a markdown link', async (t) => {
+  const { base } = await bootServer(t);
+
+  // The file the browser actually runs, not the one on disk beside this test.
+  const app = await (await fetch(base + '/app.js')).text();
+
+  assert.match(app, /import \{[^}]*tokenizeUrls[^}]*\} from '\.\/markdown\.js'/,
+    'the bare-URL pass comes from markdown.js — one scheme allowlist, one module');
+  assert.ok(app.includes('appendRefLeaf(a, tok.inner, refs, { autolink: false })'),
+    'the markdown-link call site opts out of autolinking verbatim');
+
+  // Pass order (§3.3): inside appendRefLeaf the URL pass runs before the ref
+  // chain, which is what makes url tokens terminal. The comparison is scoped
+  // to that function body on purpose — tokenizeAsRefs is DEFINED above
+  // appendRefLeaf, so a whole-file index comparison is true no matter what
+  // order the calls are in.
+  const start = app.indexOf('function appendRefLeaf(');
+  assert.ok(start !== -1, 'appendRefLeaf is present in the served app.js');
+  const leaf = app.slice(start, app.indexOf('\n}\n', start));
+  const urlAt = leaf.indexOf('tokenizeUrls(');
+  const asAt = leaf.indexOf('tokenizeAsRefs(');
+  assert.ok(urlAt !== -1, 'appendRefLeaf calls the URL pass');
+  assert.ok(asAt !== -1, 'appendRefLeaf calls the AS-ref pass');
+  assert.ok(urlAt < asAt, 'the URL pass runs first among the leaf passes');
+
+  // Terminality (§3.3): the url branch appends the anchor and `continue`s, so a
+  // url token's text is never handed to the ref chain. Pass order alone does
+  // not give that — dropping the `continue` leaves urlAt < asAt true while the
+  // URL text falls through into three more passes. Scoped to the branch and
+  // asserted as the whole branch body, so a fall-through cannot hide in it.
+  const branchAt = leaf.indexOf("if (u.type === 'url') {");
+  assert.ok(branchAt !== -1, 'appendRefLeaf has a url branch');
+  assert.ok(branchAt < asAt, 'the url branch precedes the ref chain: moved below it, the branch keeps this exact text while every URL falls through three more passes and renders twice');
+  const urlBranch = leaf.slice(branchAt, leaf.indexOf('\n    }', branchAt));
+  assert.deepEqual(
+    urlBranch.split('\n').slice(1).map((l) => l.trim()).filter(Boolean),
+    ['parent.appendChild(urlLink(u));', 'continue;'],
+    'url tokens are terminal: the branch appends the anchor and continues',
+  );
+
+  // The anchor: verbatim href, no transformation between token and attribute.
+  // Scoped to urlLink's OWN body on purpose. `a.href = tok.href;` occurs three
+  // times in app.js, so an unbounded /function urlLink\(tok\) \{[\s\S]*?…/ run
+  // is a whole-file assertion wearing this function's name: with the assignment
+  // removed it simply spans on and resolves against the markdown-link branch's
+  // identical line, and the guard passes against an anchor with no href at all
+  // (AS-54 review cycle 1, D1). Listing every a.href assignment in the body and
+  // comparing the whole list also catches a transformed or an extra one.
+  const urlLinkAt = app.indexOf('function urlLink(tok) {');
+  assert.ok(urlLinkAt !== -1, 'urlLink is present in the served app.js');
+  const urlLinkBody = app.slice(urlLinkAt, app.indexOf('\n}\n', urlLinkAt));
+  assert.deepEqual(
+    urlLinkBody.match(/a\.href\s*=[^\n]*/g) || [],
+    ['a.href = tok.href;'],
+    'urlLink assigns the token href unchanged, and makes no other assignment to a.href',
+  );
+
+  assert.doesNotMatch(app, /\.innerHTML/, 'zero innerHTML use — the house rule holds');
+});
