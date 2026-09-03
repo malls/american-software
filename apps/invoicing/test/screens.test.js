@@ -482,6 +482,10 @@ test('app.css is mobile-first: every media condition is min-width, and none is b
   // Lattice comment instead.
   const config = configFor();
   const css = readFileSync(join(config.publicDir, 'app.css'), 'utf8');
+  // Preludes are selected LINE-WISE, so a prelude wrapped across two lines is
+  // invisible to this and to the breakpoint carve-out in assets.test.js alike.
+  // app.css has none today; both checks would need a real tokenizer to be
+  // immune, and neither is worth one at one stylesheet.
   const preludes = css.split('\n').filter((line) => /^\s*@media\b/.test(line));
   assert.ok(preludes.length > 0, `no media prelude found in app.css — this check is examining nothing`);
 
@@ -496,6 +500,15 @@ test('app.css is mobile-first: every media condition is min-width, and none is b
 test('no fixed-width box in app.css can force horizontal overflow at 375px', async () => {
   // max-width is excluded deliberately: it BOUNDS a box rather than forcing
   // one, and bounding is how the measure is kept readable.
+  //
+  // WHICH CHECK IS CARRYING THE CLAIM, said out loud (review cycle 1, B4). This
+  // case policies three property names carrying a length literal, so
+  // `flex: 0 0 320px`, `inline-size` and `grid-template-columns: 300px 1fr`
+  // would all pass it. The property holds today because assets.test.js's TOKEN
+  // check forbids every length literal in app.css outright — that check is
+  // doing the work, and this one is a second, narrower statement of the same
+  // thing. Recorded, not widened: widening it is AS-70's, when there are more
+  // stylesheets to widen it over.
   const config = configFor();
   const css = readFileSync(join(config.publicDir, 'app.css'), 'utf8');
   const body = css.replace(/\/\*[\s\S]*?\*\//g, '');
