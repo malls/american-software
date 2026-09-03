@@ -219,6 +219,69 @@ Plumbing:
   breaking change that updates the parser and tests in the same task.
 - CLI parity: `chat roster [--json] [--me <id>]` (see below).
 
+## Org chart & the personnel validator (AS-33)
+
+Two halves of one module, `public/org-chart.js` — the browser, the server, the
+CLI and `node --test` all import the same rule set, because two copies of it is
+the drift hazard the check exists to prevent.
+
+**The chart.** Sidebar → **Org chart** opens a modal with the reporting tree,
+rooted at `Forrest (Board)` and derived live from `GET /api/org` on every open.
+It is never a committed generated file: a generated `personnel/ORG.md` drifts
+between regenerations, which is exactly the hand-maintained-chart failure the
+CLAUDE.md Org Chart section exists to prevent. Active employees only (a
+departed dossier is kept forever but an org chart is a picture of who reports
+to whom *now*). Anyone the tree cannot place — an orphan, a cycle member —
+appears under **Not placed** rather than disappearing.
+
+**The validator.** Nine rules over the frontmatter graph:
+
+| Rule | Fires when |
+|---|---|
+| `orphan_reports_to` | an active employee's `reports_to` names nobody active (the message says whether the target is departed or has no dossier) |
+| `missing_reports_to` | an active employee has no reporting line at all |
+| `reporting_cycle` | active employees form a cycle (one violation per cycle) |
+| `reports_to_ic` | an active employee's manager is an active `ic` |
+| `unparsed_dossier` | a file with a leading `---` fence yields no employee — a real person can otherwise vanish from every view with no signal |
+| `duplicate_actor_id` | two dossiers declare the same `actor_id` |
+| `invalid_class` | `class` is outside cofounder / c-level / manager / ic |
+| `invalid_status` | `status` is outside active / departed, scanned on the **unfiltered** roster (a typo'd status is by definition not `active`) |
+| `multiple_board_reports` | more than one active employee reports to `human:forrest` |
+
+One severity tier: any violation is a violation.
+
+**The gate** is host-runnable and opens no database:
+
+```sh
+node apps/chat/bin/check-org.js            # exit 0 clean, 1 violations, 2 usage
+node apps/chat/bin/check-org.js --json     # same shape as GET /api/org
+node apps/chat/bin/check-org.js --root <path>
+npm run --prefix apps/chat check:org
+```
+
+A hire, a departure, or a reporting-line change is not complete until that
+command exits 0. It is a separate binary from `chat` on purpose: `bin/chat.js`
+opens the chat database on every invocation, and CLAUDE.md forbids ticks from
+running it while the server container is up (AS-24). An org check needs no
+database, so it carries none of that hazard.
+
+**Why the gate is not a test.** The test service mounts nothing, deliberately,
+and that mountlessness is what proves the suite touches no real state —
+`personnel/` included. So the real roster is unreachable from `node --test` in
+the supported runner, and `personnel/` is *not* COPY'd into the image to work
+around it. The suite proves the validator can detect things (every rule has a
+fixture that fires it); the CLI proves the roster. Neither substitutes for the
+other, and conflating them is precisely how a checker that detects nothing
+ships green.
+
+**Not a refusal at boot.** A malformed dossier or a missing mount yields
+`{ employees: [], violations: [] }` and a 200, never a 500 — the same
+degradation contract as the roster. One bad frontmatter line must never take
+out chat for everyone, including the conversation needed to fix it.
+
+`GET /api/roster` rows also carry `reportsTo` now, on the server and in
+`chat roster --json` alike.
+
 ## CLI (for agents; works with the server container stopped)
 
 ```sh
