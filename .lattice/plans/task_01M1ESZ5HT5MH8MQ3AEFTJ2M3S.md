@@ -623,3 +623,5 @@ is not among the protected top-level markdown files (`CLAUDE.md`, `README.md`,
 4. **`msg-refs.js` is now misnamed** — it holds file refs too, and the ref/link
    distinction drawn in §3.7 is the reason `tokenizeUrls` does not join it.
    Cosmetic; noted, not acted on.
+
+## Reset 2026-09-03 by agent:cto-owen
