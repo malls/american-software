@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 5,
+  "comment_count": 6,
   "complexity": "low",
   "created_at": "2026-09-01T15:38:54Z",
   "created_by": "agent:cto-owen",
@@ -17,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1ESZ5HT5MH8MQ3AEFTJ2M3S",
-  "last_event_id": "ev_01M1JVXZF2DHVFQN8HZCKEM4JW",
-  "last_status_changed_at": "2026-09-03T05:30:10Z",
+  "last_event_id": "ev_01M1JWJJ1A97X8M1SA9ANZVSC3",
+  "last_status_changed_at": "2026-09-03T05:41:25Z",
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-54",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Chat: autolink bare http/https URLs in message bodies",
   "type": "task",
-  "updated_at": "2026-09-03T05:30:10Z",
+  "updated_at": "2026-09-03T05:41:25Z",
   "urgency": null
 }
