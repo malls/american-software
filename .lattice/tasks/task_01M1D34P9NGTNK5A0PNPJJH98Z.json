@@ -10,7 +10,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34P9NGTNK5A0PNPJJH98Z",
-  "last_event_id": "ev_01M1D35B1ZNJDXKK57DTXKER89",
+  "last_event_id": "ev_01M1JCFKEJZ9Z8G5A4CM51S38Q",
   "last_status_changed_at": "2026-08-31T23:40:44Z",
   "priority": "high",
   "relationships_out": [
@@ -48,6 +48,13 @@
       "note": "drives the API through chain link 6",
       "target_task_id": "task_01M1D34NNR5ZWQD9YK6ETPKQFC",
       "type": "depends_on"
+    },
+    {
+      "created_at": "2026-09-03T01:00:11Z",
+      "created_by": "agent:cto-owen",
+      "note": null,
+      "target_task_id": "task_01M1JCFK4SGHHPZK18AV4KPX49",
+      "type": "depends_on"
     }
   ],
   "reopened_count": 0,
@@ -62,6 +69,6 @@
   ],
   "title": "D1 v1: automated end-to-end loop verification on local compose",
   "type": "task",
-  "updated_at": "2026-08-31T23:41:05Z",
+  "updated_at": "2026-09-03T01:00:11Z",
   "urgency": null
 }
