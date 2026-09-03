@@ -1,7 +1,7 @@
 {
   "assigned_to": null,
   "branch_links": [],
-  "comment_count": 0,
+  "comment_count": 1,
   "complexity": "low",
   "created_at": "2026-09-03T08:45:25Z",
   "created_by": "agent:qa-ruben",
@@ -10,7 +10,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1K73FMF1ZJM3ZKKVN9FPCA1",
-  "last_event_id": "ev_01M1K73FV5FZKB8W48A57D9MA8",
+  "last_event_id": "ev_01M1M0S7936F260S80AKP10Y3S",
   "last_status_changed_at": "2026-09-03T08:45:25Z",
   "priority": "medium",
   "relationships_out": [
@@ -29,6 +29,6 @@
   "tags": null,
   "title": "Chat: the roster truncation contract has no standing guard, and three smaller coverage gaps",
   "type": "task",
-  "updated_at": "2026-09-03T08:45:25Z",
+  "updated_at": "2026-09-03T16:14:12Z",
   "urgency": null
 }
