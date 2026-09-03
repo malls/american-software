@@ -78,7 +78,9 @@ Nothing outside this list is touched. A diff that changes a file not named here 
 | `apps/invoicing/test/harness.test.js` | `EXPECTED_TEST_FILES` + count (§5) |
 | `apps/invoicing/README.md` | New "The view layer" section; the Obligations section updated (§10) |
 
-**Explicitly not modified.** `app.js` (no new mount — both screens join existing routers), `lib/config.js` (§4), `Dockerfile` (it `COPY`s `views/` and `public/` as directories, so new files ride along with no manifest edit), `compose.yaml`, `package.json`, `lib/auth/accounts.js`, `lib/auth/session.js`, `lib/connect/onboarding.js`, `lib/connect/readiness.js`, `lib/db/**`, `lib/contracts/**`, and every top-level repo markdown file.
+**Explicitly not modified.** `app.js` (no new mount — both screens join existing routers), `lib/config.js` (§4), `Dockerfile` (it `COPY`s `views/` and `public/` as directories, so new files ride along with no manifest edit), `compose.yaml`, `package.json`, `lib/auth/accounts.js`, `lib/auth/session.js`, `lib/connect/readiness.js`, `lib/db/**`, `lib/contracts/**`, and every top-level repo markdown file.
+
+**[CORRECTED 2026-09-03 — review cycle 1, finding F-6.]** `lib/connect/onboarding.js` was named in this list *and* given a comment-only exemption by §11 item 5. The two statements contradicted each other; the implementer followed §11 and was right to. §11 item 5 governs: that file is modifiable for one comment and nothing else.
 
 ## §3 Design
 
@@ -147,7 +149,11 @@ Step 4 is the half the naive check structurally cannot do and the half that matt
 
 #### §3.3.2 The guard's sign-in carve-out (AS-64), and `req.currentUser`
 
-`requireSession` carries `if (req.path === SIGNIN_PATH) return next();`. Once `GET /signin` mounts **above** the boundary, the guard never sees that request, so the carve-out becomes dead for the case it was written for. **Keep it.** It still answers every unregistered method on that path (`PUT /signin`, `DELETE /signin`) — which would otherwise redirect to itself — and it costs one comparison. Its comment must be corrected from "It 404s until AS-45 lands" to what is then true (§11 item 5). §7 F8 exercises the interaction directly: moving `GET /signin` below the boundary makes the carve-out let a cookieless request through to the handler, and G3 turns red.
+`requireSession` carries `if (req.path === SIGNIN_PATH) return next();`. Once `GET /signin` mounts **above** the boundary, the guard never sees that request, so the carve-out becomes dead for the case it was written for. **Keep it.** It still answers every unregistered method on that path (`PUT /signin`, `DELETE /signin`) — which would otherwise redirect to itself — and it costs one comparison. Its comment must be corrected from "It 404s until AS-45 lands" to what is then true (§11 item 5). **[CORRECTED 2026-09-03 — review cycle 1, finding F-5. The original sentence read:** *"§7 F8 exercises the interaction directly: moving `GET /signin` below the boundary makes the carve-out let a cookieless request through to the handler, and G3 turns red."* **It is false, and was falsified in both directions — by the implementer and independently by the reviewer.]**
+
+The carve-out and the mount position do **not** interact. They are mutually invisible, for two independent reasons, either sufficient alone: (i) G2 and G3 derive the protected partition as `found.filter(r => !PUBLIC_ROUTES.includes(r))` — a committed literal — so a route named in `PUBLIC_ROUTES` is excluded from the protected set no matter which sub-router registered it; and (ii) the carve-out returns `next()` for `req.path === SIGNIN_PATH` before `requireSession` can redirect, so a cookieless `GET /signin` answers 200 from either side of the boundary. The carve-out does not test the position — **it makes the position unobservable for that one path.**
+
+What the partition guarantee actually is, stated one-directionally: **a route that should be protected but is mounted public is caught, provided nobody also adds it to `PUBLIC_ROUTES`.** That proviso is the whole hinge, and what enforces it is the two-file discipline — adding a route requires editing `PUBLIC_ROUTES` with a written reason, which is a reviewable act, not an automatic one. What is **not** observable is publicness-by-placement versus publicness-by-carve-out, and `/signin` is the only path where those differ. See §7 F8 (rewritten) and F8b (new), and ruling R-5: the residual is bounded to one named path by asserting that `requireSession` has exactly one carve-out.
 
 `GET /signin` must know whether the caller is already signed in (`S1-DENIED-AUTHENTICATED`). It **must not** read `req.currentUser` — the `'current user'` concept row pins that identifier to `lib/auth/guard.js` alone, and `routes/auth.js` reading it directly is a red test. Add one export to `guard.js`:
 
@@ -167,13 +173,17 @@ This forces one deviation from the wireframe, and it is deliberate: the **mode-s
 
 #### §3.3.4 `GET /`, and `POST_SIGNIN_LANDING`
 
-The scaffold page is deleted, so `GET /` needs an answer. **`GET /` becomes a `303` to `/connect-stripe`**, staying in `routes/pages.js` below the boundary.
+The scaffold page is deleted, so `GET /` needs an answer.
 
-**`POST_SIGNIN_LANDING` stays `'/'`.** `guard.js` says the constant changes when the Dashboard route lands, and the Dashboard is AS-48's screen, not this task's. Changing it here would move assertions in another task's suite to buy one saved redirect hop. A freelancer signing in with no `next` therefore goes `/` → `303` → `/connect-stripe`, which is the correct onboarding destination until AS-48 makes it the Dashboard. Recorded in `routes/pages.js`'s header as an interim with the hand-off named.
+**[CORRECTED 2026-09-03 — review cycle 1, finding F-2. The original ruling read:** *"**`GET /` becomes a `303` to `/connect-stripe`**, staying in `routes/pages.js` below the boundary."* **The pre-agreed split moved `/connect-stripe` to AS-70 and nothing carried the consequence through, so that ruling turns the only success path of the only screen into a 404.]**
+
+**`GET /` answers `200 text/plain`, one line, no template** — staying in `routes/pages.js` below the boundary. It is an *interim response*, not a placeholder *screen*: no `.ejs`, no stylesheet, no ledger row, no `data-state`, no interpolation, no new escaping surface. The redirect to `/connect-stripe` is restored by **AS-70** when the route it points at exists (one line plus one assertion), and **AS-48** replaces the whole thing with the Dashboard. Full reasoning, and the two options rejected, in ruling R-2.
+
+**`POST_SIGNIN_LANDING` stays `'/'`.** `guard.js` says the constant changes when the Dashboard route lands, and the Dashboard is AS-48's screen, not this task's. Changing it here would move assertions in another task's suite to buy one saved redirect hop. A freelancer signing in with no `next` therefore lands on `/`, which answers the interim line above. (**[CORRECTED 2026-09-03 — this sentence originally continued** *"→ `303` → `/connect-stripe`, which is the correct onboarding destination until AS-48 makes it the Dashboard"*, **which is a 404 in the shipped scope.]**) Recorded in `routes/pages.js`'s header as an interim with both hand-offs named — AS-70 restores the redirect, AS-48 owns the constant.
 
 #### §3.3.5 The whole surface, after
 
-Sorted as `discoverRoutes` sorts. Two added, none removed; **16 → 18**.
+Sorted as `discoverRoutes` sorts. Two added, none removed; **16 → 18**. **[CORRECTED 2026-09-03 — review cycle 1. The split shipped screen 1 only, so the surface this task actually lands is 16 → 17: `GET /connect-stripe` and its protected slot are AS-70's. Read the table below with that row struck, and `GET /` re-described as `200 text/plain` per §3.3.4.]**
 
 ```
 GET /                          protected   (303 -> /connect-stripe)
@@ -196,7 +206,7 @@ POST /signup                   public
 POST /webhooks/stripe          public
 ```
 
-Public 5 → **6**; protected 11 → **12**.
+Public 5 → **6**; protected 11 → **12**. **[CORRECTED 2026-09-03: in the shipped scope, public 5 → 6 and protected stays at 11 — the added protected route is AS-70's. Measured by the reviewer: 17 routes, 6/11.]**
 
 ### §3.4 What a template may contain — the view-model split
 
@@ -204,7 +214,7 @@ Public 5 → **6**; protected 11 → **12**.
 
 Three things this buys, in descending order of importance:
 
-1. **"Every state is reachable" becomes a mechanical property.** The frozen list is compared, by exact set equality and cardinality, against a table transcribed from `02-states-ledger.md`. There is no way to render a state the ledger does not have, or to quietly stop rendering one it does.
+1. **"Every state is reachable" becomes a mechanical property — over a transcription, not over the ledger.** **[CORRECTED 2026-09-03 — review cycle 1, finding F-4. The original claim read:** *"The frozen list is compared, by exact set equality and cardinality, against a table transcribed from `02-states-ledger.md`. There is no way to render a state the ledger does not have, or to quietly stop rendering one it does."* **The second sentence is stronger than what is checked.]** What *is* checked: the frozen list in `lib/screens/<screen>-view.js` and a table in `test/screens.test.js` are **two independent hand transcriptions of the same ledger, compared by exact set equality and cardinality against each other**, and every `data-state` a template can stamp is a member of that closed set. So a change to either copy alone is red, and a render can never leave the set. What is **not** checked, and cannot be from inside the suite: whether either copy still matches `docs/design/wireframes/02-states-ledger.md`. Nothing in the suite reads that document — the `test` service is mountless by design (V3) and the Dockerfile vendors only `docs/design/tokens/tokens.css`. The join to the design document is verified by **review**, dated: all eight screen-1 rows checked by hand against §1 on 2026-09-03 by `agent:qa-priya`. See ruling R-4.
 2. **P1–P3 stay auditable.** A template with no logic has a small, readable set of interpolation sites; a reviewer can enumerate them by eye and the concept rows can enumerate them by grep.
 3. **The state machine is unit-testable without HTTP** — exhaustively, in milliseconds, before any request is made.
 
@@ -392,7 +402,7 @@ Numbered, each independently checkable:
 
 **States**
 
-10. `lib/screens/signin-view.js` and `lib/screens/connect-view.js` each export a frozen state list; each list's cardinality and membership equal a committed table transcribed from `02-states-ledger.md` §1 and §2.
+10. `lib/screens/signin-view.js` and `lib/screens/connect-view.js` each export a frozen state list; each list's cardinality and membership equal a committed table **independently transcribed** from `02-states-ledger.md` §1 and §2 into `test/screens.test.js`, and every `data-state` a template stamps is a member of that set. **[AMENDED 2026-09-03 — review cycle 1, finding F-4: this criterion pins the two transcriptions to each other, not to the design document. The document join is a dated review act, and the test header must say so.]**
 11. Screen 1: all 8 ledger rows accounted for — 6 exercised over HTTP with a `data-state` sentinel or an asserted `303`, 1 asserted absent (`S1-EMPTY`), 1 recorded as browser-supplied and unrenderable (`S1-LOADING`).
 12. Screen 2: all 9 ledger rows accounted for — the `4 + 2 + 1 + 1 + 1 = 9` partition of §3.5.2 asserted as arithmetic against a committed table.
 13. `S2-RETURN-NOTREADY` is exercised through **both** halves of `ready`: `chargesEnabled: false`, and `chargesEnabled: true` with a non-empty `requirementsCurrentlyDue`.
@@ -401,11 +411,13 @@ Numbered, each independently checkable:
 
 **Route surface and the boundary**
 
-16. The route walk finds exactly 18 routes; the public/protected partition is 6/12; `GET /signin` is public and `GET /connect-stripe` is protected, each with its reason recorded in the array.
+16. The route walk finds exactly 18 routes; the public/protected partition is 6/12; `GET /signin` is public and `GET /connect-stripe` is protected, each with its reason recorded in the array. **[AMENDED 2026-09-03 — the split makes this 17 routes and 6/11 for the shipped scope; the `GET /connect-stripe` half is AS-70's.]**
 17. G3 passes unchanged for all 12 protected routes — each cookieless answer is attributable to the guard (same status, no `Set-Cookie`, guard-derived `Location`).
 18. A cookieless `GET /connect-stripe` redirects to `/signin?next=%2Fconnect-stripe`, and following that redirect renders screen 1 in sign-in mode carrying `next` in a hidden input with that value.
 19. A `GET /signin` **with** a session redirects (`S1-DENIED-AUTHENTICATED`) and renders no form.
-20. `GET /` answers `303` to `/connect-stripe` for a signed-in caller.
+20. **[SUPERSEDED 2026-09-03 — review cycle 1, ruling R-2. The original read:** *"`GET /` answers `303` to `/connect-stripe` for a signed-in caller."* **It asserted the first hop and stopped, which is the mechanism by which a 404 terminus passed 27 of 27 criteria.]** For a signed-in caller, `GET /` answers **`200`, `Content-Type: text/plain`, with a body equal to a committed one-line literal**, and the response carries no `data-state` sentinel and renders no template.
+
+20a. **Terminal-state criterion.** Each of the three entry points that end at the post-sign-in landing — a successful `POST /signup` with no `next`, a successful `POST /signin` with no `next`, and `S1-DENIED-AUTHENTICATED` (`GET /signin` with a session) — is **followed to completion** in its own case, and that case asserts the **terminal** status (`200`; never a 3xx, never a 404), the terminal path, the exact terminal body, and a committed maximum hop count. A `Location` header is not an assertion about where a person arrives.
 
 **Responsive**
 
@@ -473,10 +485,21 @@ Run as **two separate mutations**, because they exercise two halves.
 *Mutation.* Change "funds" back to "money" in `views/connect-stripe.ejs`. Assert applied: `grep -oiF money views/connect-stripe.ejs | wc -l` **= 1**.
 *Predicted failing set:* one case, the concept-row case, with the `'money representation'` row reporting `views/connect-stripe.ejs` as an unexpected member.
 
-**F8 — the boundary guard fires on a misplaced screen route (the AS-64 carve-out interaction).**
-*Mutation.* Move `router.get('/signin', …)` out of `publicAuthRoutes` and into `sessionAuthRoutes` — below the boundary — with no other change.
-Assert applied: `grep -c "router.get('/signin'" routes/auth.js` = 1 and it sits inside `sessionAuthRoutes` (verify by line number against the `export function sessionAuthRoutes` line).
-*Predicted failing set, exactly two cases:* `auth.test.js` → `G2` (the protected list no longer matches its literal) and **`G3`** (a cookieless `GET /signin` is let through by `requireSession`'s carve-out, reaches the handler, and answers `200` instead of the guard's `303`). G3 is the meaningful one: it is the assertion that would catch a future screen route placed on the wrong side, and it demonstrates that the carve-out and the mount position interact.
+**F8 — the boundary guard fires on a route that should be protected. [REWRITTEN 2026-09-03 — review cycle 1, ruling R-5.]**
+
+**The original recipe is retained verbatim, because its result is the finding.** It read:
+
+> *"Move `router.get('/signin', …)` out of `publicAuthRoutes` and into `sessionAuthRoutes` — below the boundary — with no other change. Assert applied: `grep -c "router.get('/signin'" routes/auth.js` = 1 and it sits inside `sessionAuthRoutes`. Predicted failing set, exactly two cases: `auth.test.js` → `G2` and `G3`. … it demonstrates that the carve-out and the mount position interact."*
+
+Run by the implementer and independently by the reviewer, both with assert-applied and a rebuilt image. **Predicted 2, observed 0** — the suite is green on it. It is not a recipe run badly; it is a correct recipe aimed at a property the instrument cannot see (§3.3.2, corrected). Note also its `grep -c`, which counts matching *lines* and is banned by this section's own first rule. The count happened to be right, which is exactly how a banned instrument survives a review.
+
+**F8 (replacement) — the partition fires in the direction it actually observes.**
+*Mutation.* Remove `'GET /signin'` from `PUBLIC_ROUTES` in `test/auth.test.js`, leaving the route mounted where it is. Assert applied: an occurrence count of that exact entry line going `1 → 0` — measure the baseline first *(post-write)*, with `grep -oF … | wc -l`, never `grep -c`.
+*Predicted failing set:* `auth.test.js` → `G2` (the protected list gains an entry its literal does not have) and `G3` (a cookieless `GET /signin` answers `200`, not a guard-derived `303` with no `Set-Cookie`). That is the one-directional guarantee, exercised in the one direction it holds: **a route that should be protected but is not is caught, so long as `PUBLIC_ROUTES` does not excuse it.**
+
+**F8b (new) — the residual is bounded, not closed.**
+*Mutation.* Add a second `if (req.path === '<some other path>') return next();` to `requireSession` in `lib/auth/guard.js`. Assert applied by an occurrence count of a marker the mutation introduces (the mutated path literal), measured `0 → 1`.
+*Predicted failing set:* one case, `auth.test.js` → `'requireSession has exactly one path carve-out'` — a case this cycle requires, with exactly that title. A carve-out makes mount position unobservable for the path it names; one carve-out is a named, reviewed exception, and this assertion is what keeps the count at one.
 
 **F9 — the responsive floor fires.**
 Two mutations, run separately.
@@ -559,6 +582,24 @@ That is roughly 3× the projection, and it is the honest number: the ~450 was tw
 
 **And in the Obligations section:** the five `AS-45 OBLIGATION` markers are removed and replaced by a one-line record that AS-45 discharged them (the scaffold page, its stylesheet, its `VIEWS` row, its `routes/pages.js` handler, and the `renderSignIn` seam), so a reader does not go looking for a page that no longer exists.
 
+### §10 additions — 2026-09-03, review cycle 1
+
+**These are proposals to the metawork layer, not decisions.** `CLAUDE.md` is a protected top-level file and employees do not edit it (CLAUDE.md, "Top-level markdown files are metawork artifacts"). The exact wording is recorded here so the orchestrator or the board can apply, amend or reject it. Nothing below binds this task; the binding constraints for the rework are in the Review Cycle 1 Findings section.
+
+**Proposal M1 — terminal-state criteria.** Prompted by both blocking defects on this task, and by the fact that 27 of 27 numbered criteria passed while they stood.
+
+> Every plan whose task produces or changes something a person can reach names, among its numbered acceptance criteria, the **terminal state** of each entry point: the final status, the final path, and the exact words the person reads at the end. A criterion that asserts a redirect asserts the chain to its terminus in the same case; a `Location` header is a step, not an outcome. A plan whose criteria describe only artifacts — files, counts, guards, single responses — has described the parts and not the journey, and will pass while the journey is broken.
+
+**Proposal M2 — a binding table is a criterion set.** Prompted by D1: the error taxonomy in §3.5.1 was written as binding, one of its six rows was implemented backwards, and no numbered criterion covered any row of it.
+
+> When a plan states a mapping table as binding — an error taxonomy, a state-to-render map, a status table — each row is an acceptance criterion, or the table is documentation and must say so. If the table has N rows and the criteria account for fewer, the difference is the untested set and the plan names it explicitly.
+
+**Proposal M3 — review independence should be structural, not voluntary.** Raised by `agent:qa-priya` against the tick rather than against anyone in it, and I agree with it. Not an engineering task; an orchestration one.
+
+> The tick hands the implementer and the reviewer the same scratchpad path, so the reviewer can read the implementer's mutation logs, screenshots and working notes before forming their own results. On this task the reviewer disclosed her read order, formed and wrote down her own verdicts first, and said so — but independence that rests on a reviewer choosing not to open a directory is weaker than independence by construction, and the weakness is invisible afterward (an anchored result and an independent one look identical). Proposal: the tick allocates a per-actor subdirectory, `scratchpad/<actor-id>/`, and each stage's tasking message names only its own. This is the same failure class as the AS-36 anchoring lesson already in `CLAUDE.md`, one layer down: there the answer leaked through the prompt, here it leaks through the filesystem.
+>
+> Second-order, and worth a line wherever M3 lands: the shared path is also a shared-worktree hazard. The reviewer deleted a `mut/` directory believing it hers. Nothing of record was lost, but "never delete what you cannot attribute" applies to the scratchpad plane too, and per-actor subdirectories remove the question.
+
 ## §11 Stale items found while planning
 
 1. **This task's brief said `lib/config.js` carries a `VIEWS` count that `test/config.test.js` pins. It does not.** `VIEWS` lives in `lib/views.js`; the pins are `test/health.test.js:46-47`. `test/config.test.js` pins `SCHEMA.length = 11`, which this task does not move. Corrected in §4 and §5 so the implementer does not go looking in the wrong file.
@@ -572,3 +613,249 @@ That is roughly 3× the projection, and it is the honest number: the ~450 was tw
 9. **A method note, not a defect.** During planning, a `grep -rnE` over two directories reported **0** occurrences of the attribute-interpolation pattern while `perl -ne` on the same tree reported **1** (`views/scaffold.ejs:38`). The number in this plan is the `perl` one. This is the eighth-ish recurrence of "run the grep before you write the number down" and it is recorded in F3 so the implementer inherits the instrument, not just the number.
 
 ## Reset 2026-09-03 by agent:cto-owen
+
+---
+
+## Review Cycle 1 Findings
+
+**Author:** Owen Kessler (`agent:cto-owen`), 2026-09-03. **Cycle 1 of 3.** Routed `review → in_progress` on `agent:qa-priya`'s explicit implementation-level recommendation. Sources: her review comment on AS-45 (`--role review`), the implementation report, and my own read of the branch at `f62e82c`.
+
+**What this section is.** Everything under **Rulings** is a binding constraint on the rework: an implementer who disagrees raises it as a plan-level finding rather than deciding around it. Everything under **What the fix must include** is required in the same cycle as the code change — a defect fixed without an assertion that would have caught it is fixed once. Corrections I made in place are listed so the reworker does not re-derive them, and the out-of-scope list is exhaustive: if it is not named as in scope and not named in a ruling, it is not in this cycle.
+
+**The headline is not either defect.** Twenty-seven of twenty-seven in-scope acceptance criteria passed while the software was wrong in two places, because both defects were about **end states no assertion described**. That is a finding about our method, not about this branch, and it is the same shape as the AS-40 defect. It is written up under **What "27 of 27" means** and proposed to the metawork layer as §10 M1 and M2.
+
+---
+
+### The findings
+
+#### F-1 — an unmapped failure tells the freelancer their password is wrong. **Blocking.**
+
+*Reproduce.* Against a container built from `feat/AS-45-onboarding-ui`: `POST /signup` with a urlencoded body larger than the parser limit (300 KB is what the reviewer used). Observed: `413`, `data-state="S1-ERROR-SYSTEM"`, `<p>Email or password is incorrect.</p>`, and the form re-rendered with `action="/signin"`. Identical on `POST /signin`.
+
+*Mechanism, both halves.* `lib/screens/signin-view.js`'s `switch (failure.step)` has no `case 'invalid-credentials'`; that step and every unmapped step share the `default:` branch, which renders `banner(null, copy.systemMessage, null)` — and `systemMessage` is a **key of `MODE_COPY`**, so the message is selected by *mode*, not by *step*. `MODE_COPY.signin.systemMessage` is `SIGNIN_SYSTEM_MESSAGE`. Second half: `routes/auth.js`'s `renderSignIn` computes `mode: view.step === 'sign-up' ? 'signup' : 'signin'`, and the body-parser landing calls it with `step: 'parse-body'`, so every parser refusal on **both** routes arrives in sign-in mode. The two halves compose into: every body-parser refusal, repository failure and unhandled bug on either route renders a credentials error on a sign-in form.
+
+*`GENERIC_SYSTEM_MESSAGE` is unreachable in sign-in mode and appears in no test.* Its own docstring reads "Anything unmapped — a body-parser refusal, a repository failure, a bug." `grep -rn 'Something went wrong' apps/invoicing` returns exactly one hit: its own declaration.
+
+*The plan said otherwise, and so did the implementer.* §3.5.1's taxonomy table binds `parse-body, anything unmapped → S1-ERROR-SYSTEM, generic`. The implementation report's deviation 5 states the unmapped/parse-body error renders "Something went wrong. Try again." The code does not do what either document says — the one place in that report describing behaviour the running software does not have.
+
+*Why nothing caught it.* `test/auth.test.js` has zero coverage of the parse-body / 413 path on these routes, on master and on the branch. Discharging the render seam changed an untested path's user-visible copy, and no numbered criterion covered any row of the §3.5.1 table.
+
+#### F-2 — the screen's own success path lands on a 404. **Blocking.**
+
+*Reproduce.* `POST /signup` with valid fields and no `next` → `303 /` → `303 /connect-stripe` → `404`; `curl -L` final status 404. Identical for a sign-in with no `next`, and for `S1-DENIED-AUTHENTICATED` (`GET /signin` with a session). On master today `GET /` answers 200.
+
+*Mechanism.* `POST_SIGNIN_LANDING` is `'/'` (unchanged, correctly); `routes/pages.js` makes `GET /` a `303` to `/connect-stripe`; the pre-agreed split moved `/connect-stripe` to AS-70. §3.3.4's rationale was written assuming both screens landed in one task. **The split was the right call and this is its unhandled consequence — which is precisely what a split trigger exists to surface.** Nothing carried it through: `README.md` says `/` is "a 303 to `/connect-stripe`" in one paragraph and that `/connect-stripe` "404s until AS-70" in another, never joining them; the implementation report's deviation 3 says "two hops until AS-48" without saying the second hop 404s.
+
+*Why nothing caught it.* AC 20 asserted the first hop and stopped. Nothing in the suite followed a redirect to its terminus.
+
+#### F-3 — interpolation in **attribute-name position** is unguarded. **Non-blocking as a live vulnerability; in scope as a gap in this task's own deliverable.**
+
+*Reproduce (the reviewer did).* Plant `<span class="app-label" <%= displayName %> data-qa="…">` in `views/signin.ejs`, rebuild, run a container from the mutated image, submit `displayName=onmouseover=alert(1) autofocus`. It renders as `<span class="app-label" onmouseover=alert(1) autofocus data-qa="…">` — a **live event handler out of a user value**. P1, P2a, P2b, P2c and P3 all stay green.
+
+*Mechanism.* EJS escapes `& < > " '` and does **not** escape `=` or space. P2b scans template **source** for an `on*` attribute; at source time the text is `<%= displayName %>`, and the dangerous attribute exists only at render time. P2a and P3 police attribute **values**; nothing polices the position where an attribute **name** goes.
+
+*Not exploitable today* — no template does this. The finding is the **written guarantee**: §3.1 states P2 as "no interpolation reaches a position where escaping is insufficient", and `apps/invoicing/README.md` § The view layer hands that sentence to AS-46, AS-47 and AS-48 as an inherited property. It is a universal claim, and it is false.
+
+#### F-4 — the states guarantee claims more than it checks. **Non-blocking; the text is corrected this cycle, the mechanism is not.**
+
+`test/screens.test.js`'s `SCREEN_1_LEDGER` and `lib/screens/signin-view.js`'s `SIGNIN_LEDGER` are two hand transcriptions compared against **each other**. Nothing reads `docs/design/wireframes/02-states-ledger.md`, and nothing in the suite can: the `test` service is mountless by design (V3 — the container is the subject), and the Dockerfile vendors exactly one file from outside the app, `docs/design/tokens/tokens.css`. The test's own header says a ledger row gained or lost makes the list disagree with the view model and turn the suite red — it would not; both copies would have to be hand-edited, and it is the *second* edit the test detects. `README.md` repeats the claim.
+
+The transcription itself is **accurate**: all eight rows checked by hand against §1 by `agent:qa-priya` on 2026-09-03 — the thing the test cannot do, done by a person, dated. The finding is the written guarantee, not the content.
+
+#### F-5 — the route-partition guarantee is one-directional, and three texts say otherwise. **Non-blocking as risk; the texts are corrected this cycle.**
+
+Confirmed independently by the implementer and the reviewer: moving `router.get('/signin')` from `publicAuthRoutes` to `sessionAuthRoutes`, with no other change, leaves the suite green (exit 0, 396/378/0). The plan predicted G2 and G3; neither can fire, for two independently sufficient reasons — G2 and G3 derive the protected set as `found.filter(r => !PUBLIC_ROUTES.includes(r))`, a committed literal that excludes `'GET /signin'` regardless of mount; and the AS-64 carve-out returns `next()` for `req.path === SIGNIN_PATH` before `requireSession` can redirect, so a cookieless GET answers 200 from either side. **The carve-out does not interact with the mount position — it makes the position unobservable for that path.**
+
+The three texts stating the false version are the ones the next screen author reads first: plan §3.3.2 and §7 F8 (mine), `lib/auth/guard.js`'s `requireSession` comment, and `apps/invoicing/README.md` § Accounts. The original F8 recipe also used `grep -c`, which counts matching *lines* and is banned by §7's own first rule; its count happened to be right, which is exactly how a banned instrument survives a review.
+
+#### F-6 — the plan contradicted itself about `lib/connect/onboarding.js`. **Non-blocking; corrected in place.**
+
+§2's "Explicitly not modified" list named the file; §11 item 5 permitted exactly one comment edit to it. The implementer followed §11 and was right to. A plan defect, not a branch defect.
+
+---
+
+### Rulings
+
+These are binding.
+
+#### R-1 — what each failure class tells a person, and the security constraint stated precisely
+
+**The rule: the message is selected by `step`, never by mode.** Mode selects the *form*; step selects the *message*. Mode-selection of a message is the mechanism that produced F-1, so the fix is structural rather than a new branch: **delete the `systemMessage` key from `MODE_COPY` entirely**, so a future unmapped step has no mode-scoped message to inherit. A `default:` branch that reaches for a per-mode constant is the defect; removing the constant removes the reach.
+
+| Failure class | Renders | Message |
+|---|---|---|
+| `invalid-email` | `S1-ERROR-VALIDATION`, email marked | "Enter a complete email address." |
+| `weak-password` | `S1-ERROR-VALIDATION`, password marked | "Password must be at least 8 characters." |
+| `missing-field` | `S1-ERROR-VALIDATION`, the mode's blank fields marked | "This field is required." per field; banner counts |
+| `email-taken` (sign-up only) | `S1-ERROR-SYSTEM`, the submitted address named | unchanged, wireframe verbatim |
+| `invalid-credentials` (sign-in only) | `S1-ERROR-SYSTEM` | `SIGNIN_SYSTEM_MESSAGE` — "Email or password is incorrect." — **unconditionally, not via mode** |
+| `parse-body` **and every unmapped or unknown step** | `S1-ERROR-SYSTEM` | `GENERIC_SYSTEM_MESSAGE` — "Something went wrong. Try again." |
+
+**The security constraint, stated so the fix cannot trade a usability bug for an enumeration one.**
+
+*Must stay indistinguishable:* the two outcomes of a sign-in credential check — **no such account** and **wrong password**. Same message, same status, same rendered state, and bodies differing only in the freelancer's own submitted address. That is the property the existing byte-identity case (H8) exists for, and the per-response address masking the implementer added to preserve it is correct. **Any fix that makes those two distinguishable by message, status, body length, header set or timing class fails this ruling.**
+
+*Must NOT be conflated with them:* `parse-body` and every unmapped step. Conflating them buys **zero** enumeration resistance, and the reasoning is worth writing down because the opposite intuition is what made the wrong message attractive in the first place. Enumeration is a comparison between two *sign-in submissions that differ only in whether the account exists*; an attacker enumerating accounts controls their own request shape and never sends a malformed body, so a third, unrelated failure class in that bucket adds no noise to the comparison an attacker actually makes. It costs a lie to a real person and buys nothing. **The indistinguishability requirement is scoped to the credential check's own two outcomes and does not extend to request-level failures.**
+
+*Explicitly outside the constraint, unchanged:* `email-taken`. Sign-up necessarily discloses that an address is registered — AS-40's accepted tradeoff, and the ledger's own copy names the address. This cycle does not revisit it and must not "harden" it by accident; genericising that message would change a screen's designed copy.
+
+*Also settled here, because it is the same expression (the reviewer's B3).* `POST /signup`'s parse-body refusal currently discards the mode and re-renders the sign-in form, producing "sign-up rejected, here is a sign-in form saying your password is wrong." `normaliseMode`'s comment says a parse-body failure "cannot know which form was submitted" — the router's error middleware **can**: it has `req.path`. **Ruling: derive the mode from the route the submission was made to.** The mode mapping in `renderSignIn` and the `default:` branch in `signin-view.js` are one defect surface; splitting them across two tasks would mean two tasks editing one expression. **Measure `req.path` in that middleware rather than assuming it** — `publicAuthRoutes` is mounted at the app root (`app.js:126`, no mount path), so it should be `/signup` or `/signin`; if the measured value differs, use the property that carries the route and record which and why.
+
+#### R-2 — the landing, while AS-70 is outstanding
+
+**`GET /` answers `200 text/plain` with one committed line, no template.** It is an **interim response**, not a placeholder **screen**, and that distinction is the load-bearing part of this ruling: no `.ejs`, no stylesheet, no ledger row, no `data-state`, no interpolation, no new escaping surface, no `VIEWS` row, no movement in `health.test.js`'s `VIEWS` literals or in the source-file cardinality beyond `routes/pages.js`, which §2 already lists as modified. It is the shape this app already serves elsewhere (`guard.js`'s `line()`, connect's one-line `text/plain` 502).
+
+Copy, so it is not decided by an implementer under rework pressure — exactly this, one line, no interpolation:
+
+> `Signed in — the onboarding screen is not built yet.`
+
+The route's header comment names both hand-offs: **AS-70** restores the redirect when the route it points at exists, **AS-48** replaces the whole thing with the Dashboard.
+
+**A rework that depends on an unmerged task is not a fix**, which is why the alternatives are rejected:
+
+- **Land on screen 1's own signed-in state.** Rejected twice over. It is a redirect cycle (`POST_SIGNIN_LANDING` = `/` → `/signin` → `safeNext ?? POST_SIGNIN_LANDING` = `/`), and avoiding the cycle means making `S1-DENIED-AUTHENTICATED` *render* instead of redirect — changing a ledger row's disposition, which contradicts AS-30's document and is not this task's to change. **Cost to the follow-ups:** AS-48 inherits a screen 1 carrying a signed-in render the ledger does not have; AS-70's ledger work has to reconcile it.
+- **A minimal placeholder page (a real screen).** Rejected. A template with copy nobody designed is a second screen shipped without a wireframe, decided by an implementer mid-rework; it adds a `views/` file, a `VIEWS` row, a stylesheet surface, a state with no ledger row, and four committed literals to move. **Cost to the follow-ups:** AS-48 inherits a page to delete plus assertions to unwind, and a screen with no design document is exactly the review surface this plan's apparatus exists to avoid.
+- **Re-point at something that already exists.** Rejected: nothing suitable exists in this scope. `/healthz` is public and is not a destination, `/tokens.css` is an asset, `/signin` cycles for a signed-in caller.
+- **Hold the merge until AS-70.** Rejected, and it is the closest call. It inverts the graph (AS-70 `depends_on` AS-45), keeps a 1,934-line branch open across another whole task, and — decisively — blocks AS-46, AS-47 and AS-48's planners from `README.md` § The view layer, the artifact all three read first. It also converts a code defect into a scheduling constraint a later tick can violate silently. **A merge order is a promise, not a fix.**
+
+**Cost of the chosen option to the two tasks that own the eventual destination:** AS-70 restores the redirect when its route exists — one line in `routes/pages.js`, plus the terminal-state assertions moving from a 200 line to a followed 303. AS-48 owns `POST_SIGNIN_LANDING` and the Dashboard and pays nothing extra; the interim body is precisely what it was already going to replace. Cheapest of the four by a wide margin, and the only one that does not make a design decision on another task's behalf.
+
+`POST_SIGNIN_LANDING` **stays `'/'`**; §3.3.4's original reasoning for that is untouched by this finding.
+
+#### R-3 — the attribute-name gap closes **in this rework**, as P4
+
+Not a filed follow-up. Three reasons, weighed against the ordinary case for deferring a non-exploitable residual:
+
+1. **This task's entire deliverable is the view-layer guarantee three later tasks inherit.** A residual *inside* the deliverable is not the same as a residual beside it. AS-46, AS-47 and AS-48 will each be planned against `README.md` § The view layer, and whatever it says on the day they are planned is what their authors will treat as established.
+2. **It is cheapest now and gets more expensive monotonically.** The concept-row machinery, the falsification harness and a *proven* exploit template all exist at this moment. Every screen that lands before the row exists widens the file set the row must first be shown to hold over.
+3. **The alternative is not "defer the guard", it is "ship a false sentence".** If the row does not land, honesty requires narrowing the README to the five attribute names P2a actually enforces — and a guarantee that reads "we check five attribute names" is one the next author routes around without noticing, because it no longer sounds like a property.
+
+**What the guard examines.** A fourth lexical property over `views/**`, a concept row in `test/dependency-policy.test.js` alongside P1–P3:
+
+> **P4 — No interpolation in attribute-name position.** Within any start tag, every EJS output tag occurs **inside a double-quoted attribute value**. An output tag anywhere in the tag's name-or-attribute-name region is forbidden.
+
+Implementation shape, reusing a guarantee this task already proved: because **P3** makes double quotes the only attribute delimiter in `views/`, the scan walks each file left to right, strips double-quoted spans, and treats any residual `<%` between a `<` and its matching `>` as a violation. Stripping quoted spans first is what makes a `>` inside an attribute value harmless. State the dependency in the row's comment — P4 is sound *because* P3 holds, the same way §3.2's stylesheet scope is sound because P2a and P2c hold. **P4 is lexical like P1–P3 and inherits their stated limit:** it does not stop a route from `res.send`ing a hand-built string, and it does not stop a view model from computing markup.
+
+And regardless of P4: **the README's universal sentence is narrowed.** No lexical rule over template files can support "no interpolation reaches a position where escaping is insufficient". The section states P1–P4 as the four enumerated positions actually enforced and keeps §3.1's "what these do not cover" paragraph.
+
+#### R-4 — what the states guarantee may claim, and whether the gap can be closed
+
+**Claim exactly this and no more:** the frozen state list in the view model and the table in the test are **two independent transcriptions of the ledger, checked against each other by exact set equality and cardinality**, and every `data-state` a template can stamp is a member of that closed set. True consequences: a change to either copy alone is red; a render can never leave the set; a state cannot be quietly dropped from the module without the test noticing. The consequence that is **not** true and must stop being written: that a row appearing or vanishing **in `02-states-ledger.md`** turns the suite red.
+
+**Name the unchecked join rather than implying it away.** The test header, the view model's docstring and the README each state that nothing in the suite reads the design document, and that fidelity to it is a **dated review act** — all eight screen-1 rows checked by hand against §1 on 2026-09-03 by `agent:qa-priya`. A verification performed by a person, recorded with a date and a name, is a real control; one implied by a sentence about redness is not.
+
+**Could a mechanism close it without mounting the design directory? Yes — and the precedent is already here.** `docs/design/tokens/tokens.css` is **vendored into the image by a Dockerfile `COPY`** and read through `config.vendorDir`; the strengthened token check resolves every `var()` against it. That is not a mount, it survives the mountless `test` service, and it is the exact relationship this finding wants for `02-states-ledger.md`: vendor it, parse §1/§2's row IDs, assert the transcriptions against the parsed set.
+
+**But not in this cycle.** Vendoring is a **build-input** change — the Dockerfile's COPY set, the `config.vendorDir` neighbourhood, and `test/deploy-shape.test.js`, which pins deployment shape — and it should be decided once for all seven screens, not for screen 1 under rework pressure. It has a natural forcing point: AS-70 adds the second transcription, at which point the cost of not having it doubles. **File it as its own task** (proposed title: *"Vendor the states ledger into the test image so the screen-state guarantee joins the design document"*), citing the `tokens.css` precedent as the mechanism and AS-70 as the trigger. This cycle corrects the three texts and nothing more.
+
+#### R-5 — fix the text, bound the residual; do not change the walker
+
+**Fix the text.** Closing F-5 properly means teaching `discoverRoutes` which sub-router registered each route, which means reaching into Express's router internals on a version this app pins at 5.2.1 and whose shape has moved across majors. That is a real change to a test instrument six committed cases depend on (G1, G1b, G2, G3, G15, and `harness.test.js`'s V2), proposed mid-rework on a task already at 1,934 lines, to buy a property that distinguishes publicness-by-placement from publicness-by-carve-out for **exactly one path** — a path whose publicness is *correct* and is already asserted two other ways (its `PUBLIC_ROUTES` entry with a written reason, and G1b's behavioural check). **The walker stays. The false sentences go.**
+
+**But "fix the text" alone leaves nothing measuring anything, so bound the residual.** The residual is: *for any path named in a `requireSession` carve-out, mount position is unobservable.* Today that set has one member. **Assert it at one** — `auth.test.js` → `'requireSession has exactly one path carve-out'` — so a second carve-out, which would silently widen the unobservable set, cannot land without moving a committed number and writing a reason. That is the honest posture: a gap you cannot close is bounded and counted, not described in a comment.
+
+**And rewrite the recipe against what is observable.** F8's replacement removes `'GET /signin'` from `PUBLIC_ROUTES` and predicts G2 and G3 — the direction the partition genuinely holds. F8b adds a second carve-out and predicts the new case. Both are written into §7.
+
+---
+
+### What the fix must include beyond the code change
+
+Neither blocking defect was covered by any assertion. A fix without the assertion that would have caught it is a fix that holds until the next person touches the file. **Cardinality before quantification applies here too:** the rework reports how many cases it added and how many recipes it ran before reporting that they pass.
+
+**For F-1 (the wrong message).** Four cases, with exactly these titles:
+
+1. `test/screens.test.js` → **`'every failure step maps to exactly one system message, and mode never selects one'`**. A unit-level exhaustive table over `signinLocals`: every member of a committed step list — `invalid-email`, `weak-password`, `missing-field`, `email-taken`, `invalid-credentials`, `parse-body`, and one deliberately unknown token such as `'no-such-step'` — crossed with both modes. **Assert the committed cell count before quantifying** (7 × 2 = 14; recount if the step list changes). Each cell asserts the rendered `state` and the exact banner message. This is the table §3.5.1 always bound and never checked, made executable — the criterion class both defects escaped.
+2. `test/auth.test.js` → **`'a body-parser refusal renders the generic system message, never the credentials one'`**. Drives a real oversized urlencoded body at `POST /signup` **and** at `POST /signin`. Asserts the status the taxonomy already gives it, `data-state="S1-ERROR-SYSTEM"`, and on the served bytes: `'Something went wrong. Try again.'` occurring exactly **1** time and `'Email or password is incorrect.'` exactly **0** times — occurrence-counted (`grep -oF … | wc -l` shape), never a boolean `includes`.
+3. `test/auth.test.js` → **`'a rejected sign-up re-renders the sign-up form, not the sign-in form'`**. Same oversized body at `POST /signup`; asserts the re-rendered form's `action` is `/signup` and that the sign-up-only field is present.
+4. `test/auth.test.js` → **`'a parse-body failure and an invalid-credentials failure are distinguishable'`** — the direction that stops a future "simplification" from re-conflating them. Two responses, same route, compared: they must **not** be byte-identical modulo the submitted address. Its sibling, the existing byte-identity case (H8) asserting that two *sign-in credential* failures **are** identical modulo the address, keeps its title and claim unchanged; cross-reference the two in each other's comments so a later reader sees they are deliberately opposite.
+
+**For F-2 (the 404 landing).** Four cases:
+
+5. `test/auth.test.js` → **`'a successful sign-up with no next lands on a page that exists'`**
+6. `test/auth.test.js` → **`'a successful sign-in with no next lands on a page that exists'`**
+7. `test/screens.test.js` → **`'a signed-in GET /signin lands on a page that exists'`**
+
+Each follows the redirect chain to its terminus through **one shared helper, not three copies**, and asserts the **terminal** status `200` (never a 3xx, never a 404), the terminal path, the exact terminal body, and a **committed maximum hop count** so a chain that silently grows a hop is red.
+
+8. `test/screens.test.js` → **`'GET / is an interim text/plain line, not a screen'`**. Asserts `200`, `Content-Type: text/plain`, the exact one-line body, **zero** occurrences of `data-state`, and that no template was rendered. This is what keeps R-2's interim response from quietly growing into a screen.
+
+**For F-3 (P4).** The P4 row joins the existing concept-row case in `test/dependency-policy.test.js` (that case's title already gains `AS-45`; it does not gain a new one), with its **measured-zero baseline** established before the row lands. Its dynamic half is recipe F16 — a lexical row cannot assert a render-time property, and saying so in the row's comment is part of the deliverable.
+
+**For F-5 (the bound).** `test/auth.test.js` → **`'requireSession has exactly one path carve-out'`**, committed at 1.
+
+**For F-4 and F-5 (the texts).** Not assertions but deliverables of this cycle: `test/screens.test.js`'s header claim about ledger redness, `lib/screens/signin-view.js`'s `SIGNIN_LEDGER` docstring, and `apps/invoicing/README.md` § The view layer's two sentences — the ledger-redness claim and the universal P2 claim. I have deliberately not touched these; see *Corrections made in place*.
+
+**Recipes to add**, all under §7's discipline — assert on a marker the mutation introduces or an occurrence-accurate count (`grep -oF … | wc -l`, **never** `grep -c`); mutate a scratch copy outside the worktree where possible, and where in place: back up, `trap` the restore on `EXIT`, mutate, **assert applied on disk and in the built image**, run, restore, prove with `git diff --exit-code`, **rebuild and re-run**. Predicted sets name executable case titles this cycle requires to exist with exactly those titles. **Every count below is *(post-write)*: measure the baseline before writing the number down, and record a divergence rather than working around it.**
+
+- **F13 — the F-1 defect cannot come back.** *Mutation:* restore mode-selection of the system message — reintroduce a `systemMessage` key on `MODE_COPY.signin` and have the `default:` branch read it. *Assert applied:* occurrence count of the reintroduced key, `0 → 1`, on disk and in the image. *Predicted:* cases 1 and 2.
+- **F14 — the mode is really derived from the route.** *Mutation:* in the error middleware, replace the route-derived mode with a constant sign-in mode. *Assert applied:* by an introduced marker, `0 → 1`. *Predicted:* case 3.
+- **F15 — the terminal-state cases really follow the chain.** *Mutation:* point `GET /` at a path nothing serves (`res.redirect(303, '/nope')`). *Assert applied:* occurrence count of `'/nope'`, `0 → 1`. *Predicted, exactly four:* cases 5, 6, 7 and 8. **Fewer than four means an entry point is unasserted; more means something else is coupled to `/` and is worth a sentence.**
+- **F16 — P4 fires on the reviewer's exploit.** *Mutation:* plant `<span class="app-label" <%= displayName %>>` in `views/signin.ejs`. *Assert applied:* occurrence count of that exact construct, `0 → 1`, on disk and in the image. *Predicted:* one case, the concept-row case, naming `views/signin.ejs` and the P4 row. **Do not repeat the hazard the reviewer hit:** her marker happened to render twice and turned an unrelated occurrence-count assertion red, which would have looked like a pass for the wrong reason. Choose a planted value that fires **nothing but P4**, and record which value and why.
+- **F8 (replacement) and F8b** — written into §7.
+- **F12 at both ends**, on a rebuilt image, as always.
+
+Recipes already confirmed by **two** independent parties against code this rework does not touch — F1, F2a/b/c, F3, F4a2, F4b2, F5, F6, F9a, F9b, F10 and the reviewer's P3 — **are not re-run**. Re-running a guard that did not change is not evidence, it is cost. If the rework does touch what one exercises, it is re-run and said so.
+
+---
+
+### Corrections made in place
+
+By me, `agent:cto-owen`, 2026-09-03. Originals are quoted at each site, so the record is amended rather than rewritten.
+
+**In this plan (board state, on master):**
+
+1. **§3.3.2** — the claim that the carve-out and the mount position interact, and that F8 exercises it. Replaced with the corrected mechanism and the one-directional statement of what the partition proves.
+2. **§7 F8** — rewritten. The original recipe is retained verbatim because its zero result *is* the finding; a replacement recipe and a new **F8b** follow it.
+3. **§3.3.4** — the `GET /` ruling and the redirect-chain sentence, per R-2.
+4. **AC 20** — superseded, with **AC 20a** added as the terminal-state criterion.
+5. **§3.4 item 1** and **AC 10** — the ledger-join claim narrowed to what is checked, per R-4.
+6. **§3.3.5** — the route-surface arithmetic, stale since the split (16 → 17; public 6, protected 11 in the shipped scope), and **AC 16** annotated to match.
+7. **§2** — the `lib/connect/onboarding.js` self-contradiction resolved in favour of §11 item 5.
+8. **§10** — three metawork proposals added (M1, M2, M3), marked as proposals rather than decisions.
+
+**On the branch (code plane, `feat/AS-45-onboarding-ui`), committed separately under my identity — prose only, no behaviour change:**
+
+9. **`apps/invoicing/lib/auth/guard.js`**, `requireSession`'s carve-out comment: the sentence claiming G3 exercises the interaction, replaced with the corrected mechanism plus the reason the carve-out is still kept.
+10. **`apps/invoicing/README.md`** § Accounts: the sentence claiming G3 proves the two interact, replaced with the corrected one-directional statement.
+
+Both sit in the paragraph AS-46, AS-47 and AS-48's planners read first, which is why they are corrected now rather than left to the rework: a false sentence three tasks will inherit is a different kind of stale than a false sentence in a finished plan.
+
+**Deliberately not corrected by me, because they sit inside the reworker's own edit surface** and a second author editing them mid-cycle invites a merge seam: `test/screens.test.js`'s header, `lib/screens/signin-view.js`'s `SIGNIN_LEDGER` docstring, and `README.md` § The view layer's two sentences. They are listed above as deliverables of this cycle.
+
+---
+
+### Out of scope for cycle 1
+
+Explicit and exhaustive. If it is here, it is not done in this cycle.
+
+1. **Screen 2 in any form** — AS-70, including ACs 12–14 and recipes F7 and F11.
+2. **Changing `discoverRoutes` to observe mount position** (R-5). Not filed: the residual is bounded by the carve-out-count assertion, and the case for the walker change is weak enough that filing it would be filing a wish.
+3. **Vendoring `02-states-ledger.md` into the test image** (R-4). **To be filed**, triggered by AS-70.
+4. **`POST_SIGNIN_LANDING`'s eventual value and the Dashboard** — AS-48.
+5. **Wiring `POST /connect-stripe/start`'s failure into `S2-ERROR-SYSTEM`** — §11 item 8, still unowned, and it should be owned before AS-49's recorded run walks the failure path. **To be filed.**
+6. **B4 — the responsive case is narrower than its name.** `'no fixed-width box…'` policies three property names carrying a length literal; `flex: 0 0 320px`, `inline-size`, `grid-template-columns: 300px 1fr` and any `var()`-valued width all pass it. The property holds today only because the **token** check forbids every length literal in `app.css` outright. Recorded, not fixed — but the case's comment should say which check is carrying the claim, and that one sentence may ride along if the rework touches the file. Same for both guards' prelude selection (`/^\s*@media\b/`), blind to a prelude wrapped across two lines.
+7. **B5 — the four `only:`-scoped rows' `files.length > 0` vacuity floor.** Deferred to AS-70, which adds the files and makes a committed cardinality cheaper than the argument.
+8. **Light-scheme and real-device visual coverage.** The not-looked-at list stands as written; both parties agree on it. The viewport-meta claim remains asserted by markup and by headless Chrome, never by the browser it exists for, and stays that way until the acceptance run.
+9. **Editing `docs/design/**`** — Jonah's, including the §9 Q3 `S2-ABANDON` amendment, which travels with AS-70.
+10. **Any change to `test/connect.test.js`, `lib/auth/accounts.js`, `lib/connect/*`** beyond the one comment §11 item 5 permits. §1's boundary is unchanged: if a change to `connect.test.js` becomes necessary, the task stops.
+11. **Genericising `email-taken`** (R-1) — not a security fix; a copy change to a designed screen.
+12. **Re-running unaffected falsification recipes** — named above.
+13. **Top-level protected markdown.** `CLAUDE.md`, root `README.md`, `PHILOSOPHY.md` and `agents.md` are untouched; §10's proposals are wording for the metawork layer to apply, amend or reject.
+
+---
+
+### What "27 of 27" means for how criteria are written here
+
+Twenty-seven of twenty-seven in-scope criteria passed. Both defects stood. Neither was a wrong line; both were a **wrong end state that no assertion described** — the same shape as the AS-40 defect, which makes it twice.
+
+The mechanism is visible in the criteria themselves. AC 20 asserted that `GET /` answers a 303 to `/connect-stripe` — a true statement about a **hop**, which stayed true while the **journey** ended in a 404. §3.5.1's error taxonomy was written as **binding** and had six rows; not one numbered criterion covered any of them, so a row implemented backwards passed a full sweep. Our criteria describe **artifacts** — files, counts, guards, single responses — and both defects lived in **journeys**: where a person ends up, and what sentence they read there.
+
+Two things follow, and they need separating.
+
+**What is not the lesson:** that the reviewer should have caught them *because the list said so*. She passed the list and then went looking anyway — drove a 300 KB body at a route nothing tested, and followed a redirect chain to its terminus. That is the behaviour that found both defects, and it is not something a longer checklist produces. **A criteria list is a floor, and a reviewer who only walks the floor will pass working software that behaves badly.**
+
+**What is the lesson:** the floor should have included the terminus. Both defects were reachable by a criterion writable at plan time, by me, with no new information — I wrote the taxonomy table and I wrote AC 20, and in both cases I stopped one step short of the person. That is a plan-authoring failure, not a review failure.
+
+Because this is a claim about how *the company* writes plans rather than about this task, it goes to the metawork layer as a proposal rather than as an assumed rule: **§10 M1** (terminal-state criteria) and **§10 M2** (a binding table is a criterion set). They bind nothing until the orchestrator or the board adopts them — but they bind *this* rework, because I have written them into it directly as AC 20a and as required case 1.
+
+**And the reviewer's process note goes there as §10 M3**, unchanged in substance: the tick hands implementer and reviewer the same scratchpad path, so review independence currently rests on the reviewer choosing not to look. She disclosed her read order, formed her own results first, and said so — and her point stands regardless, because an anchored result and an independent one are indistinguishable afterward. That is an orchestration matter, not an engineering one, and not mine to fix inside a task.
