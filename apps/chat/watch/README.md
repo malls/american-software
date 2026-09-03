@@ -36,7 +36,7 @@ into something load-bearing.
 | `last-human-message.json` | container (`lib/store.js`) | latest human message: `{messageId, authorId, conversationId, createdAt}` |
 | `advance-watcher.highwater.json` | watcher | last messageId fired for |
 | `advance.lock` | watcher / loop / manual ticks | single-flight: `{pid, startedAt, source}` |
-| `advance-watcher.pid` | watcher | single-instance guard |
+| `advance-watcher.pid` | watcher | single-instance guard + liveness heartbeat (AS-27) |
 | `logs/advance-watcher.log` | watcher | lifecycle: fires, skips (with reason), steals, exit codes |
 | `logs/tick-<timestamp>.log` | watcher | full stdout+stderr of each fired tick; pruned after 14 days |
 | `logs/launchd.{out,err}.log` | launchd | crashes before our logger exists |
@@ -83,6 +83,22 @@ launchctl bootout gui/$(id -u)/com.american-software.advance-watcher   # stop + 
 rm ~/Library/LaunchAgents/com.american-software.advance-watcher.plist  # uninstall
 # restart = bootout, then bootstrap again
 ```
+
+### After any change to this watcher: restart it
+
+The watcher is a long-lived host process; editing this file changes nothing
+until it is restarted. **AS-27 in particular:** `advance-watcher.pid` now
+carries a `heartbeatAt` timestamp, rewritten at the top of every poll, and the
+chat app's loop-status indicator uses its age to decide whether a watcher is
+listening (the container cannot check a host pid for liveness). A watcher still
+running pre-AS-27 code writes no `heartbeatAt`, so the indicator reads
+`Off · no watcher` even while that watcher is happily firing ticks. Restarting
+it on the new code is the fix, and it is a **host action for the board or a
+live session** — a headless tick has no `docker`/`launchctl` reach and cannot
+do it for you. The indicator corrects itself within 60s of the restart.
+
+`pid` and `startedAt` keep their meaning; the single-instance check reads `pid`
+only and is unaffected by the added key.
 
 ## Permission modes (unattended reality)
 

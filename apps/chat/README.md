@@ -282,6 +282,72 @@ out chat for everyone, including the conversation needed to fix it.
 `GET /api/roster` rows also carry `reportsTo` now, on the server and in
 `chat roster --json` alike.
 
+## Loop status indicator (AS-27)
+
+The sidebar, under the brand, answers one question at a glance: *is the company
+running right now, or waiting on me?* Four states, because the board's "off"
+splits in two and the difference decides whether his next message does anything:
+
+| Dot | Label | Means |
+|---|---|---|
+| green | `Loop active` | a fresh `advance.lock` with `source: "loop"` — a `/loop /advance` session is executing a tick |
+| amber | `Tick in flight · watcher` (or `· manual`) | a fresh lock from any other source |
+| lavender | `Idle · watcher listening` | no fresh lock, watcher heartbeating — a board message will fire a tick |
+| dim | `Off · no watcher` | no fresh lock and no live watcher — **nothing will fire** |
+
+Hovering the indicator gives the evidence: tick source/pid/age, the last tick's
+end time, any stale lock, and the watcher's heartbeat age or the reason it is
+not believed.
+
+**The two files.** `apps/chat/data/advance.lock` (written by whichever tick
+holds the single-flight lock) and `apps/chat/data/advance-watcher.pid` (written
+by the host watcher, which since AS-27 rewrites `heartbeatAt` on every 5s
+poll). Both already live in the container: compose mounts `./data:/app/data`
+rw, pinned by `test/deploy-shape.test.js`. The server **polls** them every 2s
+(`LOOP_POLL_MS`) rather than using `fs.watch` — FSEvents on bind-mounted files
+written by the host is unreliable, which is the same reason the watcher polls
+its own sentinel.
+
+**One staleness rule, age-only, and why.** Freshness is decided by the
+watcher's own `isLockStale()`, imported from `watch/advance-watcher.mjs` — not
+by a second comparison in the server, which would drift the first time
+`DEFAULTS.lockStaleMin` moved. The server calls it with `pidAlive: true`
+because the container **cannot** see host pids: the lock and pid files carry
+host pids in another pid namespace, so `process.kill(pid, 0)` there answers a
+question about an unrelated process. So in-container staleness is age-only.
+The bounded cost: a SIGKILLed tick's lock still reads as a tick until it ages
+out (45 min). That is the honest reading of the evidence the container has.
+
+**Known limit — a loop reads as idle between its ticks.** `advance.md` step 6
+releases the lock at the end of every tick, so between two ticks of a running
+`/loop /advance` there is no fresh lock and the indicator truthfully shows
+`idle`. The mitigation is not a fix: the server remembers the last lock it
+observed and when it disappeared (`lastTick`, in-memory, best-effort, reset on
+restart) and the detail line says "Last tick: loop, ended 40 s ago" plus a note
+that a loop releases the lock between ticks. Making the loop announce itself
+between ticks would need a change to `advance.md` — metawork, not this app.
+
+**`GET /api/loop-status`** → `{ status: { state, tick, staleLock, watcher,
+checkedAt, lastTick } }`. No `me` and no visibility filter: the answer is
+identical for every viewer. The lock's AS-16 `nonce` is the anti-spoof token
+and **never leaves the server** — the payload carries `source`, `pid`,
+`startedAt` and `ageS` only. Malformed or unreadable files degrade to a
+`reason` string and a 200, never a 500 (same contract as `/api/roster` and
+`/api/org`).
+
+Live updates ride the AS-25 SSE stream as `event: loop` frames, fanned out to
+every connection with no `visibleTo` gate. A frame is emitted only when a
+*state-bearing* field changes — `ageS` moves on every poll and must not push,
+so the client recomputes age locally on a 15s render-only timer. Each new
+`/api/stream` connection is sent one `loop` frame immediately, so a
+reconnecting client is current without issuing a fetch.
+
+**Restart the watcher after deploying this.** A watcher started before AS-27
+writes a pid file with no `heartbeatAt`, and the indicator reports
+`Off · no watcher` with reason `no-heartbeat` — correct, since nothing in the
+evidence says that process is alive. `launchctl bootout` then `bootstrap` (see
+`watch/README.md`) fixes it; the indicator self-corrects within 60s.
+
 ## CLI (for agents; works with the server container stopped)
 
 ```sh

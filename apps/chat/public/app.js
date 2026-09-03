@@ -9,6 +9,7 @@ import { rosterOrder, dmOrder, togglePin, sanitizePins } from './dm-sort.js';
 import { BOARD_ROOT, buildOrgTree } from './org-chart.js';
 import { tokenizeMsgRefs, tokenizeFileRefs } from './msg-refs.js';
 import { tokenizeInline, parseBlocks, tokenizeUrls } from './markdown.js';
+import { describeLoopStatus } from './loop-status.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -27,6 +28,7 @@ const state = {
   anchorApplied: false, // one-shot: a push re-render must never re-scroll/re-highlight
   lastReadSent: 0, // AS-25: highest read watermark POSTed for currentConv (keeps /api/read cheap)
   pins: new Set(), // AS-18: pinned roster actor ids for state.me (localStorage-backed)
+  loopStatus: null, // AS-27: last /api/loop-status payload (null = unavailable)
 };
 
 // --- pins (AS-18) -----------------------------------------------------------
@@ -349,7 +351,31 @@ async function refreshSidebar() {
   } catch {
     state.roster = [];
   }
+  // AS-27: the loop indicator rides the same refresh, so the 60s reconcile and
+  // the foreground catch-up both bring it current. No 'me': the answer is the
+  // same for every viewer. Degradation contract: a failed fetch means "we do
+  // not know", rendered as such — never a thrown sidebar refresh.
+  try {
+    state.loopStatus = (await api('/api/loop-status')).status;
+  } catch {
+    state.loopStatus = null;
+  }
   renderSidebar();
+}
+
+// AS-27: the indicator, rendered from state alone. Pure DOM: every string
+// comes from describeLoopStatus (public/loop-status.js) and lands via
+// textContent — the label module never returns markup and this never parses
+// any.
+function renderLoopStatus() {
+  const box = $('#loop-status');
+  const labelEl = $('#loop-label');
+  if (!box || !labelEl) return;
+  const { tone, label, detail } = describeLoopStatus(state.loopStatus, Date.now());
+  const dot = box.querySelector('.loop-dot');
+  if (dot) dot.className = `loop-dot loop-dot--${tone}`;
+  labelEl.textContent = label;
+  box.title = detail;
 }
 
 // AS-25: pure re-render from state — push frames bump local badges and call
@@ -387,6 +413,7 @@ function renderSidebar() {
   $('#dm-list').replaceChildren(
     ...dmOrder(dms, otherOf, (c) => displayName(otherOf(c) || '?')).map(li)
   );
+  renderLoopStatus();
 }
 
 // --- roster rows (AS-8) -----------------------------------------------------
@@ -1117,6 +1144,19 @@ function connectStream() {
     }
     handleFrame(msg);
   });
+  // AS-27: loop-status frames. Their own event name, so they never reach
+  // handleFrame — this is server state, not a message, and it carries no
+  // visibility gate because the answer is identical for every viewer.
+  eventSource.addEventListener('loop', (e) => {
+    let status;
+    try {
+      status = JSON.parse(e.data);
+    } catch {
+      return; // a torn frame is the reconnect path's problem, not a crash
+    }
+    state.loopStatus = status;
+    renderLoopStatus();
+  });
   eventSource.addEventListener('open', () => {
     // First open: nothing missed. Open after a drop: the gap is unknown —
     // reconcile the sidebar and replay the open conversation's delta.
@@ -1327,6 +1367,12 @@ async function init() {
   setInterval(() => {
     refreshSidebar().catch(() => {});
   }, 60_000);
+
+  // AS-27: local age tick. Issues NO request — it only re-renders the strings
+  // describeLoopStatus derives from the timestamps already in state, so
+  // "started 3 min ago" stays true between push frames. State changes arrive
+  // over SSE; this timer can never invent one.
+  setInterval(() => renderLoopStatus(), 15_000);
 }
 
 init().catch((err) => {

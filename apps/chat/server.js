@@ -14,6 +14,11 @@ import { readRoster, readPersonnel } from './lib/personnel.js';
 // second copy of the rules for the client is the drift hazard the whole org
 // check exists to prevent. See the header of public/org-chart.js.
 import { validateOrg } from './public/org-chart.js';
+// AS-27: the loop-status derivation, and the watcher's own staleness constant.
+// DEFAULTS.lockStaleMin is imported rather than restated so the server and the
+// watcher can never disagree about how old a lock has to be to stop counting.
+import { deriveLoopStatus } from './lib/loop-status.js';
+import { DEFAULTS } from './watch/advance-watcher.mjs';
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)));
 
@@ -29,6 +34,7 @@ const STATIC_FILES = {
   '/org-chart.js': ['org-chart.js', 'text/javascript; charset=utf-8'],
   '/msg-refs.js': ['msg-refs.js', 'text/javascript; charset=utf-8'],
   '/markdown.js': ['markdown.js', 'text/javascript; charset=utf-8'],
+  '/loop-status.js': ['loop-status.js', 'text/javascript; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
 };
 
@@ -39,6 +45,13 @@ const INGEST_THROTTLE_MS = 10_000;
 // connection and surfaces dead sockets as write errors. Uniform to all
 // connections (no information content).
 const HEARTBEAT_MS = 25_000;
+
+// AS-27: how often the server re-reads advance.lock and advance-watcher.pid.
+// A poll, not fs.watch: the files are written on the host and reach the
+// container over a bind mount, where FSEvents is unreliable (the watcher polls
+// its own sentinel for exactly this reason). 2s is plenty — the indicator
+// answers a human question, not a machine one.
+export const LOOP_POLL_MS = 2_000;
 
 // --- AS-26 §5: gated repo markdown reads for the in-app file viewer ---------
 // No 'me' gate and no store involvement: everything servable under this gate
@@ -105,9 +118,17 @@ function storeErrorStatus(e) {
     : 400;
 }
 
-export function createChatServer({ dbPath, repoRoot } = {}) {
+export function createChatServer({ dbPath, repoRoot, dataDir, loopPollMs = LOOP_POLL_MS } = {}) {
   const store = openStore(dbPath || process.env.CHAT_DB || join(APP_DIR, 'data', 'chat.db'));
   const root = repoRoot || latticeRoot();
+  // AS-27: where the watcher and the tick lock write. Defaults to the real
+  // data dir (compose mounts ./data:/app/data rw, pinned by
+  // deploy-shape.test.js); tests pass a scratch dir so they can plant each of
+  // the four file configurations without touching live company state.
+  const loopDir = dataDir || join(APP_DIR, 'data');
+  const LOCK_PATH = join(loopDir, 'advance.lock');
+  const WATCHER_PID_PATH = join(loopDir, 'advance-watcher.pid');
+  const LOCK_STALE_MS = DEFAULTS.lockStaleMin * 60 * 1000;
 
   // Ingest on startup; then throttled on API traffic (no daemons — a page
   // refresh is what makes the feed current).
@@ -125,6 +146,66 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
   }
 
   const annotate = (m) => ({ ...m, refs: resolveRefs(m.body, root) });
+
+  // --- AS-27: advance-loop status -------------------------------------------
+  // Same degradation contract as /api/roster and /api/org: a malformed lock or
+  // pid file must never take the chat server down. Absent file -> null;
+  // unreadable or non-JSON -> { error }, which deriveLoopStatus reports as a
+  // reason string. There is no third outcome and no throw.
+
+  function readLoopFile(path) {
+    let raw;
+    try {
+      raw = readFileSync(path, 'utf8');
+    } catch {
+      return null; // missing (the normal idle case) or unreadable
+    }
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return { error: 'unparsable' };
+    }
+  }
+
+  // C5, the documented limit: a /loop session RELEASES the lock between its
+  // ticks (advance.md step 6), so between two loop ticks there is no fresh
+  // lock and the UI truthfully reads 'idle'. This is a best-effort memory of
+  // the last tick the server happened to observe, so the detail line can say
+  // "last tick: loop, ended 40 s ago" — it is in-memory only, resets on
+  // restart, and cannot see a tick that began and ended between two polls.
+  // It is a mitigation, not a fix, and it never changes `state`.
+  let lastTick = null;
+
+  function readLoopStatus() {
+    const nowMs = Date.now();
+    const status = deriveLoopStatus({
+      lock: readLoopFile(LOCK_PATH),
+      watcher: readLoopFile(WATCHER_PID_PATH),
+      nowMs,
+      lockStaleMs: LOCK_STALE_MS,
+    });
+    if (status.tick) {
+      if (!lastTick || lastTick.startedAt !== status.tick.startedAt) {
+        lastTick = { source: status.tick.source, startedAt: status.tick.startedAt, endedAt: null };
+      }
+    } else if (lastTick && lastTick.endedAt === null) {
+      lastTick = { ...lastTick, endedAt: new Date(nowMs).toISOString() };
+    }
+    return { ...status, lastTick };
+  }
+
+  // What counts as a CHANGE worth a push frame. Deliberately excludes every
+  // age field: `ageS` moves on every single poll, so comparing whole payloads
+  // would emit 30 frames a minute to every connection forever. The client
+  // recomputes age locally from startedAt, which is why it can afford to.
+  const loopStateKey = (s) =>
+    JSON.stringify({
+      state: s.state,
+      tick: s.tick && { source: s.tick.source, pid: s.tick.pid, startedAt: s.tick.startedAt },
+      staleLock: s.staleLock && { source: s.staleLock.source, startedAt: s.staleLock.startedAt, reason: s.staleLock.reason },
+      listening: s.watcher.listening,
+      reason: s.watcher.reason ?? null,
+    });
 
   // --- AS-25: SSE push delivery ---------------------------------------------
   // Live stream connections: { res, me }. Registered by GET /api/stream,
@@ -159,6 +240,35 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
     }
   }, HEARTBEAT_MS);
 
+  // AS-27: loop-status push. Primed at construction so the first poll after
+  // boot does not emit a frame describing a state nothing has changed since.
+  let lastLoopKey = loopStateKey(readLoopStatus());
+  // `loopPollMs` exists so the suite can observe ten real poll cycles in
+  // milliseconds instead of twenty seconds — the frame COUNT is the property
+  // under test, not the wall-clock cadence. Production always takes the
+  // exported default (pinned in api.test.js).
+  const loopPoll = setInterval(() => {
+    let status;
+    try {
+      status = readLoopStatus();
+    } catch {
+      return; // C7: never let a bad file take the server down
+    }
+    const key = loopStateKey(status);
+    if (key === lastLoopKey) return;
+    lastLoopKey = key;
+    // No visibleTo gate: loop status is identical for every viewer (C4).
+    const frame = `event: loop\ndata: ${JSON.stringify(status)}\n\n`;
+    for (const conn of streams) {
+      try {
+        conn.res.write(frame);
+      } catch {
+        streams.delete(conn);
+      }
+    }
+  }, loopPollMs);
+  loopPoll.unref();
+
   // Sentinel key for handleApi results that are raw text (currently only
   // /api/dump's JSONL), sent as text/plain instead of a JSON envelope.
   const RAW_TEXT = Symbol('rawText');
@@ -177,6 +287,14 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
       const me = q('me');
       if (!me) throw new StoreError("Missing query parameter 'me'.");
       return { conversations: store.listConversationsFor(me) };
+    }
+    if (req.method === 'GET' && pathname === '/api/loop-status') {
+      // AS-27: is the company running right now, or waiting on the board?
+      // Nothing viewer-relative and nothing private: no 'me', no store, no
+      // visibility filter — the answer is the same for everyone. The lock's
+      // AS-16 `nonce` is the anti-spoof token and is never copied into this
+      // payload (enforced in lib/loop-status.js, asserted in its tests).
+      return { status: readLoopStatus() };
     }
     if (req.method === 'GET' && pathname === '/api/org') {
       // AS-33: the org chart's data source — active employees with their
@@ -396,6 +514,14 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
         const conn = { res, me };
         streams.add(conn);
         res.on('close', () => streams.delete(conn));
+        // AS-27: one loop frame immediately, after registration — a
+        // reconnecting client is current without issuing a fetch, and it
+        // arrives before any message frame this connection will ever see.
+        try {
+          res.write(`event: loop\ndata: ${JSON.stringify(readLoopStatus())}\n\n`);
+        } catch {
+          streams.delete(conn);
+        }
       } catch (e) {
         if (e instanceof StoreError) return sendJson(storeErrorStatus(e), { error: e.message });
         console.error(e);
@@ -456,6 +582,7 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
         // alive forever. end() then destroy(): flush the goodbye, then make
         // sure the socket is actually gone.
         clearInterval(heartbeat);
+        clearInterval(loopPoll); // AS-27: same reason as the heartbeat above
         for (const conn of streams) {
           try {
             conn.res.end();

@@ -10,6 +10,12 @@
   <div id="app">
     <aside id="sidebar">
       <header id="brand">ASC Chat</header>
+      <!-- AS-27: advance-loop status. Answers "is the company running right
+           now, or waiting on me?" at a glance. role="status" + aria-live so a
+           screen reader announces the transition without stealing focus; the
+           full evidence (ages, stale locks, watcher reason) rides in the
+           title attribute. Both spans are filled by textContent in app.js. -->
+      <div id="loop-status" role="status" aria-live="polite"><span class="loop-dot"></span><span id="loop-label"></span></div>
       <section id="identity-box">
         <label for="identity-picker">I am</label>
         <select id="identity-picker"></select>

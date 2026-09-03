@@ -4,7 +4,7 @@
 // want to depend on, and the raw frames are the actual contract).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, cpSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, cpSync, writeFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,9 +12,15 @@ import { createChatServer } from '../server.js';
 
 const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
 
-async function bootServer(t, repoRoot = FIXTURE_ROOT) {
+async function bootServer(t, repoRoot = FIXTURE_ROOT, opts = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'chat-stream-'));
-  const { server, store, close } = createChatServer({ dbPath: join(dir, 'chat.db'), repoRoot });
+  // AS-27: a scratch (non-existent) data dir by default, so loop status is a
+  // constant 'off' and no test in this file can be perturbed by — or perturb —
+  // the real apps/chat/data. The mountless invariant, extended to the two new
+  // files.
+  const { server, store, close } = createChatServer({
+    dbPath: join(dir, 'chat.db'), repoRoot, dataDir: join(dir, 'loop-data'), ...opts,
+  });
   await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${server.address().port}`;
   t.after(async () => {
@@ -41,6 +47,13 @@ async function bootServer(t, repoRoot = FIXTURE_ROOT) {
  * comment lines (:connected, :hb). nextFrame() resolves with the next parsed
  * frame or rejects on timeout — assertions are made from frame content and
  * ORDER alone, never from sleeps.
+ *
+ * AS-27: every successful connection now opens with exactly one `loop` frame
+ * (the server sends loop status on connect so a reconnecting client is current
+ * without a fetch). This helper consumes it and exposes it as `initialLoop`,
+ * so nextFrame() still means "the next MESSAGE frame" for the AS-25 ordering
+ * proofs below — and so the on-connect contract is asserted by every stream
+ * test in the file rather than by one of them.
  */
 async function openStream(base, me) {
   const ctrl = new AbortController();
@@ -83,9 +96,10 @@ async function openStream(base, me) {
       for (const cb of onEnd) cb();
     })();
   }
-  return {
+  const api = {
     status: res.status,
     headers: res.headers,
+    initialLoop: null,
     pending: () => frames.length,
     nextFrame: (ms = 5000) =>
       new Promise((resolveP, rejectP) => {
@@ -112,6 +126,14 @@ async function openStream(base, me) {
       }),
     close: () => ctrl.abort(),
   };
+  if (res.ok && res.body) {
+    const first = await api.nextFrame();
+    if (first.event !== 'loop') {
+      throw new Error(`expected a loop frame on connect, got ${first.event}`);
+    }
+    api.initialLoop = first;
+  }
+  return api;
 }
 
 test('stream: AS-25 — two connected clients both receive a posted message as a push frame (no GET issued)', async (t) => {
@@ -273,4 +295,125 @@ test('stream: AS-25 — close() reaps live streams and the heartbeat; shutdown n
   await b.waitEnd();
   a.close();
   b.close();
+});
+
+// --- AS-27: loop-status push -------------------------------------------------
+// LOOP_POLL_MS is 2s in production; these tests inject a fast cadence so that
+// "ten polls" is ten real poll cycles measured in milliseconds rather than a
+// twenty-second sleep. The property under test is the FRAME COUNT, which the
+// cadence does not affect. The production default is pinned in api.test.js.
+const FAST_POLL_MS = 25;
+
+function loopDataDir(t) {
+  const dataDir = mkdtempSync(join(tmpdir(), 'chat-loopdata-'));
+  t.after(() => rmSync(dataDir, { recursive: true, force: true }));
+  return dataDir;
+}
+
+/** Resolve after n poll cycles have certainly elapsed (plus slack). Used only
+ *  to bound a "nothing happened" assertion — every positive assertion below
+ *  waits on a frame, never on a clock. */
+const afterPolls = (n) => new Promise((ok) => setTimeout(ok, n * FAST_POLL_MS + 200));
+
+test('stream: AS-27 — a new lock pushes exactly one loop frame; an unchanged lock pushes none over ten polls', async (t) => {
+  const dataDir = loopDataDir(t);
+  const { base } = await bootServer(t, FIXTURE_ROOT, { dataDir, loopPollMs: FAST_POLL_MS });
+  const lockPath = join(dataDir, 'advance.lock');
+
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  // AC-6: the connection is current before any file changes at all. openStream
+  // consumed it on connect (and would have thrown had it not been a loop
+  // frame, or had it not arrived).
+  const hello = stream.initialLoop;
+  assert.equal(hello.event, 'loop', 'the FIRST frame on a new connection is loop status');
+  assert.equal(hello.data.state, 'off', 'empty data dir: nothing running, nothing watching');
+
+  // A tick starts.
+  writeFileSync(lockPath, JSON.stringify({
+    pid: 5285, startedAt: new Date().toISOString(), source: 'loop', nonce: 'deadbeefcafef00d',
+  }));
+  const started = await stream.nextFrame();
+  assert.equal(started.event, 'loop');
+  assert.equal(started.data.state, 'loop');
+  assert.equal(started.data.tick.source, 'loop');
+  assert.equal(JSON.stringify(started.data).includes('deadbeefcafef00d'), false,
+    'the AS-16 nonce is not pushed to clients either');
+
+  // Ten further polls with the file untouched: the payload's ageS moves every
+  // poll, so a naive whole-payload comparison would emit ten frames here.
+  await afterPolls(10);
+  assert.equal(stream.pending(), 0, 'zero further frames while the lock is unchanged');
+
+  // The tick ends.
+  unlinkSync(lockPath);
+  const ended = await stream.nextFrame();
+  assert.equal(ended.event, 'loop');
+  assert.equal(ended.data.state, 'off');
+  assert.equal(ended.data.tick, null);
+  assert.equal(ended.data.lastTick.source, 'loop');
+  assert.ok(ended.data.lastTick.endedAt, 'the between-ticks memory records when the lock vanished');
+
+  // And nothing further once it has settled.
+  await afterPolls(10);
+  assert.equal(stream.pending(), 0, 'zero frames after the state settles');
+});
+
+test('stream: AS-27 — loop frames reach every viewer identically (no visibility gate)', async (t) => {
+  const dataDir = loopDataDir(t);
+  const { base } = await bootServer(t, FIXTURE_ROOT, { dataDir, loopPollMs: FAST_POLL_MS });
+
+  const a = await openStream(base, 'human:forrest');
+  const b = await openStream(base, 'agent:ceo-carla');
+  t.after(() => {
+    a.close();
+    b.close();
+  });
+  // Each connection got its own initial frame on connect.
+  for (const stream of [a, b]) assert.equal(stream.initialLoop.event, 'loop');
+
+  writeFileSync(join(dataDir, 'advance-watcher.pid'), JSON.stringify({
+    pid: 96123, startedAt: new Date(Date.now() - 3_600_000).toISOString(), heartbeatAt: new Date().toISOString(),
+  }));
+
+  const frames = [];
+  for (const stream of [a, b]) {
+    const f = await stream.nextFrame();
+    assert.equal(f.event, 'loop');
+    assert.equal(f.data.state, 'idle');
+    frames.push(JSON.stringify({ ...f.data, checkedAt: null }));
+  }
+  assert.equal(frames[0], frames[1], 'byte-identical for both viewers — nothing here is viewer-relative');
+});
+
+test('stream: AS-27 — close() clears the loop poll timer as well as the heartbeat', async (t) => {
+  // Same shape as the AS-25 close/reap test: this one owns its close() call.
+  const dir = mkdtempSync(join(tmpdir(), 'chat-stream-loopclose-'));
+  const dataDir = loopDataDir(t);
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const { server, close } = createChatServer({
+    dbPath: join(dir, 'chat.db'), repoRoot: FIXTURE_ROOT, dataDir, loopPollMs: FAST_POLL_MS,
+  });
+  await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
+  const base = `http://127.0.0.1:${server.address().port}`;
+
+  const stream = await openStream(base, 'human:forrest');
+  assert.equal(stream.initialLoop.event, 'loop');
+
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('close() wedged')), 5000)
+  );
+  await Promise.race([close(), timeout]);
+  await stream.waitEnd();
+
+  // The real proof that the timer is gone is that the suite process can exit;
+  // a leaked interval on a closed server would keep writing to reaped
+  // connections. Assert it does not throw and the stream stays ended.
+  writeFileSync(join(dataDir, 'advance.lock'), JSON.stringify({
+    pid: 1, startedAt: new Date().toISOString(), source: 'manual',
+  }));
+  await afterPolls(4);
+  assert.equal(stream.pending(), 0, 'a closed server pushes nothing');
+  stream.close();
 });

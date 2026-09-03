@@ -32,6 +32,24 @@ body {
   padding-bottom: 1rem;
 }
 #brand { font-size: 17px; font-weight: 700; color: #fff; padding: 14px 16px 10px; }
+/* --- AS-27: advance-loop status indicator --- */
+#loop-status {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 16px 10px; font-size: 12px; color: #bfa8c0;
+}
+/* One line at every width — the sidebar is 240px and the longest label
+   ("Tick in flight · watcher") must not reflow the brand block. */
+#loop-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loop-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #5b2c5c; }
+/* Four states, four fills. Green/amber are the only new hexes in this file:
+   nothing in the existing palette reads as "running" against the #3f0e40
+   sidebar (its greens, #007a5a and #148567, disappear into it). idle and off
+   reuse the sidebar's own secondary text and border colours. */
+.loop-dot--loop { background: #2eb67d; }
+.loop-dot--tick { background: #ecb22e; }
+.loop-dot--idle { background: #bfa8c0; }
+.loop-dot--off  { background: #5b2c5c; }
+
 #identity-box { padding: 0 16px 12px; border-bottom: 1px solid #5b2c5c; }
 #identity-box label { display: block; font-size: 12px; margin-bottom: 4px; }
 #identity-box select { width: 100%; margin-bottom: 6px; }
