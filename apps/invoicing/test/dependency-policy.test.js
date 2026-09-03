@@ -636,6 +636,114 @@ function scanRawOutput() {
   return { findings, seen };
 }
 
+// --- AS-45 review cycle 1: P4, the ATTRIBUTE-NAME position -------------------
+//
+// EJS escapes exactly five characters — & < > " ' — and does NOT escape `=` or
+// a space. So an interpolation that sits between attributes, rather than inside
+// an attribute VALUE, renders a user-supplied string as markup STRUCTURE:
+//
+//     <span class="app-label" INTERPOLATION>
+//
+// with a submitted value of `x onmouseover=alert(1)` becomes a live event
+// handler. Demonstrated by agent:qa-priya against a container built from a
+// mutated image during review cycle 1, with P1, P2a, P2b, P2c and P3 all green:
+// P2b scans template SOURCE for an on*= attribute, and at source time the text
+// is an EJS output tag — the dangerous attribute exists only at render time.
+// P2a and P3 police attribute VALUES. Nothing policed the position where an
+// attribute NAME goes. It is not exploitable today (no template does this); the
+// finding is the WRITTEN GUARANTEE README.md § The view layer hands to AS-46,
+// AS-47 and AS-48, which claimed the position was covered.
+//
+// P4 — WITHIN ANY START TAG, EVERY EJS OUTPUT TAG SITS INSIDE AN ATTRIBUTE
+// VALUE. An output tag anywhere in the tag's name-or-attribute-name region is
+// forbidden.
+//
+// IT IS SOUND *BECAUSE P3 HOLDS*, and that dependency is the whole design — the
+// same shape as §3.2's stylesheet scope being sound because P2a and P2c hold.
+// The scan walks each file left to right and skips quoted spans, so a `>` or a
+// `<%` inside an attribute value is harmless. Skipping SINGLE-quoted spans
+// would hide an interpolation inside one — except P3 already forbids exactly
+// that, so the two rows partition the space with nothing between them.
+//
+// LEXICAL, and it inherits P1-P3's stated limit: it does not stop a route from
+// res.send-ing a hand-built string, and it does not stop a view model from
+// computing markup. The dynamic half is the falsification recipe, not this row.
+//
+// CARDINALITY BEFORE QUANTIFICATION, and it is not decoration here. The scan
+// reads strippedText(), whose stripper treats an apostrophe in element content
+// as a string delimiter and would swallow the rest of the file — an inherited
+// property of the instrument P1-P3 already use, not introduced here. A file
+// swallowed that way yields no start tags, so committing the START TAG COUNT
+// makes that failure loud instead of vacuous.
+const VIEW_FILES = /^views\//;
+
+/** The number of start tags P4 examines across views/. Measured at the moment
+ *  the template was finished, written down after the grep, and moved
+ *  deliberately when a template gains or loses an element. A scan that suddenly
+ *  examines fewer tags is examining less than it says it is.
+ *
+ *  MEASURED 2026-09-03, three instruments agreeing on views/signin.ejs: this
+ *  scan reported 87; `perl -0777 -ne 's/<%#.*?%>//gs; $n++ while /<[A-Za-z!\/]/g'`
+ *  reported 87; `grep -oE '</?[A-Za-z]' | wc -l` reported 86, which is 87 less
+ *  the `<!doctype` its character class cannot see. Closing tags are counted
+ *  too: they carry no attributes, so scanning them costs nothing and excluding
+ *  them would be a second rule to get wrong. */
+const VIEW_START_TAGS = 87;
+
+const lineAt = (text, index) => text.slice(0, index).split('\n').length;
+
+/** @returns {{ findings: string[], tags: number, files: number }} */
+function scanAttributeNamePosition() {
+  const findings = [];
+  const files = SCANNED.filter((path) => VIEW_FILES.test(relative(APP_DIR, path)));
+  let tags = 0;
+  for (const path of files) {
+    const file = relative(APP_DIR, path);
+    const code = strippedText(path);
+    let i = 0;
+    while (i < code.length) {
+      if (code[i] !== '<') { i += 1; continue; }
+      // An EJS tag in ELEMENT CONTENT is not a start tag. Skip the whole tag,
+      // so a `<` or `>` inside the expression cannot be mistaken for markup.
+      if (code.startsWith('<%', i)) {
+        const close = code.indexOf('%>', i);
+        i = close === -1 ? code.length : close + 2;
+        continue;
+      }
+      // A `<` followed by anything that cannot begin a tag name is text.
+      if (!/[A-Za-z!/]/.test(code[i + 1] ?? '')) { i += 1; continue; }
+      tags += 1;
+      i += 1;
+      while (i < code.length && code[i] !== '>') {
+        if (code[i] === '"' || code[i] === "'") {
+          const quote = code[i];
+          const close = code.indexOf(quote, i + 1);
+          if (close === -1) {
+            findings.push(`${file}:${lineAt(code, i)}: unterminated ${quote} attribute value — the tag scan cannot be trusted past here`);
+            i = code.length;
+            break;
+          }
+          i = close + 1;
+          continue;
+        }
+        if (code.startsWith('<%', i)) {
+          findings.push(
+            `${file}:${lineAt(code, i)}: EJS interpolation in ATTRIBUTE-NAME position — ${code.slice(i, code.indexOf('%>', i) + 2)} — `
+              + 'EJS does not escape `=` or a space, so a submitted value renders as markup STRUCTURE here; '
+              + 'move it inside a double-quoted attribute value',
+          );
+          const close = code.indexOf('%>', i);
+          i = close === -1 ? code.length : close + 2;
+          continue;
+        }
+        i += 1;
+      }
+      i += 1;
+    }
+  }
+  return { findings, tags, files: files.length };
+}
+
 test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, AS-44 and AS-45 put them', () => {
   // The `stripe` npm module is banned everywhere, permanently: `new Stripe(key)`
   // is the documented bypass of the custody guard (stack decision §8.1).
@@ -854,6 +962,20 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
     [],
     { only: /^(views|public)\// },
   );
+  // P4 — NO INTERPOLATION IN ATTRIBUTE-NAME POSITION (review cycle 1, F-3).
+  // Scoped to views/ alone rather than views/ + public/: a stylesheet has no
+  // start tags, so including it would add only false-positive surface (`a > b`)
+  // and no coverage. Cardinality on the instrument FIRST — a stripped file that
+  // swallowed itself yields zero tags and must be red, not green.
+  const attrName = scanAttributeNamePosition();
+  assert.ok(attrName.files > 0, 'P4: the views/ file set is EMPTY — this row is examining nothing');
+  assert.equal(
+    attrName.tags,
+    VIEW_START_TAGS,
+    `P4 examined ${attrName.tags} start tags across ${attrName.files} template(s), expected ${VIEW_START_TAGS} — `
+      + 'a template gained or lost an element, or the scan is seeing less of a file than it should',
+  );
+  assert.deepEqual(attrName.findings, [], `interpolation in attribute-name position: ${attrName.findings.join('; ')}`);
 });
 
 test('no file in apps/invoicing exceeds 1,200 lines', () => {
