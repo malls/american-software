@@ -993,3 +993,60 @@ test('api: AS-33 — /api/roster keeps its envelope while gaining the reporting 
   );
   assert.ok(!('violations' in res.data), 'violations live on /api/org, not here');
 });
+test('api: AS-33 — org-chart.js is served, imported, and holds the no-innerHTML line', async (t) => {
+  const { base } = await bootServer(t);
+  const mod = await fetch(base + '/org-chart.js');
+  assert.equal(mod.status, 200);
+  assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  const org = await mod.text();
+  assert.match(org, /validateOrg/);
+  assert.match(org, /buildOrgTree/);
+
+  // The served app.js actually imports it — the STATIC_FILES entry is
+  // load-bearing (AS-18/AS-26 module-graph pattern).
+  const app = await (await fetch(base + '/app.js')).text();
+  assert.match(app, /from '\.\/org-chart\.js'/, 'the chart view goes through org-chart.js');
+
+  // The house rule is structural, not sanitising, and its ONLY enforcement is
+  // this guard. A new public/ module that no guard covers is how an absolute
+  // rule quietly becomes a convention, so the line is drawn on the new file
+  // too — not merely on the one that existed when the guard was written.
+  assert.doesNotMatch(app, /\.innerHTML/, 'zero innerHTML use — the house rule holds');
+  assert.doesNotMatch(org, /\.innerHTML/, 'zero innerHTML use in org-chart.js too');
+  // org-chart.js is pure: it emits text and structure and knows nothing about
+  // the DOM. app.js turns its plain objects into elements with el().
+  for (const dom of [/\bdocument\b/, /\bwindow\b/, /createElement/, /createTextNode/]) {
+    assert.doesNotMatch(org, dom, `org-chart.js must contain no DOM API (${dom})`);
+  }
+});
+
+test('api: AS-33 — index.html ships the org chart control and modal skeleton', async (t) => {
+  const { base } = await bootServer(t);
+  const html = await (await fetch(base + '/')).text();
+  assert.match(html, /id="org-chart-open"/, 'the sidebar control exists');
+  for (const id of ['org-modal', 'org-dialog', 'org-title', 'org-body', 'org-close']) {
+    assert.match(html, new RegExp(`id="${id}"`), `org chart id ${id} present`);
+  }
+  // The control sits with the thing it explains: above the roster list.
+  assert.ok(
+    html.indexOf('id="org-chart-open"') < html.indexOf('id="roster-list"'),
+    'the org chart button precedes the roster list in the sidebar'
+  );
+});
+
+test('api: AS-33 — check-org --json matches GET /api/org for the same root', async (t) => {
+  // The CLI is the gate and the endpoint is the view; if they can disagree,
+  // one of them is lying. Parity is asserted against the dirty fixture root so
+  // both the employee list and a non-empty violation array are compared.
+  const { get } = await bootServer(t);
+  const api = (await get('/api/org')).data;
+  const bin = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'check-org.js');
+  const env = { ...process.env };
+  delete env.CHAT_REPO_ROOT;
+  const cli = spawnSync(process.execPath, [bin, '--root', FIXTURE_ROOT, '--json'], {
+    env,
+    encoding: 'utf8',
+  });
+  assert.equal(cli.status, 1, cli.stderr); // violations present: non-zero
+  assert.deepEqual(JSON.parse(cli.stdout), api);
+});
