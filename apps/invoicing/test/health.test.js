@@ -156,7 +156,8 @@ test('a check that throws is a failing check, never a 500', async () => {
 
 test('GET / redirects a signed-in caller to the Connect Stripe screen', async () => {
   // REPLACES 'GET / renders the scaffold page…'. The scaffold page is deleted
-  // (its AS-45 obligation, discharged), so `/` needed an answer: it is a 303 to
+  // (the scaffold obligation AS-37 left, discharged), so `/` needed an answer:
+  // it is a 303 to
   // screen 2, which is the correct onboarding destination until AS-48 lands the
   // Dashboard and moves POST_SIGNIN_LANDING. Signed IN, because for a
   // signed-out caller `/` is answered by the guard — asserted in auth.test.js.

@@ -16,7 +16,8 @@
 // function. That is the failure mode the old "add it here in the same commit"
 // instruction was asking a human to remember.
 //
-// AS-45 obligation DISCHARGED: scaffold.ejs and its row are gone.
+// The scaffold obligation AS-37 left here is DISCHARGED: scaffold.ejs and its
+// row are gone (AS-45).
 import { signinLocals } from './screens/signin-view.js';
 
 export const VIEWS = Object.freeze([

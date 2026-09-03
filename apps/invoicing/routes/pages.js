@@ -3,7 +3,7 @@
 //
 // The AS-37 scaffold page is GONE, with its template and its stylesheet: it
 // existed to prove the chain end to end in a browser before any real screen
-// did, and screen 1 now does that for real. The AS-45 obligation recorded here,
+// did, and screen 1 now does that for real. The obligation AS-37 recorded here,
 // in lib/views.js, in public/scaffold.css and in README.md is discharged.
 //
 // A SCREEN'S GET ROUTE JOINS ITS CAPABILITY'S AREA ROUTER, not this file —
