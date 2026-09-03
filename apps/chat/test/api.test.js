@@ -843,3 +843,35 @@ test('api: AS-26 — GET /api/file serves allowlisted repo markdown; every probe
   assert.equal(big.status, 400);
   assert.deepEqual(big.data, { error: 'File too large.' });
 });
+
+test('api: AS-54 — served app.js autolinks through markdown.js and never inside a markdown link', async (t) => {
+  const { base } = await bootServer(t);
+
+  // The file the browser actually runs, not the one on disk beside this test.
+  const app = await (await fetch(base + '/app.js')).text();
+
+  assert.match(app, /import \{[^}]*tokenizeUrls[^}]*\} from '\.\/markdown\.js'/,
+    'the bare-URL pass comes from markdown.js — one scheme allowlist, one module');
+  assert.ok(app.includes('appendRefLeaf(a, tok.inner, refs, { autolink: false })'),
+    'the markdown-link call site opts out of autolinking verbatim');
+
+  // Pass order (§3.3): inside appendRefLeaf the URL pass runs before the ref
+  // chain, which is what makes url tokens terminal. The comparison is scoped
+  // to that function body on purpose — tokenizeAsRefs is DEFINED above
+  // appendRefLeaf, so a whole-file index comparison is true no matter what
+  // order the calls are in.
+  const start = app.indexOf('function appendRefLeaf(');
+  assert.ok(start !== -1, 'appendRefLeaf is present in the served app.js');
+  const leaf = app.slice(start, app.indexOf('\n}\n', start));
+  const urlAt = leaf.indexOf('tokenizeUrls(');
+  const asAt = leaf.indexOf('tokenizeAsRefs(');
+  assert.ok(urlAt !== -1, 'appendRefLeaf calls the URL pass');
+  assert.ok(asAt !== -1, 'appendRefLeaf calls the AS-ref pass');
+  assert.ok(urlAt < asAt, 'the URL pass runs first among the leaf passes');
+
+  // The anchor: verbatim href, no transformation between token and attribute.
+  assert.match(app, /function urlLink\(tok\) \{[\s\S]*?a\.href = tok\.href;[\s\S]*?\}/,
+    'urlLink assigns the token href unchanged');
+
+  assert.doesNotMatch(app, /\.innerHTML/, 'zero innerHTML use — the house rule holds');
+});

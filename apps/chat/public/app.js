@@ -7,7 +7,7 @@ import { shouldCloseOnEscape, shouldCloseOnBackdropGesture } from './thread-moda
 import { applyMessage, maxLoadedId } from './live.js';
 import { rosterOrder, dmOrder, togglePin, sanitizePins } from './dm-sort.js';
 import { tokenizeMsgRefs, tokenizeFileRefs } from './msg-refs.js';
-import { tokenizeInline, parseBlocks } from './markdown.js';
+import { tokenizeInline, parseBlocks, tokenizeUrls } from './markdown.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -115,9 +115,10 @@ function fmtTime(iso) {
 }
 
 // --- body rendering: composed ref pipeline (AS-10 refs + AS-26 msg refs) ---
-// Ref passes run per plain-text leaf, AS-refs FIRST so "AS-26" can never get
-// its "26" half-eaten by the msg-ref pass (the patterns are disjoint, but the
-// order is the recorded invariant). All content via el()/createTextNode.
+// Ref passes run per plain-text leaf, the AS-54 URL pass FIRST and then
+// AS-refs before msg-refs so "AS-26" can never get its "26" half-eaten by the
+// msg-ref pass (the patterns are disjoint, but the order is the recorded
+// invariant). All content via el()/createTextNode.
 
 /** Split text into { type:'text'|'asref' } tokens against resolved refs. */
 function tokenizeAsRefs(text, refs) {
@@ -178,22 +179,44 @@ function fileRefLink(tok) {
   return a;
 }
 
-/** Append a plain-text leaf with every ref pass applied, in order:
- *  AS-refs, then msg-refs, then file-refs (the AS-first invariant). */
-function appendRefLeaf(parent, text, refs) {
-  for (const seg of tokenizeAsRefs(text, refs)) {
-    if (seg.type === 'asref') {
-      parent.appendChild(asRefLink(seg.ref));
+/** Bare-URL anchor (AS-54): plain external navigation, same affordance as a
+ *  markdown link. The href is the verbatim matched slice — the tokenizer's
+ *  http/https allowlist is the only gate, and nothing here transforms it. */
+function urlLink(tok) {
+  const a = el('a', 'md-link', tok.text); // el() sets textContent
+  a.href = tok.href;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  return a;
+}
+
+/** Append a plain-text leaf with every pass applied, in order: URLs, then
+ *  AS-refs, then msg-refs, then file-refs (the AS-first invariant, with the
+ *  AS-54 URL pass ahead of all three). URL tokens are terminal — their text is
+ *  never fed to another pass, so no ref pattern can ever observe text lying
+ *  inside an autolinked URL. `autolink: false` skips the pass entirely (the
+ *  markdown-link call site), which makes an anchor inside an anchor
+ *  unreachable rather than merely unlikely. */
+function appendRefLeaf(parent, text, refs, { autolink = true } = {}) {
+  for (const u of autolink ? tokenizeUrls(text) : [{ type: 'text', text }]) {
+    if (u.type === 'url') {
+      parent.appendChild(urlLink(u));
       continue;
     }
-    for (const tok of tokenizeMsgRefs(seg.text)) {
-      if (tok.type === 'msgref') {
-        parent.appendChild(msgRefLink(tok));
+    for (const seg of tokenizeAsRefs(u.text, refs)) {
+      if (seg.type === 'asref') {
+        parent.appendChild(asRefLink(seg.ref));
         continue;
       }
-      for (const f of tokenizeFileRefs(tok.text)) {
-        if (f.type === 'fileref') parent.appendChild(fileRefLink(f));
-        else parent.appendChild(document.createTextNode(f.text));
+      for (const tok of tokenizeMsgRefs(seg.text)) {
+        if (tok.type === 'msgref') {
+          parent.appendChild(msgRefLink(tok));
+          continue;
+        }
+        for (const f of tokenizeFileRefs(tok.text)) {
+          if (f.type === 'fileref') parent.appendChild(fileRefLink(f));
+          else parent.appendChild(document.createTextNode(f.text));
+        }
       }
     }
   }
@@ -201,11 +224,14 @@ function appendRefLeaf(parent, text, refs) {
 
 /**
  * Body text as a structure-first pipeline (AS-26 §6): tokenizeInline over the
- * whole body, then the ref passes over every plain-text leaf — top-level text
+ * whole body, then the leaf passes over every plain-text leaf — top-level text
  * tokens AND the inner of strong/em/code/link tokens (so `**see msg 5**` is a
  * bold span containing a working link, and a backticked path is a code span
- * containing a working file ref). Zero innerHTML anywhere — tokenizers emit
- * text and structure, never markup.
+ * containing a working file ref). A markdown link's *inner* is the only leaf
+ * that opts out of autolinking (AS-54): its href never reaches a pass at all,
+ * and skipping the URL pass on its label is what keeps an `<a>` out of an
+ * `<a>`. Zero innerHTML anywhere — tokenizers emit text and structure, never
+ * markup.
  */
 function bodyNode(message) {
   const div = el('div', 'body');
@@ -220,7 +246,7 @@ function bodyNode(message) {
       a.href = tok.href; // http/https only — the tokenizer's scheme allowlist
       a.target = '_blank';
       a.rel = 'noopener';
-      appendRefLeaf(a, tok.inner, refs);
+      appendRefLeaf(a, tok.inner, refs, { autolink: false });
       div.appendChild(a);
       continue;
     }

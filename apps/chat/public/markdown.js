@@ -1,4 +1,5 @@
-// markdown.js — pure inline/block markdown tokenizers (AS-26 §6).
+// markdown.js — pure inline/block markdown tokenizers (AS-26 §6) plus the
+// bare-URL autolink pass (AS-54).
 // No DOM, no fetch, no globals: importable from the browser (app.js) and from
 // node:test alike. The tokenizers emit text and structure, NEVER markup —
 // DOM assembly (el()/textContent only, zero innerHTML) lives in app.js.
@@ -104,4 +105,67 @@ export function parseBlocks(text) {
   }
   flush();
   return blocks;
+}
+
+// Bare absolute URL (AS-54). Same http/https-only allowlist as the `link`
+// pattern above — the two paths from message text to an anchor must not
+// disagree about what a link is. The host must start alphanumeric, which
+// keeps the `https://…` placeholder idiom literal and guarantees the tail
+// trim below can never reach the scheme. The excluded body characters are
+// whitespace (ends every URL), `<` `>` `"` (not URL characters; the
+// delimiter/attribute shapes), `'` (legal but vanishingly rare, and read as
+// a quote here), backtick (this pass runs on code-span inners), and `\`
+// (browsers fold it to `/` in the authority, so stopping there yields the
+// honest host).
+const URL_RE = /https?:\/\/[A-Za-z0-9][^\s<>"'`\\]*/g;
+
+const SENTENCE_TAIL = '.,;:!?';
+const BRACKETS = [['(', ')'], ['[', ']'], ['{', '}']];
+const count = (s, ch) => {
+  let n = 0;
+  for (const c of s) if (c === ch) n++;
+  return n;
+};
+
+/** Shrink a candidate to where a human would say the URL ends: trailing
+ *  sentence punctuation is prose, and a trailing closer belongs to the URL
+ *  only when its opener is inside it. Only ever shortens; terminates. */
+function trimUrlTail(s) {
+  for (;;) {
+    const last = s[s.length - 1];
+    if (SENTENCE_TAIL.includes(last)) { s = s.slice(0, -1); continue; }
+    const pair = BRACKETS.find(([, close]) => close === last);
+    if (pair && count(s, pair[1]) > count(s, pair[0])) { s = s.slice(0, -1); continue; }
+    return s;
+  }
+}
+
+/**
+ * Tokenize a plain-text leaf into text and url tokens for bare absolute URLs.
+ *
+ * Token `text` is the exact source slice and `href` is identical to it — no
+ * normalizing, no decoding, no `new URL()` round-trip. Concatenating token
+ * texts round-trips the input verbatim (a trimmed tail rejoins the following
+ * text token). Runs on code-span inners too (a backticked URL is a standing
+ * idiom here), matching the file-ref precedent.
+ *
+ * @param {string} text
+ * @returns {Array<{type:'text',text:string}|{type:'url',text:string,href:string}>}
+ */
+export function tokenizeUrls(text) {
+  const src = String(text ?? '');
+  const tokens = [];
+  let last = 0;
+  URL_RE.lastIndex = 0;
+  let m;
+  while ((m = URL_RE.exec(src)) !== null) {
+    const url = trimUrlTail(m[0]);
+    if (m.index > last) tokens.push({ type: 'text', text: src.slice(last, m.index) });
+    tokens.push({ type: 'url', text: url, href: url });
+    last = m.index + url.length;
+    URL_RE.lastIndex = last; // REQUIRED: the trim shortened the match, and
+                             // lastIndex must follow it or the tail is skipped.
+  }
+  if (last < src.length) tokens.push({ type: 'text', text: src.slice(last) });
+  return tokens;
 }
