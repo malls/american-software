@@ -70,11 +70,12 @@
     "AS-70": "task_01M1JE53S29MRXYYXXGGKGP2RN",
     "AS-71": "task_01M1JJHQJTV84Z4WKHXXTANPTK",
     "AS-72": "task_01M1K00HC0YT518AERWNSA04KX",
+    "AS-73": "task_01M1K4EVS9RAFCZ6Q588FNAS31",
     "AS-8": "task_01M18AWYVDDNKFZP80DYZ47JFH",
     "AS-9": "task_01M18DN3DSV2E67REAANDMJ98T"
   },
   "next_seqs": {
-    "AS": 73
+    "AS": 74
   },
   "schema_version": 2
 }
