@@ -1,0 +1,34 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "low",
+  "created_at": "2026-09-03T00:36:31Z",
+  "created_by": "agent:qa-ruben",
+  "custom_fields": {},
+  "description": "Three record-level findings from the AS-65 cycle-2 QA review (qa-ruben, 2026-09-02; verdict PASS 14/14, none blocked the merge). AS-65 merged at d8bab1d. None changes behaviour; two are notes for the UI planners and one is a test rename that moves board-state literals.\n\n1. THE __proto__ CARVE-OUT HAS A SECOND SPELLING. The percent-encoded form %5F%5Fproto%5F%5F also answers 303, alongside the literal. No pollution occurs by either route \u2014 the reviewer probed the property thirteen ways across seven property spellings \u2014 so the pinned assertion still holds and nothing is open. It matters because AS-46 and AS-47 will each build a form that posts to this endpoint, and a planner reading the carve-out will see one spelling pinned and may assume it is the only one that reaches the handler. Record both spellings where the carve-out is documented.\n\n2. A VERY LARGE RETURN PATH COMPOSES A HEADER REAL PROXIES REJECT. A 32 kb next value produces a Location header that overflowed the reviewer's own HTTP client. Not reachable by a freelancer through any screen, and deliberately not fixed: a length ceiling at the route would be exactly the second source of truth the plan's open questions refuse, and the validator is the single source. Recorded so that whoever configures ingress knows the endpoint can emit a header larger than a default proxy limit, and so nobody later adds a ceiling without knowing why one was declined.\n\n3. TEST RENAME, and the reason is the interesting part. Case L7's TITLE still claims a property its inputs cannot discriminate \u2014 measured, it stays green under the mutation that removes the output check while the redirect is live. Coverage is complete; L12 carries the property. So this is not a coverage gap, it is a name that will mislead the next reader into thinking L7 guards something it does not. The reviewer proposed the exact rename and deliberately did not apply it, because L7 is named in the falsification rosters and renaming it moves board-state literals in two places. Apply the rename and move both rosters in the same change.\n\nCONTEXT WORTH CARRYING, not work: this task's cycle-2 review drove 93 inputs across 12 classes against both the fixed and the pre-fix code. The pre-fix differential found 27 off-origin escapes, 19 of them in 5 classes the cycle-1 enumeration never contained \u2014 including one whose mechanism is not dot-segment removal at all, but the WHATWG URL parser converting a backslash to a forward slash. Neither the plan nor either engineer anticipated that mechanism. The fix catches it anyway, because it inspects the bytes actually emitted rather than reasoning about what the input could become. That is the argument for the ruling, and it should survive in a place a future planner will find it.\n\nACCEPTANCE: items 1 and 2 are prose. Item 3 is a rename plus two roster edits, with the suite green after and the renamed case still reddened by the recipe that reddens it today \u2014 shown red once per the house technique. No new dependencies; no migration; no protected top-level file edited; no running container touched. Complexity low.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1JB49FKF5JMPMQESGKWAKD0",
+  "last_event_id": "ev_01M1JB49Q7YA3E1CR9MCMJEX93",
+  "last_status_changed_at": "2026-09-03T00:36:31Z",
+  "priority": "low",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-03T00:36:32Z",
+      "created_by": "agent:qa-ruben",
+      "note": null,
+      "target_task_id": "task_01M1HJ47Q8XK5325C3PBQA2M4Z",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-68",
+  "status": "backlog",
+  "tags": null,
+  "title": "AS-65 residuals: a second __proto__ spelling, an unbounded Location header, and a misleading test name",
+  "type": "task",
+  "updated_at": "2026-09-03T00:36:32Z",
+  "urgency": null
+}
