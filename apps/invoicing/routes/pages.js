@@ -1,5 +1,5 @@
 // routes/pages.js — routes that belong to no capability (AS-37; rewritten by
-// AS-45, plan §3.3.4).
+// AS-45, plan §3.3.4 and review-cycle-1 ruling R-2).
 //
 // The AS-37 scaffold page is GONE, with its template and its stylesheet: it
 // existed to prove the chain end to end in a browser before any real screen
@@ -12,27 +12,40 @@
 // boundary, is not disturbed once per screen. This file stays the home for
 // routes belonging to no capability, which is now exactly one.
 //
-// INTERIM, and the hand-off is named: `/` is a 303 to the Connect Stripe
-// screen, which is the correct onboarding destination while the Dashboard does
-// not exist. AS-48 owns the Dashboard and owns POST_SIGNIN_LANDING in
-// lib/auth/guard.js; when it lands, that constant moves and this redirect
-// target is reconsidered with it. AS-45 deliberately changed neither, because
-// changing POST_SIGNIN_LANDING here would move assertions in another task's
-// suite to buy one saved redirect hop.
+// `/` IS AN INTERIM RESPONSE, NOT A PLACEHOLDER SCREEN, and the distinction is
+// load-bearing. Cycle 1 made `/` a 303 to `/connect-stripe`; the pre-agreed
+// split moved that screen to AS-70, so the only success path of the only screen
+// this product has ended on a 404 — measured, three entry points, two hops
+// each. A second screen with no wireframe would be worse: it would ship a
+// template, a stylesheet surface, a state with no ledger row and an escaping
+// surface, all decided by an implementer mid-rework, and AS-48 would inherit a
+// page to delete. So this is one committed line of text/plain — the shape this
+// app already serves in lib/auth/guard.js's line() and in connect's one-line
+// 502 — with no template, no interpolation and no data-state.
+//
+// TWO HAND-OFFS, both named:
+//   AS-70 restores the redirect when /connect-stripe exists (one line here,
+//         plus the terminal-state assertions moving from a 200 body to a
+//         followed 303).
+//   AS-48 owns POST_SIGNIN_LANDING in lib/auth/guard.js and the Dashboard, and
+//         replaces this route entirely. The interim body is precisely what it
+//         was already going to replace, so it pays nothing extra.
 import { Router } from 'express';
 
-/** Screen 2's path. Spelled once here; lib/connect/onboarding.js holds the copy
- *  that Stripe's return and refresh redirects are built from. */
-const ONBOARDING_SCREEN = '/connect-stripe';
+/** The whole body, spelled once. No interpolation reaches it — it is a
+ *  constant, which is what keeps this route out of the view layer's escaping
+ *  surface. test/screens.test.js commits its own independent transcription. */
+const INTERIM_LANDING = 'Signed in — the onboarding screen is not built yet.';
 
 /** @param {object} config frozen settings from lib/config.js (unread today —
  *   the signature matches the other mounts in app.js so every line reads alike) */
 export function pageRoutes(config) {
   const router = Router();
 
-  // 303 See Other, matching every other redirect in this app — one literal.
+  // Trailing newline, matching lib/auth/guard.js's line(): every one-line
+  // text/plain body this app serves ends in one.
   router.get('/', (req, res) => {
-    res.redirect(303, ONBOARDING_SCREEN);
+    res.status(200).type('text/plain').send(`${INTERIM_LANDING}\n`);
   });
 
   return router;

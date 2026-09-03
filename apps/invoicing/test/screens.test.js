@@ -4,8 +4,25 @@
 // THIS FILE'S ONE CLAIM: every row in docs/design/wireframes/02-states-ledger.md
 // §1 and §2 is accounted for — rendered and asserted on a sentinel, answered by
 // a redirect, named as a path into another render, or recorded as unrenderable
-// with the reason. A state that quietly stopped rendering, or a ledger row that
-// appeared or vanished, turns this red.
+// with the reason.
+//
+// WHAT THAT IS JOINED TO, AND WHAT IT IS NOT (corrected 2026-09-03, review
+// cycle 1 finding F-4; the original sentence claimed "a ledger row that appeared
+// or vanished turns this red", which is stronger than what is checked). The
+// table below and lib/screens/signin-view.js's SIGNIN_LEDGER are TWO
+// INDEPENDENT HAND TRANSCRIPTIONS of the same document, compared against EACH
+// OTHER by exact set equality and cardinality. So: a change to either copy alone
+// is red, a render can never leave the closed set, and a state cannot be quietly
+// dropped from the module. NOT checked, and not checkable from inside this
+// suite: whether either copy still matches the design document. Nothing here
+// reads it and nothing here can — the `test` service is mountless by design and
+// the Dockerfile vendors exactly one file from outside the app,
+// docs/design/tokens/tokens.css. The join to the document is a DATED REVIEW ACT:
+// all eight screen-1 rows checked by hand against §1 on 2026-09-03 by
+// agent:qa-priya. A verification a person performed, recorded with a date and a
+// name, is a real control; one implied by a sentence about redness is not.
+// Closing it mechanically means vendoring the ledger into the image the way
+// tokens.css already is — filed as its own task, triggered by AS-70.
 //
 // THE SENTINEL IS `data-state` ON THE ROOT ELEMENT, never a copy fragment: a
 // wording change is a design decision, and a test that breaks on one teaches
@@ -25,7 +42,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { VIEWS } from '../lib/views.js';
 import { SIGNIN_LEDGER, SIGNIN_STATES, signinLocals } from '../lib/screens/signin-view.js';
-import { configFor, seedSignedIn, withServer } from './helpers/server.js';
+import { configFor, followToTerminus, seedSignedIn, withServer } from './helpers/server.js';
 
 const PASSWORD = 'correct horse battery staple';
 const EMAIL = 'freda@example.test';
@@ -58,10 +75,11 @@ function stateOf(html) {
 // =============================================================================
 
 /** docs/design/wireframes/02-states-ledger.md §1, all eight rows, in the
- *  document's own order. Transcribed BY HAND on purpose: if the ledger gains or
- *  loses a row, this list disagrees with lib/screens/signin-view.js and the
- *  suite goes red, which is the only way a design document and an
- *  implementation stay joined without a build step reading the markdown. */
+ *  document's own order. Transcribed BY HAND on purpose, and INDEPENDENTLY of
+ *  lib/screens/signin-view.js's copy: the two are compared against each other,
+ *  so an edit to one alone is red. See the file header for what that does and
+ *  does not join — it is drift detection between two transcriptions, not a read
+ *  of the design document. */
 const SCREEN_1_LEDGER = [
   ['S1-DEFAULT-SIGNIN', 'rendered'],
   ['S1-DEFAULT-SIGNUP', 'rendered'],
@@ -117,6 +135,70 @@ test('the view model reaches every rendered state, exhaustively, with no HTTP at
   for (const locals of [signinLocals(), signinLocals({ mode: 'signup', failure: { step: 'weak-password' } })]) {
     assert.equal(Object.keys(locals).includes('password'), false, 'the view model has no password key');
   }
+});
+
+/** The interim `/` landing, transcribed INDEPENDENTLY of routes/pages.js's own
+ *  constant: two copies, so a copy change has to be made twice and is visible
+ *  both times. Review cycle 1 ruling R-2 fixed the wording so it is not decided
+ *  by an implementer under rework pressure. */
+const INTERIM_LANDING_BODY = 'Signed in — the onboarding screen is not built yet.\n';
+
+/** THE ERROR TAXONOMY, MADE EXECUTABLE (plan §3.5.1's table; review cycle 1
+ *  required case 1). Every failure step this app can produce, plus one token it
+ *  has never met, crossed with both modes. `message` is the banner's system
+ *  message — null for the validation rows, whose banner carries a COUNT rather
+ *  than a sentence, and null for `email-taken`, whose banner names the
+ *  submitted address instead. */
+const FAILURE_TAXONOMY = [
+  ['invalid-email', 'S1-ERROR-VALIDATION', null],
+  ['weak-password', 'S1-ERROR-VALIDATION', null],
+  ['missing-field', 'S1-ERROR-VALIDATION', null],
+  ['email-taken', 'S1-ERROR-SYSTEM', null],
+  ['invalid-credentials', 'S1-ERROR-SYSTEM', 'Email or password is incorrect.'],
+  ['parse-body', 'S1-ERROR-SYSTEM', 'Something went wrong. Try again.'],
+  ['no-such-step', 'S1-ERROR-SYSTEM', 'Something went wrong. Try again.'],
+];
+
+test('every failure step maps to exactly one system message, and mode never selects one', () => {
+  // THE CRITERION CLASS BOTH CYCLE-1 DEFECTS ESCAPED. Plan §3.5.1 wrote this
+  // table as BINDING and not one numbered criterion covered a row of it, so a
+  // row implemented backwards passed a full sweep of twenty-seven: the
+  // `default:` branch reached for a PER-MODE message, and every unmapped
+  // failure on either route told the freelancer their password was wrong.
+  //
+  // The fix is structural — there is no per-mode message left to reach for —
+  // and this is the assertion that keeps it that way. The mode axis is the
+  // point: each step is asserted to produce the SAME message in both modes.
+  const modes = ['signin', 'signup'];
+  // Cardinality before quantification, against the committed cell count.
+  assert.equal(FAILURE_TAXONOMY.length, 7, `the committed step list has ${FAILURE_TAXONOMY.length} rows, expected 7`);
+  assert.equal(modes.length, 2);
+  const cells = FAILURE_TAXONOMY.length * modes.length;
+  assert.equal(cells, 14, `expected 14 cells (7 steps x 2 modes), computed ${cells}`);
+
+  let examined = 0;
+  for (const [step, state, message] of FAILURE_TAXONOMY) {
+    const seen = new Set();
+    for (const mode of modes) {
+      const locals = signinLocals({ mode, failure: { step, email: 'x@example.test' } });
+      assert.equal(locals.state, state, `${step} in ${mode} mode rendered ${locals.state}`);
+      const actual = locals.banner === null ? null : locals.banner.message;
+      assert.equal(actual, message, `${step} in ${mode} mode said ${JSON.stringify(actual)}`);
+      seen.add(actual);
+      examined += 1;
+    }
+    // The mode axis, stated as its own claim rather than inferred from the two
+    // assertions above agreeing: ONE message per step, whatever the mode.
+    assert.equal(seen.size, 1, `${step} produces ${seen.size} different messages across modes: ${[...seen].join(' | ')}`);
+  }
+  assert.equal(examined, cells, `examined ${examined} cells, expected ${cells}`);
+
+  // And the two system sentences are DISTINCT — the property the fix exists
+  // for. Its HTTP-level sibling is auth.test.js's 'a parse-body failure and an
+  // invalid-credentials failure are distinguishable'.
+  const credentials = signinLocals({ failure: { step: 'invalid-credentials' } }).banner.message;
+  const generic = signinLocals({ failure: { step: 'parse-body' } }).banner.message;
+  assert.notEqual(credentials, generic, 'the credentials sentence and the generic one must not be the same string');
 });
 
 // =============================================================================
@@ -271,7 +353,7 @@ test('S1-DENIED-AUTHENTICATED: a signed-in caller is redirected and no form rend
     const { cookie } = seedSignedIn(deps.repos);
     const res = await fetch(`${base}/signin`, { redirect: 'manual', headers: { cookie } });
     assert.equal(res.status, 303);
-    assert.equal(res.headers.get('location'), '/', 'POST_SIGNIN_LANDING, which routes/pages.js sends on to screen 2');
+    assert.equal(res.headers.get('location'), '/', 'POST_SIGNIN_LANDING — whose terminus is asserted separately, below');
     const body = await res.text();
     assert.equal(stateOf(body), null, 'the redirect happens BEFORE any markup is served');
     assert.equal(occurrences(body, '<form'), 0, 'no form renders');
@@ -316,6 +398,53 @@ test('a cookieless request for a guarded route lands on screen 1 carrying next i
     assert.ok(html.includes('Sign in to continue.'), 'a one-line reason, not a bare bounce');
     // And nowhere else: never in an href, never as visible text of its own.
     assert.equal(occurrences(html, 'href="/"'), 0, 'next never reaches a URL position');
+  });
+});
+
+// =============================================================================
+// Terminal states: where a person actually ends up (review cycle 1, AC 20a)
+// =============================================================================
+//
+// A Location header is a STEP, not an outcome. Cycle 1 asserted the first hop
+// out of `/` and stopped, and the journey ended on a 404 for every one of the
+// screen's three success paths while twenty-seven of twenty-seven criteria
+// passed. followToTerminus (test/helpers/server.js) is the ONE shared
+// chain-follower these cases and auth.test.js's two share.
+
+test('a signed-in GET /signin lands on a page that exists', async () => {
+  // S1-DENIED-AUTHENTICATED, followed to the end. The redirect itself is
+  // asserted above; this asserts the destination.
+  await withServer(configFor(), async (base, app, deps) => {
+    const { cookie } = seedSignedIn(deps.repos);
+    const res = await fetch(`${base}/signin`, { redirect: 'manual', headers: { cookie } });
+    const end = await followToTerminus(base, res, { cookie });
+    assert.equal(end.hops, 1, `committed hop count: the chain was ${end.chain.join(' , ')}`);
+    assert.equal(end.status, 200, `terminal status ${end.status} at ${end.path} — never a 3xx, never a 404`);
+    assert.equal(end.path, '/');
+    assert.equal(end.body, INTERIM_LANDING_BODY);
+  });
+});
+
+test('GET / is an interim text/plain line, not a screen', async () => {
+  // WHAT KEEPS R-2's INTERIM RESPONSE FROM GROWING INTO A SCREEN. A placeholder
+  // page would be a second screen with no wireframe: a template, a stylesheet
+  // surface, a VIEWS row, a state with no ledger row, and an escaping surface —
+  // all of which AS-48 would then have to delete. This asserts the absence of
+  // every one of those, so growing it is a visibly red change rather than a
+  // quiet one.
+  await withServer(configFor(), async (base, app, deps) => {
+    const { cookie } = seedSignedIn(deps.repos);
+    const res = await fetch(`${base}/`, { redirect: 'manual', headers: { cookie } });
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type'), /^text\/plain\b/);
+    const body = await res.text();
+    assert.equal(body, INTERIM_LANDING_BODY, 'the committed line, exactly');
+    assert.equal(occurrences(body, 'data-state'), 0, 'an interim response stamps no state — it has no ledger row');
+    assert.equal(stateOf(body), null);
+    // No template was rendered: an EJS render of any view in this app produces
+    // a document, and every one of them opens with this.
+    assert.equal(occurrences(body, '<'), 0, 'no markup at all, so no template was rendered');
+    assert.equal(body.split('\n').filter((l) => l !== '').length, 1, 'exactly one line');
   });
 });
 

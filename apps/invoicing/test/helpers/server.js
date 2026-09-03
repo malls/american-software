@@ -120,6 +120,61 @@ export const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..', '.
 /** The test directory itself: /app/test. */
 export const TEST_DIR = resolve(APP_DIR, 'test');
 
+/**
+ * FOLLOW A REDIRECT CHAIN TO ITS TERMINUS, and report the terminus.
+ *
+ * AS-45 review cycle 1, defect F-2: `POST /signup` answered `303 /`, `/`
+ * answered `303 /connect-stripe`, and that route is AS-70's — so the only
+ * success path of the only screen ended on a 404 while every numbered
+ * acceptance criterion passed. The criterion that would have caught it asserted
+ * a `Location` header and stopped. A Location is a STEP; this is the OUTCOME.
+ *
+ * It lives here, in the one helper both test files already import, because the
+ * finding requires ONE shared implementation rather than three copies — three
+ * copies of a chain-follower are three chances to stop one hop short in
+ * different ways. (This is the one file this rework touches that plan §2 does
+ * not name; recorded as a deviation in the cycle's Lattice comment.)
+ *
+ * `hopLimit` is a HARD CAP that throws rather than looping — a redirect cycle
+ * must be a red test, not a hung suite (the helpers/server.js rule at the top of
+ * this file). Callers assert on the returned `hops` against a COMMITTED number,
+ * so a chain that silently grows a hop is red even though it still terminates.
+ *
+ * @param {string} base the withServer base URL
+ * @param {Response} response a response already fetched with redirect: 'manual'
+ * @param {{ cookie?: string | null, hopLimit?: number }} [options] `cookie` is
+ *   carried on every hop — a landing behind the auth boundary needs the session
+ *   the first response set.
+ * @returns {Promise<{ status: number, path: string, body: string, hops: number,
+ *   chain: string[], contentType: string | null }>}
+ */
+export async function followToTerminus(base, response, { cookie = null, hopLimit = 5 } = {}) {
+  const headers = cookie === null ? {} : { cookie };
+  const chain = [];
+  let current = response;
+  let hops = 0;
+  while (current.status >= 300 && current.status < 400) {
+    const location = current.headers.get('location');
+    if (typeof location !== 'string' || location === '') {
+      throw new Error(`followToTerminus: ${current.status} with no Location after ${chain.join(', ')}`);
+    }
+    if (hops >= hopLimit) {
+      throw new Error(`followToTerminus: more than ${hopLimit} hops — ${chain.join(', ')}`);
+    }
+    chain.push(`${current.status} -> ${location}`);
+    current = await fetch(new URL(location, base), { redirect: 'manual', headers });
+    hops += 1;
+  }
+  return {
+    status: current.status,
+    path: new URL(current.url).pathname,
+    body: await current.text(),
+    contentType: current.headers.get('content-type'),
+    hops,
+    chain,
+  };
+}
+
 // AS-40: re-exported here so a suite that needs a signed-in freelancer imports
 // from the one helper it already imports. seedSignedIn mints the session ROW
 // directly, so a suite that is not testing sign-in pays no KDF cost.

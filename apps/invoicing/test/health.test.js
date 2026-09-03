@@ -154,18 +154,26 @@ test('a check that throws is a failing check, never a 500', async () => {
 
 // --- `/`, which the scaffold page used to own (AS-45, plan §3.3.4) ----------
 
-test('GET / redirects a signed-in caller to the Connect Stripe screen', async () => {
+test('GET / answers a signed-in caller rather than 404ing', async () => {
   // REPLACES 'GET / renders the scaffold page…'. The scaffold page is deleted
-  // (the scaffold obligation AS-37 left, discharged), so `/` needed an answer:
-  // it is a 303 to
-  // screen 2, which is the correct onboarding destination until AS-48 lands the
-  // Dashboard and moves POST_SIGNIN_LANDING. Signed IN, because for a
-  // signed-out caller `/` is answered by the guard — asserted in auth.test.js.
+  // (the scaffold obligation AS-37 left, discharged), so `/` needed an answer.
+  //
+  // CORRECTED 2026-09-03 (AS-45 review cycle 1, ruling R-2). This case
+  // previously asserted a 303 to `/connect-stripe` — true about the hop, and
+  // `/connect-stripe` is AS-70's, so the journey ended on a 404. `/` is an
+  // interim `200 text/plain` line until AS-70 restores the redirect and AS-48
+  // replaces it with the Dashboard. This file's claim is ROUTING — that the path
+  // is served at all; the interim response's exact shape, and the terminal
+  // states of the three entry points that land here, are asserted in
+  // test/screens.test.js and test/auth.test.js.
+  //
+  // Signed IN, because for a signed-out caller `/` is answered by the guard —
+  // asserted in auth.test.js.
   await withServer(configFor(), async (base, app, deps) => {
     const { cookie } = seedSignedIn(deps.repos);
     const res = await fetch(`${base}/`, { redirect: 'manual', headers: { cookie } });
-    assert.equal(res.status, 303);
-    assert.equal(res.headers.get('location'), '/connect-stripe');
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type'), /^text\/plain\b/);
   });
 });
 

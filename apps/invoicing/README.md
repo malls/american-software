@@ -25,7 +25,8 @@ the trailing `down` stops the mock that `depends_on` started (`--rm` removes onl
 the run container). Plain `docker compose down` after `up` is unchanged.
 
 `web` serves on **http://127.0.0.1:8348** — `/signin` (screen 1, AS-45),
-`/` (a 303 to `/connect-stripe`), `/healthz`,
+`/` (an interim one-line `text/plain` response until AS-70; see § The view
+layer), `/healthz`,
 `/tokens.css`, and the Stripe Connect onboarding routes (AS-41):
 `POST /connect-stripe/start` (create-or-reuse the connected account, 303 to
 Stripe-hosted onboarding), `GET /connect-stripe/return` (fresh readiness read —
@@ -35,7 +36,9 @@ hosted flow). All three are behind the auth boundary (AS-40) and read the acting
 freelancer from the session; Stripe's return and refresh arrive with the cookie
 because they are top-level GET navigations and the cookie is `SameSite=Lax`. All
 three 303 targets include `/connect-stripe`, which **404s until AS-70 lands
-screen 2** — deliberate: the Location header is the contract. AS-45 landed the
+screen 2** — deliberate: the Location header is the contract. That dangle is
+also why `/` is not a redirect: a **success** path that ends on a 404 is a
+defect, not a contract, and cycle 1 shipped one. AS-45 landed the
 view layer and screen 1 and then split on its own pre-agreed line (its plan §8,
 fired at 1,749 changed lines against a 900-line stop); screen 2 is AS-70, which
 carries §3.5.2, §3.5.3, §3.6 and ACs 12-14 of the AS-45 plan verbatim. It also serves the four invoice routes (AS-43) — see
@@ -537,11 +540,20 @@ Screens are server-rendered EJS. There is **no client-side JavaScript** in this
 app and no build step; the two direct dependencies are still `express` and
 `ejs`.
 
-**Three properties hold over every file in `views/` and `public/`, and each is a
-concept row in `test/dependency-policy.test.js` rather than a convention.** EJS
-has exactly two output tags — one escapes, one does not — so "we use the
-escaping one" is a promise about every author, forever. These are the mechanism
-instead:
+**Four properties hold over the files in `views/` (three of them over
+`public/` too), and each is a concept row in `test/dependency-policy.test.js`
+rather than a convention.** EJS has exactly two output tags — one escapes, one
+does not — so "we use the escaping one" is a promise about every author,
+forever. These are the mechanism instead.
+
+**They are four ENUMERATED POSITIONS, not a universal claim.** This section used
+to say property 2 was "no interpolation reaches a position where escaping is
+insufficient". That sentence is false and was proven false in review cycle 1:
+EJS escapes `& < > " '` and does **not** escape `=` or a space, so an
+interpolation between attributes — in the position an attribute *name* goes —
+renders a submitted value as markup *structure*, and every property below stayed
+green on it. No lexical rule over template files can support a universal claim,
+so this section states what is actually enforced and nothing more:
 
 1. **No raw output.** The non-escaping tag occurs nowhere, so every
    interpolation is escaped and there is no site an author can reach for. It is
@@ -552,21 +564,42 @@ instead:
    that becomes the first entry, reviewed on its own merits, pinned to one exact
    line, and unable to absorb a second occurrence. A blanket ban would have
    been quietly widened by whoever hit it first.
-2. **No interpolation where escaping is not enough.** Never inside an `href`,
-   `src`, `action`, `formaction` or `style` attribute value; no event-handler
-   attributes; no `script` or `style` elements. A path that must survive a round
-   trip (`next`) travels in a hidden `value=` input, **never in a URL** — which
-   is why screen 1's mode switch is a `<button>` inside a `method="get"` form
-   rather than an anchor. It produces the identical URL with a plain full-page
-   navigation and keeps the rule absolute with no judgment call at the call
-   site.
+2. **No interpolation in these five attribute values, no event-handler
+   attribute, and no `script` or `style` element.** The five are `href`, `src`,
+   `action`, `formaction` and `style` — the URL and style contexts, where
+   `javascript:` and `expression(` need no angle bracket. A path that must
+   survive a round trip (`next`) travels in a hidden `value=` input, **never in
+   a URL** — which is why screen 1's mode switch is a `<button>` inside a
+   `method="get"` form rather than an anchor. It produces the identical URL with
+   a plain full-page navigation and keeps the rule absolute with no judgment
+   call at the call site.
 3. **Attribute values carrying data are double-quoted**, because escaping `"`
    only helps if `"` is the delimiter.
+4. **No interpolation in attribute-name position.** Within any start tag in
+   `views/`, every output tag sits **inside a double-quoted attribute value**;
+   an output tag in the tag's name-or-attribute-name region is forbidden. This
+   is the position `<span class="x" INTERPOLATION>` puts a submitted value in,
+   where `x onmouseover=alert(1)` becomes a live event handler and needs neither
+   an angle bracket nor a quote. It is sound **because property 3 holds**: the
+   scan skips quoted spans, which is what makes a `>` inside an attribute value
+   harmless. It is a *lexical* rule, so it cannot assert a render-time property;
+   that half is a falsification recipe that plants the construct, rebuilds, and
+   drives the exploit at a running container. Its non-vacuity floor is a
+   committed start-tag count, so a template the stripper swallowed is red rather
+   than quietly examined-nothing.
 
-Each of the three landed on a **measured baseline of zero**, so none is a hole
-waiting for a tenant. The one exception measured **one**: the scaffold page's
+Each landed on a **measured baseline of zero**, so none is a hole waiting for a
+tenant. The one exception measured **one**: the scaffold page's
 `style="background: var(--…)"`, which is why retiring it was a precondition of
 this task rather than housekeeping bundled alongside it.
+
+**What these four do not cover, stated rather than implied.** They are lexical
+properties of the template files. They do not stop a route handler from
+`res.send`-ing a hand-built string, and they do not stop a view model from
+computing markup and handing it to an escaping output tag (it would arrive
+escaped — visibly broken, not dangerous). The dynamic half is
+`test/screens.test.js`, which drives a real request whose user-controlled value
+is markup and counts occurrences in the served bytes.
 
 **There are no partials, deliberately.** An `include` is a raw-output tag, and
 permitting it is the one carve-out that would make property 1 conditional. The
@@ -586,11 +619,26 @@ with a line-pinned regex.
 a frozen list of the states that actually render and a pure function from route
 inputs to locals. No I/O, no clock, no `req`, no `res`. The template branches on
 precomputed booleans and reads properties; it contains no logic. That buys three
-things, in this order: "every state is reachable" becomes mechanical (the frozen
-list is compared by exact set equality against a table transcribed by hand into
-the test, so a ledger row appearing or vanishing turns the suite red); the three
+things, in this order: "every state is reachable" becomes mechanical; the
 properties above stay auditable by eye as well as by grep; and the state machine
 is unit-testable without HTTP, exhaustively, in microseconds.
+
+**What the state guarantee claims, and what it does not.** The frozen list and a
+table in `test/screens.test.js` are **two independent hand transcriptions of the
+ledger, compared against each other** by exact set equality and cardinality, and
+every `data-state` a template can stamp is a member of that closed set. So a
+change to either copy alone is red, a render can never leave the set, and a state
+cannot be quietly dropped from the module. What is **not** true, and used to be
+written here: that a row appearing or vanishing *in
+`docs/design/wireframes/02-states-ledger.md`* turns the suite red. It does not —
+both copies would have to be hand-edited, and it is the *second* edit the test
+detects. Nothing in the suite reads that document and nothing in it can: the
+`test` service is mountless by design and the Dockerfile vendors exactly one file
+from outside the app, `docs/design/tokens/tokens.css`. **The join to the design
+document is a dated review act:** all eight screen-1 rows checked by hand against
+§1 on 2026-09-03 by `agent:qa-priya`. Closing it mechanically means vendoring the
+ledger into the image the way `tokens.css` already is — filed as its own task,
+triggered by AS-70's second transcription.
 
 A row whose disposition is not `rendered` is **accounted for, never silently
 skipped**: `redirect-answered` (the response is a 303, so no markup exists),
@@ -790,10 +838,12 @@ declaration count are committed literals. Update them in the same commit.
 
 - **AS-45 DISCHARGED the scaffold obligation.** `views/scaffold.ejs`,
   `public/scaffold.css`, its `VIEWS` row and its `routes/pages.js` handler are
-  gone, and so is the `renderSignIn` seam AS-40 left; `/` is now a 303 to
-  `/connect-stripe`. Screen 1 does end to end in a browser what the scaffold
-  page was standing in for. See § The view layer below — that section, not this
-  bullet, is what AS-46/47/48 read first.
+  gone, and so is the `renderSignIn` seam AS-40 left. `/` is now an **interim
+  one-line `text/plain` response**, not a screen and not a redirect: **AS-70**
+  restores the redirect to `/connect-stripe` when that route exists, and
+  **AS-48** replaces the route entirely with the Dashboard. Screen 1 does end to
+  end in a browser what the scaffold page was standing in for. See § The view
+  layer below — that section, not this bullet, is what AS-46/47/48 read first.
 - **AS-38 landed Stripe: `lib/stripe/` is the only outbound HTTP in the
   product, and the custody guard is the only way through it.** The one `fetch`
   token in product source is a pinned line of `lib/stripe/transport.js`; the one
@@ -839,7 +889,10 @@ declaration count are committed literals. Update them in the same commit.
   (§ Accounts below). Return and refresh keep working, as AS-41 predicted,
   because a Stripe redirect is a top-level GET navigation and the cookie is
   `SameSite=Lax`. **AS-70 (screen 2):** `GET /connect-stripe` 404s until the
-  screen lands; the redirect target is one constant in
+  screen lands, and `GET /` therefore does **not** redirect to it — restoring
+  that redirect is one line in `routes/pages.js` plus the terminal-state
+  assertions moving from a 200 body to a followed 303. The Stripe redirect
+  target is one constant in
   `lib/connect/onboarding.js` plus its test assertions if AS-70 renames the
   route. Readiness discipline for every future writer (AS-44 included): write
   through `connectedAccounts.updateReadiness` only, with a snapshot freshly
@@ -888,11 +941,12 @@ declaration count are committed literals. Update them in the same commit.
   `email`, `displayName` and `next`, and **never** the password: the view model
   has no key for one. **AS-48 (the landing point):**
   a successful sign-in with no `next` lands on `POST_SIGNIN_LANDING`, one
-  constant in the same file. **AS-45 deliberately declined to move it**: `/` is
-  a 303 to `/connect-stripe`, which is the right onboarding destination until a
-  Dashboard exists, and changing the constant here would have moved assertions
-  in another task's suite to buy one saved redirect hop. AS-48 changes it and
-  its assertions. **AS-50 (acceptance run):** everything this
+  constant in the same file. **AS-45 deliberately declined to move it**, because
+  changing the constant here would have moved assertions in another task's suite
+  to buy one saved redirect hop; `/` answers an interim one-line `text/plain`
+  response in the meantime, and the three entry points that land there are each
+  followed to their terminus by a test rather than asserted at the first hop.
+  AS-48 changes the constant and its assertions. **AS-50 (acceptance run):** everything this
   suite cannot see — whether a real browser sends the cookie on Stripe's return
   navigation (the cheapest confirmation is one line in the run record: did the
   return land on the connect handler as a signed-in freelancer, or bounce to

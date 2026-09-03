@@ -40,6 +40,11 @@ import { POST_SIGNIN_LANDING, SIGNIN_PATH, hasSession, safeNext } from '../lib/a
 import { clearSessionCookie, readSessionToken, setSessionCookie } from '../lib/auth/session.js';
 import { signinLocals } from '../lib/screens/signin-view.js';
 
+/** The sign-up route's own path, spelled once. The sign-in path is
+ *  lib/auth/guard.js's SIGNIN_PATH because the guard redirects to it; nothing
+ *  outside this file needs this one. */
+const SIGNUP_PATH = '/signup';
+
 /** Plan §3.7's error taxonomy, mapped by the AuthError's stable `step` — never
  *  by message text. Unknown email and wrong password share ONE code on purpose;
  *  see the enumeration note in lib/auth/accounts.js. */
@@ -75,15 +80,25 @@ function statusFor(err) {
  * non-sensitive submitted value (00-flows.md Flow 6). THE PASSWORD IS NEVER
  * PASSED, in any mode, on any error; the view model has no key for it.
  *
+ * MODE SELECTS THE FORM, STEP SELECTS THE MESSAGE (plan ruling R-1). The two
+ * are supplied separately and lib/screens/signin-view.js has no per-mode
+ * message left to reach for, so an unmapped step cannot inherit sign-in's
+ * credentials sentence the way it did in cycle 1.
+ *
  * @param {import('express').Response} res
- * @param {{ status: number, error: Error, step: string, email?: string,
- *   displayName?: string, next?: string, invalidFields?: string[] }} view
+ * @param {{ status: number, error: Error, step: string, mode: 'signin'|'signup',
+ *   email?: string, displayName?: string, next?: string,
+ *   invalidFields?: string[] }} view
  */
 function renderSignIn(res, view) {
   res.status(view.status).render('signin', signinLocals({
-    // 'sign-up' is the only handler label that re-renders the sign-up form;
-    // 'sign-in' and the modeless 'parse-body' both re-render sign-in.
-    mode: view.step === 'sign-up' ? 'signup' : 'signin',
+    // THE CALLER SUPPLIES THE MODE. It is not derived from `step` here any
+    // more: `step` also names the failing interaction, and a modeless
+    // 'parse-body' therefore fell to sign-in on BOTH routes — cycle 1's B3,
+    // "sign-up rejected, here is a sign-in form". Every call site below knows
+    // which form was submitted, including the error middleware, which has
+    // req.path.
+    mode: view.mode,
     next: safeNext(view.next),
     failure: {
       step: view.error?.step ?? view.step,
@@ -155,6 +170,8 @@ export function publicAuthRoutes(config, { repos, accounts = createAccounts({ re
         status: statusFor(err),
         error: err,
         step,
+        // The form that was submitted, from the handler that serves it.
+        mode: step === 'sign-up' ? 'signup' : 'signin',
         email: field(body, 'email'),
         // AS-45: sign-up has a Name field, and Flow 6 preserves every
         // non-sensitive submitted value. Its omission from the AS-40 obligation
@@ -177,11 +194,25 @@ export function publicAuthRoutes(config, { repos, accounts = createAccounts({ re
     password: field(body, 'password'),
   })));
 
-  // A body-parser refusal never reaches a handler, so it needs its own landing:
-  // the same one-line shape as every other failure on these routes.
+  // A body-parser refusal never reaches a handler, so it needs its own landing.
+  //
+  // THE MODE COMES FROM THE ROUTE THE SUBMISSION WAS MADE TO, and req.path is
+  // the property that carries it — MEASURED, not assumed (plan ruling R-1).
+  // publicAuthRoutes is mounted at the app root in app.js with no mount path,
+  // so inside this middleware req.baseUrl is '' and req.path is the whole
+  // request path. Measured 2026-09-03 by driving a 300 KB urlencoded body at
+  // both routes against a container built from this branch: req.path was
+  // '/signup' and '/signin' respectively, req.originalUrl the same, req.baseUrl
+  // ''. If this router ever gains a mount path, req.path stays relative to the
+  // mount and this comparison still holds; req.originalUrl would not.
   router.use((err, req, res, next) => {
     if (res.headersSent) return next(err);
-    renderSignIn(res, { status: statusFor(err), error: err, step: 'parse-body' });
+    renderSignIn(res, {
+      status: statusFor(err),
+      error: err,
+      step: 'parse-body',
+      mode: req.path === SIGNUP_PATH ? 'signup' : 'signin',
+    });
   });
 
   return router;

@@ -18,6 +18,20 @@
 // routes/auth.js's own rule, and AuthError carries no `field`.
 
 /** Screen 1's ledger, all eight rows, each with what this app does about it.
+ *
+ *  WHAT THIS TRANSCRIPTION IS JOINED TO, precisely (plan ruling R-4). This list
+ *  and the table in test/screens.test.js are TWO INDEPENDENT HAND
+ *  TRANSCRIPTIONS of 02-states-ledger.md §1, compared against EACH OTHER by
+ *  exact set equality and cardinality. Nothing in the suite reads the design
+ *  document and nothing in it can: the `test` service is mountless by design and
+ *  the Dockerfile vendors exactly one file from outside the app,
+ *  docs/design/tokens/tokens.css. So a row appearing or vanishing IN THE
+ *  DOCUMENT does not turn the suite red — both copies would have to be
+ *  hand-edited, and it is the SECOND edit the test detects. Fidelity to the
+ *  document is a DATED REVIEW ACT, not a test: all eight rows checked by hand
+ *  against §1 on 2026-09-03 by agent:qa-priya. Closing the join means vendoring
+ *  the ledger into the image the way tokens.css already is; that is filed as
+ *  its own task, triggered by AS-70's second transcription.
  *  `rendered` rows are the members of SIGNIN_STATES below; the other four are
  *  accounted for rather than silently absent (plan §3.6):
  *   - redirect-answered: the response is a 303, so no markup is produced
@@ -62,11 +76,19 @@ const FIELD_MESSAGE = Object.freeze({
 
 /** Sign-in's system error is ONE message for "no such account" and "wrong
  *  password" alike — naming which would confirm to an attacker which addresses
- *  have accounts (ledger §1, and lib/auth/accounts.js's own enumeration note). */
+ *  have accounts (ledger §1, and lib/auth/accounts.js's own enumeration note).
+ *  THE INDISTINGUISHABILITY REQUIREMENT IS SCOPED TO THOSE TWO OUTCOMES and to
+ *  nothing else: same message, same status, same state, bodies differing only
+ *  in the freelancer's own submitted address (test/auth.test.js H8). It does
+ *  NOT extend to request-level failures — see GENERIC_SYSTEM_MESSAGE. */
 const SIGNIN_SYSTEM_MESSAGE = 'Email or password is incorrect.';
 
 /** Anything unmapped — a body-parser refusal, a repository failure, a bug.
- *  NEVER error.message: it is not copy and may carry request material. */
+ *  NEVER error.message: it is not copy and may carry request material.
+ *  DELIBERATELY DISTINGUISHABLE from SIGNIN_SYSTEM_MESSAGE, and
+ *  test/auth.test.js asserts that direction so a later "simplification" cannot
+ *  re-conflate them. It is the sibling of H8, which asserts the opposite for
+ *  the credential check's own two outcomes; each case names the other. */
 const GENERIC_SYSTEM_MESSAGE = 'Something went wrong. Try again.';
 
 /** Sign-up's conflict, split so the submitted address can be emphasised without
@@ -81,6 +103,16 @@ const EMAIL_TAKEN_AFTER = '. Sign in instead, or use a different email.';
  *  rather than as a bare bounce. `next` present IS that arrival. */
 const CONTINUE_REASON = 'Sign in to continue.';
 
+/** MODE SELECTS THE FORM; STEP SELECTS THE MESSAGE. There is deliberately NO
+ *  message key in this table, and that absence is the fix for review cycle 1's
+ *  D1 (plan ruling R-1): cycle 1 carried a `systemMessage` per mode, the
+ *  `default:` branch below reached for it, and every unmapped failure on either
+ *  route therefore rendered sign-in's credentials sentence — telling a
+ *  freelancer whose body the parser refused that their password was wrong. The
+ *  constant is REMOVED rather than branched around: a `default:` branch that
+ *  reaches for a per-mode message is the defect, and removing the constant
+ *  removes the reach. A future unmapped step has nothing mode-scoped to
+ *  inherit. */
 const MODE_COPY = Object.freeze({
   signin: Object.freeze({
     title: 'Sign in',
@@ -90,7 +122,6 @@ const MODE_COPY = Object.freeze({
     switchMode: 'signup',
     passwordAutocomplete: 'current-password',
     defaultState: 'S1-DEFAULT-SIGNIN',
-    systemMessage: SIGNIN_SYSTEM_MESSAGE,
   }),
   signup: Object.freeze({
     title: 'Create your account',
@@ -100,7 +131,6 @@ const MODE_COPY = Object.freeze({
     switchMode: 'signin',
     passwordAutocomplete: 'new-password',
     defaultState: 'S1-DEFAULT-SIGNUP',
-    systemMessage: GENERIC_SYSTEM_MESSAGE,
   }),
 });
 
@@ -111,8 +141,10 @@ const text = (value) => (typeof value === 'string' ? value : '');
 
 /** THE ONE PLACE MODE IS DECIDED, for a GET and for a failed POST alike.
  *  Anything that is not exactly 'signup' — absent, an array from `?mode[]=`, a
- *  typo, or the 'parse-body' failure that cannot know which form was submitted
- *  — is sign-in, which is the ledger's stated default when `mode` is absent. */
+ *  typo — is sign-in, which is the ledger's stated default when `mode` is
+ *  absent. A 'parse-body' failure is NOT in that list any more: cycle 1 said it
+ *  "cannot know which form was submitted", and the router's error middleware
+ *  can — it has req.path (routes/auth.js, and plan ruling R-1's B3 half). */
 const normaliseMode = (raw) => (raw === 'signup' ? 'signup' : 'signin');
 
 const banner = (title, message, email) => Object.freeze({
@@ -178,10 +210,25 @@ export function signinLocals(input = {}) {
         state = 'S1-ERROR-SYSTEM';
         pageBanner = banner(null, null, email);
         break;
-      default:
-        // invalid-credentials, parse-body, and anything this app has not met.
+      case 'invalid-credentials':
+        // ONE message for "no such account" and "wrong password" alike, chosen
+        // by the STEP and unconditionally — never through the mode. Sign-up
+        // cannot produce this step (accounts.signUp does not check credentials),
+        // so the case is reachable in sign-in mode only, by construction rather
+        // than by a mode test.
         state = 'S1-ERROR-SYSTEM';
-        pageBanner = banner(null, copy.systemMessage, null);
+        pageBanner = banner(null, SIGNIN_SYSTEM_MESSAGE, null);
+        break;
+      default:
+        // parse-body, and anything this app has not met. The generic sentence,
+        // in BOTH modes. Conflating a request-level failure with a credential
+        // failure buys no enumeration resistance — enumeration compares two
+        // sign-in submissions that differ only in whether the account exists,
+        // and an attacker making that comparison controls their own request
+        // shape and never sends a malformed body. It costs a lie to a real
+        // person and buys nothing (plan ruling R-1).
+        state = 'S1-ERROR-SYSTEM';
+        pageBanner = banner(null, GENERIC_SYSTEM_MESSAGE, null);
     }
     if (state === 'S1-ERROR-VALIDATION') pageBanner = banner(attentionTitle(marked.length), null, null);
   }

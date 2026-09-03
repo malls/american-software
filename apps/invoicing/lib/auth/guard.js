@@ -23,9 +23,16 @@ export const SIGNIN_PATH = '/signin';
 
 /** Where a successful sign-in lands when it carries no `next` (plan §9 Q4).
  *  AS-48 lands the Dashboard route and changes this one constant and its
- *  assertions. AS-45 deliberately declined to: `/` is a 303 to
- *  `/connect-stripe` (routes/pages.js), which is the correct onboarding
- *  destination until the Dashboard exists. */
+ *  assertions — AS-48 ALONE; AS-45 declined to move it, because changing it
+ *  here would move assertions in another task's suite to buy one saved redirect
+ *  hop.
+ *
+ *  CORRECTED 2026-09-03 (review cycle 1, ruling R-2). This docstring used to
+ *  say `/` was "a 303 to `/connect-stripe`, which is the correct onboarding
+ *  destination until the Dashboard exists". The split moved that screen to
+ *  AS-70, so the redirect landed on a 404 — the only success path of the only
+ *  screen. `/` now answers 200 text/plain with one interim line
+ *  (routes/pages.js); AS-70 restores the redirect when its route exists. */
 export const POST_SIGNIN_LANDING = '/';
 
 /** Methods that do not change state, so the origin check does not apply. */
