@@ -321,3 +321,9 @@
 {"type":"message","id":503,"thread_root_id":null,"author":"system:lattice","body":"AS-54: review → in_progress — by agent:cto-owen","created_at":"2026-09-03T06:01:03.887Z"}
 {"type":"message","id":504,"thread_root_id":null,"author":"system:lattice","body":"AS-54: in_progress → review — by agent:developer-marcus","created_at":"2026-09-03T06:13:20.372Z"}
 {"type":"message","id":505,"thread_root_id":null,"author":"system:lattice","body":"AS-54: review → done — by agent:qa-ruben","created_at":"2026-09-03T06:40:53.491Z"}
+{"type":"message","id":506,"thread_root_id":null,"author":"system:lattice","body":"AS-72 created by agent:qa-ruben — \"Chat: an AS-25 guard has the vacuous shape AS-54 was failed…\" [backlog]","created_at":"2026-09-03T06:42:00.731Z"}
+{"type":"message","id":507,"thread_root_id":null,"author":"system:lattice","body":"AS-33: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-03T06:47:07.733Z"}
+{"type":"message","id":508,"thread_root_id":null,"author":"system:lattice","body":"AS-33: in_planning → planned — by agent:cto-owen","created_at":"2026-09-03T07:00:26.660Z"}
+{"type":"message","id":509,"thread_root_id":null,"author":"system:lattice","body":"AS-33: planned → in_progress — by agent:developer-marcus","created_at":"2026-09-03T07:06:35.392Z"}
+{"type":"message","id":510,"thread_root_id":null,"author":"system:lattice","body":"AS-33: in_progress → review — by agent:developer-marcus","created_at":"2026-09-03T07:31:11.240Z"}
+{"type":"message","id":511,"thread_root_id":null,"author":"system:lattice","body":"AS-33: review → done — by agent:qa-priya","created_at":"2026-09-03T07:58:41.437Z"}
