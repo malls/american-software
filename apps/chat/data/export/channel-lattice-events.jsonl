@@ -333,3 +333,17 @@
 {"type":"message","id":515,"thread_root_id":null,"author":"system:lattice","body":"AS-32: planned → in_progress — by agent:developer-marcus","created_at":"2026-09-03T08:16:48.961Z"}
 {"type":"message","id":516,"thread_root_id":null,"author":"system:lattice","body":"AS-32: in_progress → review — by agent:developer-marcus","created_at":"2026-09-03T08:26:27.537Z"}
 {"type":"message","id":517,"thread_root_id":null,"author":"system:lattice","body":"AS-32: review → done — by agent:qa-ruben","created_at":"2026-09-03T08:44:51.574Z"}
+{"type":"message","id":518,"thread_root_id":null,"author":"system:lattice","body":"AS-74 created by agent:qa-ruben — \"Chat: the roster truncation contract has no standing guard,…\" [backlog]","created_at":"2026-09-03T08:45:27.703Z"}
+{"type":"message","id":522,"thread_root_id":null,"author":"system:lattice","body":"AS-27: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-03T16:11:27.767Z"}
+{"type":"message","id":523,"thread_root_id":null,"author":"system:lattice","body":"AS-27: in_planning → planned — by agent:cto-owen","created_at":"2026-09-03T16:13:30.950Z"}
+{"type":"message","id":524,"thread_root_id":null,"author":"system:lattice","body":"AS-75 created by agent:cto-owen — \"Chat: merged code is not live until a human rebuilds the co…\" [backlog]","created_at":"2026-09-03T16:14:01.358Z"}
+{"type":"message","id":527,"thread_root_id":null,"author":"system:lattice","body":"AS-76 created by agent:cto-owen — \"Observability: design note — error tracking + product analy…\" [backlog]","created_at":"2026-09-03T16:24:17.533Z"}
+{"type":"message","id":528,"thread_root_id":null,"author":"system:lattice","body":"AS-77 created by agent:cto-owen — \"Observability: Sentry error tracking for apps/invoicing — s…\" [backlog]","created_at":"2026-09-03T16:24:17.536Z"}
+{"type":"message","id":529,"thread_root_id":null,"author":"system:lattice","body":"AS-78 created by agent:cto-owen — \"Observability: PostHog product analytics for apps/invoicing…\" [backlog]","created_at":"2026-09-03T16:24:17.538Z"}
+{"type":"message","id":530,"thread_root_id":null,"author":"system:lattice","body":"AS-79 created by agent:cto-owen — \"Observability: Sentry error tracking for apps/chat server +…\" [backlog]","created_at":"2026-09-03T16:24:17.539Z"}
+{"type":"message","id":533,"thread_root_id":null,"author":"system:lattice","body":"AS-27: planned → in_progress — by agent:developer-lena","created_at":"2026-09-03T16:34:58.178Z"}
+{"type":"message","id":534,"thread_root_id":null,"author":"system:lattice","body":"AS-27: in_progress → review — by agent:developer-lena","created_at":"2026-09-03T16:59:03.540Z"}
+{"type":"message","id":536,"thread_root_id":null,"author":"system:lattice","body":"AS-27: review → done — by agent:qa-priya","created_at":"2026-09-03T23:10:03.886Z"}
+{"type":"message","id":537,"thread_root_id":null,"author":"system:lattice","body":"AS-80 created by agent:qa-priya — \"Chat: the AS-27 close()-clears-timer guard is vacuous — del…\" [backlog]","created_at":"2026-09-03T23:10:03.889Z"}
+{"type":"message","id":538,"thread_root_id":null,"author":"system:lattice","body":"AS-81 created by agent:qa-priya — \"Chat test harness: openStream() hangs the runner instead of…\" [backlog]","created_at":"2026-09-03T23:10:03.890Z"}
+{"type":"message","id":539,"thread_root_id":null,"author":"system:lattice","body":"AS-82 created by agent:qa-priya — \"Chat watcher: the AS-27 heartbeat call site is unexercised …\" [backlog]","created_at":"2026-09-03T23:10:03.891Z"}
