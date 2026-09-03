@@ -300,3 +300,24 @@
 {"type":"message","id":482,"thread_root_id":null,"author":"system:lattice","body":"AS-65: in_progress → review — by agent:developer-lena","created_at":"2026-09-02T23:16:22.817Z"}
 {"type":"message","id":483,"thread_root_id":null,"author":"system:lattice","body":"AS-65: review → in_progress — by agent:cto-owen","created_at":"2026-09-02T23:34:46.846Z"}
 {"type":"message","id":484,"thread_root_id":null,"author":"system:lattice","body":"AS-65: in_progress → review — by agent:developer-lena","created_at":"2026-09-03T00:09:56.967Z"}
+{"type":"message","id":485,"thread_root_id":null,"author":"system:lattice","body":"AS-65: review → done — by agent:qa-ruben","created_at":"2026-09-03T00:36:10.101Z"}
+{"type":"message","id":486,"thread_root_id":null,"author":"system:lattice","body":"AS-68 created by agent:qa-ruben — \"AS-65 residuals: a second __proto__ spelling, an unbounded …\" [backlog]","created_at":"2026-09-03T00:36:40.801Z"}
+{"type":"message","id":487,"thread_root_id":null,"author":"system:lattice","body":"AS-45: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-03T00:42:18.247Z"}
+{"type":"message","id":488,"thread_root_id":null,"author":"system:lattice","body":"AS-45: in_planning → planned — by agent:cto-owen","created_at":"2026-09-03T00:58:39.391Z"}
+{"type":"message","id":489,"thread_root_id":null,"author":"system:lattice","body":"AS-69 created by agent:cto-owen — \"D1 v1: a failed Connect start should land on the Connect sc…\" [backlog]","created_at":"2026-09-03T01:00:11.380Z"}
+{"type":"message","id":490,"thread_root_id":null,"author":"system:lattice","body":"AS-45: planned → in_progress — by agent:developer-marcus","created_at":"2026-09-03T01:05:48.603Z"}
+{"type":"message","id":491,"thread_root_id":null,"author":"system:lattice","body":"AS-70 created by agent:developer-marcus — \"D1 v1 UI: onboarding screen 2 (Connect Stripe)\" [backlog]","created_at":"2026-09-03T01:29:50.518Z"}
+{"type":"message","id":492,"thread_root_id":null,"author":"system:lattice","body":"AS-45: in_progress → review — by agent:developer-marcus","created_at":"2026-09-03T01:46:47.158Z"}
+{"type":"message","id":493,"thread_root_id":null,"author":"system:lattice","body":"AS-45: review → in_progress — by agent:cto-owen","created_at":"2026-09-03T02:24:39.481Z"}
+{"type":"message","id":494,"thread_root_id":null,"author":"system:lattice","body":"AS-71 created by agent:cto-owen — \"Vendor the states ledger into the image so a design change …\" [backlog]","created_at":"2026-09-03T02:46:38.681Z"}
+{"type":"message","id":495,"thread_root_id":null,"author":"system:lattice","body":"AS-45: in_progress → review — by agent:developer-marcus","created_at":"2026-09-03T03:21:57.674Z"}
+{"type":"message","id":496,"thread_root_id":null,"author":"system:lattice","body":"AS-45: review → in_progress — by agent:cto-owen","created_at":"2026-09-03T03:55:09.938Z"}
+{"type":"message","id":497,"thread_root_id":null,"author":"system:lattice","body":"AS-45: in_progress → review — by agent:developer-marcus","created_at":"2026-09-03T04:35:37.540Z"}
+{"type":"message","id":498,"thread_root_id":null,"author":"system:lattice","body":"AS-45: review → needs_human — by agent:cto-owen","created_at":"2026-09-03T05:05:49.774Z"}
+{"type":"message","id":499,"thread_root_id":null,"author":"system:lattice","body":"AS-54: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-03T05:11:18.089Z"}
+{"type":"message","id":500,"thread_root_id":null,"author":"system:lattice","body":"AS-54: in_planning → planned — by agent:cto-owen","created_at":"2026-09-03T05:23:44.001Z"}
+{"type":"message","id":501,"thread_root_id":null,"author":"system:lattice","body":"AS-54: planned → in_progress — by agent:developer-marcus","created_at":"2026-09-03T05:30:20.604Z"}
+{"type":"message","id":502,"thread_root_id":null,"author":"system:lattice","body":"AS-54: in_progress → review — by agent:developer-marcus","created_at":"2026-09-03T05:41:37.796Z"}
+{"type":"message","id":503,"thread_root_id":null,"author":"system:lattice","body":"AS-54: review → in_progress — by agent:cto-owen","created_at":"2026-09-03T06:01:03.887Z"}
+{"type":"message","id":504,"thread_root_id":null,"author":"system:lattice","body":"AS-54: in_progress → review — by agent:developer-marcus","created_at":"2026-09-03T06:13:20.372Z"}
+{"type":"message","id":505,"thread_root_id":null,"author":"system:lattice","body":"AS-54: review → done — by agent:qa-ruben","created_at":"2026-09-03T06:40:53.491Z"}
