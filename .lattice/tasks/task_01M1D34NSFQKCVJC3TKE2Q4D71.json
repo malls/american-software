@@ -1,6 +1,13 @@
 {
   "assigned_to": "agent:developer-marcus",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-45-onboarding-ui",
+      "linked_at": "2026-09-03T00:58:22Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
   "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
@@ -10,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34NSFQKCVJC3TKE2Q4D71",
-  "last_event_id": "ev_01M1JCC1ST6ZZ3Z0G1WSD684BH",
+  "last_event_id": "ev_01M1JCC97XPFGR4M7BKFYYQFVX",
   "last_status_changed_at": "2026-09-03T00:58:14Z",
   "priority": "medium",
   "relationships_out": [
@@ -48,6 +55,6 @@
   ],
   "title": "D1 v1 UI: onboarding screens 1-2 (auth, Connect Stripe)",
   "type": "task",
-  "updated_at": "2026-09-03T00:58:14Z",
+  "updated_at": "2026-09-03T00:58:22Z",
   "urgency": null
 }
