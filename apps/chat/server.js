@@ -8,7 +8,12 @@ import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openStore, StoreError } from './lib/store.js';
 import { ingestNewEvents, resolveRefs, resolveShortId, latticeRoot, assignmentsByActor } from './lib/lattice.js';
-import { readRoster } from './lib/personnel.js';
+import { readRoster, readPersonnel } from './lib/personnel.js';
+// AS-33: the org rule set + tree builder. The server importing UP into
+// public/ is deliberate: that module is also what the BROWSER imports, and a
+// second copy of the rules for the client is the drift hazard the whole org
+// check exists to prevent. See the header of public/org-chart.js.
+import { validateOrg } from './public/org-chart.js';
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)));
 
@@ -21,6 +26,7 @@ const STATIC_FILES = {
   '/thread-modal.js': ['thread-modal.js', 'text/javascript; charset=utf-8'],
   '/live.js': ['live.js', 'text/javascript; charset=utf-8'],
   '/dm-sort.js': ['dm-sort.js', 'text/javascript; charset=utf-8'],
+  '/org-chart.js': ['org-chart.js', 'text/javascript; charset=utf-8'],
   '/msg-refs.js': ['msg-refs.js', 'text/javascript; charset=utf-8'],
   '/markdown.js': ['markdown.js', 'text/javascript; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
@@ -172,6 +178,39 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
       if (!me) throw new StoreError("Missing query parameter 'me'.");
       return { conversations: store.listConversationsFor(me) };
     }
+    if (req.method === 'GET' && pathname === '/api/org') {
+      // AS-33: the org chart's data source — active employees with their
+      // reporting edges, plus every rule violation. Nothing here is
+      // viewer-relative and nothing is private: no 'me', no store, no Lattice
+      // join. Validation runs over the UNFILTERED roster plus the skipped
+      // files, because three of the nine rules exist precisely to catch what
+      // the active filter throws away (an unparsed dossier, a duplicate
+      // identity, a typo'd status).
+      //
+      // Same degradation contract as /api/roster, and for the same reason: a
+      // malformed dossier or a missing mount must never take the server down.
+      // A validator that refused to boot would invert that contract for the
+      // worse — one bad frontmatter line would take out chat for everyone,
+      // including the conversation needed to fix it. The chart tolerates a
+      // broken graph and says so loudly; it does not withhold itself.
+      let data = { roster: [], skipped: [], sources: [] };
+      try {
+        data = readPersonnel(root);
+      } catch {
+        // Empty org, 200, never a 500.
+      }
+      const employees = data.roster
+        .filter((e) => e.status === 'active')
+        .map((e) => ({
+          actorId: e.actorId,
+          name: e.name,
+          title: e.title,
+          class: e.class,
+          team: e.team,
+          reportsTo: e.reportsTo,
+        }));
+      return { employees, violations: validateOrg(data) };
+    }
     if (req.method === 'GET' && pathname === '/api/roster') {
       // AS-8: company roster (personnel/ frontmatter) joined with current
       // work (Lattice) and DM state (chat DB). 'me' is optional since AS-24,
@@ -200,6 +239,7 @@ export function createChatServer({ dbPath, repoRoot } = {}) {
             title: e.title,
             class: e.class,
             team: e.team,
+            reportsTo: e.reportsTo,
             registered: !!store.getIdentity(e.actorId),
             work: tasks[0] ?? null,
             moreTasks: Math.max(0, tasks.length - 1),

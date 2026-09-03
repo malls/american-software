@@ -6,6 +6,7 @@ import { renderPreservingScroll } from './scroll.js';
 import { shouldCloseOnEscape, shouldCloseOnBackdropGesture } from './thread-modal.js';
 import { applyMessage, maxLoadedId } from './live.js';
 import { rosterOrder, dmOrder, togglePin, sanitizePins } from './dm-sort.js';
+import { BOARD_ROOT, buildOrgTree } from './org-chart.js';
 import { tokenizeMsgRefs, tokenizeFileRefs } from './msg-refs.js';
 import { tokenizeInline, parseBlocks, tokenizeUrls } from './markdown.js';
 
@@ -66,6 +67,7 @@ const isModifiedClick = (e) => e.metaKey || e.ctrlKey || e.shiftKey || e.altKey 
 // not-visible targets must be indistinguishable (parity invariant).
 const MSG_UNAVAILABLE = "That message isn't available.";
 const FILE_UNAVAILABLE = "That file isn't available.";
+const ORG_UNAVAILABLE = "The org chart isn't available.";
 
 function syncUrl(mode /* 'push' | 'replace' | 'none' */) {
   if (mode === 'none') return;
@@ -784,6 +786,90 @@ function closeFileModal() {
   $('#file-modal').hidden = true;
 }
 
+// --- org chart (AS-33) ------------------------------------------------------
+// Derived live from /api/org on EVERY open — no cached artifact and no
+// committed generated file, which is the hand-maintained-chart drift the org
+// section of CLAUDE.md exists to prevent. Edit a dossier, reopen, see it.
+//
+// Structure-first like the rest of this file: buildOrgTree returns plain
+// objects holding plain strings and knows nothing about the DOM; everything
+// below is el() and createTextNode. Personnel files are repo-authored, which
+// weakens the threat model and changes nothing about the mechanism — the
+// value of the no-innerHTML rule is that it is absolute.
+
+/** One <li> per employee, with a nested <ul> for their reports. */
+function orgNodeItem(node) {
+  const item = el('li');
+  const row = el('div', 'org-node-row');
+  if (node.actorId === BOARD_ROOT) row.classList.add('org-root');
+  row.appendChild(el('span', 'org-node-name', node.name || node.actorId));
+  const meta = [node.title, node.class, node.team].filter(Boolean).join(' \u00b7 ');
+  if (meta) row.appendChild(el('span', 'org-node-meta', meta));
+  item.appendChild(row);
+  if (node.reports.length > 0) {
+    const kids = el('ul', 'org-tree');
+    kids.append(...node.reports.map(orgNodeItem));
+    item.appendChild(kids);
+  }
+  return item;
+}
+
+/** Violations block, then the tree, then anyone the tree could not place. */
+function renderOrgChart({ employees, violations }) {
+  const { root, unplaced } = buildOrgTree(employees);
+  const n = violations.length;
+  $('#org-title').textContent =
+    `Org chart \u2014 ${employees.length} active, ${n} violation${n === 1 ? '' : 's'}`;
+  const nodes = [];
+
+  if (n > 0) {
+    nodes.push(el('div', 'org-section-title', `${n} violation${n === 1 ? '' : 's'}`));
+    const list = el('ul', 'org-violation-list');
+    for (const v of violations) {
+      const li = el('li', 'org-violation');
+      li.appendChild(el('span', 'org-violation-rule', v.rule));
+      li.appendChild(document.createTextNode(` ${v.actorId || v.file || ''} \u2014 ${v.detail}`));
+      list.appendChild(li);
+    }
+    nodes.push(list);
+  } else {
+    // A line, not an empty region: "nothing here" and "nothing checked" must
+    // not look the same.
+    nodes.push(el('div', 'org-ok', 'No violations.'));
+  }
+
+  if (employees.length === 0) {
+    // Degradation: the board node still renders, with a reason beside it.
+    nodes.push(
+      el('div', 'org-empty', 'No active employees are visible \u2014 personnel/ may be unavailable.')
+    );
+  }
+
+  const tree = el('ul', 'org-tree');
+  tree.appendChild(orgNodeItem(root));
+  nodes.push(tree);
+
+  if (unplaced.length > 0) {
+    // Nobody is ever dropped: an orphan or a cycle member shows up here rather
+    // than vanishing from the picture.
+    nodes.push(el('div', 'org-section-title', `Not placed (${unplaced.length})`));
+    const list = el('ul', 'org-tree org-unplaced');
+    list.append(...unplaced.map(orgNodeItem));
+    nodes.push(list);
+  }
+
+  $('#org-body').replaceChildren(...nodes);
+  $('#org-modal').hidden = false;
+}
+
+async function openOrgChart() {
+  renderOrgChart(await api('/api/org'));
+}
+
+function closeOrgModal() {
+  $('#org-modal').hidden = true;
+}
+
 // --- DM typeahead (AS-6) ----------------------------------------------------
 // Inline combobox over the already-loaded identity map — no new endpoint.
 // Rendering stays textContent-only, like everything else in this file.
@@ -1160,12 +1246,28 @@ async function init() {
   // AS-26 §5: file viewer close wiring (button + Esc; no backdrop gesture —
   // the plan scopes dismissal to those two).
   $('#file-close').addEventListener('click', () => closeFileModal());
+  // AS-33: the org chart re-derives on every open, so there is no refresh path
+  // to maintain and no stale render after a dossier edit.
+  $('#org-chart-open').addEventListener('click', () => {
+    openOrgChart().catch(() => alert(ORG_UNAVAILABLE));
+  });
+  $('#org-close').addEventListener('click', () => closeOrgModal());
   // AS-19: document-level Escape, live only while the modal is visible.
   // defaultPrevented is respected so the DM typeahead's own Escape (which
   // preventDefaults on its input before the event reaches document) wins.
   // AS-26: the file viewer stacks above the thread modal — Esc closes the
   // top-most one only.
+  // AS-33: the checks run in DESCENDING z-index order — org (36), file (35),
+  // thread (30) — so Escape always closes the top-most overlay. The org modal
+  // cannot in practice sit under the file viewer (its opener is in the
+  // sidebar, which a full-screen backdrop covers), but the handler should read
+  // the way the z-order inventory does, so the next overlay has a rule to
+  // follow instead of a precedent to guess at.
   document.addEventListener('keydown', (e) => {
+    if (shouldCloseOnEscape(e, $('#org-modal').hidden)) {
+      closeOrgModal();
+      return;
+    }
     if (shouldCloseOnEscape(e, $('#file-modal').hidden)) {
       closeFileModal();
       return;

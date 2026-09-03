@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync, cpSync, writeFileSync, mkdirSync, symlinkSync } fr
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { createChatServer } from '../server.js';
 
 const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
@@ -397,6 +398,7 @@ test('api: AS-8 — roster joins personnel, lattice work status, and DM state', 
     title: 'Fixture Engineer',
     class: 'ic',
     team: 'engineering',
+    reportsTo: 'agent:cto-owen', // AS-33: the reporting edge rides the roster row
     registered: false, // not in the identities table yet
     dmConversationId: null,
     unread: 0,
@@ -902,4 +904,149 @@ test('api: AS-54 — served app.js autolinks through markdown.js and never insid
   );
 
   assert.doesNotMatch(app, /\.innerHTML/, 'zero innerHTML use — the house rule holds');
+});
+
+// --- AS-33: the org chart endpoint, the served module, and CLI/API parity ---
+
+test('api: AS-33 — /api/org reports violations from the fixture root', async (t) => {
+  const { get } = await bootServer(t);
+  const res = await get('/api/org');
+  assert.equal(res.status, 200);
+  assert.deepEqual(Object.keys(res.data).sort(), ['employees', 'violations']);
+
+  // Active only, name-sorted, with the reporting edge and nothing
+  // viewer-relative (no me, no DM state, no Lattice work).
+  assert.deepEqual(res.data.employees, [
+    {
+      actorId: 'agent:eng-ada',
+      name: 'Ada Fixture',
+      title: 'Fixture Engineer',
+      class: 'ic',
+      team: 'engineering',
+      reportsTo: 'agent:cto-owen',
+    },
+    {
+      actorId: 'agent:qa-bob',
+      name: 'Bob Fixture',
+      title: 'QA Engineer',
+      class: 'ic',
+      team: 'quality',
+      reportsTo: 'agent:cto-owen',
+    },
+  ]);
+
+  // LOAD-BEARING FIXTURE PROPERTY (plan §10.5): test/fixtures/repo has never
+  // been a valid org — ada and bob both point at agent:cto-owen, who has no
+  // dossier there, and two of its six files are fenced but unparseable. That
+  // is precisely why it is the on-disk dirty case. Do not "fix" the fixture.
+  // The whole array is asserted, not a subset: extra output is a finding too.
+  assert.deepEqual(res.data.violations, [
+    {
+      rule: 'orphan_reports_to',
+      actorId: 'agent:eng-ada',
+      file: 'engineer-ada-fixture.md',
+      detail: 'reports to agent:cto-owen, who has no dossier',
+    },
+    {
+      rule: 'orphan_reports_to',
+      actorId: 'agent:qa-bob',
+      file: 'qa-bob-fixture.md',
+      detail: 'reports to agent:cto-owen, who has no dossier',
+    },
+    {
+      rule: 'unparsed_dossier',
+      actorId: null,
+      file: 'bad-actor-eve.md',
+      detail: 'dossier yielded no employee (invalid_actor_id)',
+    },
+    {
+      rule: 'unparsed_dossier',
+      actorId: null,
+      file: 'broken-mallory.md',
+      detail: 'dossier yielded no employee (malformed_frontmatter)',
+    },
+  ]);
+});
+
+test('api: AS-33 — /api/org degrades to empty on a root with no personnel/', async (t) => {
+  // Same contract as the roster endpoint: a missing mount or a malformed
+  // dossier is an empty org and a 200, never a 500 and never a refusal to
+  // boot. One bad frontmatter line must not take out chat for everyone.
+  const bareRoot = mkdtempSync(join(tmpdir(), 'chat-org-bare-'));
+  t.after(() => rmSync(bareRoot, { recursive: true, force: true }));
+  const { get } = await bootServer(t, bareRoot);
+  const res = await get('/api/org');
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.data, { employees: [], violations: [] });
+});
+
+test('api: AS-33 — /api/roster keeps its envelope while gaining the reporting edge', async (t) => {
+  // §3.8: violations were NOT bolted onto /api/roster. That endpoint is
+  // fetched by every client every 60s and joined against Lattice and DM state;
+  // the org view is opened occasionally and needs neither join.
+  const { get } = await bootServer(t);
+  const res = await get('/api/roster');
+  assert.deepEqual(Object.keys(res.data), ['roster']);
+  assert.deepEqual(
+    res.data.roster.map((r) => r.reportsTo),
+    ['agent:cto-owen', 'agent:cto-owen']
+  );
+  assert.ok(!('violations' in res.data), 'violations live on /api/org, not here');
+});
+test('api: AS-33 — org-chart.js is served, imported, and holds the no-innerHTML line', async (t) => {
+  const { base } = await bootServer(t);
+  const mod = await fetch(base + '/org-chart.js');
+  assert.equal(mod.status, 200);
+  assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  const org = await mod.text();
+  assert.match(org, /validateOrg/);
+  assert.match(org, /buildOrgTree/);
+
+  // The served app.js actually imports it — the STATIC_FILES entry is
+  // load-bearing (AS-18/AS-26 module-graph pattern).
+  const app = await (await fetch(base + '/app.js')).text();
+  assert.match(app, /from '\.\/org-chart\.js'/, 'the chart view goes through org-chart.js');
+
+  // The house rule is structural, not sanitising, and its ONLY enforcement is
+  // this guard. A new public/ module that no guard covers is how an absolute
+  // rule quietly becomes a convention, so the line is drawn on the new file
+  // too — not merely on the one that existed when the guard was written.
+  assert.doesNotMatch(app, /\.innerHTML/, 'zero innerHTML use — the house rule holds');
+  assert.doesNotMatch(org, /\.innerHTML/, 'zero innerHTML use in org-chart.js too');
+  // org-chart.js is pure: it emits text and structure and knows nothing about
+  // the DOM. app.js turns its plain objects into elements with el().
+  for (const dom of [/\bdocument\b/, /\bwindow\b/, /createElement/, /createTextNode/]) {
+    assert.doesNotMatch(org, dom, `org-chart.js must contain no DOM API (${dom})`);
+  }
+});
+
+test('api: AS-33 — index.html ships the org chart control and modal skeleton', async (t) => {
+  const { base } = await bootServer(t);
+  const html = await (await fetch(base + '/')).text();
+  assert.match(html, /id="org-chart-open"/, 'the sidebar control exists');
+  for (const id of ['org-modal', 'org-dialog', 'org-title', 'org-body', 'org-close']) {
+    assert.match(html, new RegExp(`id="${id}"`), `org chart id ${id} present`);
+  }
+  // The control sits with the thing it explains: above the roster list.
+  assert.ok(
+    html.indexOf('id="org-chart-open"') < html.indexOf('id="roster-list"'),
+    'the org chart button precedes the roster list in the sidebar'
+  );
+});
+
+test('api: AS-33 — check-org --json matches GET /api/org for the same root', async (t) => {
+  // The CLI is the gate and the endpoint is the view; if they can disagree,
+  // one of them is lying. Parity is asserted against the dirty fixture root so
+  // both the employee list and a non-empty violation array are compared.
+  const { get } = await bootServer(t);
+  const api = (await get('/api/org')).data;
+  const bin = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'check-org.js');
+  const env = { ...process.env };
+  delete env.CHAT_REPO_ROOT;
+  const cli = spawnSync(process.execPath, [bin, '--root', FIXTURE_ROOT, '--json'], {
+    env,
+    encoding: 'utf8',
+  });
+  assert.equal(cli.status, 1, cli.stderr); // violations present: non-zero
+  assert.deepEqual(JSON.parse(cli.stdout), api);
 });

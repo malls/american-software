@@ -52,31 +52,64 @@ export function parseFrontmatter(text) {
 }
 
 /**
- * Read every dossier under <root>/personnel. Returns
- * [{ actorId, name, title, class, reportsTo, team, hired, status }, …]
- * sorted by name. Entries without a valid actor_id or a name are skipped;
- * a missing/unreadable directory returns [] (degradation contract: a broken
- * mount or malformed dossier must never take the server down). Callers
- * filter on status — everything is returned so a "departed" view costs nothing.
+ * Read every dossier under <root>/personnel, with the two facts readRoster
+ * throws away (AS-33): which fenced files yielded nothing, and which file each
+ * entry came from. Returns
+ *
+ *   { roster, skipped, sources }
+ *
+ * - roster  — [{ actorId, name, title, class, reportsTo, team, hired, status }, …]
+ *             sorted by name. IDENTICAL in shape and membership to what
+ *             readRoster has always returned; parseFrontmatter remains the sole
+ *             gate for inclusion, so no file's roster fate changes here.
+ * - skipped — [{ file, reason }] for files that LOOK like dossiers (leading
+ *             `---` fence) but produced no entry. reason ∈ malformed_frontmatter
+ *             | invalid_actor_id | missing_name | unreadable. Directory order.
+ *             A file with no leading fence (README.md) is not a dossier and is
+ *             skipped silently — absence from this list is the contract.
+ * - sources — [{ file, actorId }] for every parsed entry, directory order. Two
+ *             entries with one actorId is how a copy-pasted hire is detectable.
+ *
+ * Degradation contract is unchanged: a missing/unreadable directory yields all
+ * three empty, never a throw — a broken mount must never take the server down.
  */
-export function readRoster(root) {
+export function readPersonnel(root) {
   const dir = join(root ?? latticeRoot(), 'personnel');
   let files;
   try {
     files = readdirSync(dir);
   } catch {
-    return [];
+    return { roster: [], skipped: [], sources: [] };
   }
   const roster = [];
+  const skipped = [];
+  const sources = [];
   for (const file of files) {
     if (!file.endsWith('.md')) continue;
-    let fm;
+    let text;
     try {
-      fm = parseFrontmatter(readFileSync(join(dir, file), 'utf8'));
+      text = readFileSync(join(dir, file), 'utf8');
     } catch {
+      skipped.push({ file, reason: 'unreadable' });
       continue;
     }
-    if (!fm || !fm.name || !ACTOR_ID_RE.test(fm.actor_id ?? '')) continue;
+    const fm = parseFrontmatter(text);
+    if (!fm) {
+      // parseFrontmatter returns null for BOTH "no leading fence" (README.md)
+      // and "no closing fence" (a broken dossier). It is asked first, so the
+      // roster's membership is decided by exactly the same call as before;
+      // the fence test below only classifies an already-excluded file.
+      if (/^---\r?\n/.test(text)) skipped.push({ file, reason: 'malformed_frontmatter' });
+      continue;
+    }
+    if (!ACTOR_ID_RE.test(fm.actor_id ?? '')) {
+      skipped.push({ file, reason: 'invalid_actor_id' });
+      continue;
+    }
+    if (!fm.name) {
+      skipped.push({ file, reason: 'missing_name' });
+      continue;
+    }
     roster.push({
       actorId: fm.actor_id,
       name: fm.name,
@@ -87,7 +120,17 @@ export function readRoster(root) {
       hired: fm.hired ?? '',
       status: fm.status ?? '',
     });
+    sources.push({ file, actorId: fm.actor_id });
   }
   roster.sort((a, b) => a.name.localeCompare(b.name));
-  return roster;
+  return { roster, skipped, sources };
+}
+
+/**
+ * The roster alone — the long-standing AS-8 entry point, unchanged in
+ * signature and behaviour. Every existing caller (server.js, bin/chat.js,
+ * test/personnel.test.js) keeps using this.
+ */
+export function readRoster(root) {
+  return readPersonnel(root).roster;
 }
