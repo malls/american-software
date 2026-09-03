@@ -6,10 +6,10 @@
 // main() is never executed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, tickArgv, loadPermissionRules, fireNonce } from '../watch/advance-watcher.mjs';
+import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, tickArgv, loadPermissionRules, fireNonce, writeWatcherPid } from '../watch/advance-watcher.mjs';
 
 // AS-16: fixed per-fire nonce for the pin tests — production nonces come from
 // fireNonce(); pins inject a constant so the expected strings stay exact.
@@ -551,4 +551,42 @@ test('config: defaults match the plan; env overrides apply; junk env falls back'
     if (saved.ADVANCE_POLL_S !== undefined) process.env.ADVANCE_POLL_S = saved.ADVANCE_POLL_S;
     if (saved.ADVANCE_PERMISSION_MODE !== undefined) process.env.ADVANCE_PERMISSION_MODE = saved.ADVANCE_PERMISSION_MODE;
   }
+});
+
+// --- AS-27: the watcher pid file is also a heartbeat -------------------------
+
+test('writeWatcherPid: atomic {pid, startedAt, heartbeatAt}; heartbeats advance without losing startedAt', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'watcher-pid-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'advance-watcher.pid');
+  const startedAt = '2026-09-03T18:00:00.000Z';
+
+  writeWatcherPid({ path, pid: 96123, startedAt, now: startedAt });
+
+  // The complete body, not the presence of one member: an extra field here is
+  // as much a finding as a missing one (the file is read by lib/loop-status.js
+  // and by this watcher's own single-instance check).
+  assert.deepEqual(JSON.parse(readFileSync(path, 'utf8')), {
+    pid: 96123,
+    startedAt,
+    heartbeatAt: startedAt,
+  });
+
+  // tmp + rename left nothing behind: no partial file is ever observable, and
+  // the directory holds exactly the one file we meant to write.
+  assert.deepEqual(readdirSync(dir), ['advance-watcher.pid']);
+
+  // A later heartbeat advances heartbeatAt and preserves pid + startedAt.
+  const later = '2026-09-03T18:00:05.000Z';
+  writeWatcherPid({ path, pid: 96123, startedAt, now: later });
+  assert.deepEqual(JSON.parse(readFileSync(path, 'utf8')), {
+    pid: 96123,
+    startedAt,
+    heartbeatAt: later,
+  });
+  assert.deepEqual(readdirSync(dir), ['advance-watcher.pid'], 'still no .tmp residue');
+
+  // R1: the single-instance check reads `pid` and nothing else, so the added
+  // key cannot change its verdict. Asserted on the real file, not a fixture.
+  assert.equal(JSON.parse(readFileSync(path, 'utf8')).pid, 96123);
 });

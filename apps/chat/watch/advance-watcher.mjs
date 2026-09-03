@@ -261,6 +261,24 @@ function readJson(path) {
 }
 
 /**
+ * AS-27: write advance-watcher.pid — the watcher's single-instance marker AND,
+ * since AS-27, its liveness beacon. `heartbeatAt` is rewritten at the top of
+ * every poll (including the poll that returns early because our own tick is
+ * running: the watcher is alive while its child works), so a reader in the
+ * container — which cannot check a host pid for liveness — can judge liveness
+ * by heartbeat age instead. See apps/chat/lib/loop-status.js.
+ *
+ * tmp + rename, the same atomic pattern the highwater write uses: a reader
+ * polling this file must never observe a half-written body. `pid` and
+ * `startedAt` are preserved verbatim across heartbeats — the single-instance
+ * check reads `pid` and nothing else, and is unaffected by the new key.
+ */
+export function writeWatcherPid({ path, pid, startedAt, now }) {
+  writeFileSync(path + '.tmp', JSON.stringify({ pid, startedAt, heartbeatAt: now }));
+  renameSync(path + '.tmp', path);
+}
+
+/**
  * Lock ops over the shared advance.lock (AS-13: lifted out of main() so the
  * container suite can drive them against a real temp-dir lockfile). The shell
  * passes real collaborators; tests may inject `pid`, `isPidAlive`, and
@@ -396,7 +414,12 @@ function main() {
     log(`FATAL another watcher is alive (pid ${existingPid.pid}); exiting`);
     process.exit(1);
   }
-  writeFileSync(paths.pid, JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }));
+  // AS-27: startedAt is captured once and echoed by every later heartbeat, so
+  // the file always answers both "since when" and "as of when". Deliberately
+  // NOT guarded: if we cannot write this at startup the single-instance marker
+  // does not exist, and failing loudly beats running unmarked.
+  const watcherStartedAt = new Date().toISOString();
+  writeWatcherPid({ path: paths.pid, pid: process.pid, startedAt: watcherStartedAt, now: watcherStartedAt });
 
   let debounceUntil = null;
   let child = null; // currently running tick, if any
@@ -544,6 +567,24 @@ function main() {
   }
 
   function poll() {
+    // AS-27 heartbeat, FIRST and best-effort. First, because the early return
+    // below is the in-flight-tick path and the watcher is very much alive
+    // there — skipping it would make a long tick read as a dead watcher.
+    // Best-effort, because this runs inside a setInterval callback: an
+    // unguarded throw here (full disk, revoked permissions) becomes an
+    // uncaught exception that kills the watcher, and the watcher is the thing
+    // that fires ticks. A missed heartbeat costs a wrong indicator for 60s; a
+    // dead watcher costs every future message-fired tick.
+    try {
+      writeWatcherPid({
+        path: paths.pid,
+        pid: process.pid,
+        startedAt: watcherStartedAt,
+        now: new Date().toISOString(),
+      });
+    } catch {
+      /* heartbeat is best-effort; the indicator degrades, the watcher does not */
+    }
     if (child) return; // our own tick is running; its lock covers this window
     const sentinel = readSentinel();
     const result = decide({

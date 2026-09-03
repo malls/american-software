@@ -2,18 +2,23 @@
 // repoRoot points at the fixture .lattice/ so lattice behavior is deterministic.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, cpSync, writeFileSync, mkdirSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, rmSync, cpSync, writeFileSync, mkdirSync, symlinkSync, unlinkSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { createChatServer } from '../server.js';
+import { createChatServer, LOOP_POLL_MS } from '../server.js';
+import { DEFAULTS } from '../watch/advance-watcher.mjs';
 
 const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
 
-async function bootServer(t, repoRoot = FIXTURE_ROOT) {
+async function bootServer(t, repoRoot = FIXTURE_ROOT, opts = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'chat-api-'));
-  const { server, store, close } = createChatServer({ dbPath: join(dir, 'chat.db'), repoRoot });
+  // AS-27: scratch (non-existent) data dir by default — the loop-status reads
+  // must never touch the real apps/chat/data. Tests that care pass their own.
+  const { server, store, close } = createChatServer({
+    dbPath: join(dir, 'chat.db'), repoRoot, dataDir: join(dir, 'loop-data'), ...opts,
+  });
   await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${server.address().port}`;
   t.after(async () => {
@@ -656,11 +661,23 @@ test('api: AS-25 — live.js is served (app.js module graph must not 404); the 5
   assert.match(app, /new EventSource\(`\/api\/stream\?me=/, 'push transport wired');
   assert.match(app, /from '\.\/live\.js'/, 'frames/catch-up merge through live.js');
   assert.doesNotMatch(app, /,\s*5000\)/, 'no 5s interval remains');
-  const intervals = [...app.matchAll(/setInterval\([\s\S]*?,\s*([\d_]+)\)/g)].map((m) =>
-    Number(m[1].replaceAll('_', ''))
-  );
-  assert.equal(intervals.length, 1, 'exactly one reconcile interval');
-  assert.ok(intervals[0] >= 30_000, `reconcile cadence >= 30s (got ${intervals[0]})`);
+  // AS-27 widened this guard rather than loosening it. A second interval now
+  // exists — a LOCAL re-render that keeps the loop-status age text honest —
+  // so counting timers no longer expresses the AS-25 property. What AS-25
+  // actually pinned is "nothing refetches on a short cadence", and that is
+  // now asserted directly: exactly one interval issues requests, and it is
+  // the slow one; the other must touch no network at all.
+  const intervals = [...app.matchAll(/setInterval\(([\s\S]*?),\s*([\d_]+)\)/g)].map((m) => ({
+    body: m[1],
+    ms: Number(m[2].replaceAll('_', '')),
+  }));
+  assert.equal(intervals.length, 2, 'exactly two intervals: the reconcile poll and the local age tick');
+  const fetching = intervals.filter((i) => /refreshSidebar|\bapi\(|fetch\(/.test(i.body));
+  assert.equal(fetching.length, 1, 'exactly one interval issues requests');
+  assert.ok(fetching[0].ms >= 30_000, `reconcile cadence >= 30s (got ${fetching[0].ms})`);
+  const local = intervals.filter((i) => !fetching.includes(i));
+  assert.equal(local.length, 1, 'exactly one render-only interval');
+  assert.doesNotMatch(local[0].body, /refreshSidebar|\bapi\(|fetch\(/, 'the age tick never hits the network');
   // sendMessage applies the POST response locally — no full-history refetch.
   const sendFn = app.slice(app.indexOf('async function sendMessage'), app.indexOf('function wireComposer'));
   assert.ok(sendFn.length > 0, 'sendMessage found');
@@ -1147,5 +1164,160 @@ test('api: AS-32 — style.css truncates the roster title to one line', async (t
     'the premise of this rule: roster rows opt out of the sidebar-wide nowrap');
   for (const decl of ['white-space: nowrap', 'overflow: hidden', 'text-overflow: ellipsis']) {
     assert.ok(rule.includes(decl), `.roster-title declares ${decl}`);
+  }
+});
+
+// --- AS-27: the advance-loop status endpoint --------------------------------
+
+/** A scratch data dir standing in for apps/chat/data — the two files the host
+ *  watcher and the tick lock write. Never the real one: this suite is
+ *  mountless by design and must not read live company state. */
+function loopFixture(t) {
+  const dataDir = mkdtempSync(join(tmpdir(), 'chat-loopdata-'));
+  t.after(() => rmSync(dataDir, { recursive: true, force: true }));
+  const lock = join(dataDir, 'advance.lock');
+  const pid = join(dataDir, 'advance-watcher.pid');
+  const iso = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString();
+  return {
+    dataDir,
+    /** Plant one of the four file configurations. */
+    plant({ lockBody = null, pidBody = null }) {
+      for (const [path, body] of [[lock, lockBody], [pid, pidBody]]) {
+        if (body === null) {
+          try { unlinkSync(path); } catch { /* already absent */ }
+        } else {
+          writeFileSync(path, typeof body === 'string' ? body : JSON.stringify(body));
+        }
+      }
+    },
+    freshLock: (source = 'loop', over = {}) => ({ pid: 5285, startedAt: iso(-60_000), source, ...over }),
+    staleLock: (source = 'loop') => ({ pid: 5285, startedAt: iso(-(DEFAULTS.lockStaleMin * 60 * 1000) - 60_000), source }),
+    livePid: () => ({ pid: 96123, startedAt: iso(-3_600_000), heartbeatAt: iso(-2_000) }),
+    legacyPid: () => ({ pid: 96123, startedAt: iso(-3_600_000) }),
+  };
+}
+
+test('api: AS-27 — GET /api/loop-status reports each of the four states from its own file configuration', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+
+  // Cardinality first: four configurations planted, four answers asserted.
+  const cases = [
+    ['loop', { lockBody: fx.freshLock('loop'), pidBody: fx.livePid() }],
+    ['tick', { lockBody: fx.freshLock('watcher'), pidBody: fx.livePid() }],
+    ['idle', { lockBody: null, pidBody: fx.livePid() }],
+    ['off', { lockBody: null, pidBody: null }],
+  ];
+  assert.equal(cases.length, 4);
+  const seen = [];
+  for (const [expected, files] of cases) {
+    fx.plant(files);
+    const res = await get('/api/loop-status');
+    assert.equal(res.status, 200, expected);
+    assert.deepEqual(Object.keys(res.data), ['status'], expected);
+    const st = res.data.status;
+    assert.equal(st.state, expected, `${expected}: state`);
+    assert.ok(st.checkedAt, `${expected}: checkedAt present`);
+    assert.ok(Number.isFinite(Date.parse(st.checkedAt)), `${expected}: checkedAt is a real timestamp`);
+    seen.push(st.state);
+  }
+  // The four really are distinguishable — a single-valued indicator would
+  // pass every per-case assertion above if they all agreed.
+  assert.deepEqual(seen, ['loop', 'tick', 'idle', 'off']);
+  assert.equal(new Set(seen).size, 4);
+
+  // No 'me': the answer is identical for every viewer, and asking as an
+  // unknown identity changes nothing (there is no identity gate to fail).
+  fx.plant({ lockBody: fx.freshLock('manual'), pidBody: fx.livePid() });
+  const anon = await get('/api/loop-status');
+  const ghost = await get('/api/loop-status?me=agent:ghost');
+  assert.equal(anon.status, 200);
+  assert.equal(ghost.status, 200);
+  assert.equal(anon.data.status.state, 'tick');
+  assert.equal(ghost.data.status.state, 'tick');
+  assert.equal(anon.data.status.tick.source, 'manual');
+});
+
+test('api: AS-27 — the AS-16 nonce never leaves the server, and malformed files never 500', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+
+  const NONCE = 'deadbeefcafef00d';
+  fx.plant({ lockBody: fx.freshLock('watcher', { nonce: NONCE }), pidBody: fx.livePid() });
+  const live = await get('/api/loop-status');
+  assert.equal(live.data.status.state, 'tick');
+  const body = JSON.stringify(live.data);
+  assert.equal(body.includes(NONCE), false, 'nonce value never served');
+  assert.equal(body.includes('nonce'), false, 'nor the key');
+
+  // C7: unparsable JSON in either file is a reason string and a 200, never a
+  // 500 and never a crashed server. Four malformed configurations.
+  const malformed = [
+    ['both files garbage', { lockBody: 'not json{', pidBody: '<<<' }],
+    ['lock garbage, watcher live', { lockBody: '{', pidBody: fx.livePid() }],
+    ['lock stale, watcher garbage', { lockBody: fx.staleLock(), pidBody: 'nope' }],
+    ['empty files', { lockBody: '', pidBody: '' }],
+  ];
+  for (const [name, files] of malformed) {
+    fx.plant(files);
+    const r = await get('/api/loop-status');
+    assert.equal(r.status, 200, name);
+    assert.equal(r.data.status.tick, null, `${name}: never reports a tick`);
+    assert.ok(['idle', 'off'].includes(r.data.status.state), `${name}: state ${r.data.status.state}`);
+  }
+
+  // And the server is still alive and correct afterwards.
+  fx.plant({ lockBody: fx.freshLock('loop'), pidBody: fx.livePid() });
+  assert.equal((await get('/api/loop-status')).data.status.state, 'loop');
+});
+
+test('api: AS-27 — a pre-AS-27 watcher pid file (no heartbeatAt) reads as off, honestly', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+
+  // This is the production state on the day AS-27 ships: pid 96123 has been
+  // running since before the heartbeat existed. The indicator must not claim
+  // a listening watcher it has no evidence for; restarting the watcher on the
+  // new code is what corrects it.
+  fx.plant({ lockBody: null, pidBody: fx.legacyPid() });
+  const legacy = await get('/api/loop-status');
+  assert.equal(legacy.data.status.state, 'off');
+  assert.equal(legacy.data.status.watcher.listening, false);
+  assert.equal(legacy.data.status.watcher.reason, 'no-heartbeat');
+
+  // Same file, one heartbeat added: self-corrects with no server restart.
+  fx.plant({ lockBody: null, pidBody: fx.livePid() });
+  const beating = await get('/api/loop-status');
+  assert.equal(beating.data.status.state, 'idle');
+  assert.equal(beating.data.status.watcher.listening, true);
+});
+
+test('api: AS-27 — loop-status.js is served and imported; the production poll cadence is 2s', async (t) => {
+  const { base } = await bootServer(t);
+  const mod = await fetch(base + '/loop-status.js');
+  assert.equal(mod.status, 200);
+  assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  const src = await mod.text();
+  assert.match(src, /describeLoopStatus/);
+  assert.doesNotMatch(src, /\.innerHTML|insertAdjacentHTML|outerHTML|document\.write/,
+    'the label module builds strings, never markup');
+
+  // The served app.js actually imports it and ships the indicator wiring —
+  // the STATIC_FILES entry is load-bearing, not decoration.
+  const app = await (await fetch(base + '/app.js')).text();
+  assert.match(app, /from '\.\/loop-status\.js'/, 'the label logic comes from the pure module');
+  assert.match(app, /addEventListener\('loop'/, 'push frames are applied');
+  assert.match(app, /\/api\/loop-status/, 'and the fetch path exists for reconnects/degradation');
+
+  // The knob the suite uses to observe ten polls quickly must not have moved
+  // the shipping cadence.
+  assert.equal(LOOP_POLL_MS, 2_000);
+  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  assert.match(server, /loopPollMs = LOOP_POLL_MS/, 'the default is the exported constant');
+
+  // The served page carries the indicator skeleton (AC-10).
+  const html = await (await fetch(base + '/')).text();
+  for (const marker of ['id="loop-status"', 'id="loop-label"', 'role="status"', 'class="loop-dot"']) {
+    assert.ok(html.includes(marker), `index.html ships ${marker}`);
   }
 });
