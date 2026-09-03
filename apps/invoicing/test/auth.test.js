@@ -538,7 +538,12 @@ test('H5: a duplicate email is 409 email-taken, and NOTHING is created', async (
     assert.deepEqual(before, { freelancers: 1, credentials: 1, sessions: 1 });
     const res = await signUp(base, { displayName: 'Someone Else' });
     assert.equal(res.status, 409);
-    assert.equal(await res.text(), 'AuthError: email-taken\n');
+    // AS-45 replaced the one-line text/plain body with a render of screen 1.
+    // The STATUS is what this case was always about and it did not move; the
+    // body is now asserted on its state sentinel and its named conflict.
+    const html = await res.text();
+    assert.match(html, /data-state="S1-ERROR-SYSTEM"/, 'the conflict renders the system-error state');
+    assert.ok(html.includes(EMAIL), 'the conflict names the email that is taken');
     assert.equal(setCookie(res), null, 'no session for a refused sign-up');
     assert.deepEqual(countRows(config), before, 'the transaction rolled back — no orphan freelancer');
     // Case-insensitively, through the same lower(email) index sign-in uses.
@@ -548,6 +553,16 @@ test('H5: a duplicate email is 409 email-taken, and NOTHING is created', async (
 
 test('H6: a malformed email, a short password and a missing field are 400 with the right code', async () => {
   await withApp({}, async ({ base }) => {
+    // AS-45: the status taxonomy is unchanged; the BODY is now screen 1 in its
+    // S1-ERROR-VALIDATION state, so each case asserts the field copy its step
+    // maps to (lib/screens/signin-view.js). That is strictly stronger than the
+    // old body match — it distinguishes the three steps AND checks the words a
+    // freelancer actually reads.
+    const MESSAGE = {
+      'invalid-email': 'Enter a complete email address.',
+      'weak-password': 'Password must be at least 8 characters.',
+      'missing-field': 'This field is required.',
+    };
     const cases = [
       [{ email: 'no-at-sign' }, 'invalid-email'],
       [{ email: 'two@at@signs.test' }, 'invalid-email'],
@@ -563,7 +578,9 @@ test('H6: a malformed email, a short password and a missing field are 400 with t
     for (const [over, step] of cases) {
       const res = await signUp(base, over);
       assert.equal(res.status, 400, JSON.stringify(over));
-      assert.equal(await res.text(), `AuthError: ${step}\n`, JSON.stringify(over));
+      const html = await res.text();
+      assert.match(html, /data-state="S1-ERROR-VALIDATION"/, JSON.stringify(over));
+      assert.ok(html.includes(MESSAGE[step]), `${JSON.stringify(over)} must render ${step}'s message`);
       assert.equal(setCookie(res), null);
     }
   });
@@ -592,7 +609,19 @@ test('H8: an unknown email and a wrong password are BYTE-IDENTICAL responses', a
     const wrong = await postForm(`${base}/signin`, { email: EMAIL, password: 'not the password' });
     assert.equal(unknown.status, 401);
     assert.equal(wrong.status, unknown.status);
-    assert.equal(await wrong.text(), await unknown.text());
+    // AS-45: the page re-renders the SUBMITTED email into its own field (Flow
+    // 6), and the two cases necessarily submit different addresses — so the
+    // bodies are compared with each one's own submitted value masked. What the
+    // enumeration property actually claims is that NOTHING ELSE differs, and
+    // that is exactly what this asserts. The masking is per-response and uses
+    // the value that response was given, so a body that leaked the OTHER
+    // address, or said anything different about it, still fails.
+    const mask = (html, email) => html.split(email).join('<SUBMITTED-EMAIL>');
+    assert.equal(
+      mask(await wrong.text(), EMAIL),
+      mask(await unknown.text(), 'nobody@example.test'),
+      'the two failures differ in something other than the address the caller typed',
+    );
     assert.equal(unknown.headers.get('content-type'), wrong.headers.get('content-type'));
     assert.deepEqual(unknown.headers.getSetCookie(), [], 'no Set-Cookie on either');
     assert.deepEqual(wrong.headers.getSetCookie(), []);
@@ -658,8 +687,13 @@ test('H11: a garbage cookie is refused exactly like an absent one', async () => 
     // would also pass against an app that refused every cookie ever presented.
     const freelancer = repos.freelancers.create({ email: EMAIL, displayName: NAME });
     const { cookie } = seedSession(repos, freelancer.id);
-    assert.equal((await fetch(`${base}/`, { redirect: 'manual', headers: { cookie } })).status, 200,
-      'a live session for a live freelancer IS admitted');
+    // AS-45 made `/` a 303 to the Connect Stripe screen for everyone, so the
+    // control is now "admitted, and answered by the HANDLER rather than the
+    // guard" — a different Location from the guard's is what carries that.
+    const admitted = await fetch(`${base}/`, { redirect: 'manual', headers: { cookie } });
+    assert.equal(admitted.status, 303, 'a live session for a live freelancer IS admitted');
+    assert.equal(admitted.headers.get('location'), '/connect-stripe',
+      'answered by routes/pages.js, not by the guard — the guard sends signed-out callers to /signin');
   });
 });
 
@@ -736,6 +770,7 @@ const ALL_ROUTES = [
   'GET /connect-stripe/refresh',
   'GET /connect-stripe/return',
   'GET /healthz',
+  'GET /signin',
   'GET /tokens.css',
   'POST /clients',
   'POST /connect-stripe/start',
@@ -754,6 +789,11 @@ const ALL_ROUTES = [
 const PUBLIC_ROUTES = [
   // must answer when everything else is broken; compose's healthcheck sends no cookie
   'GET /healthz',
+  // SCREEN 1 (AS-45). It is where requireSession SENDS every signed-out
+  // visitor, so a guarded sign-in page is an infinite redirect. Its own denied
+  // state (an already-signed-in caller) is a 303 the handler issues, not the
+  // guard's — asserted in screens.test.js.
+  'GET /signin',
   // vendored bytes, identical for every caller
   'GET /tokens.css',
   // authenticated BY SIGNATURE, not by session — Stripe sends no cookie and no Origin
@@ -768,7 +808,7 @@ test('G1: the route walk finds the EXACT committed list — cardinality first', 
     const found = discoverRoutes(app);
     // Never `> 0`: a walk that silently returned nothing would otherwise pass
     // every rule below it on an empty set (the AS-31 lesson).
-    assert.equal(found.length, 16, `expected exactly 16 routes, found ${found.length}: ${found.join(', ')}`);
+    assert.equal(found.length, 17, `expected exactly 17 routes, found ${found.length}: ${found.join(', ')}`);
     assert.deepEqual(found, ALL_ROUTES);
   });
 });
@@ -778,7 +818,7 @@ test('G1b: with NO webhook secret the surface is the same list minus the webhook
   // committed list above is config-dependent and says so in both directions.
   await withApp({ secret: null }, async ({ app }) => {
     const found = discoverRoutes(app);
-    assert.equal(found.length, 15, found.join(', '));
+    assert.equal(found.length, 16, found.join(', '));
     assert.deepEqual(found, ALL_ROUTES.filter((r) => r !== 'POST /webhooks/stripe'));
   });
 });
@@ -871,8 +911,8 @@ test('G6: the vendored asset and an app-owned static file answer 200 with no coo
   await withApp({}, async ({ base }) => {
     const tokens = await fetch(`${base}/tokens.css`, { redirect: 'manual' });
     assert.equal(tokens.status, 200, 'the sign-in page must be able to load its stylesheet while signed out');
-    const scaffold = await fetch(`${base}/scaffold.css`, { redirect: 'manual' });
-    assert.equal(scaffold.status, 200, 'express.static was moved ABOVE the boundary for exactly this');
+    const appCss = await fetch(`${base}/app.css`, { redirect: 'manual' });
+    assert.equal(appCss.status, 200, 'express.static was moved ABOVE the boundary for exactly this');
   });
 });
 
@@ -975,16 +1015,21 @@ test('G13: a signed-in freelancer naming ANOTHER freelancer acts as the SESSION\
   });
 });
 
-test('G13b: GET /signin does not redirect to itself — it 404s until AS-45 lands', async () => {
+test('G13b: GET /signin does not redirect to itself — it SERVES screen 1', async () => {
   // The loop this guards against is not hypothetical: without the carve-out in
   // requireSession, every signed-out visitor to any unknown path bounced
   // between /signin and itself until the client gave up. `redirect: 'follow'`
   // is deliberate — a manual redirect would not have shown the loop.
+  //
+  // AS-45 LANDED THE SCREEN, and the answer changed from 404 to 200 while the
+  // property this case exists for did not: a signed-out GET of the sign-in path
+  // must terminate. It now terminates by rendering rather than by 404ing.
   await withApp({}, async ({ base }) => {
     const res = await fetch(`${base}/signin`);
-    assert.equal(res.status, 404, 'the Location header is the contract; the screen is AS-45\'s');
+    assert.equal(res.status, 200, 'screen 1 is served to signed-out callers — that is its whole job');
+    assert.match(res.headers.get('content-type'), /text\/html/);
     const withNext = await fetch(`${base}/signin?next=%2Finvoices`);
-    assert.equal(withNext.status, 404, 'and it does not loop when it carries a next');
+    assert.equal(withNext.status, 200, 'and it does not loop when it carries a next');
   });
 });
 
@@ -999,7 +1044,7 @@ test('G14: actingFreelancerId throws rather than act as nobody', () => {
 test('G15: the whole app is constructible and the boundary survives a rebuild', async () => {
   // A cheap guard against the enumeration above being satisfied by a stale app.
   await withApp({}, async ({ app, base }) => {
-    assert.equal(discoverRoutes(app).length, 16);
+    assert.equal(discoverRoutes(app).length, 17);
     assert.equal((await fetch(`${base}/`, { redirect: 'manual' })).status, 303);
   });
 });

@@ -7,13 +7,18 @@
 // handlers only translate HTTP to service calls and error classes to statuses —
 // the routes/connect.js and routes/invoices.js precedent.
 //
-// All redirects are 303 See Other, semantically required for a POST. Error
-// bodies are the house one-line text/plain carrying the error class and the
-// step that failed, never the credential and never request material.
+// All redirects are 303 See Other, semantically required for a POST. Since
+// AS-45 a failure RENDERS SCREEN 1 rather than emitting the house one-line
+// text/plain body; the STATUS taxonomy below is unchanged, and the rendered
+// page still carries the error class nowhere and request material nowhere —
+// every string on it is a renderer-authored constant except the freelancer's
+// own submitted email and name (lib/screens/signin-view.js). The one-line
+// text/plain shape survives in requireSameOrigin's 403, which is the guard's.
 //
 // TWO ROUTERS, ONE PER SIDE OF THE AUTH BOUNDARY. One Express router cannot be
-// on both sides of a middleware: publicAuthRoutes carries POST /signup and
-// POST /signin and mounts ABOVE requireSession, sessionAuthRoutes carries
+// on both sides of a middleware: publicAuthRoutes carries GET /signin (screen
+// 1, AS-45), POST /signup and POST /signin and mounts ABOVE requireSession,
+// sessionAuthRoutes carries
 // POST /signout alone and mounts BELOW it. Signout is therefore protected
 // POSITIONALLY, like every other guarded route, so "everything below the
 // boundary line requires a session" stays a COMPLETE description of what is
@@ -31,8 +36,9 @@
 // triggerable from a link.
 import express, { Router } from 'express';
 import { AuthError, createAccounts } from '../lib/auth/accounts.js';
-import { POST_SIGNIN_LANDING, SIGNIN_PATH, safeNext } from '../lib/auth/guard.js';
+import { POST_SIGNIN_LANDING, SIGNIN_PATH, hasSession, safeNext } from '../lib/auth/guard.js';
 import { clearSessionCookie, readSessionToken, setSessionCookie } from '../lib/auth/session.js';
+import { signinLocals } from '../lib/screens/signin-view.js';
 
 /** Plan §3.7's error taxonomy, mapped by the AuthError's stable `step` — never
  *  by message text. Unknown email and wrong password share ONE code on purpose;
@@ -54,22 +60,38 @@ function statusFor(err) {
 }
 
 /**
- * AS-45 OBLIGATION: replace this function's BODY with a render of the sign-in
- * template. It must preserve `email` and `next` — the two fields that survive a
- * failure — and NEVER the password (states ledger, Flow 6). Every failure on
- * these routes is emitted through here, so that replacement is one function and
- * one point — the same idiom AS-41 used for its interim identity seam, which
- * worked, and which this task is now retiring on schedule.
+ * AS-45 DISCHARGED THIS SEAM. Every failure on these routes still lands in ONE
+ * place; that place now renders screen 1 instead of a one-line text/plain body.
+ * The STATUS is unchanged — the taxonomy above still decides it — so nothing
+ * that asserted on a status moved.
  *
- * v1 renders the house one-line text/plain, because /signin does not exist yet.
+ * THE MAPPING IS ON `step`, NEVER ON MESSAGE TEXT, and it is made in
+ * lib/screens/signin-view.js, not here: this function translates the handler's
+ * failure record into that module's input shape and renders. `error.step` is an
+ * AuthError's stable code; `view.step` names the failing interaction when the
+ * error carries none of its own (a body-parser refusal).
+ *
+ * WHAT SURVIVES A FAILURE: `email`, `displayName` and `next` — every
+ * non-sensitive submitted value (00-flows.md Flow 6). THE PASSWORD IS NEVER
+ * PASSED, in any mode, on any error; the view model has no key for it.
  *
  * @param {import('express').Response} res
  * @param {{ status: number, error: Error, step: string, email?: string,
- *   next?: string }} view `step` names the failing interaction when the error
- *   carries no stable code of its own (a body-parser refusal).
+ *   displayName?: string, next?: string, invalidFields?: string[] }} view
  */
 function renderSignIn(res, view) {
-  res.status(view.status).type('text/plain').send(`${view.error?.name ?? 'Error'}: ${view.error?.step ?? view.step}\n`);
+  res.status(view.status).render('signin', signinLocals({
+    // 'sign-up' is the only handler label that re-renders the sign-up form;
+    // 'sign-in' and the modeless 'parse-body' both re-render sign-in.
+    mode: view.step === 'sign-up' ? 'signup' : 'signin',
+    next: safeNext(view.next),
+    failure: {
+      step: view.error?.step ?? view.step,
+      email: view.email,
+      displayName: view.displayName,
+      invalidFields: view.invalidFields,
+    },
+  }));
 }
 
 /**
@@ -94,6 +116,31 @@ export function publicAuthRoutes(config, { repos, accounts = createAccounts({ re
 
   const landing = (body) => safeNext(field(body, 'next')) ?? POST_SIGNIN_LANDING;
 
+  /** The fields each mode submits. `missing-field` carries no field name —
+   *  AuthError has `step` only, and reading its message is forbidden — so the
+   *  screen's "N fields need attention" count is derived HERE, from the body,
+   *  which is honest and needs no change to lib/auth/accounts.js. */
+  const MODE_FIELDS = Object.freeze({
+    'sign-up': ['displayName', 'email', 'password'],
+    'sign-in': ['email', 'password'],
+  });
+
+  const blankFields = (body, step) => (MODE_FIELDS[step] ?? []).filter((name) => (field(body, name) ?? '') === '');
+
+  // SCREEN 1 (AS-45), mounted in the PUBLIC router on purpose: this is where
+  // requireSession sends every signed-out visitor, so a guarded sign-in page
+  // would be an infinite redirect. It joins the router that already holds the
+  // two ways in, which keeps app.js's comment 7 true.
+  //
+  // S1-DENIED-AUTHENTICATED: an already-signed-in freelancer is redirected
+  // rather than shown a form. hasSession, never req.currentUser — the `current
+  // user` concept row pins that identifier to lib/auth/guard.js alone.
+  router.get('/signin', (req, res) => {
+    const next = safeNext(req.query.next);
+    if (hasSession(req)) return res.redirect(303, next ?? POST_SIGNIN_LANDING);
+    return res.render('signin', signinLocals({ mode: req.query.mode, next }));
+  });
+
   // The routes/connect.js `handle` shape: every failure lands in ONE place, and
   // a non-AuthError (a repository refusal, a bug) is a 500 named by this route's
   // step rather than an unhandled rejection.
@@ -104,7 +151,18 @@ export function publicAuthRoutes(config, { repos, accounts = createAccounts({ re
       setSessionCookie(res, token, config);
       res.redirect(303, landing(body));
     } catch (err) {
-      renderSignIn(res, { status: statusFor(err), error: err, step, email: field(body, 'email'), next: field(body, 'next') });
+      renderSignIn(res, {
+        status: statusFor(err),
+        error: err,
+        step,
+        email: field(body, 'email'),
+        // AS-45: sign-up has a Name field, and Flow 6 preserves every
+        // non-sensitive submitted value. Its omission from the AS-40 obligation
+        // comment was an oversight in the comment, not a decision.
+        displayName: field(body, 'displayName'),
+        next: field(body, 'next'),
+        invalidFields: blankFields(body, step),
+      });
     }
   };
 

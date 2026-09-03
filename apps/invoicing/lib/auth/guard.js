@@ -14,15 +14,18 @@
 // actingFreelancerId's assertion.
 import { readSessionToken } from './session.js';
 
-/** AS-45's screen. It 404s until AS-45 lands — deliberately: the Location
- *  header is the contract, exactly as /connect-stripe has 404'd since AS-41 and
- *  /invoices/{id} since AS-43. If AS-45 renames the screen, this constant plus
- *  its assertions are the whole diff. */
+/** Screen 1's path. AS-45 landed it: `GET /signin` is served by
+ *  publicAuthRoutes, ABOVE the auth boundary, because it is where this
+ *  middleware SENDS people and a guarded sign-in page is an infinite redirect.
+ *  If a later task renames the screen, this constant plus its assertions are
+ *  the whole diff. */
 export const SIGNIN_PATH = '/signin';
 
 /** Where a successful sign-in lands when it carries no `next` (plan §9 Q4).
- *  Whichever of AS-45/AS-48 lands the Dashboard route first changes this one
- *  constant and its assertions. */
+ *  AS-48 lands the Dashboard route and changes this one constant and its
+ *  assertions. AS-45 deliberately declined to: `/` is a 303 to
+ *  `/connect-stripe` (routes/pages.js), which is the correct onboarding
+ *  destination until the Dashboard exists. */
 export const POST_SIGNIN_LANDING = '/';
 
 /** Methods that do not change state, so the origin check does not apply. */
@@ -145,20 +148,37 @@ export function requireSameOrigin(config) {
 export function requireSession(config) {
   return function requireSessionMiddleware(req, res, next) {
     if (req.currentUser !== undefined) return next();
-    // THE SIGN-IN PATH IS NEVER GUARDED, whether or not anything serves it yet.
-    // It is where this middleware SENDS people, so guarding it is an infinite
-    // redirect loop — which is exactly what a signed-out visitor got before
-    // this line existed, because /signin has no route until AS-45 and therefore
-    // falls through every router to here. Today the honest answer is a 404 (the
-    // Location header is the contract, as with /connect-stripe before AS-41);
-    // when AS-45 mounts the screen above the boundary this line keeps costing
-    // nothing.
+    // THE SIGN-IN PATH IS NEVER GUARDED. It is where this middleware SENDS
+    // people, so guarding it is an infinite redirect loop.
+    //
+    // SINCE AS-45, GET /signin IS SERVED ABOVE THIS BOUNDARY (routes/auth.js,
+    // publicAuthRoutes), so this middleware never sees that request and the
+    // line is dead for the case it was written for. IT IS KEPT ON PURPOSE: it
+    // still answers every UNREGISTERED METHOD on that path — PUT /signin,
+    // DELETE /signin — which would otherwise redirect to itself, and it costs
+    // one comparison. test/auth.test.js's G3 exercises the interaction: move
+    // GET /signin below the boundary and this carve-out lets a cookieless
+    // request through to the handler, which turns G3 red.
     if (req.path === SIGNIN_PATH) return next();
     const target = SAFE_METHODS.has(req.method)
       ? `${SIGNIN_PATH}?next=${encodeURIComponent(req.originalUrl)}`
       : SIGNIN_PATH;
     return res.redirect(303, target);
   };
+}
+
+/**
+ * Is a session present? The non-throwing counterpart to actingFreelancerId,
+ * for a PUBLIC page that renders differently for a signed-in caller (AS-45:
+ * `GET /signin` answers S1-DENIED-AUTHENTICATED with a 303).
+ *
+ * It lives HERE rather than in the route because the `current user` concept row
+ * pins req.currentUser to this file alone — a route module reading it directly
+ * would be a red test, and that is the property that keeps every impersonation
+ * question answerable from one file.
+ */
+export function hasSession(req) {
+  return req.currentUser !== undefined;
 }
 
 /**

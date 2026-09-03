@@ -371,7 +371,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 49, `expected 49 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 50, `expected 50 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/auth/accounts.js',
@@ -403,6 +403,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/health.js',
     'lib/invoices/lifecycle.js',
     'lib/invoices/mapping.js',
+    'lib/screens/signin-view.js',
     'lib/stripe/client.js',
     'lib/stripe/custody.js',
     'lib/stripe/transport.js',
@@ -410,7 +411,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/views.js',
     'lib/webhooks/receiver.js',
     'lib/webhooks/signature.js',
-    'public/scaffold.css',
+    'public/app.css',
     'routes/assets.js',
     'routes/auth.js',
     'routes/clients.js',
@@ -421,7 +422,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'routes/pages.js',
     'routes/webhooks.js',
     'server.js',
-    'views/scaffold.ejs',
+    'views/signin.ejs',
   ]);
 
   // 4. Every scanned file survives its class's stripper.
@@ -563,16 +564,79 @@ test('no app source or manifest outside test/ contains an outbound HTTP client',
 });
 
 /** Where a concept is allowed to appear, it must appear there (V2: an unused
- *  exemption is a hole waiting for a tenant) and nowhere else. */
-function scanConcept(name, pattern, allowed, { raw = false } = {}) {
-  const hits = SCANNED
+ *  exemption is a hole waiting for a tenant) and nowhere else.
+ *
+ *  `only` narrows the scanned set to the files whose repo-relative path matches
+ *  (AS-45: the view-layer rows are lexical properties of TEMPLATES and
+ *  STYLESHEETS, and two of their patterns have false positives in JavaScript —
+ *  `\son[a-z]+\s*=` matches ` once =`). Narrowing the SET is safe in a way
+ *  narrowing a PATTERN is not, and it carries its own vacuity floor: a scoped
+ *  set that came back empty fails before anything is quantified over it. */
+function scanConcept(name, pattern, allowed, { raw = false, only = null } = {}) {
+  const files = only === null ? SCANNED : SCANNED.filter((p) => only.test(relative(APP_DIR, p)));
+  if (only !== null) {
+    assert.ok(files.length > 0, `${name}: the scoped file set is EMPTY — this row is examining nothing`);
+  }
+  const hits = files
     .filter((p) => pattern.test(raw ? readFileSync(p, 'utf8') : strippedText(p)))
     .map((p) => relative(APP_DIR, p))
     .sort();
   assert.deepEqual(hits, [...allowed].sort(), `${name}: found in [${hits.join(', ')}], allowed in exactly [${allowed.join(', ')}]`);
 }
 
-test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43 and AS-44 put them', () => {
+// --- AS-45: the view layer's raw-output gate ---------------------------------
+//
+// EJS has exactly two output tags: one escapes the five HTML characters, the
+// other does not. Relying on "we use the escaping one" is relying on every
+// author, forever, remembering to. So the non-escaping tag is banned as a
+// LEXICAL PROPERTY of the scanned set — property P1 (README.md § The view
+// layer) — and the ban is absolute today.
+//
+// It is not a blanket ban, because lib/contracts/render.js's header already
+// commits AS-47 to emitting a rendered contract with raw output exactly once,
+// inside the document region. A blanket ban would either block that task or be
+// quietly widened by whoever hit it. So raw output is GATED by the same
+// instrument as SANCTIONED above — keyed on file + the WHOLE line the hit must
+// sit on + how many hits it may absorb — and AS-45 lands it with ZERO entries,
+// on a MEASURED baseline of zero (the single occurrence in the tree,
+// lib/health.js:80, is inside a `//` comment that stripComments removes).
+//
+// AS-47's one raw-output site becomes the first entry: reviewed on its own
+// merits, pinned to one exact line, and unable to sanction a second occurrence.
+const RAW_OUTPUT_SANCTIONED = [];
+
+/** The non-escaping EJS output tag. Spelled literally: test/ is outside the
+ *  walker's world (SKIPPED_DIRS), so this file cannot be its own first hit. */
+const RAW_OUTPUT_TAG = /<%-/g;
+
+/** Same shape as scanForbidden, for the one construct whose allowlist is
+ *  separate. @returns {{ findings: string[], seen: number[] }} */
+function scanRawOutput() {
+  const seen = RAW_OUTPUT_SANCTIONED.map(() => 0);
+  const findings = [];
+  for (const path of SCANNED) {
+    const file = relative(APP_DIR, path);
+    const code = strippedText(path);
+    const lines = code.split('\n');
+    for (const match of code.matchAll(RAW_OUTPUT_TAG)) {
+      const lineNumber = code.slice(0, match.index).split('\n').length;
+      const line = lines[lineNumber - 1];
+      const entry = RAW_OUTPUT_SANCTIONED.findIndex((s) => s.file === file && s.line.test(line));
+      if (entry === -1) {
+        findings.push(
+          `${file}:${lineNumber}: EJS raw output — not sanctioned — ${line.trim()} — every interpolation `
+            + 'must be escaped; if this one genuinely must not be, add a RAW_OUTPUT_SANCTIONED entry pinned '
+            + 'to this exact line, with a reason',
+        );
+      } else {
+        seen[entry] += 1;
+      }
+    }
+  }
+  return { findings, seen };
+}
+
+test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, AS-44 and AS-45 put them', () => {
   // The `stripe` npm module is banned everywhere, permanently: `new Stripe(key)`
   // is the documented bypass of the custody guard (stack decision §8.1).
   scanConcept('stripe module import', /(from|require\s*\(|import\s*\()\s*['"]stripe['"]/, []);
@@ -730,6 +794,66 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43 a
   // rather than a review catch — and the stdout/stderr capture in
   // test/auth.test.js is its dynamic half.
   scanConcept('console output', /\bconsole\.\w+/, ['lib/invoices/lifecycle.js', 'lib/webhooks/receiver.js', 'server.js']);
+  // --- AS-45: the view layer's three escaping properties ---------------------
+  // This is the first task in this app that renders HTML for a human, and the
+  // three remaining screen tasks inherit whatever it decides. Each row below
+  // landed on a MEASURED baseline of zero, run against the tree before the
+  // number was written down, so each is a real property from the moment it
+  // ships rather than a hole waiting for a tenant.
+  //
+  // P1 — THERE IS NO RAW-OUTPUT PATH. Not a plain scanConcept row: raw output
+  // is gated by a keyed, counted, line-pinned allowlist (above), because AS-47
+  // has a committed need for exactly one sanctioned site. Cardinality on the
+  // allowlist FIRST — a row that quantified over an unread allowlist would pass
+  // on anything.
+  assert.equal(
+    RAW_OUTPUT_SANCTIONED.length,
+    0,
+    `expected 0 RAW_OUTPUT_SANCTIONED entries, found ${RAW_OUTPUT_SANCTIONED.length} — adding one sanctions ONE exact line and is a deliberate, reviewable change`,
+  );
+  const rawOutput = scanRawOutput();
+  assert.deepEqual(rawOutput.findings, [], `EJS raw output: ${rawOutput.findings.join('; ')}`);
+  RAW_OUTPUT_SANCTIONED.forEach((entry, i) => {
+    assert.ok(typeof entry.reason === 'string' && entry.reason.trim().length > 0, `RAW_OUTPUT_SANCTIONED ${entry.file} carries no reason`);
+    assert.ok(Number.isInteger(entry.count) && entry.count > 0, `RAW_OUTPUT_SANCTIONED ${entry.file} must sanction a positive number of hits, not ${entry.count}`);
+    const remedy = rawOutput.seen[i] < entry.count
+      ? 'the entry is stale: remove it, or restore what it sanctioned'
+      : 'the entry is over-used: a second raw-output site is hiding behind it';
+    assert.equal(rawOutput.seen[i], entry.count, `RAW_OUTPUT_SANCTIONED ${entry.file} matched ${rawOutput.seen[i]} line(s), expected ${entry.count} — ${remedy}`);
+  });
+  // P2a — NO INTERPOLATION WHERE ESCAPING IS NOT ENOUGH. EJS's five-character
+  // escape is correct for element content and for a double-quoted attribute
+  // value; it is NOT sufficient in a URL or a style context, where `javascript:`
+  // and `expression(` need no angle bracket. Measured baseline before AS-45:
+  // ONE hit, views/scaffold.ejs:38's `style="background: var(--…)"`, which is
+  // why retiring the scaffold page was a precondition for this row rather than
+  // housekeeping bundled alongside it. A path that must survive a round trip
+  // (`next`) travels in a hidden value= input, never in a URL.
+  scanConcept(
+    'interpolation in a URL or style attribute',
+    /(href|src|action|formaction|style)\s*=\s*"[^"]*<%/,
+    [],
+    { only: /^(views|public)\// },
+  );
+  // P2b — no event-handler attribute. Scoped to templates and stylesheets: the
+  // pattern matches ` once =` in JavaScript, and narrowing the pattern to avoid
+  // that would be narrowing the thing that catches a real ` onclick=`.
+  scanConcept('event-handler attribute', /\son[a-z]+\s*=/, [], { only: /^(views|public)\// });
+  // P2c — THE NO-CLIENT-SIDE-JAVASCRIPT ASSUMPTION, MADE MECHANICAL. Two ledger
+  // rows (S1-LOADING, S2-LOADING) are unimplementable under it and are recorded
+  // as `unrenderable — browser-supplied` rather than silently skipped. This row
+  // is what stops the assumption decaying into a comment.
+  scanConcept('script or style element', /<(script|style)\b/i, [], { only: /^(views|public)\// });
+  // P3 — an attribute value that carries data is DOUBLE-quoted, because
+  // escaping `"` is only load-bearing if `"` is the delimiter. This row catches
+  // the two spellings that break that: a single-quoted value, and an unquoted
+  // one.
+  scanConcept(
+    'interpolation in an unquoted or single-quoted attribute value',
+    /=\s*'[^']*<%|=\s*<%/,
+    [],
+    { only: /^(views|public)\// },
+  );
 });
 
 test('no file in apps/invoicing exceeds 1,200 lines', () => {
