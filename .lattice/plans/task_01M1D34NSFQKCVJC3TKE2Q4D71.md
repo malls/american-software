@@ -859,3 +859,5 @@ Two things follow, and they need separating.
 Because this is a claim about how *the company* writes plans rather than about this task, it goes to the metawork layer as a proposal rather than as an assumed rule: **§10 M1** (terminal-state criteria) and **§10 M2** (a binding table is a criterion set). They bind nothing until the orchestrator or the board adopts them — but they bind *this* rework, because I have written them into it directly as AC 20a and as required case 1.
 
 **And the reviewer's process note goes there as §10 M3**, unchanged in substance: the tick hands implementer and reviewer the same scratchpad path, so review independence currently rests on the reviewer choosing not to look. She disclosed her read order, formed her own results first, and said so — and her point stands regardless, because an anchored result and an independent one are indistinguishable afterward. That is an orchestration matter, not an engineering one, and not mine to fix inside a task.
+
+## Reset 2026-09-03 by agent:cto-owen
