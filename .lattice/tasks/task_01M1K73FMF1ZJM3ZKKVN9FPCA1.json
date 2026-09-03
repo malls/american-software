@@ -1,0 +1,34 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "low",
+  "created_at": "2026-09-03T08:45:25Z",
+  "created_by": "agent:qa-ruben",
+  "custom_fields": {},
+  "description": "Findings from the AS-32 cycle-1 QA review (qa-ruben, 2026-09-03; verdict PASS 10/10, none blocked the merge). AS-32 merged at f096e8b. All are in apps/chat, and the first is the one that matters.\n\n1. THE TRUNCATION CONTRACT HAS NO STANDING GUARD. Leaving the new CSS rule entirely intact and adding one LATER rule that re-enables wrapping for the same element leaves the suite fully green at 235 while titles wrap and rows grow by a quarter. So the guarantee \"long titles truncate rather than growing the row\" is enforced by nothing that runs on every change. The implementer built exactly what the criteria specify \u2014 the criteria are what is thin, which is why this is a follow-up against the plan's acceptance set rather than rework on a correct 119-line diff.\n\nThe reason it is worth doing rather than shrugging at: the reviewer measured the headroom. The longest real title in this company is 200px against a 208px box \u2014 EIGHT PIXELS, about a character and a half. The contract is one hire with a longer title away from mattering, and today nothing would catch its breach.\n\nFix shape: a standing geometric assertion in the suite rather than a one-off measurement during review. It must be non-vacuous by construction \u2014 the reviewer's own measurements show the clipped set is EMPTY against every real title today, so an assertion that merely reads the clipped set would pass while proving nothing. Assert against a title long enough to clip, and assert the row height stays single-valued.\n\n2. THE TWO-FORMATTER DIVERGENCE IS PINNED ON ONE SIDE ONLY. The sidebar side is asserted; collapsing the org chart's node label to title-only leaves the suite green. The divergence was a deliberate design decision and only half of it is defended.\n\n3. THE COMPLETE-CLASS-SET ASSERTION IS QUOTE-SENSITIVE. Its regex matches single-quoted class arguments only, so a stray class introduced with double quotes is invisible to it. The assertion is the AS-54 lesson applied correctly in spirit \u2014 assert the complete contents of a bounded region \u2014 and undermined by one character class.\n\n4. TWO PLAN ARITHMETIC ERRORS, both confirmed by two people independently: an occurrence count that undercounted the plan's own code snippet, and a guard count of two where the file has three whole-file guards on the same property (api.test.js lines 702, 906 and 1014, added by three separate tasks that each extended the guard without noticing the previous extension). A fourth screen task will add a fourth. Worth deciding whether three identical assertions in one file is redundancy to collapse or defence in depth to keep \u2014 but decide it, rather than letting the count keep surprising predictions.\n\n5. INFORMATIONAL, pre-existing and not caused by this diff: the plan's manual verification snippet instructs clicking the sidebar toggle first, which actively fails at a 375px viewport because the drawer is already open on load and the click is intercepted. Anyone following that snippet will hit a thirty-second timeout and conclude the app is broken.\n\nACCEPTANCE: items 1, 2 and 3 each have a test that fails without the change, shown red once per the house technique (assert the mutation applied SCOPED TO THE REGION IT EDITS \u2014 the stylesheet already contains an older declaration of the same property, so an unscoped count lies; occurrence-accurate counts never grep -c; predicted executable case names that exist; restore; prove restoration by content hash plus git status --porcelain). Item 1's assertion must be shown non-vacuous against a real roster, not only against a lengthened fixture. Item 4 is a decision then an edit. Zero new dependencies; apps/chat is deliberately dependency-free. The real personnel/ directory is never mutated \u2014 scratch roots only. No protected top-level file edited; no running container touched; ephemeral ports only. Complexity low.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1K73FMF1ZJM3ZKKVN9FPCA1",
+  "last_event_id": "ev_01M1K73FV5FZKB8W48A57D9MA8",
+  "last_status_changed_at": "2026-09-03T08:45:25Z",
+  "priority": "medium",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-03T08:45:25Z",
+      "created_by": "agent:qa-ruben",
+      "note": null,
+      "target_task_id": "task_01M1C6HT2QD4T2Q0ZZC3KSQYT5",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-74",
+  "status": "backlog",
+  "tags": null,
+  "title": "Chat: the roster truncation contract has no standing guard, and three smaller coverage gaps",
+  "type": "task",
+  "updated_at": "2026-09-03T08:45:25Z",
+  "urgency": null
+}
