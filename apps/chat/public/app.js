@@ -422,7 +422,16 @@ function rosterRow(emp) {
   } else {
     status.textContent = 'idle';
   }
-  item.append(top, status);
+  item.append(top);
+  // AS-32: the title on its own line — a 240px column has no room for an
+  // inline suffix beside the name, badge and pin. Empty title renders no
+  // element at all (no blank line, no `title=""`).
+  if (emp.title) {
+    const role = el('div', 'roster-title', emp.title);
+    role.title = emp.title; // the clipped text is where you hover for the full string
+    item.append(role);
+  }
+  item.append(status);
   if (emp.self) {
     item.classList.add('self'); // inert: no click-to-DM with yourself
   } else {

@@ -108,6 +108,16 @@ body {
 /* Pinned row: subtle left accent; the filled glyph is the primary indicator.
    box-shadow, not background — composes with :hover and .active. */
 #roster-list li.roster-row.pinned { box-shadow: inset 3px 0 0 #bfa8c0; }
+/* AS-32: the employee's title, one line under the name. nowrap + ellipsis is
+   load-bearing, not decoration: #roster-list li.roster-row sets
+   white-space: normal, so without this a long title ("Cofounder & Chief
+   Technology Officer") wraps and the row grows. One fixed line at every width
+   is the contract; the full string stays on hover (title attribute). */
+.roster-title {
+  font-size: 11px; color: #bfa8c0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#roster-list li.roster-row.active .roster-title { color: #d7e6f2; }
 .roster-status { font-size: 11px; color: #bfa8c0; }
 #roster-list li.roster-row.active .roster-status { color: #d7e6f2; }
 .roster-status .ref-link { color: inherit; text-decoration: underline dotted; }

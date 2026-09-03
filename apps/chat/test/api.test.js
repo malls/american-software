@@ -1050,3 +1050,102 @@ test('api: AS-33 — check-org --json matches GET /api/org for the same root', a
   assert.equal(cli.status, 1, cli.stderr); // violations present: non-zero
   assert.deepEqual(JSON.parse(cli.stdout), api);
 });
+
+// --- AS-32: the employee title in the roster rows -------------------------
+
+test('api: AS-32 — served app.js renders the roster title through el() and shows title alone', async (t) => {
+  const { base } = await bootServer(t);
+
+  // The file the browser actually runs, not the one on disk beside this test.
+  const app = await (await fetch(base + '/app.js')).text();
+
+  // Scoped to rosterRow's OWN body (AS-54 precedent, api.test.js:866): every
+  // class literal in this file is unique to some row builder, so a whole-file
+  // assertion would pass against a title rendered from any other function.
+  const start = app.indexOf('function rosterRow(emp) {');
+  assert.ok(start !== -1, 'rosterRow is present in the served app.js');
+  const region = app.slice(start, app.indexOf('\n}\n', start));
+
+  // The COMPLETE set, not merely the presence of the new one. Bounding alone
+  // let a wrong extra line through on AS-54 (review cycle 1): with `includes`
+  // a stray el('div', 'roster-team', …) is invisible. deepEqual on the whole
+  // sorted set fails on a missing class AND on an extra one.
+  assert.deepEqual(
+    [...region.matchAll(/el\('[a-z]+',\s*'([^']+)'/g)].map((m) => m[1]).sort(),
+    ['badge', 'pin-toggle', 'ref-link', 'roster-name', 'roster-row',
+     'roster-status', 'roster-title', 'roster-top'],
+    'rosterRow builds exactly these classes — a missing one and a stray extra one both fail',
+  );
+
+  // §3.1/§3.4: the sidebar shows the title ALONE. orgNodeItem's meta line
+  // joins title · class · team; that divergence is deliberate, so it is
+  // pinned here rather than left to drift into an accidental match.
+  assert.equal((region.match(/emp\.class/g) || []).length, 0,
+    'the sidebar row never reads emp.class — class is the org chart\'s subject, not the DM list\'s');
+  assert.equal((region.match(/emp\.team/g) || []).length, 0,
+    'the sidebar row never reads emp.team — same');
+
+  // Structure-first: the title becomes an element via el(), whose third
+  // argument goes to textContent. This is the ONLY defence against markup in
+  // a dossier field (see the hostile-root leg below) — nothing between the
+  // file and the DOM escapes it.
+  assert.ok(region.includes("el('div', 'roster-title', emp.title)"),
+    'the title element is built by el(), so its text goes through textContent');
+
+  // The house rule, extended to the sinks a third rendering path could reach
+  // for — not just the one that existed when the guard was written.
+  for (const sink of ['.innerHTML', 'insertAdjacentHTML', 'outerHTML', 'document.write']) {
+    assert.equal(app.split(sink).length - 1, 0,
+      `zero ${sink} use in the served app.js — the house rule holds`);
+  }
+
+  // The server does not escape, and a test that expected it to would be
+  // asserting a defence that does not exist. Proven on a scratch root: the
+  // shared fixture's roster membership is asserted on by other tests.
+  const hostileRoot = mkdtempSync(join(tmpdir(), 'chat-as32-hostile-'));
+  t.after(() => rmSync(hostileRoot, { recursive: true, force: true }));
+  cpSync(FIXTURE_ROOT, hostileRoot, { recursive: true });
+  const HOSTILE = '<img src=x onerror="alert(1)">';
+  writeFileSync(join(hostileRoot, 'personnel', 'hostile.md'),
+    ['---',
+     'actor_id: agent:hostile-hank',
+     'name: Hank Hostile',
+     `title: ${HOSTILE}`,
+     'class: ic',
+     'reports_to: agent:cto-owen',
+     'team: engineering',
+     'hired: 2026-09-03',
+     'status: active',
+     '---',
+     '',
+     '# Hank Hostile',
+     ''].join('\n'));
+  const { get: hostileGet } = await bootServer(t, hostileRoot);
+  const roster = await hostileGet('/api/roster');
+  assert.equal(roster.status, 200);
+  const hank = roster.data.roster.find((r) => r.actorId === 'agent:hostile-hank');
+  assert.ok(hank, 'the hostile dossier is an active employee on this root');
+  assert.equal(hank.title, HOSTILE,
+    'the endpoint ships the field verbatim — el()/textContent is the only defence, so it must be the one under test');
+});
+
+test('api: AS-32 — style.css truncates the roster title to one line', async (t) => {
+  const { base } = await bootServer(t);
+  const css = await (await fetch(base + '/style.css')).text();
+
+  // Scoped to the .roster-title rule BODY. The file already carries an older
+  // text-overflow (#sidebar li, L50), so a whole-file assertion passes with
+  // this rule deleted outright.
+  const at = css.indexOf('\n.roster-title {');
+  assert.ok(at !== -1, 'style.css declares a .roster-title rule');
+  const rule = css.slice(at, css.indexOf('}', at));
+
+  // Load-bearing, not decoration: #roster-list li.roster-row sets
+  // white-space: normal, so the #sidebar li ellipsis never reaches these rows
+  // and a long title wraps the row taller instead of clipping.
+  assert.match(css, /#roster-list li\.roster-row \{[^}]*white-space: normal/,
+    'the premise of this rule: roster rows opt out of the sidebar-wide nowrap');
+  for (const decl of ['white-space: nowrap', 'overflow: hidden', 'text-overflow: ellipsis']) {
+    assert.ok(rule.includes(decl), `.roster-title declares ${decl}`);
+  }
+});
