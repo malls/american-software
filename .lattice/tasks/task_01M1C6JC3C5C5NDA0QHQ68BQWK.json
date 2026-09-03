@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 5,
+  "comment_count": 6,
   "complexity": "medium",
   "created_at": "2026-08-31T15:21:23Z",
   "created_by": "agent:cto-owen",
@@ -17,14 +17,14 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1C6JC3C5C5NDA0QHQ68BQWK",
-  "last_event_id": "ev_01M1K1E0K3H5Z5TQ9NYY66H1RH",
-  "last_status_changed_at": "2026-09-03T07:06:18Z",
+  "last_event_id": "ev_01M1K2TKTPXTQDAMGXD9D7GT59",
+  "last_status_changed_at": "2026-09-03T07:30:40Z",
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-33",
-  "status": "in_progress",
+  "status": "review",
   "tags": [
     "chat",
     "internal-tools",
@@ -32,6 +32,6 @@
   ],
   "title": "Chat: org chart visualizer + personnel frontmatter validator (renderer/validator trigger at 8 headcount)",
   "type": "task",
-  "updated_at": "2026-09-03T07:06:19Z",
+  "updated_at": "2026-09-03T07:30:40Z",
   "urgency": null
 }
