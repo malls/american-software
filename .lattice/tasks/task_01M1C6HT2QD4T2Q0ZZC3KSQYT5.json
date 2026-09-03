@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 5,
+  "comment_count": 6,
   "complexity": "low",
   "created_at": "2026-08-31T15:21:05Z",
   "created_by": "agent:cto-owen",
@@ -17,20 +17,20 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1C6HT2QD4T2Q0ZZC3KSQYT5",
-  "last_event_id": "ev_01M1K5E5CGCX1GWA6E6W2NVZC8",
-  "last_status_changed_at": "2026-09-03T08:16:18Z",
+  "last_event_id": "ev_01M1K606Y0EZV0NZV067P5533S",
+  "last_status_changed_at": "2026-09-03T08:26:09Z",
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-32",
-  "status": "in_progress",
+  "status": "review",
   "tags": [
     "chat",
     "internal-tools"
   ],
   "title": "Chat sidebar: show role/title next to names in the DM roster list",
   "type": "task",
-  "updated_at": "2026-09-03T08:16:18Z",
+  "updated_at": "2026-09-03T08:26:09Z",
   "urgency": null
 }
