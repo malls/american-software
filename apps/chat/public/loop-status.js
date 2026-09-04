@@ -39,6 +39,43 @@ const WATCHER_REASONS = {
   'stale-heartbeat': 'the watcher heartbeat has stopped — the host may be asleep or the watcher crashed',
 };
 
+/** AS-75: why the live build is behind master, or why we cannot tell — in the
+ *  board's terms, naming the remedy wherever there is one. Same shape and same
+ *  house style as WATCHER_REASONS above: no bare enum ever reaches the UI.
+ *
+ *  The first block is what the watcher itself decided (deploy-state.json's
+ *  `reason`); the second is what the SERVER concluded about that file. */
+const BUILD_REASONS = {
+  'stale-build': 'the watcher is about to rebuild it',
+  cooldown: 'the last rebuild of this version failed and the watcher is waiting before retrying — see apps/chat/data/logs/deploy-*.log',
+  busy: 'a tick is running, so the watcher is holding the rebuild until it finishes',
+  'inputs-dirty': 'master has uncommitted changes under apps/chat, and the watcher only ever deploys committed code',
+  'no-git': 'the watcher cannot read the git tree to work out what master contains',
+  'no-docker': 'the watcher cannot find the docker binary — set ADVANCE_DOCKER_BIN in the launchd plist (apps/chat/watch/README.md)',
+  current: 'the running build matches master',
+  'no-state': 'the watcher has not written a deploy report yet — it may be running pre-AS-75 code, in which case restarting it corrects this',
+  'unreadable-state': "the watcher's deploy report is unreadable",
+  'stale-state': "the watcher's deploy report has stopped being updated — the host may be asleep or the watcher crashed",
+  'no-watcher': 'nothing is watching, so nothing will deploy — a board message will not fire a tick either',
+  'unknown-build': 'this container was built by hand without a build id, so it cannot say which version it is running',
+};
+
+/** The one build sentence, or '' when the running build matches master —
+ *  silence is the good case and the sidebar does not need to say so. */
+function buildSentence(build) {
+  if (!build || typeof build !== 'object' || Array.isArray(build)) return '';
+  // `current` is the tri-state the server promises. Anything else — an absent
+  // key from a pre-AS-75 server, a garbled payload — is not a third opinion to
+  // render, it is no opinion at all, and the sidebar stays quiet.
+  if (build.current !== true && build.current !== false && build.current !== null) return '';
+  const why = BUILD_REASONS[build.reason] || `reason: ${build.reason ?? 'unknown'}`;
+  if (build.current === true) return '';
+  if (build.current === false) {
+    return `Live build is behind master (running ${build.id ?? 'an unknown build'}, master ${build.desiredId ?? 'unknown'}) — ${why}.`;
+  }
+  return `Deploy freshness unknown: ${why}.`;
+}
+
 /**
  * @param {object|null} status  the /api/loop-status payload's `status`, or
  *                              null when the fetch failed
@@ -109,6 +146,12 @@ export function describeLoopStatus(status, nowMs = Date.now()) {
       parts.push(`Watcher: ${WATCHER_REASONS[status.watcher.reason] || `not listening (${status.watcher.reason})`}.`);
     }
   }
+
+  // AS-75: exactly one sentence about the deploy, and none at all when the
+  // running build is master's. It goes last: it is about the code, not about
+  // whether anything is running right now.
+  const build = buildSentence(status.build);
+  if (build) parts.push(build);
 
   return { tone: status.state, label, detail: parts.join(' ') };
 }
