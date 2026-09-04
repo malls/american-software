@@ -22,6 +22,15 @@ COPY test ./test
 # service cannot reach the host checkout, so the manifests have to ride along.
 COPY compose.yaml Dockerfile ./
 RUN mkdir -p /app/data && chown -R node:node /app
+# AS-75: the build id the deployer computed for this image's inputs. Placed
+# after every COPY (and after the one RUN) on purpose — an ARG/ENV earlier in
+# the file would invalidate the layer cache on every rebuild, since the id
+# changes by definition whenever the inputs do. `unknown` is the honest value
+# for an image built by hand without the build arg; the watcher treats it as
+# "not current" and redeploys once with a real id, which is the self-healing
+# behaviour we want. Kept in sync with IMAGE_INPUTS by test/deploy-shape.test.js.
+ARG BUILD_ID=unknown
+ENV CHAT_BUILD_ID=$BUILD_ID
 USER node
 EXPOSE 8347
 CMD ["node", "server.js"]

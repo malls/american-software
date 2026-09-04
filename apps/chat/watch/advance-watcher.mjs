@@ -56,6 +56,26 @@ export const DEFAULTS = Object.freeze({
   claudeBin: 'claude',
 });
 
+// AS-75: the image's git-committed inputs, as repo-relative-to-apps/chat paths.
+// This is a hand-maintained copy of a fact that lives in the Dockerfile's COPY
+// lines, so it gets a guard: test/deploy-shape.test.js parses those COPY lines
+// and asserts set equality against this list. Change one, change both.
+//
+// Deliberately NOT `apps/chat` wholesale: apps/chat/data/export/ is tracked and
+// rewritten by every records export, so a whole-directory digest would rebuild
+// the image on chat traffic — a rebuild loop driven by people talking.
+export const IMAGE_INPUTS = Object.freeze([
+  'package.json',
+  'server.js',
+  'lib',
+  'bin',
+  'public',
+  'watch',
+  'test',
+  'compose.yaml',
+  'Dockerfile',
+]);
+
 function envNum(env, name, fallback) {
   const v = Number(env[name]);
   return Number.isFinite(v) && v > 0 ? v : fallback;

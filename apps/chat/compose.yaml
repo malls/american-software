@@ -19,7 +19,15 @@ name: asc-chat
 
 services:
   server:
-    build: .
+    # AS-75: long form so the deployer can stamp the image with the build id it
+    # computed from master's image inputs. `docker compose up` has no
+    # --build-arg, so the id rides in through the environment; an unset
+    # CHAT_BUILD_ID (a hand build) leaves the image honestly labelled `unknown`,
+    # which the watcher reads as "not current" and heals on its next poll.
+    build:
+      context: .
+      args:
+        BUILD_ID: ${CHAT_BUILD_ID:-unknown}
     platform: linux/amd64
     ports:
       - "127.0.0.1:8347:8347"
