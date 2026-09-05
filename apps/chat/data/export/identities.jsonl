@@ -5,6 +5,7 @@
 {"type":"identity","id":"agent:developer-marcus","display_name":"Marcus Webb (Engineer)","kind":"agent","created_at":"2026-08-30T01:42:44.273Z"}
 {"type":"identity","id":"agent:qa-fixture","display_name":"QA Test Fixture (not a person)","kind":"agent","created_at":"2026-08-30T02:08:04.219Z"}
 {"type":"identity","id":"agent:qa-priya","display_name":"Priya Raman (QA)","kind":"agent","created_at":"2026-08-30T01:42:44.306Z"}
+{"type":"identity","id":"agent:qa-ruben","display_name":"Ruben Ochoa","kind":"agent","created_at":"2026-09-05T19:58:31.412Z"}
 {"type":"identity","id":"agent:researcher-elliot","display_name":"Elliot Kwan","kind":"agent","created_at":"2026-08-30T18:54:31.867Z"}
 {"type":"identity","id":"agent:researcher-nadia","display_name":"Nadia Okonkwo","kind":"agent","created_at":"2026-08-30T18:54:30.756Z"}
 {"type":"identity","id":"agent:ux-jonah","display_name":"Jonah Reyes","kind":"agent","created_at":"2026-08-31T15:02:20.857Z"}
