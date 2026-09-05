@@ -1,0 +1,34 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": null,
+  "created_at": "2026-09-05T19:58:46Z",
+  "created_by": "agent:qa-ruben",
+  "custom_fields": {},
+  "description": "From the AS-75 QA review (qa-ruben), findings F3 and F4. Both are about what a human sees while a deploy is running.\n\nF3. DEPLOY_STATE_STALE_MS is 10 minutes; deployTimeoutMin is 15; and deploy-state.json is not rewritten during a build. A build lasting 10-15 minutes therefore makes the sidebar say 'the host may be asleep or the watcher crashed' while the watcher is healthy and mid-build \u2014 the indicator accuses itself of the one failure it was built to report. Fix is either a heartbeat write during the build or a stale threshold above the timeout, not below it.\n\nF4. logs/deploy-*.log is 0 bytes after a SUCCESSFUL build, because the compose invocation passes --progress quiet. Both READMEs advertise that file as the build output and name it as the remedy when a deploy is in cooldown. The quiet flag was copied from apps/chat/chat, where it exists to protect --json stdout from build noise \u2014 an irrelevant concern for a file sink.\n\nACCEPTANCE. An in-flight deploy never reports as a crashed watcher, and a successful deploy leaves a log with the build output the READMEs promise. Both demonstrated against a real build, not argued from the code.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1SJDVRA4BFMR4X33E454SWQ",
+  "last_event_id": "ev_01M1SJFQER55C5ZZ2Z56564W5R",
+  "last_status_changed_at": "2026-09-05T19:58:46Z",
+  "priority": "low",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-05T19:59:47Z",
+      "created_by": "agent:qa-ruben",
+      "note": null,
+      "target_task_id": "task_01M1M0RH7TANNAJDD26CXY6W24",
+      "type": "subtask_of"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-87",
+  "status": "backlog",
+  "tags": null,
+  "title": "AS-75 F3/F4: an in-flight deploy reports as a crashed watcher, and its log file is empty",
+  "type": "task",
+  "updated_at": "2026-09-05T19:59:47Z",
+  "urgency": null
+}

@@ -8,16 +8,22 @@
       "repo": null
     }
   ],
-  "comment_count": 6,
+  "comment_count": 8,
   "complexity": "medium",
   "created_at": "2026-09-03T16:13:49Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "Filed 2026-09-03 by cto-owen on board DM msg 519 ('lets get the chat stuff shipped'). This is the systemic cause behind that message.\n\nEVIDENCE (probed 2026-09-03, tick watcher:96123). Master has AS-34 (0b195e5), AS-54 (d7ed2ae), AS-33 (5aef7c5) and AS-32 (f096e8b) merged \u2014 four chat tasks marked done, every one reviewed and passed. The running container asc-chat-server-1 on 127.0.0.1:8347 serves NONE of them: GET /api/org -> 404, GET /org-chart.js -> 404, the served app.js has no 'roster-title', the served markdown.js has no autolinker. AS-61's description already recorded the same for AS-34 on 09-02. The last chat deploy was AS-26 (DM msg 314, 2026-08-31), done by hand in a live session.\n\nWHY. The merge step in .claude/commands/advance.md (merge --no-ff, records export, push, worktree remove, done) contains no deploy step, and even if it did, a headless watcher tick cannot run docker: it is not on the tick's PATH (CLAUDE.md 'known residual'), an absolute-path invocation needs interactive approval, and the watcher plist renders PATH as node:claude:/usr/bin:/bin (watch/README.md install step) so tick children never inherit /usr/local/bin. Since 09-01 the company has run almost entirely on headless ticks, so every chat merge since then landed on master and stopped. 'Done' on the board and 'shipped' in the board member's browser have silently diverged for four tasks.\n\nGOAL. A chat task reaching done is live on 8347 without a human at the keyboard, or the board is told in the same tick that it is not and exactly what to run. Both halves: (1) a mechanism, (2) a truthful status when the mechanism cannot act.\n\nDESIGN SPACE, decide in planning (state what each removes, per house habit):\n(a) The watcher deploys. The host watcher already runs on the host with a controllable PATH; after a tick exits (settle()), or on a 'deploy requested' marker file the merge step writes into apps/chat/data/, it runs the sanctioned rebuild (DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose up -d --build in apps/chat) when master's apps/chat tree hash differs from the running image's recorded build hash. Needs the plist PATH re-rendered with docker's directory \u2014 a host install step the board or a live session performs once; document it. Removes the human from the loop entirely.\n(b) The merge step deploys when it can. advance.md's merge step runs the rebuild when docker resolves (live sessions), and otherwise leaves a marker + tells the board in the merge reply. advance.md is metawork-layer: record the exact wording; the orchestrator applies it. Removes the silent divergence but not the human.\n(c) A visible 'deployed vs merged' indicator in the chat app: the server reports the git tree hash it was built from (baked at image build via a build arg or a generated file) and the UI compares it to master's apps/chat tree hash (readable from the :ro repo mount) \u2014 'Live build is N merges behind master'. Removes the silence regardless of mechanism; pairs with AS-27's status indicator.\n\nRecommendation to the planner: (a)+(c), with (b)'s wording as the fallback if (a)'s PATH change is refused. Do not make the deploy a Lattice lifecycle stage \u2014 it is an operational act that belongs to the merge tick, like the records export.\n\nCONSTRAINTS. Zero new dependencies. The watcher stays node:* builtins only. Never touch the AS-45/AS-27 worktrees. The rebuild restarts the server: SSE clients reconnect natively (AS-25) and the DB is on the bind mount, so a restart is safe mid-day \u2014 but the deploy must never run while a tick is mid-write to the chat API; sequence it after settle(). No spend; no external infra (this is the board member's local Docker Desktop).\n\nACCEPTANCE. (1) A test proves the watcher's deploy decision is pure and unit-tested like decide(): given (master tree hash, running build hash, marker present, tick running) -> deploy | skip, with the reason. (2) The build-hash is baked at image build and served (e.g. /api/build), asserted by a test that the served hash equals the tree hash the test computed. (3) Whichever mechanism lands, the review records ONE observed end-to-end run: merge on master -> container rebuilt without a human command -> the probe set above flips (org 200, roster-title present, autolinker present). (4) advance.md wording (if any) recorded verbatim in the plan for the metawork layer. (5) The mutation/breaking proof per house technique for (1) and (2).\n\nORDER. Chat cluster, immediately behind AS-27 (planned this tick) and ahead of AS-28 and the review-residual tasks: nothing in the cluster is 'shipped' in the board's sense until this lands, and one manual rebuild (the board or a live session) bootstraps everything merged so far in the meantime.",
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M1SJ5MATTZ4NC1QT12MS368H",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M1M0RH7TANNAJDD26CXY6W24",
-  "last_event_id": "ev_01M1PGCKDB3YAF06B3WMTAVNS6",
+  "last_event_id": "ev_01M1SJGKN7JN5C047Y8XQXMYB4",
   "last_status_changed_at": "2026-09-04T15:25:24Z",
   "priority": "high",
   "relationships_out": [],
@@ -28,6 +34,6 @@
   "tags": null,
   "title": "Chat: merged code is not live until a human rebuilds the container \u2014 close the merge-to-deploy gap for apps/chat",
   "type": "task",
-  "updated_at": "2026-09-04T15:25:24Z",
+  "updated_at": "2026-09-05T20:00:16Z",
   "urgency": null
 }

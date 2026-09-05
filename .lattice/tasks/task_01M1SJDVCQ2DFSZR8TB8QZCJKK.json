@@ -1,0 +1,34 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": null,
+  "created_at": "2026-09-05T19:58:46Z",
+  "created_by": "agent:qa-ruben",
+  "custom_fields": {},
+  "description": "From the AS-75 QA review (qa-ruben, 2026-09-04), findings F5 and F6. Filed against unmerged branch feat/AS-75-deploy-gap.\n\nF5 (concurrency). shutdown() SIGTERMs the tick child but NOT the deploy child, and its releaseLock() deletes the deploy's lock \u2014 both lock ops share the same pid, so the release cannot tell whose lock it is. Failure chain: SIGTERM lands mid-build -> 'docker compose up --build' is orphaned and keeps running -> no lock is held -> the relaunched watcher's immediate poll() fires a tick -> that tick gets its own server recreated underneath it. That is exactly the hazard decideDeploy rule 1 exists to prevent, reached by a path rule 1 does not cover. Related: lastAttempt is memory-only, so the cooldown does not survive a restart and a crash-loop can re-trigger deploys at will.\n\nF6. 'void deployOps.evaluate(...)' has no .catch(). Node >= 15 terminates the process on an unhandled rejection, so any throw inside evaluate kills the watcher and the company stops firing ticks. Ruben deliberately did not fix this inline: it sits inside the enumerated unguarded main() wiring and is therefore untested (AS-82), and an untested inline fix in live infrastructure is worse than a filed one.\n\nWHY THIS IS FILED HIGH despite the reviewer ruling it non-blocking: the review itself demonstrated the blast radius. A mis-scoped deploy recreated the live asc-chat-server-1 from a scratch copy and took 8347 down for a day (see AS-88/F8). F5's failure mode puts an unsupervised 'docker compose up --build' against the live project with no lock held.\n\nACCEPTANCE. shutdown() terminates the deploy child, or deliberately waits for it with a stated bound; the lock release distinguishes a deploy lock from a tick lock (source field, not pid); lastAttempt survives a restart; evaluate() cannot take the process down. Each proven by breaking it: a SIGTERM injected mid-build must leave no orphaned docker child and no released-but-active lock, demonstrated, not argued.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1SJDVCQ2DFSZR8TB8QZCJKK",
+  "last_event_id": "ev_01M1SJFQ59MS9EAHD0K9Z7J833",
+  "last_status_changed_at": "2026-09-05T19:58:46Z",
+  "priority": "high",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-05T19:59:47Z",
+      "created_by": "agent:qa-ruben",
+      "note": null,
+      "target_task_id": "task_01M1M0RH7TANNAJDD26CXY6W24",
+      "type": "subtask_of"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-84",
+  "status": "backlog",
+  "tags": null,
+  "title": "AS-75 F5/F6: shutdown() orphans the deploy child and releases its lock \u2014 a SIGTERM mid-build leaves docker running unguarded",
+  "type": "task",
+  "updated_at": "2026-09-05T19:59:47Z",
+  "urgency": null
+}
