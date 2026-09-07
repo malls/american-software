@@ -131,3 +131,82 @@ test('AS-27 label: an unavailable status degrades to off/unavailable, never a th
   assert.equal(weird.label, 'Off · no watcher');
   assert.equal(weird.tone, 'quantum', 'tone mirrors the server so an unknown state cannot masquerade as a known dot');
 });
+
+// --- AS-75: the one build sentence -------------------------------------------
+
+const build = (over) => ({ id: 'aaaaaaaaaaaaaaaa', desiredId: 'aaaaaaaaaaaaaaaa', current: true, reason: 'current', checkedAt: iso(-5_000), ...over });
+
+test('AS-75 label: exactly one build sentence, distinct per case, silent when current', () => {
+  // Cardinality first: three cases, one sentence each (or none), all different.
+  const cases = [
+    ['current', build({ current: true })],
+    ['behind', build({ current: false, desiredId: 'bbbbbbbbbbbbbbbb', reason: 'stale-build' })],
+    ['unknown', build({ current: null, desiredId: null, reason: 'no-state' })],
+  ];
+  assert.equal(cases.length, 3, 'three build configurations examined');
+
+  const sentences = [];
+  for (const [name, b] of cases) {
+    const detail = describeLoopStatus(status({ state: 'idle', build: b }), NOW).detail;
+    // Everything the payload says about the deploy lives in ONE sentence: take
+    // the tail after the watcher line and count the terminators we added.
+    const added = detail.replace(describeLoopStatus(status({ state: 'idle' }), NOW).detail, '').trim();
+    sentences.push(added);
+    if (name === 'current') {
+      assert.equal(added, '', 'a current build says nothing — silence is the good case');
+    } else {
+      assert.equal(added.split('. ').length, 1, `${name}: exactly one sentence`);
+      assert.ok(added.endsWith('.'), `${name}: a sentence, not a fragment`);
+    }
+  }
+  assert.equal(new Set(sentences).size, 3, 'three distinct outcomes');
+
+  // The behind case names both ids and the plain-English reason.
+  assert.match(sentences[1], /Live build is behind master \(running aaaaaaaaaaaaaaaa, master bbbbbbbbbbbbbbbb\)/);
+  assert.match(sentences[1], /the watcher is about to rebuild it\.$/);
+
+  // The unknown case never says "behind" — it says it does not know.
+  assert.match(sentences[2], /^Deploy freshness unknown: /);
+  assert.doesNotMatch(sentences[2], /behind/);
+});
+
+test('AS-75 label: every build reason has prose, and null is never rendered as behind', () => {
+  // Every reason the watcher or the server can produce. A bare enum leaking to
+  // the board is the failure this asserts against — same rule as WATCHER_REASONS.
+  const reasons = [
+    'current', 'stale-build', 'cooldown', 'busy', 'inputs-dirty', 'no-git', 'no-docker',
+    'no-state', 'unreadable-state', 'stale-state', 'no-watcher', 'unknown-build',
+  ];
+  assert.equal(reasons.length, 12, 'twelve reasons examined');
+  for (const reason of reasons) {
+    const d = describeLoopStatus(status({ state: 'idle', build: build({ current: null, reason }) }), NOW).detail;
+    assert.match(d, /Deploy freshness unknown: [a-z]/, `${reason}: prose, not an enum`);
+    assert.doesNotMatch(d, new RegExp(`reason: ${reason}`), `${reason} has a written explanation`);
+    assert.doesNotMatch(d, /behind master/, `${reason}: unknown is never reported as behind`);
+  }
+
+  // An unrecognised reason degrades to naming itself rather than vanishing.
+  const odd = describeLoopStatus(status({ state: 'idle', build: build({ current: null, reason: 'martian' }) }), NOW).detail;
+  assert.match(odd, /reason: martian/);
+});
+
+test('AS-75 label: a deploy holds the lock and says so — "Tick in flight · deploy"', () => {
+  // The deploy takes advance.lock with source 'deploy', and describeLoopStatus
+  // interpolates the source, so this needs no UI change — which is exactly why
+  // it needs a test rather than an assumption.
+  const got = describeLoopStatus(
+    status({ state: 'tick', tick: { source: 'deploy', pid: 90824, startedAt: iso(-20_000), ageS: 20 } }), NOW);
+  assert.equal(got.tone, 'tick');
+  assert.equal(got.label, 'Tick in flight · deploy');
+  assert.match(got.detail, /Tick from deploy \(pid 90824\) started 20 s ago\./);
+});
+
+test('AS-75 label: an absent or malformed build key changes nothing', () => {
+  // A pre-AS-75 server (no build key at all) must render exactly as before.
+  const baseline = describeLoopStatus(status({ state: 'idle' }), NOW);
+  for (const bad of [undefined, null, 'nope', 42, []]) {
+    const got = describeLoopStatus(status({ state: 'idle', build: bad }), NOW);
+    assert.equal(got.detail, baseline.detail, `build=${JSON.stringify(bad)}: no sentence, no throw`);
+    assert.equal(got.tone, 'idle');
+  }
+});

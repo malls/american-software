@@ -346,7 +346,32 @@ reconnecting client is current without issuing a fetch.
 writes a pid file with no `heartbeatAt`, and the indicator reports
 `Off · no watcher` with reason `no-heartbeat` — correct, since nothing in the
 evidence says that process is alive. `launchctl bootout` then `bootstrap` (see
-`watch/README.md`) fixes it; the indicator self-corrects within 60s.
+`watch/README.md`) fixes it; the indicator self-corrects within 60s. Since
+AS-75 the watcher does that restart itself when its own source changes.
+
+### AS-75: you no longer rebuild this by hand
+
+Merged `apps/chat` code goes live on 8347 unattended, within about a minute,
+and so does the host watcher. Nobody runs `docker compose up -d --build` after
+a merge any more. The mechanism lives in the watcher — see
+`watch/README.md` § "the watcher also deploys" for how it decides and what it
+refuses — and its two visible ends are here:
+
+- `GET /api/build` → `{ build: { id, raw, startedAt } }`, the id baked into the
+  running image. `raw: "unknown"` (with `id: null`) means this container was
+  built by hand without the build arg.
+- `/api/loop-status` carries a `build` key, and the sidebar says **one**
+  sentence when the running build is not master's — or when it cannot tell.
+
+**How to tell when it did not happen.** The sidebar is the first stop: silence
+means the running build is master's, `Live build is behind master (…)` names
+both ids and the reason, and `Deploy freshness unknown: …` means the reporter
+itself is not trustworthy right now. `build.current` is **`null`, never
+`false`,** in that third case — an indicator that said "behind" because its
+reporter is dead would be a confident wrong answer, which is the failure this
+whole feature exists to remove. Behind the sidebar, `data/deploy-state.json`
+carries the same reason plus `dockerBin`, `lastAttempt` and `computedAt`, and
+`data/logs/deploy-*.log` has the build output of each attempt.
 
 ## CLI (for agents; works with the server container stopped)
 

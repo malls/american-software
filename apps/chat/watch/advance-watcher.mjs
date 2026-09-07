@@ -39,8 +39,8 @@ import {
   readdirSync,
   createWriteStream,
 } from 'node:fs';
-import { spawn } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { spawn, spawnSync } from 'node:child_process';
+import { randomBytes, createHash } from 'node:crypto';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -51,10 +51,36 @@ export const DEFAULTS = Object.freeze({
   debounceS: 15, // trailing debounce window (board band: 10–30s)
   tickTimeoutMin: 30, // hard tick timeout: SIGTERM, 15s grace, SIGKILL
   lockStaleMin: 45, // lock age staleness (> tick timeout, deliberately)
-  tickLogRetentionDays: 14, // prune tick-*.log older than this at each fire
+  tickLogRetentionDays: 14, // prune tick-*.log and deploy-*.log older than this
   permissionMode: 'acceptEdits',
   claudeBin: 'claude',
+  // AS-75 deploy poll. 60s is far below the human threshold for "did my merge
+  // ship" and far above the cost of two git calls plus one loopback fetch.
+  deployPollS: 60,
+  deployTimeoutMin: 15, // an emulated linux/amd64 rebuild, generously
+  deployCooldownMin: 30, // suppress only a REPEAT of a failed attempt at the same id
+  chatUrl: 'http://127.0.0.1:8347',
 });
+
+// AS-75: the image's git-committed inputs, as repo-relative-to-apps/chat paths.
+// This is a hand-maintained copy of a fact that lives in the Dockerfile's COPY
+// lines, so it gets a guard: test/deploy-shape.test.js parses those COPY lines
+// and asserts set equality against this list. Change one, change both.
+//
+// Deliberately NOT `apps/chat` wholesale: apps/chat/data/export/ is tracked and
+// rewritten by every records export, so a whole-directory digest would rebuild
+// the image on chat traffic — a rebuild loop driven by people talking.
+export const IMAGE_INPUTS = Object.freeze([
+  'package.json',
+  'server.js',
+  'lib',
+  'bin',
+  'public',
+  'watch',
+  'test',
+  'compose.yaml',
+  'Dockerfile',
+]);
 
 function envNum(env, name, fallback) {
   const v = Number(env[name]);
@@ -71,6 +97,10 @@ export function loadConfig(env = process.env) {
     permissionMode: env.ADVANCE_PERMISSION_MODE || DEFAULTS.permissionMode,
     claudeBin: env.ADVANCE_CLAUDE_BIN || DEFAULTS.claudeBin,
     repoRoot: env.ADVANCE_REPO_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..'),
+    deployPollS: envNum(env, 'ADVANCE_DEPLOY_POLL_S', DEFAULTS.deployPollS),
+    deployTimeoutMin: envNum(env, 'ADVANCE_DEPLOY_TIMEOUT_MIN', DEFAULTS.deployTimeoutMin),
+    deployCooldownMin: envNum(env, 'ADVANCE_DEPLOY_COOLDOWN_MIN', DEFAULTS.deployCooldownMin),
+    chatUrl: env.ADVANCE_CHAT_URL || DEFAULTS.chatUrl,
   };
 }
 
@@ -240,6 +270,150 @@ export function loadPermissionRules(settingsPath) {
   };
 }
 
+// --- AS-75: the deploy decision (pure; no fs, no clock, no process) ---------
+//
+// The watcher owns the deploy because it is the only piece of this company
+// that runs as a plain host process: the permission layer that denies `docker`
+// to a headless tick does not reach it, and an absolute-path spawn needs no
+// PATH. The decision is LEVEL-triggered over three observable facts — what
+// master says the image inputs are, what the running container says it is
+// serving, and whether this watcher's own source on disk has changed — so it
+// needs no cooperation from whoever merged, and it self-corrects after any
+// crash. Nothing here writes a marker file; a marker written by a tick that
+// then died is exactly the class of bug this shape deletes.
+
+/** Where docker lives on a Mac, in the order worth trying. The launchd plist's
+ *  PATH does not include /usr/local/bin, so the watcher resolves the binary
+ *  itself rather than depending on a host plist edit. */
+export const DOCKER_CANDIDATES = Object.freeze([
+  '/usr/local/bin/docker',
+  '/opt/homebrew/bin/docker',
+  '/Applications/Docker.app/Contents/Resources/bin/docker',
+]);
+
+/**
+ * -> { bin: string|null, reason: 'override'|'candidate'|'override-missing'|'not-found' }
+ *
+ * An ADVANCE_DOCKER_BIN that does not exist returns null with reason
+ * `override-missing`, and NEVER falls through to the candidates: a typo in an
+ * explicit override must be loud, because falling through would "work" while
+ * silently ignoring what the operator asked for.
+ */
+export function resolveDockerBin(env, exists) {
+  const override = env.ADVANCE_DOCKER_BIN;
+  if (override) {
+    return exists(override) ? { bin: override, reason: 'override' } : { bin: null, reason: 'override-missing' };
+  }
+  for (const candidate of DOCKER_CANDIDATES) {
+    if (exists(candidate)) return { bin: candidate, reason: 'candidate' };
+  }
+  return { bin: null, reason: 'not-found' };
+}
+
+/** `git` by absolute path when we can — same reasoning as docker — but `git`
+ *  IS on the plist PATH, so the bare name is a sound fallback. */
+export function resolveGitBin(env, exists) {
+  if (env.ADVANCE_GIT_BIN) return env.ADVANCE_GIT_BIN;
+  return exists('/usr/bin/git') ? '/usr/bin/git' : 'git';
+}
+
+/**
+ * `git ls-tree HEAD -- <paths>` output -> a 16-hex build id.
+ *
+ * CARDINALITY FIRST, and it is the whole point: ls-tree prints one line per
+ * path that exists, and says nothing at all about one that does not. A digest
+ * over 8 of 9 inputs would be perfectly stable, entirely wrong, and would stop
+ * triggering rebuilds forever — a vacuous pass with no test to fail. So a line
+ * count that does not equal the expected path count is a refusal, not a digest.
+ *
+ * The lines are sorted before hashing so the id does not depend on git's
+ * output order.
+ */
+export function parseLsTree(stdout, expectedPaths) {
+  const lines = String(stdout ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l !== '');
+  const expected = expectedPaths.length;
+  if (lines.length !== expected) {
+    return { id: null, reason: 'inputs-missing', count: lines.length, expected };
+  }
+  const id = createHash('sha256').update([...lines].sort().join('\n')).digest('hex').slice(0, 16);
+  return { id, reason: 'ok', count: lines.length, expected };
+}
+
+/**
+ * Digest of the watcher's own source. `files` is [{ name, content }] — only
+ * `.mjs` (a README or plist-template edit must not restart the watcher). Sorted
+ * and NUL-delimited so neither readdir order nor a rename that shuffles bytes
+ * between files can produce a collision.
+ */
+export function watchSourceDigest(files) {
+  const hash = createHash('sha256');
+  for (const file of [...files].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    hash.update(file.name);
+    hash.update('\0');
+    hash.update(file.content);
+    hash.update('\0');
+  }
+  return hash.digest('hex').slice(0, 16);
+}
+
+/** tick-*.log and deploy-*.log share one retention rule and one pruner. */
+export function isPrunableLog(name) {
+  return (name.startsWith('tick-') || name.startsWith('deploy-')) && name.endsWith('.log');
+}
+
+/**
+ * One deploy-poll's decision. Pure, and the RULE ORDER IS THE SPECIFICATION —
+ * it is asserted in the tests, so do not reorder it for tidiness:
+ *
+ *   1 busy                            -> noop  busy
+ *   2 desired === null                -> noop  no-git
+ *   3 desired.dirty                   -> noop  inputs-dirty
+ *   4 running current + source changed -> restart-watcher
+ *   5 running current                 -> noop  current
+ *   6 no docker binary                -> noop  no-docker
+ *   7 failed attempt at this id, in cooldown -> noop cooldown
+ *   8 otherwise                       -> deploy stale-build
+ *
+ * Two consequences worth stating out loud. Rule 8 beating rule 4 means the
+ * CONTAINER is always brought current before the watcher restarts itself: one
+ * action per evaluation, never interleaved, and the restart happens on a later
+ * cycle. And the cooldown suppresses only a REPEAT of a failed attempt at the
+ * SAME id — a new merge changes the id and retries immediately, because the
+ * thing that failed is not the thing being asked for any more.
+ */
+export function decideDeploy({
+  desired,
+  running,
+  watcherSourceChanged,
+  busy,
+  dockerBin,
+  lastAttempt,
+  now,
+  cooldownMs,
+}) {
+  if (busy) return { action: 'noop', reason: 'busy' };
+  if (desired === null || desired === undefined) return { action: 'noop', reason: 'no-git' };
+  if (desired.dirty) return { action: 'noop', reason: 'inputs-dirty' };
+
+  const serving = Boolean(running) && typeof running.id === 'string' && running.id === desired.id;
+  if (serving && watcherSourceChanged) return { action: 'restart-watcher', reason: 'watcher-source-changed' };
+  if (serving) return { action: 'noop', reason: 'current' };
+
+  if (!dockerBin) return { action: 'noop', reason: 'no-docker' };
+  if (
+    lastAttempt &&
+    lastAttempt.id === desired.id &&
+    lastAttempt.outcome === 'fail' &&
+    now - lastAttempt.at < cooldownMs
+  ) {
+    return { action: 'noop', reason: 'cooldown' };
+  }
+  return { action: 'deploy', reason: 'stale-build' };
+}
+
 // --- thin effectful shell ----------------------------------------------------
 
 function pidAlive(pid) {
@@ -292,6 +466,12 @@ export function makeLockOps({
   pid = process.pid,
   isPidAlive = pidAlive,
   readFile = readFileSync,
+  // AS-75: what goes in the lock body's `source`. Defaults to 'watcher' so no
+  // existing call site changes. The deploy passes 'deploy', which costs no UI
+  // work at all: describeLoopStatus interpolates the source, so the sidebar
+  // reads `Tick in flight · deploy` for the duration of a rebuild and the tone
+  // stays `tick`. (Asserted in loop-label.test.js rather than assumed.)
+  source = 'watcher',
 }) {
   function parseLock() {
     try {
@@ -324,7 +504,7 @@ export function makeLockOps({
    * construction); the nonce targets pid reuse across time.
    */
   function acquireLock(nonce) {
-    const body = JSON.stringify({ pid, startedAt: new Date().toISOString(), source: 'watcher', nonce });
+    const body = JSON.stringify({ pid, startedAt: new Date().toISOString(), source, nonce });
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         writeFileSync(lockPath, body, { flag: 'wx' });
@@ -371,6 +551,370 @@ export function makeLockOps({
   return { acquireLock, releaseLock, readLock };
 }
 
+// --- AS-75: the deploy shell -------------------------------------------------
+
+/** Prune tick-*.log and deploy-*.log older than `cutoffMs`. Best-effort by
+ *  design: a log we cannot delete must never stop a tick or a deploy. */
+export function pruneLogs(logsDir, cutoffMs, { readdir = readdirSync, stat = statSync, unlink = unlinkSync } = {}) {
+  try {
+    for (const name of readdir(logsDir)) {
+      if (!isPrunableLog(name)) continue;
+      const full = join(logsDir, name);
+      if (stat(full).mtimeMs < cutoffMs) unlink(full);
+    }
+  } catch {
+    /* pruning is best-effort */
+  }
+}
+
+/** The watcher's own `.mjs` sources as [{ name, content }], for watchSourceDigest. */
+export function readWatchSources(dir, { readdir = readdirSync, readFile = readFileSync } = {}) {
+  return readdir(dir)
+    .filter((name) => name.endsWith('.mjs'))
+    .map((name) => ({ name, content: readFile(join(dir, name), 'utf8') }));
+}
+
+/** Synchronous command runner for the two git calls -> { code, stdout, stderr }.
+ *  A spawn error (binary missing) is a non-zero code, never a throw. */
+export function runSync(bin, args, opts = {}) {
+  const r = spawnSync(bin, args, { encoding: 'utf8', ...opts });
+  if (r.error) return { code: -1, stdout: '', stderr: r.error.message };
+  return { code: r.status ?? -1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
+}
+
+/** GET a JSON body, or null for unreachable / non-200 / unparsable. The
+ *  conflation is deliberate: every one of those means "the container is not
+ *  serving the build we asked about", and `up -d --build` is the right recovery
+ *  for all of them. The cooldown bounds the cost of being wrong. */
+export async function fetchJsonOrNull(url, timeoutMs) {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ac.signal });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * `docker compose up -d --build`, with the tick's timeout shape copied exactly
+ * (SIGTERM, 15s grace, SIGKILL) -> { code, signal, timedOut }.
+ *
+ * DOCKER_BUILDKIT / COMPOSE_DOCKER_CLI_BUILD are mandatory, not decoration:
+ * compose.yaml's own header records that under the legacy builder the
+ * `platform: linux/amd64` pin is ignored at build time, producing a native
+ * image that then refuses to start. The `./apps/chat/chat` wrapper forces the
+ * same two toggles for the same reason.
+ */
+export function runDockerCompose({ dockerBin, cwd, env, logPath, timeoutMs, log, spawnFn = spawn, createLog = createWriteStream }) {
+  return new Promise((resolve_) => {
+    const out = createLog(logPath, { flags: 'a' });
+    const proc = spawnFn(dockerBin, ['compose', '--progress', 'quiet', 'up', '-d', '--build'], {
+      cwd,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    proc.stdout.pipe(out, { end: false });
+    proc.stderr.pipe(out, { end: false });
+
+    let timedOut = false;
+    let killTimer = null;
+    const termTimer = setTimeout(() => {
+      timedOut = true;
+      log(`TIMEOUT deploy exceeded ${Math.round(timeoutMs / 60000)}min; SIGTERM`);
+      proc.kill('SIGTERM');
+      killTimer = setTimeout(() => proc.kill('SIGKILL'), 15 * 1000);
+      killTimer.unref();
+    }, timeoutMs);
+    termTimer.unref();
+
+    const done = (result) => {
+      clearTimeout(termTimer);
+      if (killTimer !== null) clearTimeout(killTimer);
+      if (!out.writableEnded) out.end();
+      resolve_(result);
+    };
+    proc.on('error', (err) => done({ code: -1, signal: null, timedOut, error: err.message }));
+    proc.on('exit', (code, signal) => done({ code, signal, timedOut }));
+  });
+}
+
+/**
+ * The deploy's effects, lifted out of main() exactly as AS-13 lifted the lock
+ * ops — and for exactly the same reason. AS-82 records that main() is never
+ * executed by the test suite, so anything left inside it is unguarded; this
+ * factory is the twin of makeLockOps, and every collaborator it needs is
+ * injectable so each branch below is a unit test with no git, no docker and no
+ * network.
+ *
+ * Returns { evaluate, isDeploying, dockerBin, dockerReason, baselineDigest,
+ *           computeDesired, probeRunning, lastAttempt }.
+ */
+export function makeDeployOps({
+  repoRoot,
+  appDir,
+  watchDir,
+  logsDir,
+  statePath,
+  lockPath,
+  lockStaleMs,
+  cooldownMs,
+  deployTimeoutMs,
+  retentionMs,
+  chatUrl = DEFAULTS.chatUrl,
+  log,
+  env = process.env,
+  now = () => Date.now(),
+  exists = existsSync,
+  run = runSync,
+  fetchJson = fetchJsonOrNull,
+  deploy = runDockerCompose,
+  readSources = readWatchSources,
+  writeState = defaultWriteState,
+  prune = pruneLogs,
+  exit = (code) => process.exit(code),
+  sleep = (ms) => new Promise((ok) => setTimeout(ok, ms)),
+  reprobeAttempts = 10,
+  reprobeDelayMs = 2_000,
+  probeTimeoutMs = 3_000,
+  pid = process.pid,
+  isPidAlive = pidAlive,
+  lockOps,
+}) {
+  const docker = resolveDockerBin(env, exists);
+  const gitBin = resolveGitBin(env, exists);
+  const paths = IMAGE_INPUTS.map((p) => `apps/chat/${p}`);
+  // A SECOND lock ops instance, over the same file, differing only in the
+  // `source` it writes. Mutual exclusion against loop/manual/watcher ticks uses
+  // the mechanism already in place rather than a second, drifting one.
+  const lock =
+    lockOps ?? makeLockOps({ lockPath, staleMs: lockStaleMs, log, pid, isPidAlive, source: 'deploy' });
+
+  let baselineDigest = null;
+  try {
+    baselineDigest = watchSourceDigest(readSources(watchDir));
+  } catch (err) {
+    log(`WARN cannot digest watcher source at startup (${err.message}); self-restart disabled`);
+  }
+
+  let deploying = false;
+  let lastAttempt = null;
+  let lastWarn = null;
+
+  /** One WARN per distinct condition, not one per poll (AS-13 #4's lesson). */
+  function warnOnce(key, line) {
+    if (lastWarn === key) return;
+    lastWarn = key;
+    log(`WARN ${line}`);
+  }
+
+  /** master's image-input digest -> { desired: {id,dirty}|null, reason }. */
+  function computeDesired() {
+    const tree = run(gitBin, ['ls-tree', 'HEAD', '--', ...paths], { cwd: repoRoot });
+    if (tree.code !== 0) {
+      warnOnce('no-git', `git ls-tree failed (${gitBin}, code ${tree.code}): ${tree.stderr.trim()}`);
+      return { desired: null, reason: 'no-git' };
+    }
+    const parsed = parseLsTree(tree.stdout, IMAGE_INPUTS);
+    if (parsed.id === null) {
+      warnOnce('inputs-missing', `git ls-tree returned ${parsed.count} of ${parsed.expected} image inputs; refusing to digest a short set`);
+      return { desired: null, reason: 'inputs-missing' };
+    }
+    const status = run(gitBin, ['status', '--porcelain', '--', ...paths], { cwd: repoRoot });
+    if (status.code !== 0) {
+      warnOnce('no-git', `git status failed (${gitBin}, code ${status.code}): ${status.stderr.trim()}`);
+      return { desired: null, reason: 'no-git' };
+    }
+    const dirty = status.stdout.trim() !== '';
+    if (dirty) warnOnce(`dirty:${parsed.id}`, `apps/chat image inputs are dirty at ${parsed.id}; deploying committed code only`);
+    else if (lastWarn !== null) lastWarn = null;
+    return { desired: { id: parsed.id, dirty }, reason: dirty ? 'inputs-dirty' : 'ok' };
+  }
+
+  /** What the container says it is serving -> { id } | null. */
+  async function probeRunning() {
+    const body = await fetchJson(`${chatUrl}/api/build`, probeTimeoutMs);
+    if (!body || typeof body !== 'object' || !body.build || typeof body.build.id !== 'string') return null;
+    return { id: body.build.id };
+  }
+
+  /** Any FRESH advance.lock, ours or foreign: a live session mid-tick may be
+   *  writing to the chat API, and rebuilding under it restarts the server
+   *  mid-write. Reuses readLock + isLockStale rather than writing a second
+   *  staleness rule that would drift from the first. */
+  function lockIsBusy(nowMs) {
+    const held = lock.readLock();
+    if (!held) return false;
+    return !isLockStale(held, nowMs, lockStaleMs).stale;
+  }
+
+  function currentDigest() {
+    try {
+      return watchSourceDigest(readSources(watchDir));
+    } catch {
+      return null; // unreadable source is not a reason to restart
+    }
+  }
+
+  function persist(fields) {
+    try {
+      writeState(statePath, {
+        desiredId: null,
+        dirty: false,
+        reason: 'no-git',
+        desiredReason: 'no-git',
+        dockerBin: docker.bin,
+        dockerReason: docker.reason,
+        computedAt: new Date(now()).toISOString(),
+        lastAttempt: lastAttempt && { ...lastAttempt, at: new Date(lastAttempt.at).toISOString() },
+        ...fields,
+      });
+    } catch (err) {
+      log(`WARN cannot write ${statePath} (${err.message}); the indicator degrades, the deploy does not`);
+    }
+  }
+
+  /** A deploy is successful because the thing that is RUNNING changed — not
+   *  because a command exited 0. Poll /api/build until it agrees or we give up. */
+  async function reprobe(wantedId) {
+    for (let attempt = 0; attempt < reprobeAttempts; attempt++) {
+      await sleep(reprobeDelayMs);
+      const probed = await probeRunning();
+      if (probed && probed.id === wantedId) return probed;
+    }
+    return probeRunning();
+  }
+
+  async function performDeploy(desiredId) {
+    if (!lock.acquireLock(fireNonce())) {
+      log(`SKIP deploy aborted: lock acquisition failed (build ${desiredId})`);
+      return;
+    }
+    deploying = true;
+    prune(logsDir, now() - retentionMs);
+    const logPath = join(logsDir, `deploy-${new Date(now()).toISOString().replaceAll(':', '-')}.log`);
+    const startedAt = now();
+    log(`DEPLOY building ${desiredId} -> ${logPath}`);
+
+    let outcome = 'fail';
+    let detail = '';
+    try {
+      const result = await deploy({
+        dockerBin: docker.bin,
+        cwd: appDir,
+        logPath,
+        timeoutMs: deployTimeoutMs,
+        log,
+        env: {
+          PATH: env.PATH,
+          HOME: env.HOME,
+          USER: env.USER,
+          LOGNAME: env.LOGNAME,
+          DOCKER_BUILDKIT: '1',
+          COMPOSE_DOCKER_CLI_BUILD: '1',
+          CHAT_BUILD_ID: desiredId,
+        },
+      });
+      if (result.code !== 0) {
+        detail = `exit ${result.code}${result.timedOut ? ' (timeout)' : ''}${result.error ? ` ${result.error}` : ''}`;
+      } else {
+        const probed = await reprobe(desiredId);
+        if (probed && probed.id === desiredId) {
+          outcome = 'ok';
+          detail = `serving ${desiredId}`;
+        } else {
+          detail = `id-mismatch (serving ${probed ? probed.id : 'nothing'})`;
+        }
+      }
+    } catch (err) {
+      detail = `error ${err.message}`;
+    } finally {
+      lock.releaseLock();
+      deploying = false;
+    }
+    lastAttempt = { id: desiredId, at: now(), outcome, detail };
+    log(`DEPLOY ${outcome} ${desiredId} (${detail}) after ${Math.round((now() - startedAt) / 1000)}s`);
+  }
+
+  function restartWatcher(oldDigest, newDigest) {
+    log(`RESTART watcher source changed (${oldDigest} -> ${newDigest}); exiting for launchd relaunch`);
+    lock.releaseLock();
+    // advance-watcher.pid is deliberately LEFT IN PLACE — unlinking it the way
+    // shutdown() does would blink the sidebar to `Off · no watcher` on every
+    // self-update. A briefly stale heartbeat is the honest, quieter signal.
+    // Non-zero exit on purpose: it relaunches under KeepAlive:true AND under
+    // KeepAlive:{SuccessfulExit:false}, so the restart does not depend on which
+    // semantics the plist has. `launchctl print` will show LastExitStatus 70
+    // after a self-update; that is expected, not a crash.
+    exit(70);
+  }
+
+  /**
+   * One deploy-poll. `busy` is what the caller knows (our own tick child); the
+   * foreign-lock half is checked here. At most one action per call.
+   */
+  async function evaluate({ busy = false } = {}) {
+    if (deploying) return { action: 'noop', reason: 'busy' };
+    const nowMs = now();
+    const { desired, reason: desiredReason } = computeDesired();
+    const running = await probeRunning();
+    const digest = currentDigest();
+    const decision = decideDeploy({
+      desired,
+      running,
+      watcherSourceChanged: baselineDigest !== null && digest !== null && digest !== baselineDigest,
+      busy: busy || lockIsBusy(nowMs),
+      dockerBin: docker.bin,
+      lastAttempt,
+      now: nowMs,
+      cooldownMs,
+    });
+    persist({
+      desiredId: desired ? desired.id : null,
+      dirty: Boolean(desired && desired.dirty),
+      runningId: running ? running.id : null,
+      reason: decision.reason,
+      desiredReason,
+    });
+    if (decision.action === 'deploy') {
+      await performDeploy(desired.id);
+      persist({
+        desiredId: desired.id,
+        dirty: false,
+        runningId: running ? running.id : null,
+        reason: decision.reason,
+        desiredReason,
+      });
+    } else if (decision.action === 'restart-watcher') {
+      restartWatcher(baselineDigest, digest);
+    }
+    return decision;
+  }
+
+  return {
+    evaluate,
+    computeDesired,
+    probeRunning,
+    isDeploying: () => deploying,
+    dockerBin: docker.bin,
+    dockerReason: docker.reason,
+    gitBin,
+    baselineDigest,
+    lastAttempt: () => lastAttempt,
+  };
+}
+
+/** tmp + rename, the same atomic pattern every other file this watcher writes
+ *  uses: a reader in the container must never observe a half-written body. */
+function defaultWriteState(path, body) {
+  writeFileSync(path + '.tmp', JSON.stringify(body));
+  renameSync(path + '.tmp', path);
+}
+
 function main() {
   const config = loadConfig();
   const dataDir = join(config.repoRoot, 'apps', 'chat', 'data');
@@ -382,6 +926,7 @@ function main() {
     pid: join(dataDir, 'advance-watcher.pid'),
     log: join(logsDir, 'advance-watcher.log'),
     settings: join(config.repoRoot, '.claude', 'settings.json'),
+    deployState: join(dataDir, 'deploy-state.json'), // AS-75
   };
   mkdirSync(logsDir, { recursive: true });
 
@@ -454,17 +999,11 @@ function main() {
     pid: process.pid,
   });
 
+  // AS-75: the loop moved to the exported pruneLogs (which also covers
+  // deploy-*.log, on the same retention) so it is under test rather than
+  // stranded inside main(); this stays as the fire-time call site.
   function pruneTickLogs() {
-    const cutoff = Date.now() - config.tickLogRetentionDays * 24 * 60 * 60 * 1000;
-    try {
-      for (const name of readdirSync(logsDir)) {
-        if (!name.startsWith('tick-') || !name.endsWith('.log')) continue;
-        const full = join(logsDir, name);
-        if (statSync(full).mtimeMs < cutoff) unlinkSync(full);
-      }
-    } catch {
-      /* pruning is best-effort */
-    }
+    pruneLogs(logsDir, Date.now() - config.tickLogRetentionDays * 24 * 60 * 60 * 1000);
   }
 
   function fire(sentinel) {
@@ -586,6 +1125,7 @@ function main() {
       /* heartbeat is best-effort; the indicator degrades, the watcher does not */
     }
     if (child) return; // our own tick is running; its lock covers this window
+    if (deployOps.isDeploying()) return; // AS-75: a rebuild is restarting the server
     const sentinel = readSentinel();
     const result = decide({
       sentinel,
@@ -614,6 +1154,30 @@ function main() {
     }
   }
 
+  // AS-75 deploy poll. Everything it does lives in makeDeployOps (exported,
+  // unit-tested); these six lines are the entire unguarded wiring, and they are
+  // enumerated in the implementation report so a reviewer can check the claim
+  // against the diff rather than re-derive it. `void` because evaluate() is
+  // async and a rejected promise here must not become an unhandled rejection —
+  // every branch inside it already handles its own failure.
+  const deployOps = makeDeployOps({
+    repoRoot: config.repoRoot,
+    appDir: join(config.repoRoot, 'apps', 'chat'),
+    watchDir: dirname(fileURLToPath(import.meta.url)),
+    logsDir,
+    statePath: paths.deployState,
+    lockPath: paths.lock,
+    lockStaleMs: config.lockStaleMin * 60 * 1000,
+    cooldownMs: config.deployCooldownMin * 60 * 1000,
+    deployTimeoutMs: config.deployTimeoutMin * 60 * 1000,
+    retentionMs: config.tickLogRetentionDays * 24 * 60 * 60 * 1000,
+    chatUrl: config.chatUrl,
+    log,
+  });
+  log(`DEPLOY-POLL every ${config.deployPollS}s (docker ${deployOps.dockerBin ?? `unresolved: ${deployOps.dockerReason}`}, git ${deployOps.gitBin}, watcher source ${deployOps.baselineDigest})`);
+  const deployInterval = setInterval(() => void deployOps.evaluate({ busy: Boolean(child) }), config.deployPollS * 1000);
+  deployInterval.unref();
+
   log(
     `START watcher pid ${process.pid} repo ${config.repoRoot} ` +
       `(poll ${config.pollS}s, debounce ${config.debounceS}s, timeout ${config.tickTimeoutMin}min, ` +
@@ -625,6 +1189,7 @@ function main() {
   function shutdown(signal) {
     log(`STOP ${signal}`);
     clearInterval(interval);
+    clearInterval(deployInterval);
     if (child) {
       log('STOP terminating in-flight tick');
       child.kill('SIGTERM');

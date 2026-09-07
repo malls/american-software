@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { createChatServer, LOOP_POLL_MS } from '../server.js';
+import { createChatServer, LOOP_POLL_MS, composeBuild } from '../server.js';
 import { DEFAULTS } from '../watch/advance-watcher.mjs';
 
 const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
@@ -1177,12 +1177,13 @@ function loopFixture(t) {
   t.after(() => rmSync(dataDir, { recursive: true, force: true }));
   const lock = join(dataDir, 'advance.lock');
   const pid = join(dataDir, 'advance-watcher.pid');
+  const deploy = join(dataDir, 'deploy-state.json');
   const iso = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString();
   return {
     dataDir,
-    /** Plant one of the four file configurations. */
-    plant({ lockBody = null, pidBody = null }) {
-      for (const [path, body] of [[lock, lockBody], [pid, pidBody]]) {
+    /** Plant one of the four file configurations (AS-75 adds a third file). */
+    plant({ lockBody = null, pidBody = null, deployBody = null }) {
+      for (const [path, body] of [[lock, lockBody], [pid, pidBody], [deploy, deployBody]]) {
         if (body === null) {
           try { unlinkSync(path); } catch { /* already absent */ }
         } else {
@@ -1194,6 +1195,11 @@ function loopFixture(t) {
     staleLock: (source = 'loop') => ({ pid: 5285, startedAt: iso(-(DEFAULTS.lockStaleMin * 60 * 1000) - 60_000), source }),
     livePid: () => ({ pid: 96123, startedAt: iso(-3_600_000), heartbeatAt: iso(-2_000) }),
     legacyPid: () => ({ pid: 96123, startedAt: iso(-3_600_000) }),
+    /** AS-75: what the watcher last decided, as it writes it. */
+    deployState: (over = {}) => ({
+      desiredId: 'aaaaaaaaaaaaaaaa', dirty: false, reason: 'current',
+      dockerBin: '/usr/local/bin/docker', computedAt: iso(-5_000), lastAttempt: null, ...over,
+    }),
   };
 }
 
@@ -1320,4 +1326,129 @@ test('api: AS-27 — loop-status.js is served and imported; the production poll 
   for (const marker of ['id="loop-status"', 'id="loop-label"', 'role="status"', 'class="loop-dot"']) {
     assert.ok(html.includes(marker), `index.html ships ${marker}`);
   }
+});
+
+// --- AS-75: the build endpoint and the merged-vs-deployed indicator ----------
+
+test('api: AS-75 — GET /api/build reports the baked id, and "unknown"/absent as not-an-id', async (t) => {
+  // Cardinality first: three images' worth of build stamps.
+  const cases = [
+    ['a real id', 'a1b2c3d4e5f60718', 'a1b2c3d4e5f60718', 'a1b2c3d4e5f60718'],
+    ['a hand build', 'unknown', null, 'unknown'],
+    ['a pre-AS-75 image', null, null, null],
+  ];
+  assert.equal(cases.length, 3, 'three build stamps examined');
+  for (const [name, baked, expectedId, expectedRaw] of cases) {
+    const { get } = await bootServer(t, FIXTURE_ROOT, { buildId: baked });
+    const res = await get('/api/build');
+    assert.equal(res.status, 200, name);
+    assert.deepEqual(Object.keys(res.data), ['build'], name);
+    assert.equal(res.data.build.id, expectedId, `${name}: id`);
+    assert.equal(res.data.build.raw, expectedRaw, `${name}: raw keeps the distinction visible`);
+    assert.ok(Number.isFinite(Date.parse(res.data.build.startedAt)), `${name}: startedAt is a real timestamp`);
+  }
+
+  // No 'me' gate, exactly like /api/loop-status: the answer is the same for
+  // everyone and there is no identity to fail.
+  const { get } = await bootServer(t, FIXTURE_ROOT, { buildId: 'a1b2c3d4e5f60718' });
+  const anon = await get('/api/build');
+  const ghost = await get('/api/build?me=agent:ghost');
+  assert.deepEqual(anon.data, ghost.data);
+});
+
+test('api: AS-75 — /api/loop-status carries build, and current is null (never false) whenever we cannot know', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir, buildId: 'aaaaaaaaaaaaaaaa' });
+
+  // Cardinality first: six configurations, five of which must answer null.
+  const cases = [
+    ['no deploy-state.json', { pidBody: fx.livePid(), deployBody: null }, null, 'no-state'],
+    ['unparsable deploy-state.json', { pidBody: fx.livePid(), deployBody: 'not json{' }, null, 'unreadable-state'],
+    ['empty deploy-state.json', { pidBody: fx.livePid(), deployBody: '' }, null, 'unreadable-state'],
+    ['watcher not listening', { pidBody: null, deployBody: fx.deployState() }, null, 'no-watcher'],
+    ['deploy report gone stale', { pidBody: fx.livePid(), deployBody: fx.deployState({ computedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString() }) }, null, 'stale-state'],
+    ['everything present and matching', { pidBody: fx.livePid(), deployBody: fx.deployState() }, true, 'current'],
+  ];
+  assert.equal(cases.length, 6, 'six configurations examined');
+  const seen = [];
+  for (const [name, files, expectedCurrent, expectedReason] of cases) {
+    fx.plant(files);
+    const res = await get('/api/loop-status');
+    assert.equal(res.status, 200, name);
+    const b = res.data.status.build;
+    assert.ok(b, `${name}: the build key is present`);
+    assert.equal(b.current, expectedCurrent, `${name}: current`);
+    assert.equal(b.reason, expectedReason, `${name}: reason`);
+    assert.equal(b.id, 'aaaaaaaaaaaaaaaa', `${name}: the running id is first-hand and always known here`);
+    seen.push(b.current);
+  }
+  // Five nulls and one true — if `false` had leaked into any of the five, the
+  // sidebar would have told the board it is behind on the strength of a dead
+  // reporter. That is the whole point of the tri-state.
+  assert.equal(seen.filter((c) => c === null).length, 5);
+  assert.equal(seen.filter((c) => c === false).length, 0);
+
+  // A genuinely behind build — the ONE case that may report false.
+  fx.plant({ pidBody: fx.livePid(), deployBody: fx.deployState({ desiredId: 'bbbbbbbbbbbbbbbb', reason: 'stale-build' }) });
+  const behind = (await get('/api/loop-status')).data.status.build;
+  assert.equal(behind.current, false);
+  assert.equal(behind.desiredId, 'bbbbbbbbbbbbbbbb');
+  assert.equal(behind.reason, 'stale-build');
+
+  // And an image with no baked id cannot claim currency, even against a fresh
+  // report that happens to agree with nothing.
+  const unstamped = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir, buildId: 'unknown' });
+  const u = (await unstamped.get('/api/loop-status')).data.status.build;
+  assert.equal(u.id, null);
+  assert.equal(u.current, null);
+  assert.equal(u.reason, 'unknown-build');
+});
+
+test('api: AS-75 — a malformed deploy-state.json never throws and never changes state', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir, buildId: 'aaaaaaaaaaaaaaaa' });
+
+  // Same degradation contract as the AS-27 files: four malformed bodies, four
+  // 200s, and the four loop states must be exactly what they would have been
+  // with no deploy-state.json at all.
+  const malformed = ['not json{', '', '[]', '{"desiredId": 42, "computedAt": "yesterday"}'];
+  assert.equal(malformed.length, 4, 'four malformed bodies examined');
+  for (const body of malformed) {
+    fx.plant({ lockBody: fx.freshLock('watcher'), pidBody: fx.livePid(), deployBody: body });
+    const r = await get('/api/loop-status');
+    assert.equal(r.status, 200, body);
+    assert.equal(r.data.status.state, 'tick', `${body}: the loop state is untouched by the deploy report`);
+    assert.equal(r.data.status.build.current, null, `${body}: never a claim we cannot support`);
+  }
+
+  // Still alive and correct afterwards.
+  fx.plant({ lockBody: null, pidBody: fx.livePid(), deployBody: fx.deployState() });
+  const ok = await get('/api/loop-status');
+  assert.equal(ok.data.status.state, 'idle');
+  assert.equal(ok.data.status.build.current, true);
+});
+
+test('api: AS-75 — composeBuild is pure and tri-state at the unit level', () => {
+  const now = Date.parse('2026-09-04T12:00:00.000Z');
+  const state = (over = {}) => ({
+    desiredId: 'aaaaaaaaaaaaaaaa', dirty: false, reason: 'current',
+    computedAt: new Date(now - 5_000).toISOString(), ...over,
+  });
+  const call = (over = {}) =>
+    composeBuild({ buildId: 'aaaaaaaaaaaaaaaa', deployState: state(), watcherListening: true, nowMs: now, ...over });
+
+  assert.equal(call().current, true);
+  assert.equal(call({ deployState: state({ desiredId: 'bbbbbbbbbbbbbbbb' }) }).current, false);
+  assert.equal(call({ deployState: null }).reason, 'no-state');
+  assert.equal(call({ deployState: { error: 'unparsable' } }).reason, 'unreadable-state');
+  assert.equal(call({ watcherListening: false }).reason, 'no-watcher');
+  assert.equal(call({ buildId: null }).reason, 'unknown-build');
+  assert.equal(call({ deployState: state({ computedAt: null }) }).reason, 'stale-state');
+  assert.equal(call({ deployState: state({ desiredId: null, reason: 'no-git' }) }).current, null);
+  assert.equal(call({ deployState: state({ desiredId: null, reason: 'no-git' }) }).reason, 'no-git');
+
+  // Purity: the same arguments give the same answer, and nothing about the
+  // inputs is mutated.
+  const frozen = Object.freeze(state());
+  assert.deepEqual(call({ deployState: frozen }), call({ deployState: frozen }));
 });

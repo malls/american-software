@@ -53,6 +53,48 @@ const HEARTBEAT_MS = 25_000;
 // answers a human question, not a machine one.
 export const LOOP_POLL_MS = 2_000;
 
+// AS-75: how old apps/chat/data/deploy-state.json may be before the server
+// stops believing it. The watcher rewrites that file on every deploy-poll
+// (default 60s), so ten minutes is ten missed polls — comfortably past a slow
+// emulated build, comfortably short of "the reporter died an hour ago and the
+// board is still reading its last opinion".
+export const DEPLOY_STATE_STALE_MS = 10 * 60 * 1000;
+
+/**
+ * AS-75: the `build` half of /api/loop-status — is the code serving this
+ * request the code on master?
+ *
+ * Pure, and exported so it can be driven straight from the test suite. It
+ * composes two independent facts: the id baked into THIS image (what is
+ * running, first-hand) and the id the host watcher computed from master (what
+ * should be running, reported through deploy-state.json).
+ *
+ * `current` is TRI-STATE and the third state is the point. It is `null` — never
+ * `false` — whenever we cannot know: no deploy-state file, an unreadable one,
+ * one too old to trust, a watcher that is not listening, or an image with no
+ * baked id. `false` is reserved for "we have both ids and they differ". An
+ * indicator that reported `false` because its reporter is dead would be the
+ * same confident wrong answer this task exists to delete.
+ */
+export function composeBuild({ buildId, deployState, watcherListening, nowMs, staleMs = DEPLOY_STATE_STALE_MS }) {
+  const id = buildId ?? null;
+  const blank = { id, desiredId: null, current: null, checkedAt: null };
+  if (deployState === null) return { ...blank, reason: 'no-state' };
+  if (typeof deployState !== 'object' || deployState.error) return { ...blank, reason: 'unreadable-state' };
+
+  const checkedAt = typeof deployState.computedAt === 'string' ? deployState.computedAt : null;
+  const desiredId = typeof deployState.desiredId === 'string' ? deployState.desiredId : null;
+  const reason = typeof deployState.reason === 'string' ? deployState.reason : 'unreadable-state';
+  const out = { id, desiredId, current: null, reason, checkedAt };
+
+  const at = Date.parse(checkedAt);
+  if (!Number.isFinite(at) || nowMs - at > staleMs) return { ...out, reason: 'stale-state' };
+  if (!watcherListening) return { ...out, reason: 'no-watcher' };
+  if (id === null) return { ...out, reason: 'unknown-build' };
+  if (desiredId === null) return out; // the watcher itself could not compute one
+  return { ...out, current: id === desiredId };
+}
+
 // --- AS-26 §5: gated repo markdown reads for the in-app file viewer ---------
 // No 'me' gate and no store involvement: everything servable under this gate
 // is repo-public by construction. Load-bearing invariant (AS-6): nobody may
@@ -118,7 +160,16 @@ function storeErrorStatus(e) {
     : 400;
 }
 
-export function createChatServer({ dbPath, repoRoot, dataDir, loopPollMs = LOOP_POLL_MS } = {}) {
+export function createChatServer({
+  dbPath,
+  repoRoot,
+  dataDir,
+  loopPollMs = LOOP_POLL_MS,
+  // AS-75: the id baked into this image by the Dockerfile's ARG BUILD_ID.
+  // Taken RAW, `unknown` included — normalising happens once, below, so both
+  // /api/build and /api/loop-status answer from the same judgement.
+  buildId = process.env.CHAT_BUILD_ID ?? null,
+} = {}) {
   const store = openStore(dbPath || process.env.CHAT_DB || join(APP_DIR, 'data', 'chat.db'));
   const root = repoRoot || latticeRoot();
   // AS-27: where the watcher and the tick lock write. Defaults to the real
@@ -129,6 +180,18 @@ export function createChatServer({ dbPath, repoRoot, dataDir, loopPollMs = LOOP_
   const LOCK_PATH = join(loopDir, 'advance.lock');
   const WATCHER_PID_PATH = join(loopDir, 'advance-watcher.pid');
   const LOCK_STALE_MS = DEFAULTS.lockStaleMin * 60 * 1000;
+  // AS-75: what the host watcher last decided about the deploy. Same directory,
+  // same degradation contract as the two files above.
+  const DEPLOY_STATE_PATH = join(loopDir, 'deploy-state.json');
+  // `unknown` is what an image built by hand (no CHAT_BUILD_ID in the env)
+  // carries. It is not an id — treating it as one would let a hand-built image
+  // claim currency it cannot have — so it normalises to null, exactly like an
+  // absent variable. RAW_BUILD_ID keeps the distinction visible at /api/build.
+  const RAW_BUILD_ID = buildId ?? null;
+  const BUILD_ID = RAW_BUILD_ID && RAW_BUILD_ID !== 'unknown' ? RAW_BUILD_ID : null;
+  // When this process started serving — the other half of "what code, since
+  // when". Captured once, here, not per request.
+  const SERVER_STARTED_AT = new Date().toISOString();
 
   // Ingest on startup; then throttled on API traffic (no daemons — a page
   // refresh is what makes the feed current).
@@ -191,7 +254,17 @@ export function createChatServer({ dbPath, repoRoot, dataDir, loopPollMs = LOOP_
     } else if (lastTick && lastTick.endedAt === null) {
       lastTick = { ...lastTick, endedAt: new Date(nowMs).toISOString() };
     }
-    return { ...status, lastTick };
+    // AS-75: composed here, not in lib/loop-status.js — deriveLoopStatus stays
+    // pure and its four states stay exactly four. `build` rides alongside
+    // `lastTick` for the same reason: both are server-side compositions over
+    // the derived status, not new states of it.
+    const build = composeBuild({
+      buildId: BUILD_ID,
+      deployState: readLoopFile(DEPLOY_STATE_PATH),
+      watcherListening: status.watcher.listening,
+      nowMs,
+    });
+    return { ...status, lastTick, build };
   }
 
   // What counts as a CHANGE worth a push frame. Deliberately excludes every
@@ -205,6 +278,11 @@ export function createChatServer({ dbPath, repoRoot, dataDir, loopPollMs = LOOP_
       staleLock: s.staleLock && { source: s.staleLock.source, startedAt: s.staleLock.startedAt, reason: s.staleLock.reason },
       listening: s.watcher.listening,
       reason: s.watcher.reason ?? null,
+      // AS-75: a staleness CHANGE is worth a frame; the timestamp it was
+      // observed at is not. `build.checkedAt` moves on every deploy-poll, so
+      // including it would emit a frame per poll to every connection forever —
+      // the same reason every age field is excluded above.
+      build: { id: s.build.id, desiredId: s.build.desiredId, current: s.build.current },
     });
 
   // --- AS-25: SSE push delivery ---------------------------------------------
@@ -295,6 +373,17 @@ export function createChatServer({ dbPath, repoRoot, dataDir, loopPollMs = LOOP_
       // AS-16 `nonce` is the anti-spoof token and is never copied into this
       // payload (enforced in lib/loop-status.js, asserted in its tests).
       return { status: readLoopStatus() };
+    }
+    if (req.method === 'GET' && pathname === '/api/build') {
+      // AS-75: what code is actually serving, first-hand. The watcher reads
+      // this rather than a file the deployer wrote: a file records intent, this
+      // records reality, and the difference between the two is the whole
+      // subject of AS-75. Nothing viewer-relative, same as /api/loop-status.
+      //
+      // `id` is null for an image with no baked id AND for one stamped
+      // `unknown` (a hand build) — neither can honestly claim to be a version.
+      // `raw` keeps the two distinguishable for a human debugging a deploy.
+      return { build: { id: BUILD_ID, raw: RAW_BUILD_ID, startedAt: SERVER_STARTED_AT } };
     }
     if (req.method === 'GET' && pathname === '/api/org') {
       // AS-33: the org chart's data source — active employees with their

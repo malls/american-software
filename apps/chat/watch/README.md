@@ -39,9 +39,87 @@ into something load-bearing.
 | `advance-watcher.pid` | watcher | single-instance guard + liveness heartbeat (AS-27) |
 | `logs/advance-watcher.log` | watcher | lifecycle: fires, skips (with reason), steals, exit codes |
 | `logs/tick-<timestamp>.log` | watcher | full stdout+stderr of each fired tick; pruned after 14 days |
+| `logs/deploy-<timestamp>.log` | watcher | full output of each unattended rebuild (AS-75); same 14-day pruning |
+| `deploy-state.json` | watcher | AS-75: what the last deploy-poll decided — `{desiredId, dirty, reason, desiredReason, runningId, dockerBin, dockerReason, computedAt, lastAttempt}`. The chat server reads it for the sidebar's build line. |
 | `logs/launchd.{out,err}.log` | launchd | crashes before our logger exists |
 
 **The board's first stop after a weird unattended run is `apps/chat/data/logs/`.**
+
+## AS-75: the watcher also deploys, and restarts itself
+
+Merged `apps/chat` code used to sit on master until a human ran
+`docker compose up -d --build` by hand — five times, over two days. It no
+longer does. Every `ADVANCE_DEPLOY_POLL_S` seconds (default 60) the watcher
+evaluates a pure predicate over three observable facts and takes **at most one
+action**:
+
+1. **desired** — a sha256 over `git ls-tree HEAD` of the nine image inputs
+   (`IMAGE_INPUTS`, kept equal to the Dockerfile's `COPY` set by
+   `test/deploy-shape.test.js`). Deliberately not the whole `apps/chat`
+   directory: `data/export/` is tracked and rewritten by every records export,
+   so a directory-wide digest would rebuild the image on chat traffic.
+2. **running** — the id the container itself reports at `GET /api/build`, baked
+   at build time by the Dockerfile's `ARG BUILD_ID`. The endpoint, not a file
+   the deployer wrote: a file records intent, the endpoint records reality.
+3. **watcher source** — a digest of `watch/*.mjs` on disk versus the one taken
+   at startup.
+
+`desired ≠ running` → rebuild. Container current but this file changed →
+**exit for launchd to relaunch**. Otherwise → nothing. It is level-triggered,
+so it needs no cooperation from whoever merged and it recovers on its own after
+a crash; there is no marker file and no merge-step hook.
+
+**Why the watcher and not a tick.** The permission layer that denies `docker`
+belongs to Claude Code and applies to the *tick child*, not to this process —
+launchd runs plain node here, and it may spawn anything the user can run. The
+only obstacle was `PATH`, and the watcher sidesteps it by resolving the binary
+itself: `ADVANCE_DOCKER_BIN` if set (used verbatim; **if it is set and missing
+the watcher refuses and says so — it never falls through to a candidate**),
+otherwise `/usr/local/bin/docker`, `/opt/homebrew/bin/docker`,
+`/Applications/Docker.app/Contents/Resources/bin/docker`. No plist edit is
+required for any of this to work.
+
+**The self-restart contract.** The watcher cannot `launchctl kickstart` itself
+(it would be killing the process issuing the command) and does not need to:
+`RunAtLoad` + `KeepAlive` mean launchd relaunches the job when it exits, from
+the on-disk file — i.e. on the new code. It exits with `process.exit(70)`, and
+the non-zero status is deliberate: it relaunches under `KeepAlive: true` *and*
+under `KeepAlive: {SuccessfulExit: false}`, so the restart does not depend on
+which semantics the plist has. **`launchctl print` will therefore show a
+non-zero `LastExitStatus` (70) after a self-update. That is expected, not a
+crash.** `advance-watcher.pid` is deliberately left in place across the restart:
+unlinking it would blink the board's sidebar to `Off · no watcher` on every
+watcher update, and a briefly stale heartbeat is the quieter, honest signal.
+
+**Refusals, all of which say so in `deploy-state.json` and in the sidebar:**
+
+| Reason | Meaning |
+|---|---|
+| `busy` | any fresh `advance.lock` — a rebuild restarts the server, and must never land under a tick mid-write to the chat API |
+| `inputs-dirty` | uncommitted changes under the nine paths. "Merged code is live" means *committed* code; baking uncommitted bytes under a label claiming to be `HEAD` is worse than being stale |
+| `no-git` / short input set | the digest could not be computed. A digest over 8 of 9 inputs would be stable, wrong, and would stop triggering rebuilds forever, so a short `ls-tree` is a refusal, not a shorter digest |
+| `no-docker` | the binary did not resolve; set `ADVANCE_DOCKER_BIN` in the plist |
+| `cooldown` | the last attempt at *this same id* failed less than `ADVANCE_DEPLOY_COOLDOWN_MIN` (30) ago. A new merge changes the id and retries immediately |
+
+**A deploy is "ok" only when the thing that is RUNNING changed.** After the
+build exits the watcher re-probes `/api/build`; exit code 0 with a mismatched id
+is recorded as `outcome: 'fail'`, reason `id-mismatch`. A command's exit status
+is not evidence of a deployment.
+
+**Known failure mode (accepted):** new watcher code that crashes at startup
+makes launchd crash-loop, and there is then no watcher at all. The AS-27
+indicator reports `Off · no watcher`, which is the honest signal and exactly
+what it was built for. First stop is `logs/launchd.err.log`.
+
+**Known limit (accepted):** a `/loop` session holding the lock nearly
+continuously delays the deploy. A loop releases the lock between ticks
+(`advance.md` step 6) and the poll is level-triggered, so the deploy lands in
+the first gap. While it runs, the sidebar reads `Tick in flight · deploy`
+(~1 s when the layer cache is warm; minutes for a cold emulated build).
+
+Env knobs: `ADVANCE_DEPLOY_POLL_S` (60), `ADVANCE_DEPLOY_TIMEOUT_MIN` (15),
+`ADVANCE_DEPLOY_COOLDOWN_MIN` (30), `ADVANCE_DOCKER_BIN`, `ADVANCE_GIT_BIN`,
+`ADVANCE_CHAT_URL` (`http://127.0.0.1:8347`).
 
 ## Prerequisites
 
@@ -163,6 +241,14 @@ tests if the allowlist is too narrow — denials show up in the tick log.
 - **Watcher fires while a loop is running** → the loop tick forgot the lock
   (step 0 of `advance.md`). Benign — the second tick finds no work — but
   worth a nudge; see the lock-etiquette note above.
+- **A merge to `apps/chat` did not go live** → read `data/deploy-state.json`.
+  Its `reason` names the refusal and the table above says what each one means;
+  `logs/deploy-*.log` has the build output. `dockerBin: null` with
+  `dockerReason: "override-missing"` means `ADVANCE_DOCKER_BIN` points at
+  nothing.
+- **`launchctl print` shows `LastExitStatus = 70`** → not a crash. That is the
+  watcher having self-updated after its own source changed; see the
+  self-restart contract above.
 
 ## Linux deployment caveat
 
