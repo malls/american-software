@@ -124,6 +124,10 @@ When in doubt, create the task. A small task costs nothing. Lost visibility cost
 
 **Recurring observations become tasks.** If you observe the same issue in 2+ consecutive sessions or advances (e.g., a failing test, a lint warning, a flaky behavior), create a task for it. Agents are disciplined about tracking assigned work but not discovered work — this convention closes that gap. Create discovered issues at `needs_human` if they need scoping, or `backlog` if they're well-understood.
 
+### Scheduling priority (board directive, DM msg 557, 2026-09-07)
+
+After in-flight work completes its current lifecycle, every open task on the chat app and its tooling — titles beginning `Chat:`, plus the watcher/harness follow-ups under `apps/chat` (the AS-75 F-series AS-84..AS-88, AS-81, AS-82, AS-61) — is scheduled before any further D1 core-product task (AS-46/47/48/49/50/69/70/71 and AS-90's build stage), unless the board exempts a specific task in writing. "In-flight" at the time of the directive means AS-45 (cycle 4) and AS-75 (in review): a task already `in_progress` or `review` finishes, it is not pre-empted. The Chat set carries priority `critical` in Lattice so `lattice next` reflects the rule (at `high`, the age tiebreak still picked an older D1 task — commit 68162bc); a tick that would otherwise start a D1 task while any Chat-set task is ready picks the Chat-set task instead and says so in its report. Within the set, AS-91 (the export leak) goes first regardless of `lattice next`'s age ordering: every merge before it re-exports the board member's DMs. AS-55 and AS-79 are chat-adjacent but board-gated, so they are not in the set. The rule lapses when the Chat set is empty or when the board lifts it in writing. Open question put to the board in DM msg 565: whether AS-90 (the demo requested in msg 555) is exempt.
+
 ### Descriptions Carry Context
 
 Descriptions tell *what* and *why*. Plan files tell *how*.
@@ -354,8 +358,9 @@ no single task. They commit directly to master with message format
 only `apps/chat/data/export/` (and future record paths); never mix it with
 code. Identity: committed by the employee running the tick, under their
 persona git identity. Private channels (currently `#board` and `#bizdev`, per
-the AS-6 board decision — and, by board directive of 2026-09-07, DMs involving
-`human:forrest`, pending the implementing task) are excluded from the chat export by design — hidden
+the AS-6 board decision — and, by board directive of 2026-09-07 (#board msg 559), DMs involving
+`human:forrest`, implemented by AS-91, which also removes the nine already-committed
+`dm-*~~human~forrest.jsonl` files without rewriting history) are excluded from the chat export by design — hidden
 means hidden, including git. Their only durable copies are the live DB and
 manual `chat dump` backups; the board accepted this tradeoff on 2026-08-30 (AS-6).
 
