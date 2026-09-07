@@ -441,6 +441,10 @@ Numbered, each independently checkable:
 
 32. **The carve-out bound is spelling-aware and says what it counts.** `'requireSession has exactly one path carve-out'` commits a **separate** count for each of `req.path`, `req.url` and `req.originalUrl`, measured rather than copied; recipe F8b run in each of the two spellings that are unmoved today turns that case red; and `lib/auth/guard.js`'s carve-out comment and `README.md` § Accounts each state that the bound is over those three spellings and that a carve-out written another way is not counted.
 
+33. **P2b names its own falsifier: a non-lowercase event-handler attribute.** *(Added 2026-09-07, review cycle 4; §10 M4 applied to this row.)* The P2b pattern is case-folded, its post-flag baseline is **measured** at zero over the scoped set (cardinality stated before the zero), and planting recipe **C4a**'s construct — `ONMOUSEOVER="alert(1)"` in `views/signin.ejs` — makes the concept-row case report `event-handler attribute: found in [views/signin.ejs]`. Satisfied by an **observed red**, one case, never by an argument that the row would catch it. The same construct planted before the flag must be observed **green**, so the criterion measures the fix rather than the guard's mere existence.
+
+34. **P2a names its own falsifier: a non-lowercase URL attribute.** *(Added 2026-09-07, review cycle 4.)* Same shape, one row over: recipe **C4b** plants `HREF="<%= next %>"` and the concept-row case must report `interpolation in a URL or style attribute: found in [views/signin.ejs]`. Observed red after the flag, observed green before it. And the criterion is over the **mechanism**, not the tree: "no such attribute exists today" satisfies neither 33 nor 34.
+
 ## §7 Falsification recipes
 
 **Rules, from eight recurrences across the last nine tasks.**
@@ -533,6 +537,30 @@ Two mutations, run separately.
 **F11 — the state table is not decorative.**
 *Mutation.* Delete the `S2-RETURN-NOTREADY` branch from `views/connect-stripe.ejs`. Assert applied: `grep -oF 'S2-RETURN-NOTREADY' views/connect-stripe.ejs | wc -l` **= 0** (a count of zero after a non-zero baseline; measure the baseline first *(post-write)*).
 *Predicted failing set, at least three cases:* the two `S2-RETURN-NOTREADY` HTTP cases (both halves of `ready`, AC 13) and the partition-arithmetic case `'screen 2's nine ledger rows partition 4 + 2 + 1 + 1 + 1'`. Fewer than three means a state is being asserted by only one path.
+
+**C4a (new) — P2b fires on a NON-LOWERCASE event-handler attribute. [ADDED 2026-09-07, review cycle 4, finding F-F. AC 33's falsifier.]**
+*Pre-measured baseline, from the row's own walker rather than a grep:* with `/i` applied, `'event-handler attribute'` examines **2 files** (`public/app.css`, `views/signin.ejs`) and reports **0 hits**. Cardinality before quantification — a row that scanned nothing would also report zero.
+*Mutation.* In `views/signin.ejs`, replace `<span class="app-label">Invoicing</span>` with `<span class="app-label" ONMOUSEOVER="alert(1)">Invoicing</span>`. Assert applied: `grep -oF 'ONMOUSEOVER="alert(1)"' views/signin.ejs | wc -l` **0 → 1**, on disk and in the built image.
+*Predicted failing set:* **exactly one case** — the concept-row case, message `event-handler attribute: found in [views/signin.ejs], allowed in exactly []`.
+*Direction two, and it is the point of the recipe:* the identical mutation planted on the tree **before** the flag (`f24a3bb`) leaves the row **green**. A recipe that only shows the fixed guard going red cannot distinguish "the flag closed a hole" from "the guard was always fine"; run both ends.
+*Note on the payload.* `alert(1)` contains none of the five characters EJS escapes, so the escape is a complete no-op against it — this construct needs no metacharacter at all, which is why F-F was ruled blocking at a lower cost and higher exploitability than F-A.
+
+**C4b (new) — P2a fires on a NON-LOWERCASE URL attribute. [ADDED 2026-09-07, review cycle 4, finding F-F. AC 34's falsifier.]**
+*Pre-measured baseline, same instrument:* `'interpolation in a URL or style attribute'` with `/i` examines **2 files** and reports **0 hits**.
+*Mutation.* Same anchor: `<span class="app-label" HREF="<%= next %>">Invoicing</span>`. Assert applied: `grep -oF 'HREF="<%= next %>"' views/signin.ejs | wc -l` **0 → 1**, on disk and in the image.
+*Predicted failing set:* **exactly one case** — the concept-row case, message `interpolation in a URL or style attribute: found in [views/signin.ejs], allowed in exactly []`.
+*Direction two:* green on the pre-flag tree, as above.
+*On the choice of `EXPR`, per F17's rule.* `next` is used rather than a string literal because the cycle-4 ruling prescribes it. F16's collision hazard was weighed: `next` also renders into the hidden `value=` input, but in every case that reaches this template it is `null`/empty, so the planted `HREF=""` introduces no new occurrence of any marker an occurrence-counting case asserts on. If a full-suite run nonetheless shows a second failing case, that is the collision — **name it before adjusting the prediction.**
+
+**C4c (new) — the collapse placement reproduces the number written beside it. [ADDED 2026-09-07, review cycle 4, finding F-G.]**
+Not a guard falsifier; a **measurement recipe**, because the figure in the P4 row header and README property 4 was twice published at a placement that does not produce it.
+*Three mutations, run separately, each in a fresh extract, each `0 → 1` assert-applied.*
+| Placement | Construct planted in `views/signin.ejs` | Predicted | Measured 2026-09-07 |
+|---|---|---|---|
+| element content | `<span class="app-label">Don't panic</span>` | no collapse | **87, green** |
+| inside a double-quoted value | `<span class="app-la'bel">Invoicing</span>` | no collapse | **87, green** |
+| in a tag region, outside a quoted value | `<span ' class="app-label">Invoicing</span>` | collapse | **87 → 14, red** |
+*Predicted failing set for the third:* one case, the concept-row case, failing on the **cardinality** assertion (`P4 examined 14 start tags across 1 template(s), expected 87`) — which runs before the findings assertion and therefore masks it. The first two are the negative controls that make the third mean something.
 
 **F12 — the vacuity floor still holds.** `docker compose run --rm -e ASC_SELFTEST_MUTATE=1 test` exits 1; `docker compose run --rm test` exits 0. Run at the start and the end. The suite is 17 files by then, and `harness.test.js`'s V2 case is what proves the new one is in it.
 
