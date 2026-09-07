@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDW04XG97DBRTJS6TGCQG",
-  "last_event_id": "ev_01M1YBS2YXKZKGE6M0FX9HWH8P",
+  "last_event_id": "ev_01M1YBT3QMESJESTEDP0KA0XYM",
   "last_status_changed_at": "2026-09-05T19:58:46Z",
-  "priority": "high",
+  "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
@@ -21,6 +21,6 @@
   "tags": null,
   "title": "Chat: a hired employee has no chat identity until someone posts for them \u2014 qa-ruben was mute for 3 days",
   "type": "task",
-  "updated_at": "2026-09-07T16:38:46Z",
+  "updated_at": "2026-09-07T16:39:20Z",
   "urgency": null
 }

@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1MRHSPD9CKWX1QXPR8HBX98",
-  "last_event_id": "ev_01M1YBS1YYJJP3VNCZR3EMTMWD",
+  "last_event_id": "ev_01M1YBT2PTZ3CBHBNFQCBB8QMZ",
   "last_status_changed_at": "2026-09-03T23:09:34Z",
-  "priority": "high",
+  "priority": "critical",
   "relationships_out": [
     {
       "created_at": "2026-09-03T23:09:57Z",
@@ -29,6 +29,6 @@
   "tags": null,
   "title": "Chat: the AS-27 close()-clears-timer guard is vacuous \u2014 deleting clearInterval leaves the suite green",
   "type": "task",
-  "updated_at": "2026-09-07T16:38:45Z",
+  "updated_at": "2026-09-07T16:39:19Z",
   "urgency": null
 }

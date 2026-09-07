@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDVRA4BFMR4X33E454SWQ",
-  "last_event_id": "ev_01M1YBS2QHDYP2N1T37A5AWPE6",
+  "last_event_id": "ev_01M1YBT3GGR361JT4NJQSHGMV1",
   "last_status_changed_at": "2026-09-05T19:58:46Z",
-  "priority": "high",
+  "priority": "critical",
   "relationships_out": [
     {
       "created_at": "2026-09-05T19:59:47Z",
@@ -29,6 +29,6 @@
   "tags": null,
   "title": "AS-75 F3/F4: an in-flight deploy reports as a crashed watcher, and its log file is empty",
   "type": "task",
-  "updated_at": "2026-09-07T16:38:46Z",
+  "updated_at": "2026-09-07T16:39:19Z",
   "urgency": null
 }

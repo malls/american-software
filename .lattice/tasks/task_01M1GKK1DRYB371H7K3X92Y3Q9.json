@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1GKK1DRYB371H7K3X92Y3Q9",
-  "last_event_id": "ev_01M1YBS1ABHF86B58NVERS7390",
+  "last_event_id": "ev_01M1YBT296RJ101NCS2CF2SBW9",
   "last_status_changed_at": "2026-09-02T08:25:54Z",
-  "priority": "high",
+  "priority": "critical",
   "relationships_out": [
     {
       "created_at": "2026-09-02T08:25:55Z",
@@ -29,6 +29,6 @@
   "tags": null,
   "title": "chat /api/file: hard links bypass the AS-34 symlink policy; README over-claims by one mechanism",
   "type": "task",
-  "updated_at": "2026-09-07T16:38:44Z",
+  "updated_at": "2026-09-07T16:39:18Z",
   "urgency": null
 }

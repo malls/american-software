@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1PGD4EQKAXH2P1BMKF0QJ1T",
-  "last_event_id": "ev_01M1YBS2BT5AFE91BE7829B49N",
+  "last_event_id": "ev_01M1YBT31TYQ82J96AZDYDFE15",
   "last_status_changed_at": "2026-09-04T15:25:42Z",
-  "priority": "high",
+  "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
@@ -21,6 +21,6 @@
   "tags": null,
   "title": "Chat: mode.test.js AS-24 case is flaky under concurrent docker build \u2014 two independent observations",
   "type": "task",
-  "updated_at": "2026-09-07T16:38:45Z",
+  "updated_at": "2026-09-07T16:39:19Z",
   "urgency": null
 }
