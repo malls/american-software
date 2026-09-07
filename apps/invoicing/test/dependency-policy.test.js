@@ -687,13 +687,28 @@ function scanRawOutput() {
 // computing markup. The dynamic half is the falsification recipe, not this row.
 //
 // CARDINALITY BEFORE QUANTIFICATION, and it is not decoration here. The
-// instrument that can silently narrow this scan is THIS ROW'S OWN WALKER. Inside
-// a tag region the walk skips quoted spans; an apostrophe that is not a
-// delimiter — the one in `don't`, sitting in element content — opens a span that
-// runs to the next apostrophe anywhere in the file, and every tag between them
-// goes unexamined. Measured in review cycle 2: the 87 examined start tags
-// collapse to 19. Committing the START TAG COUNT makes that failure loud
-// instead of vacuous, and it did: the reviewer predicted green and observed red.
+// instrument that can silently narrow this scan is THIS ROW'S OWN WALKER. The
+// walk skips quoted spans ONLY INSIDE A TAG REGION, so the placement that opens
+// a runaway span is an apostrophe that sits INSIDE A TAG REGION AND OUTSIDE A
+// QUOTED VALUE — `<span ' class="app-label">`. It opens a span that runs to the
+// next apostrophe anywhere in the file, and every tag between them goes
+// unexamined. Committing the START TAG COUNT makes that failure loud instead of
+// vacuous, and it does: planting exactly that construct in views/signin.ejs
+// collapses the 87 examined start tags to 14 and this assertion fires first.
+//
+// MEASURED 2026-09-07 by developer-lena, at the placement this sentence
+// describes, not transcribed: `<span class="app-label">` -> `<span ' class=
+// "app-label">` in a scratch extract, then the row run — it reported
+// `P4 examined 14 start tags across 1 template(s), expected 87`. The number
+// beside a sentence must be reproducible from that sentence; 14 is.
+//
+// TWO PLACEMENTS THAT DO *NOT* COLLAPSE IT, measured the same way, because the
+// wrong one was published twice (findings F-B and F-G) and cost two cycles:
+// an apostrophe in ELEMENT CONTENT (`>Don't panic</span>`) holds the count at
+// 87 and the suite green — element content is never scanned for quotes at all —
+// and so does an apostrophe INSIDE a double-quoted attribute value. Prose copy
+// carrying an apostrophe is NOT a hazard here, and a template author should not
+// be avoiding one.
 //
 // THERE IS NO BUG IN stripComments — DO NOT GO LOOKING FOR ONE (finding F-B).
 // This paragraph used to claim that the stripper treats an apostrophe in element
@@ -984,16 +999,39 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
   // why retiring the scaffold page was a precondition for this row rather than
   // housekeeping bundled alongside it. A path that must survive a round trip
   // (`next`) travels in a hidden value= input, never in a URL.
+  //
+  // THE MATCH IS CASE-FOLDED BECAUSE HTML'S IS (review cycle 3, finding F-F).
+  // An HTML attribute name is case-insensitive, so `HREF=`, `Style=` and
+  // `FormAction=` are the same attributes to a browser as `href=`, `style=` and
+  // `formaction=`. Without the `i` flag this row saw only the lowercase
+  // spellings and the property was stated more widely than the mechanism
+  // enforced it — the third instance of that shape on this branch, after the
+  // attribute-name position (F-3) and the tag-name position (F-A). The flag
+  // landed on a re-measured baseline of ZERO hits across the scoped set.
+  //
+  // THE FIVE NAMES ARE A CLOSED ENUMERATION, not a category (reviewer's bounded
+  // observation, review cycle 3). URL-bearing attributes are not five: `srcset`,
+  // `poster`, `ping`, `xlink:href` and `<object data=>` all take a URL and none
+  // is in the alternation. That is a BOUND honestly presented as one — no
+  // template uses any of them — and not a false sentence. A template that ever
+  // needs one of them adds it HERE, in the same commit.
   scanConcept(
     'interpolation in a URL or style attribute',
-    /(href|src|action|formaction|style)\s*=\s*"[^"]*<%/,
+    /(href|src|action|formaction|style)\s*=\s*"[^"]*<%/i,
     [],
     { only: /^(views|public)\// },
   );
   // P2b — no event-handler attribute. Scoped to templates and stylesheets: the
   // pattern matches ` once =` in JavaScript, and narrowing the pattern to avoid
   // that would be narrowing the thing that catches a real ` onclick=`.
-  scanConcept('event-handler attribute', /\son[a-z]+\s*=/, [], { only: /^(views|public)\// });
+  //
+  // CASE-FOLDED FOR THE SAME REASON AS P2a, and this is the row F-F was found
+  // on: `ONMOUSEOVER="alert(1)"` is a live event handler that this row, written
+  // `[a-z]` with no flag, could not see — and the payload `alert(1)` contains
+  // none of the five characters EJS escapes, so the escape is a no-op against
+  // it. P2c three lines below always carried `/i`; the omission here and on P2a
+  // was an oversight, not a decision. Re-measured baseline after the flag: ZERO.
+  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^(views|public)\// });
   // P2c — THE NO-CLIENT-SIDE-JAVASCRIPT ASSUMPTION, MADE MECHANICAL. Two ledger
   // rows (S1-LOADING, S2-LOADING) are unimplementable under it and are recorded
   // as `unrenderable — browser-supplied` rather than silently skipped. This row

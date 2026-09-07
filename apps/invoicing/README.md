@@ -577,7 +577,16 @@ so this section states what is actually enforced and nothing more:
    a URL** — which is why screen 1's mode switch is a `<button>` inside a
    `method="get"` form rather than an anchor. It produces the identical URL with
    a plain full-page navigation and keeps the rule absolute with no judgment
-   call at the call site.
+   call at the call site. **The attribute-name matching is case-folded, because
+   HTML's is**: `ONMOUSEOVER=`, `OnClick=` and `HREF=` are the same attributes
+   to a browser as their lowercase spellings, and until review cycle 3 the first
+   two rows matched only lowercase — an uppercase event handler landed with
+   every row green and a payload of `alert(1)`, which contains none of the five
+   characters the escaping output tag escapes. The five URL/style names are a
+   **closed enumeration**, presented as one: `srcset`, `poster`, `ping`,
+   `xlink:href` and `<object data=>` are URL-bearing and deliberately not in it,
+   because no template uses them. A template that needs one adds it to the row
+   in the same commit.
 3. **Attribute values carrying data are double-quoted**, because escaping `"`
    only helps if `"` is the delimiter.
 4. **No interpolation in the tag-name or attribute-name region.** Within any
@@ -599,8 +608,16 @@ so this section states what is actually enforced and nothing more:
    falsification recipe that plants each construct, rebuilds, and drives the
    exploit at a running container. Its non-vacuity floor is a committed
    start-tag count, which catches the one instrument that can silently narrow
-   the scan — **its own walker**, whose in-tag quote skipping is opened by a
-   stray apostrophe and collapses the examined tag count (measured: 87 to 19).
+   the scan — **its own walker**, whose quote skipping happens *only inside a
+   tag region*. The placement that opens a runaway span is therefore an
+   apostrophe **inside a tag region and outside a quoted value** —
+   `<span ' class="app-label">` — which collapses the examined tag count from 87
+   to 14 (measured at that exact placement in review cycle 4; the earlier
+   published figure named the wrong placement twice). An apostrophe in
+   **element content** — the one in `don't` — collapses nothing: element content
+   is never scanned for quotes, the count holds at 87, and prose copy carrying
+   an apostrophe is **not** a hazard in this app. Nor is one inside a
+   double-quoted attribute value.
    An interpolated tag name is *counted* as a start tag, because at render time
    it is one, so the count does not move when the construct is planted and the
    finding stands on its own merits.
