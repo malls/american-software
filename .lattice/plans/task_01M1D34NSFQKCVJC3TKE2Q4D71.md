@@ -1116,3 +1116,49 @@ After cycle 1 I called this a plan-authoring failure and proposed two rules — 
 
 Two consequences follow, and they go to the metawork layer as **§10 M5** and **§10 M6** rather than being assumed here. **The criteria list is a floor.** A review that walks it to 100% and stops has measured the floor, not the software — and reporting "26 of 26" as the headline of a review that *also* produced a blocking finding invites precisely the reading that those two numbers describe the same thing. They do not. On this branch, three cycles running, the pass rate has been a true statement and a misleading one simultaneously.
 
+---
+
+## Review Cycle 3 Findings
+
+**Written 2026-09-07 by `agent:cto-owen`.** The 3-cycle safety valve fired on 2026-09-03 and the task sat in `needs_human` until the board delegated the decision to me in DM msg 555 ("your call"). Ruling: **course 1 — a fourth cycle**, forced past the valve with `--force --reason`, for the reasons in my Lattice comment of the same date. The valve's purpose is to stop rework that does not converge; this branch converged monotonically and cycle 3's reviewer closed the defect class with a stated reason. **Pre-committed action:** any finding in cycle 4 outside the scope below fires the valve again, and that time it goes to the board without a lean.
+
+**Implementer for this cycle: `agent:developer-lena`** (fresh hands; F-G was carried two cycles by transcription of a number nobody re-measured). **Reviewer: `agent:qa-ruben`**, who owns recipe C4 and the F-G measurement. Worktree `.worktrees/AS-45`, branch `feat/AS-45-onboarding-ui`, base `f24a3bb`. All commands run inside compose, as the plan header says.
+
+### The two findings (from `agent:qa-ruben`'s cycle-3 review, 2026-09-03T05:04Z — read it in full first)
+
+**F-F — BLOCKING. P2a and P2b are case-sensitive.** `test/dependency-policy.test.js:996` reads `scanConcept('event-handler attribute', /\son[a-z]+\s*=/, [], { only: /^(views|public)\// })` and `:988` reads `/(href|src|action|formaction|style)\s*=\s*"[^"]*<%/`, neither with the `i` flag. HTML attribute names are case-insensitive, so `ONMOUSEOVER="<%= displayName %>"` passes every row green and the reviewer read a live handler out of the served bytes with `displayName=alert(1)` — a payload containing none of the five characters EJS escapes. P2c three lines below carries `/i`; the omission is an oversight, not a decision. Third instance of one class (F-3, F-A, F-F): a lexical guard whose sentence is wider than its algorithm.
+
+**F-G — DEFECT, prose only. Cycle 2's F-B correction is itself wrong.** The P4 row header (`test/dependency-policy.test.js:691-695`) and `README.md` property 4 (`:603`) say an apostrophe **in element content** collapses the examined start-tag count 87 → 19. Measured by the reviewer against the real image: element content holds at 87 (recipe C3, green, 405/387/0); a double-quoted value holds at 87; the collapse happens only for an apostrophe **inside a tag region, outside a quoted value** (87 → 14 for `<span ' class="app-label">`, plus one unterminated-quote finding). The published mechanism is a false constraint on every screen AS-46/47/48/70 write.
+
+### In scope for cycle 4 — exhaustive
+
+1. **Add `i` to both patterns**: P2a (line 988) and P2b (line 996). Two characters. Nothing else in either row changes — the `only:` scope, the empty allowlist, and the alternation stay as they are.
+2. **Re-measure the baseline** after the edit and record the number in the implementation report: the reviewer measured **0 matches in both scanned files** (`views/signin.ejs`, `public/app.css`) with `/i` applied. Confirm that from the walker's own output, not from this sentence.
+3. **A new §7 recipe, numbered as an acceptance criterion (AC 33), satisfied only by an observed red** — this is §10 M4 applied to this row. Recipe C4 as Ruben ran it: in a scratch extract, replace `<span class="app-label">Invoicing</span>` with `<span class="app-label" ONMOUSEOVER="alert(1)">Invoicing</span>`; assert applied (`grep -oF 'ONMOUSEOVER="alert(1)"' views/signin.ejs | wc -l` 0 → 1, on disk and in the image); rebuild; run. **Predicted: exactly one failing case, the concept-row case, message `event-handler attribute: found in [views/signin.ejs]`, 405/386/1.** Write the prediction before the run; record the observation. Add a second half for P2a with a non-lowercase `HREF="<%= next %>"` in the same anchor — predict, run, record. Both recipes go into §7 with their measured-zero baselines.
+4. **Prose, three places, one clause each:** `README.md` property 2 and the comments above the P2a and P2b rows say that attribute-name matching is case-folded because HTML's is. On the P2a row's comment, add the reviewer's bounded observation: the five names are a closed enumeration (`srcset`, `poster`, `ping`, `xlink:href`, `<object data=>` are URL-bearing and not in it), and a new URL-bearing attribute a template uses must be added here.
+5. **F-G correction, both artifacts:** the P4 row header and `README.md` property 4. Replace "an apostrophe that is not a delimiter — the one in `don't`, sitting in element content" with the measured trigger: an apostrophe inside a tag region and outside a quoted value. **Re-measure the collapse figure at the placement the corrected sentence describes** (the reviewer got 87 → 14 for `<span ' class="app-label">`; "19" is from an unstated placement). The number written must be one the sentence beside it reproduces. Do not transcribe 14 from this plan either — measure it, and if you get a different figure, say so and say where you planted it.
+6. **The suite green as committed, both halves:** `docker compose run --rm test` (expected 405 + 2 new recipe-driven cases if they are encoded as tests, or 405 if they stay §7 recipes — state which) and `docker compose run --rm contract` (405/405/0/0 at f24a3bb; unchanged expected). The F12 self-test at both ends.
+
+### Out of scope for cycle 4 — exhaustive, and deliberately aggressive
+
+- Widening P2a's alternation to more attribute names (the reviewer recorded it as a bound, not a defect; it becomes a task if a template ever uses one).
+- The `class="x"onclick=` no-space evasion the reviewer listed. P2b requires `\s` before `on`. Recorded here as a known bound: a template author writing an attribute with no preceding whitespace is producing malformed HTML that browsers recover from, and the P4 walker's attribute-name region still sees the name. **Not fixed this cycle**; if the implementer or reviewer believes it is exploitable through an interpolation rather than by authoring, file it as its own task rather than expanding this one.
+- The `req.originalUrl` token-budget observation (non-blocking; already documented in the test's comment).
+- Everything in the cycle-2 out-of-scope list, unchanged.
+- The 375px inspection: no template blob or stylesheet blob changes in this cycle (the only template edit is none — recipes plant into scratch extracts, never the branch). If that stops being true, the skip argument falls and the inspection is owed.
+
+### What proves this cycle
+
+- AC 33 (new): P2b's falsifier — observed red, one case, naming `views/signin.ejs`. AC 34 (new): P2a's falsifier — same shape. Both from a rebuilt image, both with the assert-applied step, both with the prediction written before the run.
+- The measured-zero baseline for both rows after `/i`, stated as a number from the walker.
+- The F-G figure re-measured and reproducible from the sentence beside it.
+- Cycle 3's own criteria (AC 31, AC 32) untouched and still green — the walker and the carve-out case do not change.
+- Zero files touched outside `apps/invoicing/test/dependency-policy.test.js` and `apps/invoicing/README.md`. A diff touching a third file is a finding.
+
+### Board/board-adjacent records
+
+- The valve override and its reason are in the AS-45 event log (`status_changed needs_human -> in_progress`, forced, 2026-09-07) and in DM msgs 555 (board) / 561 (CTO reply).
+- §10 M4/M5/M6 remain proposals to the metawork layer; cycle 4 applies M4 to this task's own criteria (AC 33/34) without waiting for CLAUDE.md.
+
+
+## Reset 2026-09-07 by agent:cto-owen
