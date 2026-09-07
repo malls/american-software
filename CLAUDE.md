@@ -3,6 +3,12 @@ A high level overview of what this repo is is available in `PHILOSOPHY.md`. In a
 
 GitHub remote: https://github.com/malls/american-software. `README.md` is the public face of the repo — keep it current: when the repo structure, operating model, product, or company status changes materially, update the README as part of that change (its Status section goes stale fastest).
 
+## Repo Visibility
+
+**Decided 2026-09-07 by the board (Claude Code chat, metawork):** the repository stays **public** for now. Audit basis: no secrets are committed (all Stripe-shaped strings are placeholders or stripe-mock keys; `.env.local` is gitignored), and the strategy record is not moat-defining for this market. It flips to **private at the first of two triggers**, in the same tick and *before* the triggering commit lands: (1) the product-naming record — the name must not sit on a public master before the domain is bought and any trademark filed; (2) the first incorporation or legal record — those carry an EIN, a registered-agent address, and the board member's legal name. Flipping is a GitHub setting change by the board, not company work: the tick that reaches either trigger goes `needs_human` and asks for the flip before committing. Recorded alternative if the board later wants the experiment visible long-term: a separate private records repo for legal and naming material — a deliberate exception to the monorepo decision, to be recorded as such if taken.
+
+Companion directive (same date, sent via `#board`): DMs involving `human:forrest` join `#board`/`#bizdev` in the chat-export exclusion (see "Operational record commits"). The nine `dm-*~~human~forrest.jsonl` files already on master are already public, so the decision governs future exports; the implementing task removes the files but does not rewrite history.
+
 ## Product
 
 **Decided 2026-08-31 by board green-light (chat `#bizdev` msg 290, "I'm greenlighting this product"):** the company's product is **D1 — freelancer invoicing/contract automation**. This closes the five-step direction process (`docs/strategy/01`→`08`); the record of the decision itself is `docs/strategy/08-board-decision.md`, and the C2/D4 fallback ordering is retired as a selection mechanism.
@@ -341,7 +347,8 @@ no single task. They commit directly to master with message format
 only `apps/chat/data/export/` (and future record paths); never mix it with
 code. Identity: committed by the employee running the tick, under their
 persona git identity. Private channels (currently `#board` and `#bizdev`, per
-the AS-6 board decision) are excluded from the chat export by design — hidden
+the AS-6 board decision — and, by board directive of 2026-09-07, DMs involving
+`human:forrest`, pending the implementing task) are excluded from the chat export by design — hidden
 means hidden, including git. Their only durable copies are the live DB and
 manual `chat dump` backups; the board accepted this tradeoff on 2026-08-30 (AS-6).
 
