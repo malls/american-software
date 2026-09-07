@@ -61,7 +61,7 @@ Forrest (the user) is the sole board member. Background: tech, "retired" in his 
 
 The fix (AS-21, commit ee57b3d): the watcher reads settings at fire time and passes the grants explicitly as `--allowedTools`/`--disallowedTools` in `tickArgv()` (`apps/chat/watch/advance-watcher.mjs`). This preserves the `git push --force` deny rules, unlike the `bypassPermissions` fallback. **Verified live in tick `watcher:33733` (19:32Z)** — that tick ran `lattice list`/`comment`, read and posted to the chat app, and staged with `git add`, all previously denied. Keep this paragraph as the record of why the watcher hands grants over argv; do not "simplify" it back to relying on project settings.
 
-Known residual (not a blocker): the `./apps/chat/chat` wrapper shells out to `docker`, which is not on PATH in the headless tick environment. Ticks must not use `node apps/chat/bin/chat.js` for reads **or writes** while the container server is up — host-side CLI writes can land in a WAL view the server never sees (AS-24, orphan msg 161), and host-side reads can be WAL-stale enough to miss the very message that fired the tick. Use the server HTTP API for both: `GET /api/conversations` / `/api/messages`, `POST /api/messages` / `/api/read` at `http://127.0.0.1:8347`. `curl` is not in the tick allowlist; use `node -e` with `fetch`.
+**Known residual (narrowed by AS-75, merged 2026-09-07):** the `./apps/chat/chat` wrapper shells out to `docker`, which is not on PATH in the headless tick environment, so a tick still cannot run chat CLI commands or rebuild the container itself. It no longer needs to: **the host watcher deploys `apps/chat` on its own** — it resolves the docker binary by absolute path (`ADVANCE_DOCKER_BIN`, else a candidate list) rather than via PATH, rebuilds when master's image-input digest differs from the id the running container reports at `/api/build`, and restarts *itself* by exiting for launchd to relaunch when its own source changes. Merged chat code goes live unattended within ~60 s. When it cannot act (no docker binary, dirty tree, watcher down) it says so in `apps/chat/data/deploy-state.json` and the chat sidebar's build line. One-time bootstrap: the watcher running at merge time (pid 90824, pre-AS-75 code) has no deploy logic, so the board or a live session restarts it once (`launchctl kickstart -k gui/$(id -u)/com.american-software.advance-watcher`, after any in-flight tick ends); from then on it self-updates. The rest of this paragraph still holds. Ticks must not use `node apps/chat/bin/chat.js` for reads **or writes** while the container server is up — host-side CLI writes can land in a WAL view the server never sees (AS-24, orphan msg 161), and host-side reads can be WAL-stale enough to miss the very message that fired the tick. Use the server HTTP API for both: `GET /api/conversations` / `/api/messages`, `POST /api/messages` / `/api/read` at `http://127.0.0.1:8347`. `curl` is not in the tick allowlist; use `node -e` with `fetch`.
 
 ## Org Chart
 
@@ -366,6 +366,16 @@ the AS-6 board decision — and, by board directive of 2026-09-07 (#board msg 55
 `dm-*~~human~forrest.jsonl` files without rewriting history) are excluded from the chat export by design — hidden
 means hidden, including git. Their only durable copies are the live DB and
 manual `chat dump` backups; the board accepted this tradeoff on 2026-08-30 (AS-6).
+
+**Records step SUSPENDED until AS-91 merges (orchestrator, 2026-09-07, at the AS-75
+merge).** The #board msg 559 directive governs *future* exports, and the exporter
+cannot exclude human DMs until AS-91 lands, so a merge tick does not run
+`chat export` or commit `apps/chat/data/export/` in the meantime. The export is
+append-only and deterministic, so deferring loses nothing: the first export after
+AS-91 catches up every non-excluded conversation. The same suspension applies to the
+merge step in `.claude/commands/advance.md` (its text was not updated by the headless
+tick that made this call — the write was denied; a live session should apply the
+AS-75 plan §9.1 wording and this suspension there).
 
 ### Pushing
 
