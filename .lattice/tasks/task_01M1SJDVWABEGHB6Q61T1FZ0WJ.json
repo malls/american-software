@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDVWABEGHB6Q61T1FZ0WJ",
-  "last_event_id": "ev_01M1SJFQHW4PSYKGSQF6QK1HET",
+  "last_event_id": "ev_01M1YBS2TVR91FAG605BJXPEF1",
   "last_status_changed_at": "2026-09-05T19:58:46Z",
-  "priority": "medium",
+  "priority": "high",
   "relationships_out": [
     {
       "created_at": "2026-09-05T19:59:47Z",
@@ -29,6 +29,6 @@
   "tags": null,
   "title": "AS-75 F7/F8: document the manual bootstrap and the COMPOSE_PROJECT_NAME scrub that makes a test deploy hit production",
   "type": "task",
-  "updated_at": "2026-09-05T19:59:47Z",
+  "updated_at": "2026-09-07T16:38:46Z",
   "urgency": null
 }

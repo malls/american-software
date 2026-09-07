@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDVG1RRRYJHWPFWJB5H4D",
-  "last_event_id": "ev_01M1SJFQ8DVC9D3G1HR6JHFM3T",
+  "last_event_id": "ev_01M1YBS2G091F5326MSPV57B6G",
   "last_status_changed_at": "2026-09-05T19:58:46Z",
-  "priority": "medium",
+  "priority": "high",
   "relationships_out": [
     {
       "created_at": "2026-09-05T19:59:47Z",
@@ -29,6 +29,6 @@
   "tags": null,
   "title": "AS-75 F1: the AS-27 frame-count guard is vacuous for the new build fields \u2014 R10 stays green",
   "type": "task",
-  "updated_at": "2026-09-05T19:59:47Z",
+  "updated_at": "2026-09-07T16:38:46Z",
   "urgency": null
 }

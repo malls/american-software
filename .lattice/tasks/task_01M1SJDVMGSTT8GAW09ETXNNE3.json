@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDVMGSTT8GAW09ETXNNE3",
-  "last_event_id": "ev_01M1SJFQBN0WKR9R4GH1Y4SGY5",
+  "last_event_id": "ev_01M1YBS2KW516GWT3S0JQEP47C",
   "last_status_changed_at": "2026-09-05T19:58:46Z",
-  "priority": "medium",
+  "priority": "high",
   "relationships_out": [
     {
       "created_at": "2026-09-05T19:59:47Z",
@@ -29,6 +29,6 @@
   "tags": null,
   "title": "AS-75 F2: .dockerignore determines build context but sits outside IMAGE_INPUTS and its COPY-set guard",
   "type": "task",
-  "updated_at": "2026-09-05T19:59:47Z",
+  "updated_at": "2026-09-07T16:38:46Z",
   "urgency": null
 }

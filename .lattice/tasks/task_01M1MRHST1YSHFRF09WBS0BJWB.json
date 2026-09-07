@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1MRHST1YSHFRF09WBS0BJWB",
-  "last_event_id": "ev_01M1MRK4V9T2C8YZP1R44CWSHH",
+  "last_event_id": "ev_01M1YBS23HPWDE4XR6MZ9JM4VC",
   "last_status_changed_at": "2026-09-03T23:09:34Z",
-  "priority": "low",
+  "priority": "high",
   "relationships_out": [
     {
       "created_at": "2026-09-03T23:09:57Z",
@@ -29,6 +29,6 @@
   "tags": null,
   "title": "Chat test harness: openStream() hangs the runner instead of failing \u2014 a stream regression wedges CI",
   "type": "task",
-  "updated_at": "2026-09-03T23:10:18Z",
+  "updated_at": "2026-09-07T16:38:45Z",
   "urgency": null
 }

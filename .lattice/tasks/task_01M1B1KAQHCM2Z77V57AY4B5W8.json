@@ -10,9 +10,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1B1KAQHCM2Z77V57AY4B5W8",
-  "last_event_id": "ev_01M1M0S72GSBJ6P89916YE4PGP",
+  "last_event_id": "ev_01M1YBS166B2ZCPSVJ752JDR8J",
   "last_status_changed_at": "2026-08-31T04:35:17Z",
-  "priority": "low",
+  "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
@@ -21,6 +21,6 @@
   "tags": null,
   "title": "Chat: favicon for the chat app",
   "type": "chore",
-  "updated_at": "2026-09-03T16:14:12Z",
+  "updated_at": "2026-09-07T16:38:44Z",
   "urgency": null
 }
