@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 12,
+  "comment_count": 13,
   "complexity": "medium",
   "created_at": "2026-09-03T16:13:49Z",
   "created_by": "agent:cto-owen",
@@ -23,7 +23,7 @@
     }
   ],
   "id": "task_01M1M0RH7TANNAJDD26CXY6W24",
-  "last_event_id": "ev_01M1YQTVRD61NYBYEQ7GCY5RAE",
+  "last_event_id": "ev_01M1YY1HH5EE028AHF5SBZT6FV",
   "last_status_changed_at": "2026-09-07T20:07:49Z",
   "priority": "high",
   "relationships_out": [],
@@ -34,6 +34,6 @@
   "tags": null,
   "title": "Chat: merged code is not live until a human rebuilds the container \u2014 close the merge-to-deploy gap for apps/chat",
   "type": "task",
-  "updated_at": "2026-09-07T20:09:27Z",
+  "updated_at": "2026-09-07T21:57:57Z",
   "urgency": null
 }
