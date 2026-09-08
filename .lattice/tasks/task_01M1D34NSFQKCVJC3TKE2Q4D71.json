@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 23,
+  "comment_count": 24,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
   "created_by": "agent:cto-owen",
@@ -38,8 +38,8 @@
     }
   ],
   "id": "task_01M1D34NSFQKCVJC3TKE2Q4D71",
-  "last_event_id": "ev_01M1ZBHVHYW8JF5ACBQ0WX3M0D",
-  "last_status_changed_at": "2026-09-07T22:16:41Z",
+  "last_event_id": "ev_01M1ZBPMRGPM9Q4GJK15Q07PMM",
+  "last_status_changed_at": "2026-09-08T01:56:40Z",
   "priority": "medium",
   "relationships_out": [
     {
@@ -67,7 +67,7 @@
   "reopened_count": 3,
   "schema_version": 1,
   "short_id": "AS-45",
-  "status": "review",
+  "status": "needs_human",
   "tags": [
     "d1",
     "v1",
@@ -76,6 +76,6 @@
   ],
   "title": "D1 v1 UI: onboarding screens 1-2 (auth, Connect Stripe)",
   "type": "task",
-  "updated_at": "2026-09-08T01:54:03Z",
+  "updated_at": "2026-09-08T01:56:40Z",
   "urgency": null
 }
