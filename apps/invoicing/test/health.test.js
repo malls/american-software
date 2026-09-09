@@ -44,7 +44,7 @@ test('there are exactly four checks, by name', () => {
 
 test('there is exactly one registered view', () => {
   assert.equal(VIEWS.length, 1);
-  assert.deepEqual(VIEWS.map((v) => v.file), ['scaffold.ejs']);
+  assert.deepEqual(VIEWS.map((v) => v.file), ['signin.ejs']);
 });
 
 // --- the green case, against the real image ---------------------------------
@@ -114,13 +114,13 @@ test('503 when a template exists but cannot render — views is named', async ()
   // is broken. A deploy in this state serves 500s to every visitor, and
   // /healthz must say so.
   const dir = await mkdtemp(join(tmpdir(), 'asc-inv-views-'));
-  await writeFile(join(dir, 'scaffold.ejs'), '<% this is not valid ejs %>');
+  await writeFile(join(dir, 'signin.ejs'), '<% this is not valid ejs %>');
   await withServer(configFor({ viewsDir: dir }), async (base) => {
     const res = await fetch(`${base}/healthz`);
     assert.equal(res.status, 503);
     const body = await res.json();
     assert.deepEqual(failing(body), ['views']);
-    assert.match(byName(body, 'views').detail, /scaffold/);
+    assert.match(byName(body, 'views').detail, /signin/);
   });
 });
 
@@ -152,24 +152,28 @@ test('a check that throws is a failing check, never a 500', async () => {
   assert.match(byName(result, 'boom').detail, /check threw: detonated/);
 });
 
-// --- the scaffold page (plan §9.7, folded in here as the plan allows) --------
+// --- `/`, which the scaffold page used to own (AS-45, plan §3.3.4) ----------
 
-test('GET / renders the scaffold page and links the vendored stylesheet', async () => {
-  // AS-40 put this page behind the auth boundary, so the case that asserts what
-  // it RENDERS now signs in first. That the same page redirects when signed out
-  // is asserted in auth.test.js (G3), not here.
+test('GET / answers a signed-in caller rather than 404ing', async () => {
+  // REPLACES 'GET / renders the scaffold page…'. The scaffold page is deleted
+  // (the scaffold obligation AS-37 left, discharged), so `/` needed an answer.
+  //
+  // CORRECTED 2026-09-03 (AS-45 review cycle 1, ruling R-2). This case
+  // previously asserted a 303 to `/connect-stripe` — true about the hop, and
+  // `/connect-stripe` is AS-70's, so the journey ended on a 404. `/` is an
+  // interim `200 text/plain` line until AS-70 restores the redirect and AS-48
+  // replaces it with the Dashboard. This file's claim is ROUTING — that the path
+  // is served at all; the interim response's exact shape, and the terminal
+  // states of the three entry points that land here, are asserted in
+  // test/screens.test.js and test/auth.test.js.
+  //
+  // Signed IN, because for a signed-out caller `/` is answered by the guard —
+  // asserted in auth.test.js.
   await withServer(configFor(), async (base, app, deps) => {
     const { cookie } = seedSignedIn(deps.repos);
-    const res = await fetch(`${base}/`, { headers: { cookie } });
+    const res = await fetch(`${base}/`, { redirect: 'manual', headers: { cookie } });
     assert.equal(res.status, 200);
-    assert.match(res.headers.get('content-type'), /text\/html/);
-    const html = await res.text();
-    assert.match(html, /apps\/invoicing scaffold/, 'the heading renders');
-    assert.match(html, /<link rel="stylesheet" href="\/tokens\.css" \/>/, 'links the vendored stylesheet');
-    assert.match(html, /<link rel="stylesheet" href="\/scaffold\.css" \/>/, 'links its app-owned stylesheet');
-    // The swatches prove the loop ran: four token names, each as a var().
-    const swatches = html.match(/var\(--color-ink-\d+\)/g) ?? [];
-    assert.equal(swatches.length, 4, `expected exactly 4 swatches, got ${swatches.length}`);
+    assert.match(res.headers.get('content-type'), /^text\/plain\b/);
   });
 });
 

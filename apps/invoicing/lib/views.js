@@ -9,19 +9,21 @@
 // template render. The health check renders each template with it at request
 // time, so "views/ was not COPY'd" and "the template is broken" are both
 // observable from /healthz rather than only from a user hitting the page.
-// If a template grows a required local, add it here in the same commit — a
-// deploy that cannot render the page SHOULD go unhealthy.
 //
-// AS-45 obligation: scaffold.ejs is NOT one of the seven budgeted screens. It
-// is the one non-budgeted page this scaffold creates, and AS-45 deletes or
-// replaces it when screen 1 lands (plan §7.5). Remove its row here too.
+// SINCE AS-45 THE PROBE LOCALS ARE THE SCREEN'S OWN VIEW MODEL, called with its
+// default input, rather than a hand-written object. A template that grows a
+// required local therefore cannot drift from its probe: the two are the same
+// function. That is the failure mode the old "add it here in the same commit"
+// instruction was asking a human to remember.
+//
+// The scaffold obligation AS-37 left here is DISCHARGED: scaffold.ejs and its
+// row are gone (AS-45).
+import { signinLocals } from './screens/signin-view.js';
+
 export const VIEWS = Object.freeze([
   Object.freeze({
-    name: 'scaffold',
-    file: 'scaffold.ejs',
-    sampleLocals: Object.freeze({
-      heading: 'health probe',
-      swatches: Object.freeze([]),
-    }),
+    name: 'signin',
+    file: 'signin.ejs',
+    sampleLocals: signinLocals(),
   }),
 ]);

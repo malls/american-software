@@ -14,15 +14,25 @@
 // actingFreelancerId's assertion.
 import { readSessionToken } from './session.js';
 
-/** AS-45's screen. It 404s until AS-45 lands — deliberately: the Location
- *  header is the contract, exactly as /connect-stripe has 404'd since AS-41 and
- *  /invoices/{id} since AS-43. If AS-45 renames the screen, this constant plus
- *  its assertions are the whole diff. */
+/** Screen 1's path. AS-45 landed it: `GET /signin` is served by
+ *  publicAuthRoutes, ABOVE the auth boundary, because it is where this
+ *  middleware SENDS people and a guarded sign-in page is an infinite redirect.
+ *  If a later task renames the screen, this constant plus its assertions are
+ *  the whole diff. */
 export const SIGNIN_PATH = '/signin';
 
 /** Where a successful sign-in lands when it carries no `next` (plan §9 Q4).
- *  Whichever of AS-45/AS-48 lands the Dashboard route first changes this one
- *  constant and its assertions. */
+ *  AS-48 lands the Dashboard route and changes this one constant and its
+ *  assertions — AS-48 ALONE; AS-45 declined to move it, because changing it
+ *  here would move assertions in another task's suite to buy one saved redirect
+ *  hop.
+ *
+ *  CORRECTED 2026-09-03 (review cycle 1, ruling R-2). This docstring used to
+ *  say `/` was "a 303 to `/connect-stripe`, which is the correct onboarding
+ *  destination until the Dashboard exists". The split moved that screen to
+ *  AS-70, so the redirect landed on a 404 — the only success path of the only
+ *  screen. `/` now answers 200 text/plain with one interim line
+ *  (routes/pages.js); AS-70 restores the redirect when its route exists. */
 export const POST_SIGNIN_LANDING = '/';
 
 /** Methods that do not change state, so the origin check does not apply. */
@@ -145,20 +155,70 @@ export function requireSameOrigin(config) {
 export function requireSession(config) {
   return function requireSessionMiddleware(req, res, next) {
     if (req.currentUser !== undefined) return next();
-    // THE SIGN-IN PATH IS NEVER GUARDED, whether or not anything serves it yet.
-    // It is where this middleware SENDS people, so guarding it is an infinite
-    // redirect loop — which is exactly what a signed-out visitor got before
-    // this line existed, because /signin has no route until AS-45 and therefore
-    // falls through every router to here. Today the honest answer is a 404 (the
-    // Location header is the contract, as with /connect-stripe before AS-41);
-    // when AS-45 mounts the screen above the boundary this line keeps costing
-    // nothing.
+    // THE SIGN-IN PATH IS NEVER GUARDED. It is where this middleware SENDS
+    // people, so guarding it is an infinite redirect loop.
+    //
+    // SINCE AS-45, GET /signin IS SERVED ABOVE THIS BOUNDARY (routes/auth.js,
+    // publicAuthRoutes), so this middleware never sees that request and the
+    // line is dead for the case it was written for. IT IS KEPT ON PURPOSE: it
+    // still answers every UNREGISTERED METHOD on that path — PUT /signin,
+    // DELETE /signin — which would otherwise redirect to itself, and it costs
+    // one comparison. (Note the ordering, measured in review: for an
+    // unregistered method the origin check runs FIRST, so this line is reached
+    // only after requireSameOrigin has let the request past.)
+    //
+    // CORRECTED 2026-09-03 (AS-45 review cycle 1, finding F-5). This comment
+    // used to claim: "test/auth.test.js's G3 exercises the interaction: move
+    // GET /signin below the boundary and this carve-out lets a cookieless
+    // request through to the handler, which turns G3 red." THAT IS FALSE, and it was falsified twice independently — moving
+    // the route below the boundary leaves the whole suite GREEN. Two reasons,
+    // either sufficient alone: G2/G3 derive the protected set by filtering the
+    // discovered routes against the PUBLIC_ROUTES literal, which names
+    // 'GET /signin' regardless of which sub-router registered it; and this
+    // carve-out returns next() before requireSession can redirect, so a
+    // cookieless GET answers 200 from either side. THE CARVE-OUT DOES NOT TEST
+    // THE MOUNT POSITION — IT MAKES THE POSITION UNOBSERVABLE FOR THIS PATH.
+    //
+    // What the partition guarantee IS, one-directionally: a route that should
+    // be protected but is mounted public is caught, PROVIDED nobody also adds
+    // it to PUBLIC_ROUTES. That proviso is the hinge, and the two-file
+    // discipline (a new route requires a PUBLIC_ROUTES edit with a written
+    // reason) is what enforces it. The residual — publicness by placement
+    // versus publicness by carve-out — is bounded rather than closed, by
+    // auth.test.js's 'requireSession has exactly one path carve-out'. THE BOUND
+    // IS OVER THREE SPELLINGS of the request path — req.path, req.url and
+    // req.originalUrl — each counted separately in this function's own source,
+    // so a second carve-out written any of those three ways moves a committed
+    // number. WHAT IT DOES NOT COUNT, said plainly rather than left to be
+    // discovered: a carve-out written another way — destructuring the request,
+    // bracket access, req.baseUrl, or a match on something that is not the path
+    // — joins the unobservable set without moving anything.
+    //
+    // NARROWED 2026-09-03 (review cycle 2, finding F-C). This comment used to
+    // say a second path "cannot join the unobservable set without moving a
+    // committed number", full stop. That was wider than the mechanism: the case
+    // counted req.path alone, and a carve-out spelled `req.url` was added in
+    // review with the whole suite staying green.
     if (req.path === SIGNIN_PATH) return next();
     const target = SAFE_METHODS.has(req.method)
       ? `${SIGNIN_PATH}?next=${encodeURIComponent(req.originalUrl)}`
       : SIGNIN_PATH;
     return res.redirect(303, target);
   };
+}
+
+/**
+ * Is a session present? The non-throwing counterpart to actingFreelancerId,
+ * for a PUBLIC page that renders differently for a signed-in caller (AS-45:
+ * `GET /signin` answers S1-DENIED-AUTHENTICATED with a 303).
+ *
+ * It lives HERE rather than in the route because the `current user` concept row
+ * pins req.currentUser to this file alone — a route module reading it directly
+ * would be a red test, and that is the property that keeps every impersonation
+ * question answerable from one file.
+ */
+export function hasSession(req) {
+  return req.currentUser !== undefined;
 }
 
 /**

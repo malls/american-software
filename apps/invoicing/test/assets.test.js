@@ -28,10 +28,56 @@ const TOKENS_BYTES = 12199;
 /** Custom-property DECLARATIONS in tokens.css. A truncated file would sail
  *  through a "non-empty" check; it cannot sail through an exact count. */
 const TOKENS_DECLARATIONS = 183;
+/** Distinct custom-property NAMES in tokens.css. Smaller than the declaration
+ *  count because blocks 2-4 re-declare the same semantic names for light, dark
+ *  and explicit-dark. It is the SET that a var() reference has to resolve
+ *  against, so it gets its own committed literal. */
+const TOKEN_NAMES = 127;
 /** Files in public/. */
-const PUBLIC_FILES = ['scaffold.css'];
+const PUBLIC_FILES = ['app.css'];
+/** Declarations in public/app.css, measured when the file was finished. */
+const APP_CSS_DECLARATIONS = 98;
+/** var(--…) references in public/app.css, measured at the same moment. */
+const APP_CSS_VAR_REFERENCES = 76;
 
 const countDeclarations = (css) => (css.match(/^[ \t]*--[A-Za-z0-9_-]+[ \t]*:/gm) ?? []).length;
+
+/** The CSS <named-color> keywords (CSS Color 4). `transparent` and
+ *  `currentcolor` are deliberately NOT members: they carry no design value and
+ *  cannot drift from the token file, which is what this list is for. */
+const NAMED_COLOURS = new Set((
+  'aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown '
+  + 'burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan '
+  + 'darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid '
+  + 'darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise darkviolet '
+  + 'deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro '
+  + 'ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory khaki '
+  + 'lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow '
+  + 'lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray '
+  + 'lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine '
+  + 'mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise '
+  + 'mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab '
+  + 'orange orangered orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru '
+  + 'pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown '
+  + 'seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan '
+  + 'teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen'
+).split(' '));
+
+/** A number immediately followed by a length unit — the "magic value" shape. */
+const DIMENSIONAL_LITERAL = /\d(px|em|rem|ch|ex|vh|vw|vmin|vmax|pt|pc|cm|mm|in)\b/;
+/** Every way of typing a colour that is not a token reference. */
+const COLOUR_FUNCTION = /#[0-9a-fA-F]{3,8}\b|\b(rgba?|hsla?|oklch|oklab|lab|lch|color)\s*\(/;
+
+/** Strip CSS block comments. The MEDIA check below reads the RAW text instead,
+ *  because the breakpoint carve-out lives in a trailing comment. */
+const stripCssComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+/** Every `prop: value;` in a stylesheet. A media prelude carries no `;` before
+ *  its `{`, so preludes are structurally excluded rather than filtered out. */
+function declarations(css) {
+  return [...stripCssComments(css).matchAll(/([a-zA-Z-]+)\s*:\s*([^;{}]+);/g)]
+    .map((m) => ({ property: m[1], value: m[2].trim() }));
+}
 
 // --- V2: cardinality before quantification ----------------------------------
 
@@ -137,14 +183,97 @@ test('every file in public/ is served, and public/ is exactly what is committed'
   });
 });
 
-test('public/ styles reference tokens rather than re-typing values', async () => {
-  // The app owns public/scaffold.css, but the VALUES stay in the vendored
-  // token file. A hex literal here is drift from the single source of visual
-  // truth (AS-29), so it is a test rather than a review note.
+test('every visual value in public/ CSS traces to a token that exists', async () => {
+  // REPLACES the naive check this file shipped with, which asserted (a) no hex
+  // literal and (b) `body.includes('var(--')`. A stylesheet of
+  // `color: rgb(0,0,0); padding: 12px;` plus one var() anywhere passed both.
+  // Two halves are new and each is separately falsifiable (plan §7 F4-F6):
+  // DIMENSIONAL literals are caught, and every var() NAME IS RESOLVED against
+  // the vendored token file — CSS ignores an unknown custom property silently,
+  // so `var(--color-text-primaryy)` renders unstyled and passes any no-literals
+  // check ever written.
+  //
+  // THE SCOPE IS public/*.css, and that is sound because two guards hold each
+  // other up: dependency-policy.test.js's P2c row bans <style> elements in
+  // views/ and its P2a row bans style= interpolation, so there is nowhere else
+  // in this app a visual value can hide.
   const config = configFor();
-  const css = await readFile(join(config.publicDir, 'scaffold.css'), 'utf8');
-  const body = css.replace(/\/\*[\s\S]*?\*\//g, ''); // strip comments
-  const hexLiterals = body.match(/#[0-9a-fA-F]{3,8}\b/g) ?? [];
-  assert.deepEqual(hexLiterals, [], 'app CSS must reference var(--token), never a re-typed colour');
-  assert.ok(body.includes('var(--'), 'app CSS references tokens');
+
+  // --- cardinality before quantification, in four steps, in this order ------
+  // 1. The directory really holds what is committed. A check reading a
+  //    directory nobody wrote to fails HERE, before it can pass on nothing.
+  const onDisk = (await readdir(config.publicDir)).sort();
+  assert.deepEqual(onDisk, PUBLIC_FILES, `public/ holds [${onDisk.join(', ')}]`);
+
+  // 2. The token file in the IMAGE yields exactly the committed number of
+  //    declarations and the committed number of distinct names. Everything
+  //    below resolves against this set, so an empty or truncated token file
+  //    must fail before it can make every resolution vacuously true.
+  const tokensCss = await readFile(join(config.vendorDir, 'tokens.css'), 'utf8');
+  assert.equal(countDeclarations(tokensCss), TOKENS_DECLARATIONS, 'the vendored token file is the one this check resolves against');
+  const tokenValues = new Map();
+  for (const m of tokensCss.matchAll(/^[ \t]*(--[A-Za-z0-9_-]+)[ \t]*:([^;]*);/gm)) {
+    tokenValues.set(m[1], m[2].trim());
+  }
+  assert.equal(
+    [...tokensCss.matchAll(/^[ \t]*(--[A-Za-z0-9_-]+)[ \t]*:([^;]*);/gm)].length,
+    TOKENS_DECLARATIONS,
+    'every declaration parsed into a name/value pair',
+  );
+  assert.equal(tokenValues.size, TOKEN_NAMES, `tokens.css declares ${tokenValues.size} distinct names, expected ${TOKEN_NAMES}`);
+
+  const css = await readFile(join(config.publicDir, 'app.css'), 'utf8');
+
+  // 3. The scanned declaration count. A truncated stylesheet fails here.
+  const decls = declarations(css);
+  assert.equal(decls.length, APP_CSS_DECLARATIONS, `app.css has ${decls.length} declarations, expected ${APP_CSS_DECLARATIONS}`);
+
+  // 4. The var() reference count. A stylesheet that dropped all its tokens
+  //    fails here rather than passing the conformance sweep on an empty set.
+  const references = [...stripCssComments(css).matchAll(/var\(\s*(--[A-Za-z0-9_-]+)/g)].map((m) => m[1]);
+  assert.equal(references.length, APP_CSS_VAR_REFERENCES, `app.css makes ${references.length} var() references, expected ${APP_CSS_VAR_REFERENCES}`);
+
+  // --- now, and only now, quantify -----------------------------------------
+
+  // (a) No magic values. Unitless numbers, percentages and keywords are
+  //     conformant: they carry layout structure, not design values, and a check
+  //     that fired on `display: flex` would get loosened — and a loosened check
+  //     is how a real one gets waved through.
+  const magic = [];
+  for (const { property, value } of decls) {
+    if (DIMENSIONAL_LITERAL.test(value)) magic.push(`${property}: ${value} — dimensional literal`);
+    else if (COLOUR_FUNCTION.test(value)) magic.push(`${property}: ${value} — colour literal`);
+    else {
+      const named = value.split(/[^A-Za-z-]+/).filter((w) => NAMED_COLOURS.has(w.toLowerCase()));
+      if (named.length > 0) magic.push(`${property}: ${value} — named colour ${named.join(', ')}`);
+    }
+  }
+  assert.deepEqual(magic, [], `app.css must reference var(--token), never a re-typed value:\n${magic.join('\n')}`);
+
+  // (b) THE HALF THE NAIVE CHECK STRUCTURALLY COULD NOT DO. Every referenced
+  //     name must exist in the vendored file.
+  const unresolved = [...new Set(references.filter((name) => !tokenValues.has(name)))];
+  assert.deepEqual(unresolved, [], `app.css references custom propert(ies) that tokens.css does not declare: ${unresolved.join(', ')}`);
+
+  // (c) THE @media CARVE-OUT, WITH TEETH. var() is invalid inside a media
+  //     condition, so a px literal is permitted there — but ONLY on a line
+  //     carrying a trailing `--breakpoint-<name>` comment, and only when the
+  //     literal EQUALS that token's value read from tokens.css. The comment is
+  //     resolved, never taken on faith.
+  const preludes = css.split('\n').filter((line) => /^\s*@media\b/.test(line));
+  assert.ok(preludes.length > 0, 'no media prelude was examined — this check is reading nothing');
+  const breakpointProblems = [];
+  for (const line of preludes) {
+    const named = line.match(/\/\*\s*(--breakpoint-[a-z]+)\s*\*\//);
+    for (const [literal] of line.matchAll(/\d+px\b/g)) {
+      if (named === null) {
+        breakpointProblems.push(`${literal} in "${line.trim()}" carries no --breakpoint-<name> comment`);
+        continue;
+      }
+      const declared = tokenValues.get(named[1]);
+      if (declared === undefined) breakpointProblems.push(`${named[1]} is not declared in tokens.css`);
+      else if (declared !== literal) breakpointProblems.push(`${literal} does not equal ${named[1]}'s ${declared}`);
+    }
+  }
+  assert.deepEqual(breakpointProblems, [], `media preludes must resolve to a breakpoint token:\n${breakpointProblems.join('\n')}`);
 });

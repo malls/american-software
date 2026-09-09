@@ -17,10 +17,11 @@
 import { NotFoundError, UniqueViolationError } from '../db/database.js';
 import { readinessFromAccount } from './readiness.js';
 
-/** AS-45's screen 2 route. It dangles (404) until AS-45 lands — deliberately:
- *  the Location header is the contract, AS-45 depends on this task, and if
- *  AS-45 renames the screen this constant plus its test assertions are the
- *  whole diff (plan §9 Q2). */
+/** Screen 2's route. It still dangles (404): AS-45 landed the view layer and
+ *  screen 1 and then split on its own pre-agreed line, so screen 2 is AS-70.
+ *  Deliberate, as before — the Location header is the contract, and if AS-70
+ *  renames the screen this constant plus its test assertions are the whole
+ *  diff (AS-41 plan §9 Q2). */
 const SCREEN_PATH = '/connect-stripe';
 
 /** Name the failed step on the way out, so the route's one-line error body can

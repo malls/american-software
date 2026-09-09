@@ -371,7 +371,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 49, `expected 49 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 50, `expected 50 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/auth/accounts.js',
@@ -403,6 +403,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/health.js',
     'lib/invoices/lifecycle.js',
     'lib/invoices/mapping.js',
+    'lib/screens/signin-view.js',
     'lib/stripe/client.js',
     'lib/stripe/custody.js',
     'lib/stripe/transport.js',
@@ -410,7 +411,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/views.js',
     'lib/webhooks/receiver.js',
     'lib/webhooks/signature.js',
-    'public/scaffold.css',
+    'public/app.css',
     'routes/assets.js',
     'routes/auth.js',
     'routes/clients.js',
@@ -421,7 +422,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'routes/pages.js',
     'routes/webhooks.js',
     'server.js',
-    'views/scaffold.ejs',
+    'views/signin.ejs',
   ]);
 
   // 4. Every scanned file survives its class's stripper.
@@ -563,16 +564,249 @@ test('no app source or manifest outside test/ contains an outbound HTTP client',
 });
 
 /** Where a concept is allowed to appear, it must appear there (V2: an unused
- *  exemption is a hole waiting for a tenant) and nowhere else. */
-function scanConcept(name, pattern, allowed, { raw = false } = {}) {
-  const hits = SCANNED
+ *  exemption is a hole waiting for a tenant) and nowhere else.
+ *
+ *  `only` narrows the scanned set to the files whose repo-relative path matches
+ *  (AS-45: the view-layer rows are lexical properties of TEMPLATES and
+ *  STYLESHEETS, and two of their patterns have false positives in JavaScript —
+ *  `\son[a-z]+\s*=` matches ` once =`). Narrowing the SET is safe in a way
+ *  narrowing a PATTERN is not, and it carries its own vacuity floor: a scoped
+ *  set that came back empty fails before anything is quantified over it. */
+function scanConcept(name, pattern, allowed, { raw = false, only = null } = {}) {
+  const files = only === null ? SCANNED : SCANNED.filter((p) => only.test(relative(APP_DIR, p)));
+  if (only !== null) {
+    assert.ok(files.length > 0, `${name}: the scoped file set is EMPTY — this row is examining nothing`);
+  }
+  const hits = files
     .filter((p) => pattern.test(raw ? readFileSync(p, 'utf8') : strippedText(p)))
     .map((p) => relative(APP_DIR, p))
     .sort();
   assert.deepEqual(hits, [...allowed].sort(), `${name}: found in [${hits.join(', ')}], allowed in exactly [${allowed.join(', ')}]`);
 }
 
-test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43 and AS-44 put them', () => {
+// --- AS-45: the view layer's raw-output gate ---------------------------------
+//
+// EJS has exactly two output tags: one escapes the five HTML characters, the
+// other does not. Relying on "we use the escaping one" is relying on every
+// author, forever, remembering to. So the non-escaping tag is banned as a
+// LEXICAL PROPERTY of the scanned set — property P1 (README.md § The view
+// layer) — and the ban is absolute today.
+//
+// It is not a blanket ban, because lib/contracts/render.js's header already
+// commits AS-47 to emitting a rendered contract with raw output exactly once,
+// inside the document region. A blanket ban would either block that task or be
+// quietly widened by whoever hit it. So raw output is GATED by the same
+// instrument as SANCTIONED above — keyed on file + the WHOLE line the hit must
+// sit on + how many hits it may absorb — and AS-45 lands it with ZERO entries,
+// on a MEASURED baseline of zero (the single occurrence in the tree,
+// lib/health.js:80, is inside a `//` comment that stripComments removes).
+//
+// AS-47's one raw-output site becomes the first entry: reviewed on its own
+// merits, pinned to one exact line, and unable to sanction a second occurrence.
+const RAW_OUTPUT_SANCTIONED = [];
+
+/** The non-escaping EJS output tag. Spelled literally: test/ is outside the
+ *  walker's world (SKIPPED_DIRS), so this file cannot be its own first hit. */
+const RAW_OUTPUT_TAG = /<%-/g;
+
+/** Same shape as scanForbidden, for the one construct whose allowlist is
+ *  separate. @returns {{ findings: string[], seen: number[] }} */
+function scanRawOutput() {
+  const seen = RAW_OUTPUT_SANCTIONED.map(() => 0);
+  const findings = [];
+  for (const path of SCANNED) {
+    const file = relative(APP_DIR, path);
+    const code = strippedText(path);
+    const lines = code.split('\n');
+    for (const match of code.matchAll(RAW_OUTPUT_TAG)) {
+      const lineNumber = code.slice(0, match.index).split('\n').length;
+      const line = lines[lineNumber - 1];
+      const entry = RAW_OUTPUT_SANCTIONED.findIndex((s) => s.file === file && s.line.test(line));
+      if (entry === -1) {
+        findings.push(
+          `${file}:${lineNumber}: EJS raw output — not sanctioned — ${line.trim()} — every interpolation `
+            + 'must be escaped; if this one genuinely must not be, add a RAW_OUTPUT_SANCTIONED entry pinned '
+            + 'to this exact line, with a reason',
+        );
+      } else {
+        seen[entry] += 1;
+      }
+    }
+  }
+  return { findings, seen };
+}
+
+// --- AS-45: P4, the TAG-NAME and ATTRIBUTE-NAME positions -------------------
+//
+// EJS escapes exactly five characters — & < > " ' — and does NOT escape `=` or
+// a space. So an interpolation that sits between attributes, rather than inside
+// an attribute VALUE, renders a user-supplied string as markup STRUCTURE:
+//
+//     <span class="app-label" INTERPOLATION>
+//
+// with a submitted value of `x onmouseover=alert(1)` becomes a live event
+// handler. Demonstrated by agent:qa-priya against a container built from a
+// mutated image during review cycle 1, with P1, P2a, P2b, P2c and P3 all green:
+// P2b scans template SOURCE for an on*= attribute, and at source time the text
+// is an EJS output tag — the dangerous attribute exists only at render time.
+// P2a and P3 police attribute VALUES. Nothing policed the position where an
+// attribute NAME goes. It is not exploitable today (no template does this); the
+// finding is the WRITTEN GUARANTEE README.md § The view layer hands to AS-46,
+// AS-47 and AS-48, which claimed the position was covered.
+//
+// P4 — WITHIN ANY START TAG, EVERY EJS OUTPUT TAG SITS INSIDE AN ATTRIBUTE
+// VALUE. An output tag anywhere in the tag's name-or-attribute-name region is
+// forbidden, and BOTH HALVES ARE ENFORCED — which they were not when this row
+// first landed. The attribute-name half is enforced by the in-tag walk below.
+// The tag-name half is enforced by an explicit TAG-START RULE, stated here in
+// the same breath as the property because the gap between the English and the
+// algorithm is exactly what review cycle 2 found: a `<` immediately followed by
+// an EJS open tag opens a start tag whose NAME is interpolated, and is a
+// FINDING rather than text. The CLOSING-tag name region (a closing tag whose
+// name is interpolated) is covered too, by the same in-tag walk, because a
+// closing tag's two-character opener begins a scanned tag region.
+//
+// FINDING F-A, so the reason survives: the first version of this row treated a
+// `<` followed by an EJS open tag as ordinary text, because `<` is not in its
+// tag-start character class. Planting `<INTERPOLATION class="app-label">`
+// produced NO finding with all four lexical rows green, and a container built
+// from that image served `<div onmouseover=alert(1) autofocus …>` out of a
+// submitted value — no angle bracket and no quote required. The property was
+// stated more widely than the mechanism enforced it. Ruling R-6: the mechanism
+// comes up to meet the property, and the property is not narrowed.
+//
+// IT IS SOUND *BECAUSE P3 HOLDS*, and that dependency is the whole design — the
+// same shape as §3.2's stylesheet scope being sound because P2a and P2c hold.
+// The scan walks each file left to right and skips quoted spans, so a `>` or a
+// `<%` inside an attribute value is harmless. Skipping SINGLE-quoted spans
+// would hide an interpolation inside one — except P3 already forbids exactly
+// that, so the two rows partition the space with nothing between them.
+//
+// LEXICAL, and it inherits P1-P3's stated limit: it does not stop a route from
+// res.send-ing a hand-built string, and it does not stop a view model from
+// computing markup. The dynamic half is the falsification recipe, not this row.
+//
+// CARDINALITY BEFORE QUANTIFICATION, and it is not decoration here. The
+// instrument that can silently narrow this scan is THIS ROW'S OWN WALKER. The
+// walk skips quoted spans ONLY INSIDE A TAG REGION, so the placement that opens
+// a runaway span is an apostrophe that sits INSIDE A TAG REGION AND OUTSIDE A
+// QUOTED VALUE — `<span ' class="app-label">`. It opens a span that runs to the
+// next apostrophe anywhere in the file, and every tag between them goes
+// unexamined. Committing the START TAG COUNT makes that failure loud instead of
+// vacuous, and it does: planting exactly that construct in views/signin.ejs
+// collapses the 87 examined start tags to 14 and this assertion fires first.
+//
+// MEASURED 2026-09-07 by developer-lena, at the placement this sentence
+// describes, not transcribed: `<span class="app-label">` -> `<span ' class=
+// "app-label">` in a scratch extract, then the row run — it reported
+// `P4 examined 14 start tags across 1 template(s), expected 87`. The number
+// beside a sentence must be reproducible from that sentence; 14 is.
+//
+// TWO PLACEMENTS THAT DO *NOT* COLLAPSE IT, measured the same way, because the
+// wrong one was published twice (findings F-B and F-G) and cost two cycles:
+// an apostrophe in ELEMENT CONTENT (`>Don't panic</span>`) holds the count at
+// 87 and the suite green — element content is never scanned for quotes at all —
+// and so does an apostrophe INSIDE a double-quoted attribute value. Prose copy
+// carrying an apostrophe is NOT a hazard here, and a template author should not
+// be avoiding one.
+//
+// THERE IS NO BUG IN stripComments — DO NOT GO LOOKING FOR ONE (finding F-B).
+// This paragraph used to claim that the stripper treats an apostrophe in element
+// content as a string delimiter and would swallow the rest of the file. It does
+// not: its quote branch appends every character it consumes, so its output is
+// byte-for-byte its input, measured directly on a file carrying all three
+// hazards. P1-P3 are not narrowed by an apostrophe in element content at all.
+// Right instinct, wrong instrument.
+const VIEW_FILES = /^views\//;
+
+/** The number of start tags P4 examines across views/. Measured at the moment
+ *  the template was finished, written down after the grep, and moved
+ *  deliberately when a template gains or loses an element. A scan that suddenly
+ *  examines fewer tags is examining less than it says it is.
+ *
+ *  MEASURED 2026-09-03, three instruments agreeing on views/signin.ejs: this
+ *  scan reported 87; `perl -0777 -ne 's/<%#.*?%>//gs; $n++ while /<[A-Za-z!\/]/g'`
+ *  reported 87; `grep -oE '</?[A-Za-z]' | wc -l` reported 86, which is 87 less
+ *  the `<!doctype` its character class cannot see. Closing tags are counted
+ *  too: they carry no attributes, so scanning them costs nothing and excluding
+ *  them would be a second rule to get wrong. */
+const VIEW_START_TAGS = 87;
+
+const lineAt = (text, index) => text.slice(0, index).split('\n').length;
+
+/** @returns {{ findings: string[], tags: number, files: number }} */
+function scanAttributeNamePosition() {
+  const findings = [];
+  const files = SCANNED.filter((path) => VIEW_FILES.test(relative(APP_DIR, path)));
+  let tags = 0;
+  for (const path of files) {
+    const file = relative(APP_DIR, path);
+    const code = strippedText(path);
+    let i = 0;
+    while (i < code.length) {
+      if (code[i] !== '<') { i += 1; continue; }
+      // An EJS tag in ELEMENT CONTENT is not a start tag. Skip the whole tag,
+      // so a `<` or `>` inside the expression cannot be mistaken for markup.
+      if (code.startsWith('<%', i)) {
+        const close = code.indexOf('%>', i);
+        i = close === -1 ? code.length : close + 2;
+        continue;
+      }
+      // TAG-NAME POSITION (review cycle 2, ruling R-6). A `<` immediately
+      // followed by an EJS open tag is not text: at render time it opens ONE
+      // start tag whose NAME came out of the expression. It is COUNTED as a
+      // start tag for that reason — the construct does not move the committed
+      // cardinality, so the findings assertion below is the sole detector and
+      // fires on its own merits. Scanning then continues through the rest of
+      // the tag region, so a second violation inside the same tag also reports.
+      const tagNamed = code.startsWith('<%', i + 1);
+      if (tagNamed) {
+        const close = code.indexOf('%>', i + 1);
+        findings.push(
+          `${file}:${lineAt(code, i)}: EJS interpolation in TAG-NAME position — `
+            + `${code.slice(i + 1, close === -1 ? code.length : close + 2)} — `
+            + 'the element NAME comes out of the expression, so a submitted value renders as markup '
+            + 'STRUCTURE here; an element name must be a literal',
+        );
+        tags += 1;
+        i = close === -1 ? code.length : close + 2;
+      } else {
+        // A `<` followed by anything that cannot begin a tag name is text.
+        if (!/[A-Za-z!/]/.test(code[i + 1] ?? '')) { i += 1; continue; }
+        tags += 1;
+        i += 1;
+      }
+      while (i < code.length && code[i] !== '>') {
+        if (code[i] === '"' || code[i] === "'") {
+          const quote = code[i];
+          const close = code.indexOf(quote, i + 1);
+          if (close === -1) {
+            findings.push(`${file}:${lineAt(code, i)}: unterminated ${quote} attribute value — the tag scan cannot be trusted past here`);
+            i = code.length;
+            break;
+          }
+          i = close + 1;
+          continue;
+        }
+        if (code.startsWith('<%', i)) {
+          findings.push(
+            `${file}:${lineAt(code, i)}: EJS interpolation in ATTRIBUTE-NAME position — ${code.slice(i, code.indexOf('%>', i) + 2)} — `
+              + 'EJS does not escape `=` or a space, so a submitted value renders as markup STRUCTURE here; '
+              + 'move it inside a double-quoted attribute value',
+          );
+          const close = code.indexOf('%>', i);
+          i = close === -1 ? code.length : close + 2;
+          continue;
+        }
+        i += 1;
+      }
+      i += 1;
+    }
+  }
+  return { findings, tags, files: files.length };
+}
+
+test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, AS-44 and AS-45 put them', () => {
   // The `stripe` npm module is banned everywhere, permanently: `new Stripe(key)`
   // is the documented bypass of the custody guard (stack decision §8.1).
   scanConcept('stripe module import', /(from|require\s*\(|import\s*\()\s*['"]stripe['"]/, []);
@@ -730,6 +964,107 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43 a
   // rather than a review catch — and the stdout/stderr capture in
   // test/auth.test.js is its dynamic half.
   scanConcept('console output', /\bconsole\.\w+/, ['lib/invoices/lifecycle.js', 'lib/webhooks/receiver.js', 'server.js']);
+  // --- AS-45: the view layer's three escaping properties ---------------------
+  // This is the first task in this app that renders HTML for a human, and the
+  // three remaining screen tasks inherit whatever it decides. Each row below
+  // landed on a MEASURED baseline of zero, run against the tree before the
+  // number was written down, so each is a real property from the moment it
+  // ships rather than a hole waiting for a tenant.
+  //
+  // P1 — THERE IS NO RAW-OUTPUT PATH. Not a plain scanConcept row: raw output
+  // is gated by a keyed, counted, line-pinned allowlist (above), because AS-47
+  // has a committed need for exactly one sanctioned site. Cardinality on the
+  // allowlist FIRST — a row that quantified over an unread allowlist would pass
+  // on anything.
+  assert.equal(
+    RAW_OUTPUT_SANCTIONED.length,
+    0,
+    `expected 0 RAW_OUTPUT_SANCTIONED entries, found ${RAW_OUTPUT_SANCTIONED.length} — adding one sanctions ONE exact line and is a deliberate, reviewable change`,
+  );
+  const rawOutput = scanRawOutput();
+  assert.deepEqual(rawOutput.findings, [], `EJS raw output: ${rawOutput.findings.join('; ')}`);
+  RAW_OUTPUT_SANCTIONED.forEach((entry, i) => {
+    assert.ok(typeof entry.reason === 'string' && entry.reason.trim().length > 0, `RAW_OUTPUT_SANCTIONED ${entry.file} carries no reason`);
+    assert.ok(Number.isInteger(entry.count) && entry.count > 0, `RAW_OUTPUT_SANCTIONED ${entry.file} must sanction a positive number of hits, not ${entry.count}`);
+    const remedy = rawOutput.seen[i] < entry.count
+      ? 'the entry is stale: remove it, or restore what it sanctioned'
+      : 'the entry is over-used: a second raw-output site is hiding behind it';
+    assert.equal(rawOutput.seen[i], entry.count, `RAW_OUTPUT_SANCTIONED ${entry.file} matched ${rawOutput.seen[i]} line(s), expected ${entry.count} — ${remedy}`);
+  });
+  // P2a — NO INTERPOLATION WHERE ESCAPING IS NOT ENOUGH. EJS's five-character
+  // escape is correct for element content and for a double-quoted attribute
+  // value; it is NOT sufficient in a URL or a style context, where `javascript:`
+  // and `expression(` need no angle bracket. Measured baseline before AS-45:
+  // ONE hit, views/scaffold.ejs:38's `style="background: var(--…)"`, which is
+  // why retiring the scaffold page was a precondition for this row rather than
+  // housekeeping bundled alongside it. A path that must survive a round trip
+  // (`next`) travels in a hidden value= input, never in a URL.
+  //
+  // THE MATCH IS CASE-FOLDED BECAUSE HTML'S IS (review cycle 3, finding F-F).
+  // An HTML attribute name is case-insensitive, so `HREF=`, `Style=` and
+  // `FormAction=` are the same attributes to a browser as `href=`, `style=` and
+  // `formaction=`. Without the `i` flag this row saw only the lowercase
+  // spellings and the property was stated more widely than the mechanism
+  // enforced it — the third instance of that shape on this branch, after the
+  // attribute-name position (F-3) and the tag-name position (F-A). The flag
+  // landed on a re-measured baseline of ZERO hits across the scoped set.
+  //
+  // THE FIVE NAMES ARE A CLOSED ENUMERATION, not a category (reviewer's bounded
+  // observation, review cycle 3). URL-bearing attributes are not five: `srcset`,
+  // `poster`, `ping`, `xlink:href` and `<object data=>` all take a URL and none
+  // is in the alternation. That is a BOUND honestly presented as one — no
+  // template uses any of them — and not a false sentence. A template that ever
+  // needs one of them adds it HERE, in the same commit.
+  scanConcept(
+    'interpolation in a URL or style attribute',
+    /(href|src|action|formaction|style)\s*=\s*"[^"]*<%/i,
+    [],
+    { only: /^(views|public)\// },
+  );
+  // P2b — no event-handler attribute. Scoped to templates and stylesheets: the
+  // pattern matches ` once =` in JavaScript, and narrowing the pattern to avoid
+  // that would be narrowing the thing that catches a real ` onclick=`.
+  //
+  // CASE-FOLDED FOR THE SAME REASON AS P2a, and this is the row F-F was found
+  // on: `ONMOUSEOVER="alert(1)"` is a live event handler that this row, written
+  // `[a-z]` with no flag, could not see — and the payload `alert(1)` contains
+  // none of the five characters EJS escapes, so the escape is a no-op against
+  // it. P2c three lines below always carried `/i`; the omission here and on P2a
+  // was an oversight, not a decision. Re-measured baseline after the flag: ZERO.
+  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^(views|public)\// });
+  // P2c — THE NO-CLIENT-SIDE-JAVASCRIPT ASSUMPTION, MADE MECHANICAL. Two ledger
+  // rows (S1-LOADING, S2-LOADING) are unimplementable under it and are recorded
+  // as `unrenderable — browser-supplied` rather than silently skipped. This row
+  // is what stops the assumption decaying into a comment.
+  scanConcept('script or style element', /<(script|style)\b/i, [], { only: /^(views|public)\// });
+  // P3 — an attribute value that carries data is DOUBLE-quoted, because
+  // escaping `"` is only load-bearing if `"` is the delimiter. This row catches
+  // the two spellings that break that: a single-quoted value, and an unquoted
+  // one.
+  scanConcept(
+    'interpolation in an unquoted or single-quoted attribute value',
+    /=\s*'[^']*<%|=\s*<%/,
+    [],
+    { only: /^(views|public)\// },
+  );
+  // P4 — NO INTERPOLATION IN THE TAG-NAME OR ATTRIBUTE-NAME REGION (review
+  // cycle 1, F-3; the tag-name half added by review cycle 2, ruling R-6).
+  // Scoped to views/ alone rather than views/ + public/: a stylesheet has no
+  // start tags, so including it would add only false-positive surface (`a > b`)
+  // and no coverage. Cardinality on the instrument FIRST — a walker whose in-tag
+  // quote skipping has run away examines a collapsed number of tags and must be
+  // red, not green. And note what the cardinality deliberately does NOT do: an
+  // interpolated tag name is counted as a start tag, so planting one leaves this
+  // number unmoved and the findings assertion is the only thing that can catch it.
+  const attrName = scanAttributeNamePosition();
+  assert.ok(attrName.files > 0, 'P4: the views/ file set is EMPTY — this row is examining nothing');
+  assert.equal(
+    attrName.tags,
+    VIEW_START_TAGS,
+    `P4 examined ${attrName.tags} start tags across ${attrName.files} template(s), expected ${VIEW_START_TAGS} — `
+      + 'a template gained or lost an element, or the scan is seeing less of a file than it should',
+  );
+  assert.deepEqual(attrName.findings, [], `interpolation in the tag-name or attribute-name region: ${attrName.findings.join('; ')}`);
 });
 
 test('no file in apps/invoicing exceeds 1,200 lines', () => {
