@@ -7,7 +7,7 @@ GitHub remote: https://github.com/malls/american-software. `README.md` is the pu
 
 **Decided 2026-09-07 by the board (Claude Code chat, metawork):** the repository stays **public** for now. Audit basis: no secrets are committed (all Stripe-shaped strings are placeholders or stripe-mock keys; `.env.local` is gitignored), and the strategy record is not moat-defining for this market. It flips to **private at the first of two triggers**, in the same tick and *before* the triggering commit lands: (1) the product-naming record — the name must not sit on a public master before the domain is bought and any trademark filed; (2) the first incorporation or legal record — those carry an EIN, a registered-agent address, and the board member's legal name. Flipping is a GitHub setting change by the board, not company work: the tick that reaches either trigger goes `needs_human` and asks for the flip before committing. Recorded alternative if the board later wants the experiment visible long-term: a separate private records repo for legal and naming material — a deliberate exception to the monorepo decision, to be recorded as such if taken.
 
-Companion directive (same date, sent via `#board`): DMs involving `human:forrest` join `#board`/`#bizdev` in the chat-export exclusion (see "Operational record commits"). The nine `dm-*~~human~forrest.jsonl` files already on master are already public, so the decision governs future exports; the implementing task removes the files but does not rewrite history.
+Companion directive (same date, sent via `#board`): DMs involving `human:forrest` join `#board`/`#bizdev` in the chat-export exclusion (see "Operational record commits"). The nine `dm-*~~human~forrest.jsonl` files already on master are already public, so the decision governs future exports; AS-91 removed the files but did not rewrite history (merged 2026-09-09).
 
 ## Product
 
@@ -366,19 +366,24 @@ only `apps/chat/data/export/` (and future record paths); never mix it with
 code. Identity: committed by the employee running the tick, under their
 persona git identity. Private channels (currently `#board` and `#bizdev`, per
 the AS-6 board decision — and, by board directive of 2026-09-07 (#board msg 559), DMs involving
-`human:forrest`, implemented by AS-91, which also removes the nine already-committed
+`human:forrest`, implemented by AS-91 (merged 2026-09-09, 5de428f), which also removed the nine previously committed
 `dm-*~~human~forrest.jsonl` files without rewriting history) are excluded from the chat export by design — hidden
 means hidden, including git. Their only durable copies are the live DB and
 manual `chat dump` backups; the board accepted this tradeoff on 2026-08-30 (AS-6).
 
-**Records step SUSPENDED until AS-91 merges (orchestrator, 2026-09-07, at the AS-75
-merge).** The #board msg 559 directive governs *future* exports, and the exporter
-cannot exclude human DMs until AS-91 lands, so a merge tick does not run
-`chat export` or commit `apps/chat/data/export/` in the meantime. The export is
-append-only and deterministic, so deferring loses nothing: the first export after
-AS-91 catches up every non-excluded conversation. The same suspension applies to the
-merge step in `.claude/commands/advance.md` (applied there 2026-09-07 from a live
-session, together with the AS-75 plan §9.1 deploy-honesty wording).
+**Records step resumed (orchestrator, 2026-09-09, at the AS-91 merge).** The step was
+suspended from the AS-75 merge (2026-09-07) until AS-91 landed, because the exporter could
+not exclude human DMs before then; the export is append-only and deterministic, so the
+first export after AS-91 catches up every non-excluded conversation. One gate survives:
+a merge tick runs `chat export` only when `apps/chat/data/deploy-state.json` shows
+`runningId` equal to `desiredId` — the CLI runs against the container, and an export taken
+while the container still runs pre-merge code would re-emit exactly the files the merged
+guard forbids. Otherwise the tick defers the export to the next tick and says so. The first
+post-AS-91 export is also AC-5's second half (plan §8): it must create no `~~human~` file
+and only append to public files; the tick that runs it reports that on AS-91. The matching
+merge-step sentence in `.claude/commands/advance.md` still reads "SUSPENDED until AS-91
+merges": the headless tick that merged AS-91 was denied the write (as at the AS-75 merge), so
+a live session applies it — until then this paragraph overrides that sentence.
 
 ### Pushing
 
