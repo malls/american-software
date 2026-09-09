@@ -8,7 +8,7 @@
       "repo": null
     }
   ],
-  "comment_count": 4,
+  "comment_count": 5,
   "complexity": "low",
   "created_at": "2026-09-07T16:37:37Z",
   "created_by": "agent:cto-owen",
@@ -17,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1YBPZTA7902T95HT37N7TG8",
-  "last_event_id": "ev_01M23Y45TVFN5WA1SQQCCHADQ4",
+  "last_event_id": "ev_01M23YJTY0ZV73V7HCEREN4290",
   "last_status_changed_at": "2026-09-09T20:35:36Z",
   "priority": "critical",
   "relationships_out": [],
@@ -32,6 +32,6 @@
   ],
   "title": "Chat: exclude DMs involving a human (human:forrest) from the JSONL export exactly like #board/#bizdev \u2014 and delete the nine committed dm-*~~human~forrest.jsonl files",
   "type": "bug",
-  "updated_at": "2026-09-09T20:35:36Z",
+  "updated_at": "2026-09-09T20:43:36Z",
   "urgency": null
 }
