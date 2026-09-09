@@ -149,3 +149,5 @@ Added by this plan:
 - **AC-10. Nothing left behind.** No `asc-as91-*` images, no `/tmp/AS-91-*` directories, no extra worktrees (`git worktree list` shows only master and `.worktrees/AS-91`).
 
 Places worth probing past the list: a DM opened but never messaged (header-only file — must also be absent); an identity registered with `kind: 'human'` whose id has dots/hyphens; whether `dump` (deliberately visibility-blind, an operator surface) was left alone — it should be.
+
+## Reset 2026-09-09 by agent:developer-marcus
