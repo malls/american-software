@@ -1,6 +1,7 @@
 # Decision Record — CMO Hire: Not Yet (marketing enters as an IC, at M1; a CMO when there is a function to lead)
 
 **Author:** Carla Voss, CEO (`agent:ceo-carla`). **Date:** 2026-09-08.
+**Board disposition:** 2026-09-09, #bizdev msg 591 ("your call") — read and recorded in §9.4.
 **Prompted by:** board question, #bizdev msg 588 ("Do we need a CMO?").
 **Domain:** org/personnel, commercial side — the CEO's. The CTO's countersignature
 is not required; a dissent slot is open at §10 because two triggers below touch the
@@ -300,6 +301,78 @@ to own, a channel it thinks we should already be in — that is an input this re
 did not have. Say what it is and I will fold it into §3's inventory and re-check
 the triggers against it. The record's answer is only as good as its inventory.
 
+### 9.4 Board disposition (2026-09-09) and the CEO's reading of it
+
+The board replied to msg 590 — the decision and the three §9.2/§9.3 items, posted
+as one message — with two words: **"your call"** (#bizdev msg 591, `human:forrest`,
+2026-09-09T03:38:44Z). Nothing else arrived: no DM, no `#board` post, no named
+artifact. Two words can be over-read, and an over-read at C-level is expensive, so
+the reading is taken item by item and the conservative branch is chosen wherever the
+words genuinely leave two.
+
+**What it settles.**
+
+1. **§1 stands with the board's knowledge and without objection.** The board asked
+   the question, received a "not yet" with triggers, and declined to override it.
+   The CMO question is closed at the board level; it re-opens only on §6.2 (and
+   §6.3 still applies — asking again is not a trigger).
+2. **§9.2 ask 1 — disposed by delegation, not by confirmation.** The board neither
+   confirmed nor corrected the §8.2 reading; it handed the routing question itself
+   to the CEO. That is a legitimate answer and I take it as given: *whether* a
+   C-level hire routes to the board is now a CEO-set policy under a board
+   delegation, not an unconfirmed reading. **I set it conservatively: C-level hires
+   route to the board as a framed recommendation and execute on a green-light.**
+   The §8.2 hire mechanics and the §6.2 header ("a board green-light is required
+   either way") stand as written. Reasons, numbered so they can be argued with:
+   1. *Reversibility.* A C-level hire is the least reversible personnel act this
+      company has: dossiers are never deleted, a `c-level` is a decision-making
+      peer whose calls bind the company in their domain and are not reviewed
+      upstream the way IC work is, and the model assignment is `fable`. My own
+      operating rule is that irreversible decisions widen the room, not narrow it.
+   2. *Cost.* The gate is one message and one tick, and the board has said on the
+      record that it expects to green-light rather than veto — lightweight, but
+      surfaced. Keeping it costs nothing measurable.
+   3. *Asymmetry.* If the board meant the wider grant, declining to use it costs
+      nothing; if it did not, using it would be an over-read at the worst possible
+      level. The conservative branch dominates.
+   4. *The decision is mine either way.* When a §6.2 trigger fires, I decide whether
+      to hire and bring the recommendation framed; the board's green-light is the
+      confirmation step, not the decision. That is the delegation exercised, not
+      declined.
+
+   Scope: the ask was phrased for C-level hires generally, and the answer was to the
+   ask, so the policy covers every future C-level hire, not just a CMO. Revision:
+   since it is my call, I may revise it — but only in writing, in this record or its
+   successor, *before* a trigger fires, never during one.
+3. **§9.3 — the board named nothing missing.** It had the question in front of it
+   and put no artifact, conversation, or channel on the record. I conclude msg 588
+   was a headcount question, not a symptom report, and **§3's inventory stands
+   unchanged**; no trigger is re-checked because no new input arrived. Stated
+   plainly: silence is not evidence the inventory is complete — it is evidence the
+   board did not add to it. The §7 falsifier remains the check on my own coverage
+   claim. The question is closed; I do not re-ask it.
+
+**What it does not settle.**
+
+4. **§9.2 ask 2 — the warm intros — is untouched.** A delegation to the CEO cannot
+   produce a board action. The intros remain the standing ask from 08 §3.1; not
+   re-pinged.
+5. It is **not a pre-approval of any future CMO hire.** A §6.2 trigger firing still
+   produces a framed recommendation and waits for the green-light (item 2).
+6. It says nothing about the **marketing IC** (§6.1, §8.1): that hire was already
+   inside the standing grant (msg 53) and remains self-executing on its triggers.
+7. Unrelated open board items stay open and are not re-read into these two words:
+   the constraint-7 app-fee ruling (08 §4), and the optional `docs/org/` filing
+   move (metawork, board's discretion).
+8. **Owen's §10 slot is not closed by the board.** No entry as of this tick; it
+   closes on its own clause at 2026-09-09T18:35Z (one working day from commit
+   1517522, 2026-09-08T18:35:37Z). The milestone anchors are still his to dispute.
+
+**Proceeding under my own authority.** The §9.1 naming exercise remains the next
+commercial-side workstream and opens on my next tick — this tick was scoped by the
+orchestrator to the disposition alone. The §7 clock does not pause for that, and I
+would rather record the deferral than let it pass unrecorded.
+
 ## 10. Signatures and dissent slot
 
 - **Carla Voss, CEO** — SIGNED, 2026-09-08. Org decision taken under my personnel
@@ -324,6 +397,13 @@ the triggers against it. The record's answer is only as good as its inventory.
   quoted in CLAUDE.md (records 10 and 11), which employees do not edit. Proposed
   as a metawork item below; until it is taken, org records keep filing here with
   the next sequence number.
+- **Disposition added 2026-09-09** in watcher tick `watcher:17217`, in reply to
+  #bizdev msg 591 ("your call"); acknowledged first as msg 593, substantive reply
+  posted to `#bizdev` after this edit. §9.4 is the only new section; §1–§9.3 and
+  §10 are unchanged. Owen's dissent slot: no entry at the time of writing; window
+  closes 2026-09-09T18:35Z. The CLAUDE.md Org Chart line committed as b3f71ee
+  (2026-09-08T18:36:41Z) ends "(board to confirm, record §9.2)", which is now stale
+  — the ask is disposed — so a second metawork proposal is appended below.
 
 ## Proposed metawork edits
 
@@ -351,3 +431,20 @@ bullet:
 Optional, at the board's discretion (record §11 filing note): move records 10, 11,
 and 13 to `docs/org/` and update the two CLAUDE.md path references — a metawork
 commit, since it touches CLAUDE.md.
+
+**Second proposal (2026-09-09, after the board's disposition, §9.4).** The bullet
+above was applied as commit b3f71ee. Its closing parenthetical records an ask that
+is now disposed. Replace, in the CMO bullet of the **Org Chart** section, exactly
+this text:
+
+> (board to confirm, record §9.2)
+
+with exactly this text:
+
+> (the board delegated the routing question to the CEO — #bizdev msg 591,
+> 2026-09-09, "your call" — and the CEO set it conservatively; record §9.4)
+
+Nothing else in the bullet changes: the substantive rule — C-level hires route to
+the board as a framed recommendation regardless of the standing grant — is the
+policy the CEO set under the delegation, so the sentence it sits in is still
+correct.
