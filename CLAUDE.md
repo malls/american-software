@@ -381,9 +381,9 @@ while the container still runs pre-merge code would re-emit exactly the files th
 guard forbids. Otherwise the tick defers the export to the next tick and says so. The first
 post-AS-91 export is also AC-5's second half (plan §8): it must create no `~~human~` file
 and only append to public files; the tick that runs it reports that on AS-91. The matching
-merge-step sentence in `.claude/commands/advance.md` still reads "SUSPENDED until AS-91
-merges": the headless tick that merged AS-91 was denied the write (as at the AS-75 merge), so
-a live session applies it — until then this paragraph overrides that sentence.
+merge-step sentence in `.claude/commands/advance.md` carries the same gate (applied from a
+live session 2026-09-09; the headless tick that merged AS-91 was denied the write, as at the
+AS-75 merge).
 
 ### Pushing
 
