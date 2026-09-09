@@ -828,15 +828,26 @@ export function openStore(dbPath) {
 
     // AS-6: private channels are excluded outright — no file, no counts.
     // Hidden includes the git export (board decision); their only durable
-    // copies are the live DB and manual `chat dump` backups. DMs keep
-    // exporting exactly as before (pre-existing AS-5 behavior). The header
+    // copies are the live DB and manual `chat dump` backups.
+    // AS-91: DMs with a human participant (either dm_key component
+    // `human:*`) are excluded the same way — no file, no counts (#board
+    // msg 559, 2026-09-07). Agent-agent DMs keep exporting; they are company
+    // work record. The test is on dm_key rather than a join through
+    // conversation_members because it is row-local and fails closed: a DM
+    // whose membership rows were missing would still be excluded. substr/
+    // instr, not LIKE — '_' is in the identity alphabet and is a LIKE
+    // wildcard. dmKeyFor sorts the two ids, so 'agent:' precedes 'human:'
+    // and the human is the second component in every agent-human DM; the
+    // substr branch is what catches a human-human DM. The header
     // line format deliberately does NOT gain a visibility key: adding one
     // would rewrite line 1 of every previously committed export file and
     // break the byte-identical-prefix contract.
     const convs = db
       .prepare(
         `SELECT id, type, name, purpose, dm_key, created_by, created_at FROM conversations
-         WHERE NOT (type = 'channel' AND visibility = 'private') ORDER BY id`
+         WHERE NOT (type = 'channel' AND visibility = 'private')
+           AND NOT (type = 'dm' AND (substr(dm_key, 1, 6) = 'human:' OR instr(dm_key, '|human:') > 0))
+         ORDER BY id`
       )
       .all();
     const selectMsgs = db.prepare(
