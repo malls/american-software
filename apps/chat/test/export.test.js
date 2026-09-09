@@ -44,7 +44,10 @@ test('export round-trips the messages table faithfully', (t) => {
   store.registerIdentity({ id: 'agent:developer-marcus', displayName: 'Marcus Webb', kind: 'agent' });
   store.createChannel({ name: 'exports', purpose: 'test channel', actor: 'human:forrest' });
   const chan = store.getChannelByName('exports');
-  const dm = store.openDm('human:forrest', 'agent:developer-marcus');
+  // AS-91: an agent-agent DM — human DMs no longer export, and this test's
+  // ground truth (dumpLines) is visibility-blind, so a human DM here would
+  // assert that an excluded conversation was exported.
+  const dm = store.openDm('agent:cto-owen', 'agent:developer-marcus');
   const root = store.postMessage({
     conversation: chan.id,
     author: 'human:forrest',
@@ -114,13 +117,16 @@ test('DM filenames use the ~ scheme, are safe, and never collide', (t) => {
   const { store } = tempStore(t);
   // Exercise the full identity alphabet: dots, underscores, hyphens, digits.
   store.registerIdentity({ id: 'agent:a1.b_c-d', displayName: 'Alphabet One', kind: 'agent' });
-  store.registerIdentity({ id: 'human:x9._-z', displayName: 'Alphabet Two', kind: 'human' });
-  store.openDm('agent:a1.b_c-d', 'human:x9._-z');
+  store.registerIdentity({ id: 'agent:x9._-z', displayName: 'Alphabet Two', kind: 'agent' });
+  store.openDm('agent:a1.b_c-d', 'agent:x9._-z');
   store.openDm('agent:cto-owen', 'human:forrest');
   const files = store.exportFiles();
   const dmNames = files.map((f) => f.filename).filter((n) => n.startsWith('dm-'));
-  assert.ok(dmNames.includes('dm-agent~a1.b_c-d~~human~x9._-z.jsonl'), `~ scheme applied: ${dmNames}`);
-  assert.ok(dmNames.includes('dm-agent~cto-owen~~human~forrest.jsonl'));
+  assert.ok(dmNames.includes('dm-agent~a1.b_c-d~~agent~x9._-z.jsonl'), `~ scheme applied: ${dmNames}`);
+  assert.ok(
+    !dmNames.includes('dm-agent~cto-owen~~human~forrest.jsonl'),
+    'AS-91: the human:forrest DM must not export'
+  );
   for (const f of files) {
     assert.doesNotMatch(f.filename, /[:|/\\]/, `filesystem-safe: ${f.filename}`);
   }
@@ -206,7 +212,9 @@ test('AS-6: #board never produces an export file, even with messages in it', (t)
 
 test('AS-6: the export header line format is unchanged (no visibility key)', (t) => {
   const { store } = tempStore(t);
-  store.openDm('human:forrest', 'agent:cto-owen');
+  // AS-91: agent-agent, so a DM header line is still covered by this sweep.
+  store.registerIdentity({ id: 'agent:developer-marcus', displayName: 'Marcus Webb', kind: 'agent' });
+  store.openDm('agent:developer-marcus', 'agent:cto-owen');
   for (const f of store.exportFiles()) {
     if (f.filename === 'identities.jsonl') continue;
     // Exact key order — the byte-identical-prefix contract against files
@@ -270,6 +278,115 @@ test('cli: AS-6 — chat export skips #board: no file, no counts, still byte-ide
   ]);
   for (const f of readdirSync(outDir)) {
     assert.ok(!readFileSync(join(outDir, f), 'utf8').includes('board secret'));
+  }
+  const hashes = () =>
+    Object.fromEntries(
+      readdirSync(outDir)
+        .sort()
+        .map((f) => [f, createHash('sha256').update(readFileSync(join(outDir, f))).digest('hex')])
+    );
+  const h1 = hashes();
+  const second = run();
+  assert.equal(second.status, 0, second.stderr);
+  assert.deepEqual(hashes(), h1, 're-run is byte-identical');
+});
+
+// --- AS-91: DMs with a human participant are excluded from the export -------
+
+test('AS-91: a DM with a human participant produces no export file; the sibling agent-agent DM still does', (t) => {
+  const { store } = tempStore(t);
+  store.registerIdentity({ id: 'agent:developer-marcus', displayName: 'Marcus Webb', kind: 'agent' });
+  store.registerIdentity({ id: 'agent:qa-priya', displayName: 'Priya Raman', kind: 'agent' });
+  const humanDm = store.openDm('agent:developer-marcus', 'human:forrest');
+  store.postMessage({ conversation: humanDm.id, author: 'human:forrest', body: 'human dm one' });
+  store.postMessage({ conversation: humanDm.id, author: 'agent:developer-marcus', body: 'human dm two' });
+  const agentDm = store.openDm('agent:developer-marcus', 'agent:qa-priya');
+  store.postMessage({ conversation: agentDm.id, author: 'agent:developer-marcus', body: 'agent dm one' });
+
+  const files = store.exportFiles();
+  const names = files.map((f) => f.filename);
+  assert.ok(
+    !names.some((n) => n.includes('~~human~') || n.startsWith('dm-human~')),
+    `no human DM file: ${names}`
+  );
+  const allLines = files.flatMap((f) => f.lines).join('\n');
+  assert.ok(!allLines.includes('human dm one'), 'human DM content must not leak into any file');
+  assert.ok(!allLines.includes('human dm two'), 'human DM content must not leak into any file');
+
+  const sibling = files.find((f) => f.filename === 'dm-agent~developer-marcus~~agent~qa-priya.jsonl');
+  assert.ok(sibling, `agent-agent DM still exports: ${names}`);
+  assert.equal(sibling.lines.length, 2, 'header + 1 message');
+  assert.ok(sibling.lines[1].includes('agent dm one'));
+
+  // Identity existence is not conversation content: humans stay in the roster.
+  const identities = files.find((f) => f.filename === 'identities.jsonl');
+  assert.ok(
+    identities.lines.some((l) => JSON.parse(l).id === 'human:forrest'),
+    'identities.jsonl still lists human identities'
+  );
+});
+
+test('AS-91: any human identity is excluded, not just human:forrest (human-second and human-first keys)', (t) => {
+  const { store } = tempStore(t);
+  store.registerIdentity({ id: 'agent:developer-marcus', displayName: 'Marcus Webb', kind: 'agent' });
+  store.registerIdentity({ id: 'human:test-advisor', displayName: 'Test Advisor', kind: 'human' });
+  // dm_key 'agent:developer-marcus|human:test-advisor' — the instr branch.
+  const advisorDm = store.openDm('agent:developer-marcus', 'human:test-advisor');
+  store.postMessage({ conversation: advisorDm.id, author: 'human:test-advisor', body: 'advisor secret' });
+  // dm_key 'human:forrest|human:test-advisor' — the only way to hit substr.
+  const humanHumanDm = store.openDm('human:forrest', 'human:test-advisor');
+  store.postMessage({ conversation: humanHumanDm.id, author: 'human:forrest', body: 'two humans' });
+
+  const files = store.exportFiles();
+  const dmNames = files.map((f) => f.filename).filter((n) => n.startsWith('dm-'));
+  assert.deepEqual(dmNames, [], `no DM with a human participant exports: ${dmNames}`);
+  const allLines = files.flatMap((f) => f.lines).join('\n');
+  assert.ok(!allLines.includes('advisor secret'), 'a second human is excluded by the same predicate');
+  assert.ok(!allLines.includes('two humans'), 'a human-first dm_key is excluded too');
+});
+
+test('cli: AS-91 — chat export skips human DMs: no file, no counts, still byte-identical on re-run', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'chat-export-cli-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dbPath = join(dir, 'chat.db');
+  const outDir = join(dir, 'out');
+  const store = openStore(dbPath);
+  store.registerIdentity({ id: 'agent:developer-marcus', displayName: 'Marcus Webb', kind: 'agent' });
+  store.registerIdentity({ id: 'agent:qa-priya', displayName: 'Priya Raman', kind: 'agent' });
+  const eng = store.getChannelByName('engineering');
+  store.postMessage({ conversation: eng.id, author: 'human:forrest', body: 'public' });
+  const humanDm = store.openDm('agent:developer-marcus', 'human:forrest');
+  store.postMessage({ conversation: humanDm.id, author: 'human:forrest', body: 'dm secret one' });
+  store.postMessage({ conversation: humanDm.id, author: 'agent:developer-marcus', body: 'dm secret two' });
+  const agentDm = store.openDm('agent:developer-marcus', 'agent:qa-priya');
+  store.postMessage({ conversation: agentDm.id, author: 'agent:qa-priya', body: 'agent dm' });
+  store.close();
+
+  const run = () =>
+    spawnSync(process.execPath, [BIN, 'export', '--out', outDir, '--json'], {
+      env: { ...process.env, CHAT_DB: dbPath },
+      encoding: 'utf8',
+    });
+  const first = run();
+  assert.equal(first.status, 0, first.stderr);
+  const parsed = JSON.parse(first.stdout);
+  // The seeded-but-hidden human DM moves no number and produces no file: the
+  // same "4 conversations, 2 messages" a human-DM-free DB would report.
+  assert.equal(parsed.conversations, 4);
+  assert.equal(parsed.messages, 2);
+  assert.equal(parsed.identities, 6, 'humans stay in identities.jsonl');
+  assert.ok(!parsed.files.some((f) => f.includes('~~human~') || f.startsWith('dm-human~')));
+  assert.deepEqual(readdirSync(outDir).sort(), [
+    'channel-announcements.jsonl',
+    'channel-engineering.jsonl',
+    'channel-lattice-events.jsonl',
+    'dm-agent~developer-marcus~~agent~qa-priya.jsonl',
+    'identities.jsonl',
+  ]);
+  for (const f of readdirSync(outDir)) {
+    const content = readFileSync(join(outDir, f), 'utf8');
+    assert.ok(!content.includes('dm secret one'), `${f} carries no human DM content`);
+    assert.ok(!content.includes('dm secret two'), `${f} carries no human DM content`);
   }
   const hashes = () =>
     Object.fromEntries(

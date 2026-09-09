@@ -492,7 +492,11 @@ diffs. **Private channels are excluded entirely (AS-6): no
 `channel-board.jsonl`, ever — hidden includes git.** The durability caveat is
 real and accepted by the board (2026-08-30): #board history exists *only* in
 the gitignored SQLite DB and in manual `chat dump` backups; it has no git
-safety net. DMs keep exporting exactly as before. The `/advance` tick commits changed exports to master as
+safety net. **DMs with a human participant are excluded the same way (AS-91,
+board directive 2026-09-07): no `dm-*~~human~*.jsonl`, ever.** The same
+durability caveat applies: those DMs exist only in the gitignored SQLite DB
+and in manual `chat dump` backups. Agent-agent DMs keep exporting — they are
+company work record. The `/advance` tick commits changed exports to master as
 `records: chat export <YYYY-MM-DD>` (see CLAUDE.md Git Methodology,
 "Operational record commits"). Two caveats: `identities.jsonl` is ordered by
 text id, so a new identity can insert a line mid-file (still a clean one-line
