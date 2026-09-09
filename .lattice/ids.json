@@ -91,10 +91,11 @@
     "AS-9": "task_01M18DN3DSV2E67REAANDMJ98T",
     "AS-90": "task_01M1YB78T82XQM2P3P41G7T2J3",
     "AS-91": "task_01M1YBPZTA7902T95HT37N7TG8",
-    "AS-92": "task_01M1ZBQ731D9T6NYN3VDSNTCJC"
+    "AS-92": "task_01M1ZBQ731D9T6NYN3VDSNTCJC",
+    "AS-93": "task_01M242A2JX5AS5W44SAWA71MAW"
   },
   "next_seqs": {
-    "AS": 93
+    "AS": 94
   },
   "schema_version": 2
 }
