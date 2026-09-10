@@ -41,7 +41,13 @@ function taskById(taskId, root) {
 const DEFAULT_DASHBOARD_URL = 'http://127.0.0.1:8799';
 
 /** Dashboard task URL: <base>/#/task/<taskId>. Base from LATTICE_DASHBOARD_URL
- * (empty string = unset, per compose passthrough), trailing '/' trimmed. */
+ * (empty string = unset, per compose passthrough), trailing '/' trimmed.
+ *
+ * AS-93: the BROWSER no longer uses this. The chat UI derives the href from
+ * window.location (public/dashboard-link.js) because one server fans one
+ * payload out to browsers on two hostnames at once. This field is the
+ * server-side/loopback answer, kept as the JSON-API contract; changing it
+ * changes no link the user clicks. */
 export function dashboardTaskUrl(taskId) {
   const base = (process.env.LATTICE_DASHBOARD_URL || DEFAULT_DASHBOARD_URL).replace(/\/+$/, '');
   return `${base}/#/task/${taskId}`;
