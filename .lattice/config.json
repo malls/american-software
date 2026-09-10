@@ -1,4 +1,14 @@
 {
+  "dashboard": {
+    "column_width": 380,
+    "done_display": "all",
+    "font_size": 13,
+    "lane_sort": {
+      "backlog": "urgency",
+      "done": "group:assignee",
+      "needs_human": "group:tag"
+    }
+  },
   "default_actor": "human:Forrest",
   "default_priority": "medium",
   "default_status": "backlog",

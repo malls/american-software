@@ -103,3 +103,89 @@ Reviewer (qa-ruben preferred — concurrency): findings first, sweep second (M5)
 
 ## §9. Acceptance criteria — the floor (M4; each satisfied by an observed red)
 AC-1..AC-10 as in the task description, mapped to §3 rows a–g, AC-4, AC-6, the §4 recipe (AC-7), the `--build` receipt rule (AC-8), §5 (AC-9), §2.4 enumeration (AC-10). AC-2 = row e, AC-3 = row f, AC-5 = row c `c-single-fire`.
+
+## Review Cycle 1 Findings (qa-priya, 2026-09-10) — implementation-level rework
+
+Full comment: `lattice comment`s on AS-95, `--role review`; repro scripts and receipts under
+`scratchpad/agent-qa-priya/` (`e2e/lib.sh` + `run1`–`run7`, `mut/`, `compose-*-solo.log`).
+
+**The pure layer is solid and is not what failed.** 13 mutants, 13 red, 0 survivors; the
+continue-predicate, the dependency check, and the label derivation all carry falsifiers that
+fire. Both blocking findings live in the **unguarded `main()` wiring** — the 142 lines that F7
+notes have no unit falsifier at all. Fix the two defects, and prefer fixing the *reason* they
+were invisible.
+
+### F1 (blocking) — a loop tick that loses the lock kills the loop silently
+
+`poll()` clears `loopPending` and calls `fire()`; `fire()` aborts on lock failure **without**
+calling `settle()`/`settleLoop()`, so nothing ever re-evaluates the continue-predicate.
+
+Observed (run3, against a live foreign lock — i.e. a `/loop` or manual session winning exactly
+the race the shared lock exists for): `LOOP-FIRE tick 2` → `SKIP fire aborted` → silence for 12
+polls, T1 still `in_progress`, the mirror frozen at `active:true`, and **no `LOOP-STOP` line
+ever emitted.** That contradicts the task description's own requirement that every stop reason
+be logged "so the board can see WHY the company stopped" — here the company stops for no
+logged reason at all. The message path already self-heals from this; the loop path must too.
+
+### F2 (blocking) — `LOOP-RESUME` after an unclean death fires over the orphan's lock: two ticks at once
+
+Observed (run4b: `kill -9` during tick 2, then relaunch): `LOOP-RESUME` → `LOOP-FIRE tick 2` →
+`STEAL stale lock (dead-pid)` → **two fake ticks alive concurrently, 3 s after relaunch,
+unconditionally.**
+
+The lock code is byte-identical to master as the plan required, so the claim "single-flight is
+unchanged" is true of the *code* and false of the *behaviour*: pre-AS-95 that steal required a
+human message plus the debounce, and now resume alone triggers it. This is the duplicate-work
+collision the lock exists to prevent and that the company has already lived once (2026-08-31).
+
+Minimal in-scope fix: on resume, do not fire while a lock younger than `tickTimeoutMin` exists —
+gate on **age, not pid liveness**, which leaves AS-84's separate pid-vs-source question alone.
+
+### F3 — a watcher death during tick 1 loses the loop entirely (non-blocking; fix in this rework)
+
+The mirror is written only at settle, so run4 produced no `LOOP-RESUME` and the company sat idle
+until the next message — the exact symptom this task exists to remove. One `writeLoopState()` at
+`LOOP-START` closes it. Plan gap, not an implementation slip.
+
+### F7 — why F1 and F2 were invisible, and the structural ask
+
+AC-10 is **partial**: 142 unguarded `main()` lines (vs 219 pure, 15 ops) carrying three inner
+policy functions, and the report enumerates by plan item rather than by line, so the gap did not
+show up as a gap. Both blocking findings live there. Recommended: extract a `makeLoopOps`
+factory so those policies become injectable and each acquires an **M4 falsifier** — otherwise the
+next defect in this region is equally invisible and cycle 2 buys nothing.
+
+### Non-blocking, carry forward
+
+- **F4** — every loop tick waits up to one deploy-poll interval (60 s in prod) because
+  `pendingDeploy()` is true on `'busy'`, which the deploy poll always reports during a tick
+  (run6b: ticks 2–4 each `LOOP-WAIT` with nothing to deploy). Bounded, never a hang, and the
+  yield itself works correctly. Backlog unless trivial here.
+- **F5** — the sidebar reads "Idle" between loop ticks (`idle` + `loop.active:true`), and the
+  tests encode that. AC-6 is met; the description's "Loop active while looping" is not.
+- **F6** — README shows `LOOP-FIRE tick 1`, but tick 1 emits a `FIRE messageId` line. Separately,
+  `poll()`'s comment says the loop tick reuses the highwater id while the code passes the real
+  sentinel — the **code is correct and load-bearing**, the comment is wrong. Not fixed inline
+  because the verdict is rework.
+- **F8** — not this task: `mode.test.js` AS-24 failed on master *and* branch under concurrent
+  build, passed solo. **Third** observation, so it clears the 2-consecutive bar for AS-83.
+
+### Cleared by observation, do not redo
+
+AC-5's cross-poll half (run5: sentinel 2 arriving during tick 2 → exactly one
+`FIRE messageId 2`, highwater 1→2 once, still 4 ticks). `readBoard` against the real board: 99
+files read, 0 unreadable, 44 backlog matching `lattice list` line for line, 37 ready, 7 unmet.
+Counted runs, cardinality first: master solo `Image asc-qa95-master-test Built` 21 files / 293
+tests / 293 pass; branch solo `Image asc-qa95-branch-test Built` 22 files / 340 / 340, exit 0.
+AC-7 both halves observed (run1 `LOOP-STOP reason=dry after 4 ticks`, run2
+`reason=no-progress after 2 ticks`, plus run7 `tick-failed-twice`).
+
+### Process note, recorded deliberately
+
+A Lattice-native auto-review (`auto_fired: true`, generic `claude` agent) ran on this task
+concurrently and **timed out at 600 s with no artifact and no findings**, leaving a spurious
+`NEEDS HUMAN` note at 21:02Z that no employee posted and that was not acted on. It found nothing
+Priya did not; it found nothing at all. It is not the company's review gate — see the
+orchestrator's note in `CLAUDE.md`.
+
+## Reset 2026-09-10 by agent:qa-priya
