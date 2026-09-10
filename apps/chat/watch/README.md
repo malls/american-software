@@ -41,9 +41,99 @@ into something load-bearing.
 | `logs/tick-<timestamp>.log` | watcher | full stdout+stderr of each fired tick; pruned after 14 days |
 | `logs/deploy-<timestamp>.log` | watcher | full output of each unattended rebuild (AS-75); same 14-day pruning |
 | `deploy-state.json` | watcher | AS-75: what the last deploy-poll decided — `{desiredId, dirty, reason, desiredReason, runningId, dockerBin, dockerReason, computedAt, lastAttempt}`. The chat server reads it for the sidebar's build line. |
+| `advance-loop.json` | watcher | AS-95: where the loop is — `{active, startedAt, ticks, armedBy, lastTick, lastLoop}`. The chat server reads it for the sidebar's loop label and its stop reason. |
 | `logs/launchd.{out,err}.log` | launchd | crashes before our logger exists |
 
 **The board's first stop after a weird unattended run is `apps/chat/data/logs/`.**
+
+## AS-95: a message starts a loop, not a tick
+
+One board message used to buy one tick. A piece of work needs three (plan,
+implement, review), so the company advanced one stage and then sat idle until
+someone spoke again — msg 607 waited forty minutes for an ack because its one
+tick was spent elsewhere. Since AS-95 a human message **arms a loop**: when a
+tick settles, the watcher evaluates a predicate and fires the next one, and
+keeps going until the company is dry.
+
+The loop is a property of the **watcher**. `/advance` is untouched and knows
+nothing about it — one invocation is still exactly one bounded tick.
+
+### Continue / stop rules
+
+`shouldContinue()` (exported from `advance-watcher.mjs`, pure, unit-tested one
+mutant per rule) runs once per settled tick. **Stop rules are evaluated first**,
+so a cap is logged even when work remains.
+
+| | Rule | Verdict |
+|---|------|---------|
+| g | the tick exited non-zero, was signalled, or hit the 30-min tick timeout — twice in a row | **stop** `tick-failed-twice` |
+| e | master's HEAD did not move across two consecutive ticks | **stop** `no-progress` |
+| f | 24 ticks, or 8 hours since the message that armed the loop | **stop** `cap-hit` |
+| c | the sentinel is above the highwater again (a new human message) | continue `new-message` |
+| a | any task is `in_planning`, `planned`, `in_progress` or `review` | continue `mid-lifecycle` |
+| b | a `backlog` task is ready (every `depends_on` target is `done`/`cancelled`) | continue `backlog-ready` |
+| d | none of the above | **stop** `dry` |
+
+`needs_human` and `blocked` tasks are **not** work: they are waiting on the
+board, and a loop that treated them as work would never stop. A dependency
+whose target cannot be found counts as unmet — an unreadable edge is not a
+green light. Rule (c) returns *continue* but does not fire: the normal
+`decide()` → `fire()` path consumes the message, so its highwater moves exactly
+once (AC-5, enforced by `nextPollAction()` — the one place the message path and
+the loop path are ordered against each other).
+
+Caps live in `LOOP_DEFAULTS` and are injectable, so a test can tighten them
+without waiting eight hours.
+
+### What is deliberately NOT modelled
+
+The predicate answers "is there **anything** ready", never "which task next".
+`lattice next`'s age tiebreak, the `urgency` field, the `CLAUDE.md` scheduling
+priority and any written board exemption are the **tick's** business — it picks
+its own task. Duplicating that ordering here would give the company two
+schedulers that disagree.
+
+### Between ticks
+
+The loop yields to a pending rebuild (`LOOP-WAIT deploy pending`) so tick N+1
+runs against tick N's merged code. If docker is unresolvable a rebuild can
+never happen, so the loop does **not** wait — it would wait forever.
+
+### Across a watcher restart
+
+The in-memory loop dies with the process, by design. On startup the watcher
+reads `advance-loop.json` and, if `active`, logs `LOOP-RESUME` and continues:
+`ticks` and `startedAt` carry forward (the cap still counts from the board's
+message) while the no-progress and failure counters reset, because the evidence
+for them died with the old process.
+
+### Reading it
+
+In `logs/advance-watcher.log` (and `launchd.out`):
+
+```
+LOOP-START armedBy messageId 651
+LOOP-FIRE tick 1
+LOOP-EVAL tick 1 reason=mid-lifecycle detail={"tasks":["AS-95"]} -> continue
+...
+LOOP-STOP reason=dry after 6 ticks ({"ticks":6})
+```
+
+`LOOP-EVAL` is printed on **every** evaluation, continue or stop, so the log
+answers "why is it still going?" as well as "why did it stop?".
+
+In the sidebar (`/api/loop-status`): a tick belonging to a loop reads
+**`Loop active · watcher, tick 3`** instead of `Tick in flight · watcher`, and
+once the loop stops the detail line says *"Last loop stopped after 6 ticks,
+2 min ago: nothing was left to do."* — `dry` is good news, `no-progress` and
+`cap-hit` are not, which is the distinction the board asked to be able to see.
+The same facts are in `status.loop.lastLoop` for anything reading the API.
+
+**A running watcher must be restarted once for the loop to go live.** A watcher
+on AS-75 or later restarts itself when its own source changes on master, so a
+merge is normally enough; otherwise
+`launchctl kickstart -k gui/$(id -u)/com.american-software.advance-watcher`
+after any in-flight tick ends.
 
 ## AS-75: the watcher also deploys, and restarts itself
 
