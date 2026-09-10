@@ -202,12 +202,20 @@ click.** `refs[].url`, `task.url` and `employee.work.url` are still emitted
 from `LATTICE_DASHBOARD_URL` or the `http://127.0.0.1:8799` default, unchanged
 since AS-10, and the browser overrides them per the rule above.
 
-The links are live only while the dashboard is running on the host — **run
-`lattice dashboard`** to make them resolve; otherwise they are well-formed but
-dead (connection refused). Deliberate decision (AS-10 plan): the dashboard is
-NOT part of compose — it is vendor tooling that ships with the Lattice CLI
-(host pipx install), the same category as `git`. Making it survive without a
-live session is AS-94.
+The links are live only while the dashboard is listening on the host. **Since
+AS-94 that is a supervised launchd user agent**
+(`com.american-software.lattice-dashboard`, install/restart/troubleshooting in
+`watch/README.md` "Lattice dashboard"): it starts at login, is relaunched if it
+dies, binds `127.0.0.1:8799` only, and is the one owner of that port — do not
+hand-run `lattice dashboard` beside it; `lattice restart` bounces it. If a link
+is well-formed but dead (connection refused), the job is down: `launchctl print
+gui/$(id -u)/com.american-software.lattice-dashboard`. Deliberate decision
+(AS-10 plan, unchanged): the dashboard is NOT part of compose — it is vendor
+tooling that ships with the Lattice CLI (host pipx install), the same category
+as `git`; the watcher is the precedent for supervising it, not compose. The
+port is a three-legged coupling (launchd job, Tailscale serve mapping,
+`dashboard-link.js`) — the table in `watch/README.md` says which surface each
+leg breaks.
 
 ## Company roster in the sidebar (AS-8)
 

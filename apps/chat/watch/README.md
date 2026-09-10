@@ -42,6 +42,8 @@ into something load-bearing.
 | `logs/deploy-<timestamp>.log` | watcher | full output of each unattended rebuild (AS-75); same 14-day pruning |
 | `deploy-state.json` | watcher | AS-75: what the last deploy-poll decided — `{desiredId, dirty, reason, desiredReason, runningId, dockerBin, dockerReason, computedAt, lastAttempt}`. The chat server reads it for the sidebar's build line. |
 | `logs/launchd.{out,err}.log` | launchd | crashes before our logger exists |
+| `logs/lattice-dashboard.out.log` | launchd | Lattice dashboard stdout (AS-94) |
+| `logs/lattice-dashboard.err.log` | launchd | Lattice dashboard stderr (AS-94) |
 
 **The board's first stop after a weird unattended run is `apps/chat/data/logs/`.**
 
@@ -177,6 +179,130 @@ do it for you. The indicator corrects itself within 60s of the restart.
 
 `pid` and `startedAt` keep their meaning; the single-instance check reads `pid`
 only and is unaffected by the added key.
+
+## Lattice dashboard (AS-94) — the second launchd job in this directory
+
+AS-93 made every `AS-n` reference in chat a deep link into the Lattice
+dashboard, and those links resolve only while something is listening on
+`127.0.0.1:8799`. Until AS-94 that "something" was a process somebody started
+by hand inside a Claude Code session: it died with the session, and the board's
+links died with it. The category decision is AS-10's and it has not changed —
+the dashboard is vendor tooling shipped with the pipx Lattice CLI, the same
+category as `git`, so it does not belong in compose. The supervision answer is
+therefore the watcher's: a launchd user agent, from a template in this
+directory.
+
+**This job is the ONE owner of `127.0.0.1:8799`. Do not run `lattice dashboard`
+beside it** — the second copy fails to bind (`Address already in use`), and if
+it is the *first* copy that is stray, the launchd job crash-loops behind it at
+launchd's default throttle. The bind is loopback only; the tailnet reaches it
+through Tailscale serve, which is Tailscale-authenticated. **Never change the
+host to `0.0.0.0`** — `test/launchd-plist.test.js` goes red if you do.
+
+### Prerequisites
+
+- `command -v lattice` resolves (the pipx symlink, e.g.
+  `/Users/<you>/.local/bin/lattice` — use the symlink, not the venv path
+  inside `~/.local/pipx/venvs/`, so a pipx upgrade does not orphan the job).
+  The venv script carries an absolute python shebang, so the job needs no
+  `python` on `PATH`, and no `node` at all.
+- The **main checkout** is on `master`: the dashboard finds `.lattice/` by
+  walking up from `WorkingDirectory`, which the recipe sets to the repo root.
+
+### Install (launchd)
+
+```sh
+REPO_ROOT="$(git rev-parse --show-toplevel)"   # run from inside the MAIN checkout (master)
+LATTICE_BIN="$(command -v lattice)"            # e.g. /Users/<you>/.local/bin/lattice (pipx symlink)
+LABEL=com.american-software.lattice-dashboard
+
+# 1. Nothing else may hold 127.0.0.1:8799 — a live-session dashboard here makes the job crash-loop.
+lsof -nP -iTCP:8799 -sTCP:LISTEN               # if it lists a PID, that is the process to stop
+pgrep -fl 'lattice dashboard'                  # all dashboards, on ANY port — kill only the :8799 owner
+# kill <pid-from-lsof>                         # then re-run lsof: it must print nothing
+
+# 2. Render, lint, install.
+mkdir -p "$REPO_ROOT/apps/chat/data/logs"
+sed -e "s|__REPO_ROOT__|$REPO_ROOT|g" \
+    -e "s|__LATTICE_BIN__|$LATTICE_BIN|g" \
+    -e "s|__PATH__|$(dirname "$LATTICE_BIN"):/usr/bin:/bin|g" \
+    "$REPO_ROOT/apps/chat/watch/$LABEL.plist.template" \
+    > ~/Library/LaunchAgents/$LABEL.plist
+plutil -lint ~/Library/LaunchAgents/$LABEL.plist   # must print "OK"
+
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/$LABEL.plist
+launchctl print gui/$(id -u)/$LABEL | head -20      # state = running
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8799/   # 200
+```
+
+`plutil -lint` is the host half of the well-formedness check; the in-suite half
+is `test/launchd-plist.test.js`, which renders every template here with fixed
+values and parses the result with its own strict reader (`plutil` is macOS-only
+and not in the tick allowlist, so no test can call it).
+
+The `sed` recipe uses `|` as its delimiter: a `REPO_ROOT` containing a literal
+`|` would corrupt the render on the host while the node guard (a plain string
+replace) stays green. No sane checkout path contains one — but if yours does,
+change the delimiter rather than debugging launchd.
+
+### Uninstall / restart
+
+```sh
+launchctl bootout gui/$(id -u)/com.american-software.lattice-dashboard   # stop + unload
+rm ~/Library/LaunchAgents/com.american-software.lattice-dashboard.plist  # uninstall
+# restart = bootout, then bootstrap again
+```
+
+Unlike the watcher, you rarely need `bootout` to bounce this one: `lattice
+restart` (run from the repo root; it defaults to :8799) restarts the dashboard
+in place, and if the process exits instead of reloading, `KeepAlive` brings it
+straight back. `launchctl kickstart -k gui/$(id -u)/$LABEL` is the
+launchd-native equivalent.
+
+### After any change to the dashboard: `lattice restart`
+
+The dashboard is a long-lived host process, so a Lattice CLI upgrade (`pipx
+upgrade lattice-tracker`) changes nothing in the running job until it restarts
+— `lattice restart` is enough for that. A change to the **template** is
+different: re-render it into `~/Library/LaunchAgents/` and `bootout` +
+`bootstrap`, because launchd read the old copy at load time. Both are **host
+actions for the board or a live session** — a headless tick has no `launchctl`
+reach, exactly as with the watcher.
+
+### Troubleshooting
+
+- **`launchctl print` shows repeated non-zero exits within seconds** — something
+  else already holds 8799. `lsof -nP -iTCP:8799 -sTCP:LISTEN`, stop that
+  process, and the job recovers on its own (KeepAlive).
+- **`state = running` but 8799 refuses** — wrong `__REPO_ROOT__` or a bad
+  binary path in the rendered plist. Read
+  `data/logs/lattice-dashboard.err.log`.
+- **Deep links work on the Mac but not the phone** — that is the tailnet leg,
+  not this job: `tailscale serve status` should show
+  `:8443 -> http://127.0.0.1:8799`. That mapping is host state, not a repo
+  artifact (see the three-legged block below).
+- **`lattice restart` says nothing is listening** — the job is down. `launchctl
+  print gui/$(id -u)/com.american-software.lattice-dashboard`.
+
+### The port is a three-legged coupling
+
+`8799` appears in three places that must agree, and only one of them is in this
+repo's launchd job:
+
+| Leg | Where | Owned by |
+|---|---|---|
+| L1 | `--port 8799` in `com.american-software.lattice-dashboard.plist.template` (this job) | this repo; guarded by `test/launchd-plist.test.js` |
+| L2 | Tailscale serve `:8443 -> http://127.0.0.1:8799` | tailscaled's state on the host — **not** a repo artifact, and chat cannot observe it |
+| L3 | `LOOPBACK_PORT = 8799` / `REMOTE_PORT = 8443` in `apps/chat/public/dashboard-link.js` (AS-93) | this repo |
+
+Moving one leg alone breaks a surface: **L1 alone** kills the phone *and* the
+Mac; **L1 + L2** kills the Mac; **L1 + L3 without L2** kills the phone.
+`LATTICE_DASHBOARD_URL` does not rescue any of these — it is one verbatim base,
+so it can say "this URL everywhere" but never "port X on loopback, port Y over
+the tailnet"; pointing it at a non-8799 loopback URL fixes the Mac and
+re-breaks the phone. The dashboard port question itself moved upstream to the
+Lattice project by board decision on 2026-09-10 (DM msg 632; AS-96 cancelled) —
+until that lands, `8799` is the CLI default and the declared value here.
 
 ## Permission modes (unattended reality)
 
