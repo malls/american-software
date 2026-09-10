@@ -2,7 +2,7 @@
 // repoRoot points at the fixture .lattice/ so lattice behavior is deterministic.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, cpSync, writeFileSync, mkdirSync, symlinkSync, unlinkSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, cpSync, writeFileSync, mkdirSync, symlinkSync, unlinkSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1451,4 +1451,95 @@ test('api: AS-75 — composeBuild is pure and tri-state at the unit level', () =
   // inputs is mutated.
   const frozen = Object.freeze(state());
   assert.deepEqual(call({ deployState: frozen }), call({ deployState: frozen }));
+});
+
+test('api: AS-93 — /api/config exposes exactly the dashboard override; dashboard-link.js is served, imported, and pure', async (t) => {
+  const { base, get } = await bootServer(t);
+
+  const cfg = await get('/api/config');
+  assert.equal(cfg.status, 200);
+  // Deliberately brittle: this is THE guard against /api/config growing into
+  // an env dump. A new client-visible setting is a deliberate edit here.
+  assert.deepEqual(Object.keys(cfg.data), ['config']);
+  assert.deepEqual(Object.keys(cfg.data.config), ['latticeDashboardUrl']);
+  assert.equal(cfg.data.config.latticeDashboardUrl, null, 'unset -> null, never ""');
+
+  // The server half of AC-5: an explicitly set override reaches the browser.
+  // (The client half — that the browser then USES it for the href — is
+  // dashboard-link.test.js T4; there is no DOM in this suite.)
+  const saved = process.env.LATTICE_DASHBOARD_URL;
+  try {
+    process.env.LATTICE_DASHBOARD_URL = 'http://127.0.0.1:9999';
+    const boot = await bootServer(t);
+    const withEnv = await boot.get('/api/config');
+    assert.equal(withEnv.data.config.latticeDashboardUrl, 'http://127.0.0.1:9999');
+  } finally {
+    if (saved === undefined) delete process.env.LATTICE_DASHBOARD_URL;
+    else process.env.LATTICE_DASHBOARD_URL = saved;
+  }
+
+  // AC-8: the STATIC_FILES entry is load-bearing, not bookkeeping. app.js
+  // imports this as an ES module — an unregistered file 404s, the module graph
+  // dies, and the app is a blank page that no other test would notice.
+  const mod = await fetch(base + '/dashboard-link.js');
+  assert.equal(mod.status, 200);
+  assert.equal(mod.headers.get('content-type'), 'text/javascript; charset=utf-8');
+  const src = await mod.text();
+  assert.match(src, /dashboardTaskHref/);
+
+  const app = await (await fetch(base + '/app.js')).text();
+  assert.match(app, /from '\.\/dashboard-link\.js'/, 'the import edge is real');
+
+  // Purity, mirroring the AS-33 rule: the helper is a pure function of a
+  // location-shaped object, which is what makes its unit tests behavioural.
+  for (const dom of [/\.innerHTML/, /\bwindow\b/, /\bdocument\b/, /createElement/]) {
+    assert.doesNotMatch(src, dom, `dashboard-link.js must contain no DOM API (${dom})`);
+  }
+});
+
+test('api: AS-93 — all three dashboard link sites go through the helper (3 examined, 3 covered)', async (t) => {
+  const { base } = await bootServer(t);
+  const app = await (await fetch(base + '/app.js')).text();
+
+  // AC-4. There is no DOM in this suite and app.js exports nothing, so this
+  // source-text guard is what stands between a bypassed site and a green
+  // suite. Named per site so a failure says WHICH one was bypassed.
+  const sites = [
+    ['message refs (asRefLink)', /a\.href = dashHref\(ref\.taskId\)/],
+    ['roster row (rosterRow)', /a\.href = dashHref\(emp\.work\.taskId\)/],
+    ['task panel (showTaskPanel)', /open\.href = dashHref\(task\.taskId\)/],
+  ];
+  assert.equal(sites.length, 3, '3 dashboard link sites examined');
+  for (const [name, re] of sites) {
+    assert.match(app, re, `3 sites examined, 3 must be covered: ${name} goes through dashHref()`);
+  }
+  assert.equal(
+    (app.match(/dashHref\(/g) || []).length,
+    4,
+    '3 call sites + 1 definition — a fourth call site is a deliberate edit here'
+  );
+  // msgRefLink's `?m=` template-literal href and the AS-26 file refs do not
+  // match this and must stay green: the ban is on server-baked .url bases.
+  assert.doesNotMatch(
+    app,
+    /\.href = [A-Za-z_$][\w.$]*\.url\b/,
+    'no href is assigned from a server-baked .url (AS-93)'
+  );
+
+  // AC-9, host-literal ban: the backstop for a FOURTH link site added later.
+  // The directory is enumerated rather than listed — a hard-coded list is how
+  // the next new module escapes the ban.
+  const publicDir = new URL('../public/', import.meta.url);
+  const files = readdirSync(publicDir).filter((f) => f !== 'dashboard-link.js');
+  assert.ok(files.length >= 10, `${files.length} public/ files examined (dashboard-link.js excluded)`);
+  for (const file of files) {
+    const body = readFileSync(new URL(file, publicDir), 'utf8');
+    for (const literal of ['8799', '8443', '127.0.0.1']) {
+      assert.ok(
+        !body.includes(literal),
+        `${files.length} public/ files examined: ${file} must not hard-code ${literal} — ` +
+          'dashboard-link.js is the only place a dashboard host or port may appear'
+      );
+    }
+  }
 });

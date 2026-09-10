@@ -10,6 +10,7 @@ import { BOARD_ROOT, buildOrgTree } from './org-chart.js';
 import { tokenizeMsgRefs, tokenizeFileRefs } from './msg-refs.js';
 import { tokenizeInline, parseBlocks, tokenizeUrls } from './markdown.js';
 import { describeLoopStatus } from './loop-status.js';
+import { dashboardTaskHref } from './dashboard-link.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -29,6 +30,7 @@ const state = {
   lastReadSent: 0, // AS-25: highest read watermark POSTed for currentConv (keeps /api/read cheap)
   pins: new Set(), // AS-18: pinned roster actor ids for state.me (localStorage-backed)
   loopStatus: null, // AS-27: last /api/loop-status payload (null = unavailable)
+  dashboardUrl: null, // AS-93: LATTICE_DASHBOARD_URL from /api/config (null = infer)
 };
 
 // --- pins (AS-18) -----------------------------------------------------------
@@ -102,6 +104,14 @@ const post = (path, body) =>
     body: JSON.stringify(body),
   });
 
+// AS-93: the ONE place a Lattice deep link is built. Thin on purpose — it is
+// the only thing that knows about `window`, so dashboard-link.js stays pure
+// and unit-testable. Every anchor that points at the dashboard goes through
+// here; never hard-code a host or a port at a call site.
+function dashHref(taskId) {
+  return dashboardTaskHref(taskId, { location: window.location, override: state.dashboardUrl });
+}
+
 // --- rendering helpers (safe DOM building only) ---------------------------
 
 function el(tag, className, text) {
@@ -143,7 +153,7 @@ function tokenizeAsRefs(text, refs) {
 /** AS-n ref anchor (AS-10): plain click → task panel, modified → dashboard. */
 function asRefLink(ref) {
   const a = el('a', 'ref-link', ref.shortId);
-  a.href = ref.url;
+  a.href = dashHref(ref.taskId);
   a.target = '_blank';
   a.rel = 'noopener';
   a.title = `${ref.title} — ${ref.status}`;
@@ -431,7 +441,7 @@ function rosterRow(emp) {
     // Same affordance as AS-n refs in message bodies (AS-10): plain click →
     // in-app task panel, modified click / middle click → dashboard tab.
     const a = el('a', 'ref-link', emp.work.shortId);
-    a.href = emp.work.url;
+    a.href = dashHref(emp.work.taskId);
     a.target = '_blank';
     a.rel = 'noopener';
     a.title = `${emp.work.title} — ${emp.work.status}`;
@@ -692,7 +702,7 @@ async function showTaskPanel(shortId) {
     const title = el('div', null, task.title);
     title.style.fontWeight = '600';
     const open = el('a', 'lattice-open', 'Open in Lattice ↗');
-    open.href = task.url;
+    open.href = dashHref(task.taskId);
     open.target = '_blank';
     open.rel = 'noopener';
     body.replaceChildren(title, el('span', 'status', task.status), el('div', 'task-id', task.taskId), open);
@@ -1335,6 +1345,16 @@ async function init() {
   });
   $('#sidebar-scrim').addEventListener('click', () => closeDrawer());
   wireViewportPin();
+
+  // AS-93: the operator's LATTICE_DASHBOARD_URL, if any, before anything
+  // renders an href (the roster does). Degradation contract: an unknown
+  // override means inference, never a crash — and inference is the right
+  // answer in every deployment that has not set the variable.
+  try {
+    state.dashboardUrl = (await api('/api/config')).config.latticeDashboardUrl ?? null;
+  } catch {
+    state.dashboardUrl = null;
+  }
 
   await refreshSidebar();
 

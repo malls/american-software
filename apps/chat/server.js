@@ -35,6 +35,7 @@ const STATIC_FILES = {
   '/msg-refs.js': ['msg-refs.js', 'text/javascript; charset=utf-8'],
   '/markdown.js': ['markdown.js', 'text/javascript; charset=utf-8'],
   '/loop-status.js': ['loop-status.js', 'text/javascript; charset=utf-8'],
+  '/dashboard-link.js': ['dashboard-link.js', 'text/javascript; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
 };
 
@@ -384,6 +385,18 @@ export function createChatServer({
       // `unknown` (a hand build) — neither can honestly claim to be a version.
       // `raw` keeps the two distinguishable for a human debugging a deploy.
       return { build: { id: BUILD_ID, raw: RAW_BUILD_ID, startedAt: SERVER_STARTED_AT } };
+    }
+    if (req.method === 'GET' && pathname === '/api/config') {
+      // AS-93: the ONLY server configuration the browser is allowed to see, as
+      // an EXPLICIT allowlist. Never spread process.env here, and never add a
+      // field without asking whether a browser tab may hold it. Nothing
+      // viewer-relative and nothing private: no 'me', no store — same contract
+      // as /api/build. An exact key-set assertion in test/api.test.js stands
+      // guard over exactly that temptation.
+      //
+      // null (not '') when unset: compose passes the variable through as an
+      // empty string when the host has none, and AS-10 treats '' as unset.
+      return { config: { latticeDashboardUrl: process.env.LATTICE_DASHBOARD_URL || null } };
     }
     if (req.method === 'GET' && pathname === '/api/org') {
       // AS-33: the org chart's data source — active employees with their
