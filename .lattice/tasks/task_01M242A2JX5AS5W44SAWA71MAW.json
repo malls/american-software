@@ -1,7 +1,14 @@
 {
   "assigned_to": "agent:developer-marcus",
-  "branch_links": [],
-  "comment_count": 2,
+  "branch_links": [
+    {
+      "branch": "feat/AS-93-deep-link-host",
+      "linked_at": "2026-09-10T15:20:17Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 3,
   "complexity": "medium",
   "created_at": "2026-09-09T21:48:43Z",
   "created_by": "agent:cto-owen",
@@ -10,8 +17,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M242A2JX5AS5W44SAWA71MAW",
-  "last_event_id": "ev_01M25XYR0SW441N8EG1J91BJ8F",
-  "last_status_changed_at": "2026-09-10T15:11:07Z",
+  "last_event_id": "ev_01M25YG0T1JSXDKT2GKK6RXB77",
+  "last_status_changed_at": "2026-09-10T15:20:12Z",
   "priority": "critical",
   "relationships_out": [
     {
@@ -25,10 +32,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-93",
-  "status": "in_planning",
+  "status": "planned",
   "tags": null,
   "title": "Chat: Lattice deep links must infer the dashboard host from the page (tailnet :8443 vs loopback :8799)",
   "type": "bug",
-  "updated_at": "2026-09-10T15:11:07Z",
+  "updated_at": "2026-09-10T15:20:33Z",
   "urgency": null
 }
