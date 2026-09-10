@@ -1,5 +1,5 @@
 {
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [
     {
       "branch": "feat/AS-95-watcher-loop",
@@ -17,17 +17,17 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M25XTX7VPDQDTGRY69CJ7ANE",
-  "last_event_id": "ev_01M26FRVSS30DMGBNXQ7FK7RXE",
-  "last_status_changed_at": "2026-09-10T20:22:28Z",
+  "last_event_id": "ev_01M26G6HN7VWQ9XEVY29W4EQEX",
+  "last_status_changed_at": "2026-09-10T20:29:57Z",
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-95",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat watcher: a board message starts a loop of ticks that runs until the company is dry, not a single tick",
   "type": "task",
-  "updated_at": "2026-09-10T20:22:28Z",
+  "updated_at": "2026-09-10T20:29:57Z",
   "urgency": null
 }

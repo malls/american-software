@@ -1,5 +1,5 @@
 {
-  "assigned_to": "agent:developer-lena",
+  "assigned_to": "agent:qa-ruben",
   "branch_links": [
     {
       "branch": "feat/AS-94-dashboard-launchd",
@@ -17,7 +17,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M242YFRTYP81D4DK0758RT6Z",
-  "last_event_id": "ev_01M26FYMC0XEJ44NX2T1H05WDM",
+  "last_event_id": "ev_01M26G6HRMWZ4H2Y86JV3VF0JK",
   "last_status_changed_at": "2026-09-10T20:25:37Z",
   "priority": "critical",
   "relationships_out": [
@@ -47,6 +47,6 @@
   ],
   "title": "Chat tooling: supervise the Lattice dashboard (:8799) under launchd so tailnet :8443 deep links answer without a live session",
   "type": "task",
-  "updated_at": "2026-09-10T20:25:37Z",
+  "updated_at": "2026-09-10T20:29:57Z",
   "urgency": "high"
 }
