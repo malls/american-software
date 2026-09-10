@@ -840,6 +840,39 @@ function deployHarness(t, over = {}) {
   };
 }
 
+test('AS-95 makeDeployOps: pendingDeploy() answers "a rebuild is owed and can run", and never blocks the loop forever', async (t) => {
+  const h = deployHarness(t);
+  // Before the first evaluate the ops have decided nothing. "No opinion" must
+  // read as "do not wait" — a loop that waited on an unasked question would
+  // stall on every watcher start.
+  assert.equal(h.ops.pendingDeploy(), false, 'no decision yet');
+
+  // A tick holds the lock: evaluate defers ('busy'). This is exactly the
+  // between-ticks window the loop must yield in, so tick N+1 sees tick N's
+  // merged code rather than the image that predates it.
+  h.state.runningId = 'oldoldoldoldoldo';
+  const busy = await h.ops.evaluate({ busy: true });
+  assert.equal(busy.reason, 'busy');
+  assert.equal(h.ops.pendingDeploy(), true, 'deferred rebuild is still owed');
+
+  // Once it has actually deployed, nothing is owed and the loop proceeds.
+  const deployed = await h.ops.evaluate({ busy: false });
+  assert.equal(deployed.action, 'deploy');
+  const current = await h.ops.evaluate({ busy: false });
+  assert.equal(current.reason, 'current');
+  assert.equal(h.ops.pendingDeploy(), false, 'the running build is master');
+
+  // The falsifier for "never blocks forever": with no docker binary the watcher
+  // CANNOT deploy, so a stale build is a permanent condition. Waiting on it
+  // would hang the loop for as long as docker stayed missing — the loop must
+  // run anyway, and the sidebar reports the staleness instead.
+  const noDocker = deployHarness(t, { env: { PATH: '/bin', HOME: '/h', USER: 'u', LOGNAME: 'u' }, exists: (p) => p === '/usr/bin/git' });
+  const stuck = await noDocker.ops.evaluate({ busy: false });
+  assert.equal(stuck.reason, 'no-docker');
+  assert.equal(noDocker.ops.dockerBin, null);
+  assert.equal(noDocker.ops.pendingDeploy(), false, 'unresolvable docker never makes the loop wait');
+});
+
 test('AS-75 makeDeployOps: a stale container is rebuilt with the right env, and success means the RUNNING id changed', async (t) => {
   const h = deployHarness(t);
   const decision = await h.ops.evaluate({ busy: false });

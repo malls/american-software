@@ -1078,6 +1078,33 @@ export function readBoard(tasksDir, { readdir = readdirSync, readFile = readFile
 }
 
 /**
+ * AS-95 / AC-5 — what a single poll may fire. Pure, exported, and the ONLY
+ * place the message path and the loop path are ordered against each other.
+ *
+ * The property this exists to hold: a human message that arrives while a loop
+ * is between ticks is fired ONCE, by the normal decide()/fire() path, which is
+ * the path that moves the highwater. The loop never fires it a second time —
+ * it does not need to, because settle() folds that same tick into the loop
+ * counters afterwards. Written as two `if`s inside poll(), that guarantee was
+ * an argument about statement order; written here, it is a test.
+ *
+ * Deploy comes last on purpose: a pending rebuild delays the LOOP's own tick
+ * (so tick N+1 sees tick N's merged code) but must never delay the board's
+ * message, which is the one thing a person is waiting on.
+ *
+ * @param {'fire'|'debounce'|'skip-locked'|'idle'|string} decideAction  decide()'s verdict
+ * @param {boolean} loopPending   the loop owes a tick (set by settle())
+ * @param {boolean} deployPending a rebuild is due and can actually run
+ * @returns {'fire-message'|'fire-loop'|'wait-deploy'|'idle'}
+ */
+export function nextPollAction({ decideAction, loopPending, deployPending }) {
+  if (decideAction === 'fire') return 'fire-message';
+  if (!loopPending) return 'idle';
+  if (deployPending) return 'wait-deploy';
+  return 'fire-loop';
+}
+
+/**
  * The commit HEAD points at, without shelling out to git. Follows a symbolic
  * ref into `.git/refs/...`, falls back to `packed-refs`, and handles the
  * `gitdir:` indirection a linked worktree uses. Returns null when unreadable —
@@ -1463,15 +1490,25 @@ function main() {
       }
     } else if (result.action === 'fire') {
       if (result.reason.startsWith('lock-stale')) log(`NOTE firing over stale lock: ${result.reason}`);
+    }
+    // AS-95: exactly ONE decision about what this poll fires. The message path
+    // and the loop path are mutually exclusive by construction here rather than
+    // by the order of two `if`s further down a 1500-line file — which is what
+    // makes "a new message is delivered exactly once" (AC-5) a property of an
+    // exported pure function that a test can hold, instead of an argument.
+    const next = nextPollAction({
+      decideAction: result.action,
+      loopPending,
+      deployPending: deployOps.pendingDeploy(),
+    });
+    if (next === 'idle') return;
+    if (next === 'fire-message') {
       fire(sentinel);
       return; // the message path just fired; the loop folds it in at settle()
     }
-    // AS-95: the loop owes a tick. Runs AFTER the decide() branch above, so a
-    // message that lands between ticks is consumed by the normal path (one
-    // highwater move) and the loop counters simply continue. Yields to a
-    // pending or running deploy so tick N+1 runs against tick N's merged code.
-    if (!loopPending) return;
-    if (deployOps.pendingDeploy()) {
+    if (next === 'wait-deploy') {
+      // Yield so tick N+1 runs against tick N's merged code. One line per wait
+      // episode, not one per 5s poll (AS-13 #4's rule, applied to this log too).
       if (!loopWaitLogged) {
         loopWaitLogged = true;
         log('LOOP-WAIT deploy pending');

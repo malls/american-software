@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   shouldContinue, readyBacklog, readBoard, headOf, LOOP_DEFAULTS, MID_LIFECYCLE, makeLockOps,
+  nextPollAction, makeDeployOps,
 } from '../watch/advance-watcher.mjs';
 
 const T0 = Date.parse('2026-09-10T12:00:00.000Z');
@@ -108,6 +109,51 @@ test('c-equal-not-new: sentinel equal to highwater is not a new message', () => 
 test('c-no-highwater: a first message with no highwater is new', () => {
   const r = run({ sentinel: { messageId: 1 }, highwater: null });
   assert.equal(r.reason, 'new-message');
+});
+
+// AC-5: a message that lands while the loop is between ticks is fired ONCE.
+// nextPollAction is the only place the two paths are ordered, so this is the
+// whole property, not a sample of it: the message branch wins and returns, and
+// the loop branch is unreachable in the same poll.
+test('c-single-fire: a poll fires the message OR the loop, never both', () => {
+  // decide() says fire (a new human message): that is the path that moves the
+  // highwater. The loop owes a tick too — and must not take it.
+  assert.equal(nextPollAction({ decideAction: 'fire', loopPending: true, deployPending: false }), 'fire-message');
+  assert.equal(nextPollAction({ decideAction: 'fire', loopPending: false, deployPending: false }), 'fire-message');
+  // Even a pending deploy does not delay the board's own message — only the
+  // loop's self-scheduled tick waits.
+  assert.equal(nextPollAction({ decideAction: 'fire', loopPending: true, deployPending: true }), 'fire-message');
+
+  // Enumerated: over every combination of inputs, exactly one fire per poll.
+  const decideActions = ['fire', 'debounce', 'skip-locked', 'idle'];
+  const combos = [];
+  for (const decideAction of decideActions) {
+    for (const loopPending of [true, false]) {
+      for (const deployPending of [true, false]) {
+        combos.push([{ decideAction, loopPending, deployPending }, nextPollAction({ decideAction, loopPending, deployPending })]);
+      }
+    }
+  }
+  assert.equal(combos.length, 16, 'cardinality: 4 x 2 x 2 inputs examined');
+  for (const [input, out] of combos) {
+    assert.ok(['fire-message', 'fire-loop', 'wait-deploy', 'idle'].includes(out), JSON.stringify(input));
+    const fires = (out === 'fire-message' ? 1 : 0) + (out === 'fire-loop' ? 1 : 0);
+    assert.ok(fires <= 1, `${JSON.stringify(input)} -> ${out}: at most one fire`);
+    if (input.decideAction === 'fire') assert.equal(out, 'fire-message', 'a message always beats the loop');
+  }
+  // And the loop only fires when it is actually owed one and nothing is due.
+  assert.equal(combos.filter(([, out]) => out === 'fire-loop').length, 3, 'exactly the three non-fire decideActions with loopPending and no deploy');
+});
+
+test('c-single-fire-deploy-yield: the loop waits for a pending rebuild, but only when it owes a tick', () => {
+  assert.equal(nextPollAction({ decideAction: 'idle', loopPending: true, deployPending: true }), 'wait-deploy');
+  assert.equal(nextPollAction({ decideAction: 'idle', loopPending: true, deployPending: false }), 'fire-loop');
+  // Nothing owed: a pending deploy is the deploy poll's business, not a reason
+  // for this poll to report anything at all.
+  assert.equal(nextPollAction({ decideAction: 'idle', loopPending: false, deployPending: true }), 'idle');
+  // decide() debouncing a message is NOT a fire: the loop still owes its tick,
+  // and taking it here is what keeps the company moving during the 15s window.
+  assert.equal(nextPollAction({ decideAction: 'debounce', loopPending: true, deployPending: false }), 'fire-loop');
 });
 
 // --- (d) dry ----------------------------------------------------------------
