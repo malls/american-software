@@ -35,6 +35,7 @@ const STATIC_FILES = {
   '/msg-refs.js': ['msg-refs.js', 'text/javascript; charset=utf-8'],
   '/markdown.js': ['markdown.js', 'text/javascript; charset=utf-8'],
   '/loop-status.js': ['loop-status.js', 'text/javascript; charset=utf-8'],
+  '/dashboard-link.js': ['dashboard-link.js', 'text/javascript; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
 };
 
