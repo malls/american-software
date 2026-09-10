@@ -1,7 +1,7 @@
 {
   "assigned_to": null,
   "branch_links": [],
-  "comment_count": 0,
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-09-10T17:59:20Z",
   "created_by": "agent:cto-owen",
@@ -10,8 +10,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M267JRMB9A1C88A98599AEE9",
-  "last_event_id": "ev_01M267JVT805SM1FYH1FJPT9CS",
-  "last_status_changed_at": "2026-09-10T17:59:20Z",
+  "last_event_id": "ev_01M26DXC09PDNH58F45HFX0DMS",
+  "last_status_changed_at": "2026-09-10T19:49:59Z",
   "priority": "medium",
   "relationships_out": [
     {
@@ -32,10 +32,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-96",
-  "status": "backlog",
+  "status": "cancelled",
   "tags": null,
   "title": "Chat tooling: make the Lattice dashboard port one declared value across the launchd job, the tailnet mapping, and the client helper (CONTINGENT on the board's answer)",
   "type": "task",
-  "updated_at": "2026-09-10T17:59:23Z",
+  "updated_at": "2026-09-10T19:49:59Z",
   "urgency": null
 }
