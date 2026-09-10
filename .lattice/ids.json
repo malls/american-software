@@ -94,10 +94,11 @@
     "AS-92": "task_01M1ZBQ731D9T6NYN3VDSNTCJC",
     "AS-93": "task_01M242A2JX5AS5W44SAWA71MAW",
     "AS-94": "task_01M242YFRTYP81D4DK0758RT6Z",
-    "AS-95": "task_01M25XTX7VPDQDTGRY69CJ7ANE"
+    "AS-95": "task_01M25XTX7VPDQDTGRY69CJ7ANE",
+    "AS-96": "task_01M267JRMB9A1C88A98599AEE9"
   },
   "next_seqs": {
-    "AS": 96
+    "AS": 97
   },
   "schema_version": 2
 }
