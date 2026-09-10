@@ -908,6 +908,198 @@ export function makeDeployOps({
   };
 }
 
+// --- AS-95: the loop -------------------------------------------------------
+// A board message starts a LOOP of ticks, not a single tick. Everything below
+// is pure: the predicate that decides continue/stop, a read-only reader for
+// the Lattice board, and a git-free HEAD reader. main() wiring lives further
+// down; these are exported so the suite can drive them with fixtures.
+
+export const LOOP_DEFAULTS = Object.freeze({
+  maxTicks: 24,
+  maxMs: 8 * 60 * 60 * 1000,
+  maxNoProgress: 2,
+  maxFailures: 2,
+});
+
+/** Statuses that mean a task is somewhere inside its lifecycle — work in
+ *  flight that the next tick can advance one stage (plan §2.2 rule a). */
+export const MID_LIFECYCLE = Object.freeze(['in_planning', 'planned', 'in_progress', 'review']);
+/** A dependency is satisfied only by a terminal status. Anything else — including
+ *  a target we cannot find — is unmet (honest default, plan §2.2). */
+const TERMINAL = Object.freeze(['done', 'cancelled']);
+
+/** Chat-set membership per the CLAUDE.md scheduling rule. Affects the log
+ *  detail only, never the boolean: the predicate answers "is there anything
+ *  ready", the tick's own `lattice next` answers "which one". */
+function isChatSet(task) {
+  return String(task.title ?? '').startsWith('Chat:') || task.priority === 'critical';
+}
+
+/** Backlog tasks whose every dependency is done/cancelled. */
+export function readyBacklog(board) {
+  const tasks = board?.tasks ?? [];
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  return tasks.filter((t) => {
+    if (t.status !== 'backlog') return false;
+    return (t.dependsOn ?? []).every((id) => {
+      const dep = byId.get(id);
+      return Boolean(dep) && TERMINAL.includes(dep.status);
+    });
+  });
+}
+
+/**
+ * Should the loop fire another tick? Pure. Stop rules are evaluated BEFORE
+ * work rules so a cap is logged even when work remains (plan §2.2).
+ *
+ * @param board    {{tasks: Array<{id,status,priority,title,dependsOn}>}} from readBoard()
+ * @param sentinel {{messageId:number}|null}  latest human message
+ * @param highwater{{messageId:number}|null}  last message we fired for
+ * @param loop     {{startedAt:number,ticks:number,noProgress:number,failures:number}}
+ *                 counters BEFORE folding `tick` in
+ * @param tick     {{code,signal,timedOut,headBefore,headAfter}} the tick that just settled
+ * @returns {{continue:boolean, reason:string, detail:object, loop:object}}
+ */
+export function shouldContinue({ board, sentinel, highwater, loop, tick, now, limits = LOOP_DEFAULTS }) {
+  const t = tick ?? {};
+  const prior = {
+    startedAt: loop?.startedAt ?? now,
+    ticks: loop?.ticks ?? 0,
+    noProgress: loop?.noProgress ?? 0,
+    failures: loop?.failures ?? 0,
+  };
+
+  // (g) the tick itself failed — non-zero exit, a signal, or the 30-min box.
+  const failed = t.code !== 0 || Boolean(t.signal) || Boolean(t.timedOut);
+  const failures = failed ? prior.failures + 1 : 0;
+
+  // (e) did master move? An unreadable HEAD (null) counts as no progress:
+  // stopping early is cheap (a new message re-arms), a silent runaway is not.
+  const headKnown = Boolean(t.headBefore) && Boolean(t.headAfter);
+  const headMoved = headKnown && t.headBefore !== t.headAfter;
+  const noProgress = headMoved ? 0 : prior.noProgress + 1;
+
+  const ticks = prior.ticks + 1;
+  const elapsedMs = now - prior.startedAt;
+  const next = { startedAt: prior.startedAt, ticks, noProgress, failures };
+
+  const highwaterId = highwater ? highwater.messageId : 0;
+  const newMessage = Boolean(sentinel) && Number.isFinite(sentinel.messageId) && sentinel.messageId > highwaterId;
+  const midLifecycle = (board?.tasks ?? []).filter((x) => MID_LIFECYCLE.includes(x.status));
+  const ready = readyBacklog(board);
+  const work = {
+    newMessage,
+    midLifecycle: midLifecycle.map((x) => x.short_id ?? x.id),
+    ready: ready.length,
+  };
+  const stop = (reason, detail) => ({ continue: false, reason, detail, loop: next });
+  const go = (reason, detail) => ({ continue: true, reason, detail, loop: next });
+
+  if (failures >= limits.maxFailures) {
+    return stop('tick-failed-twice', { failures, code: t.code ?? null, signal: t.signal ?? null, timedOut: Boolean(t.timedOut) });
+  }
+  if (noProgress >= limits.maxNoProgress) {
+    return stop('no-progress', { noProgress, headKnown, ...work });
+  }
+  if (ticks >= limits.maxTicks || elapsedMs >= limits.maxMs) {
+    return stop('cap-hit', { ticks, elapsedMs });
+  }
+  if (newMessage) {
+    // The loop does NOT fire this itself — it returns continue and the normal
+    // poll() -> decide() -> fire() path consumes it, so the highwater moves once.
+    return go('new-message', { messageId: sentinel.messageId, highwaterId });
+  }
+  if (midLifecycle.length > 0) {
+    return go('mid-lifecycle', { tasks: work.midLifecycle });
+  }
+  if (ready.length > 0) {
+    const chatSet = ready.filter(isChatSet).length;
+    return go('backlog-ready', { chatSet, other: ready.length - chatSet });
+  }
+  return stop('dry', { ticks });
+}
+
+/**
+ * Read `.lattice/tasks/*.json` into the shape shouldContinue() wants. Pure over
+ * injected fs (AS-8/AS-27 pattern), read-only, and it never throws: an
+ * unreadable board yields `{tasks: []}` — which reads as `dry`, the safe stop.
+ * `dependsOn` for T = T's own `depends_on` edges, plus every other task's
+ * `blocks` edge that points at T (task files carry relationships_out only).
+ */
+export function readBoard(tasksDir, { readdir = readdirSync, readFile = readFileSync } = {}) {
+  let names = [];
+  try {
+    names = readdir(tasksDir).filter((n) => n.endsWith('.json'));
+  } catch {
+    return { tasks: [], unreadable: 0, missingDir: true };
+  }
+  const raw = [];
+  let unreadable = 0;
+  for (const name of names) {
+    try {
+      const body = JSON.parse(readFile(join(tasksDir, name), 'utf8'));
+      if (body && typeof body === 'object' && body.id) raw.push(body);
+      else unreadable += 1;
+    } catch {
+      unreadable += 1; // half-written tmp file, or hand-edited JSON — skip, count.
+    }
+  }
+  const deps = new Map(raw.map((t) => [t.id, new Set()]));
+  for (const t of raw) {
+    for (const rel of t.relationships_out ?? []) {
+      if (!rel || !rel.target_task_id) continue;
+      if (rel.type === 'depends_on') deps.get(t.id).add(rel.target_task_id);
+      // "A blocks B" is "B depends on A" seen from the other end.
+      if (rel.type === 'blocks' && deps.has(rel.target_task_id)) deps.get(rel.target_task_id).add(t.id);
+    }
+  }
+  const tasks = raw.map((t) => ({
+    id: t.id,
+    short_id: t.short_id,
+    title: t.title,
+    status: t.status,
+    priority: t.priority,
+    dependsOn: [...deps.get(t.id)],
+  }));
+  return { tasks, unreadable, missingDir: false };
+}
+
+/**
+ * The commit HEAD points at, without shelling out to git. Follows a symbolic
+ * ref into `.git/refs/...`, falls back to `packed-refs`, and handles the
+ * `gitdir:` indirection a linked worktree uses. Returns null when unreadable —
+ * shouldContinue() treats an unknown HEAD as "no progress".
+ */
+export function headOf(repoRoot, { readFile = readFileSync } = {}) {
+  try {
+    let gitDir = join(repoRoot, '.git');
+    let dotGit;
+    try {
+      dotGit = readFile(gitDir, 'utf8'); // a file => linked worktree
+      const m = /^gitdir:\s*(.+)$/m.exec(dotGit);
+      if (m) gitDir = m[1].trim();
+    } catch {
+      /* .git is a directory — the normal case */
+    }
+    const head = readFile(join(gitDir, 'HEAD'), 'utf8').trim();
+    const ref = /^ref:\s*(.+)$/.exec(head);
+    if (!ref) return /^[0-9a-f]{7,40}$/.test(head) ? head : null; // detached HEAD
+    const refName = ref[1].trim();
+    try {
+      return readFile(join(gitDir, refName), 'utf8').trim() || null;
+    } catch {
+      const packed = readFile(join(gitDir, 'packed-refs'), 'utf8');
+      for (const line of packed.split('\n')) {
+        const [sha, name] = line.trim().split(/\s+/);
+        if (name === refName) return sha;
+      }
+      return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
 /** tmp + rename, the same atomic pattern every other file this watcher writes
  *  uses: a reader in the container must never observe a half-written body. */
 function defaultWriteState(path, body) {
