@@ -331,3 +331,31 @@ Added by this plan:
 - Check that a **task panel opened from the roster** and a **ref clicked in a message** produce the same href for the same task id — they go through different payload shapes.
 - Confirm `msgRefLink`'s `?m=` href (`app.js:159`) and the AS-26 file-ref links are untouched by the forbidden-pattern assertion and by the diff.
 - Verify the claim in §3 that no fifth `url` consumer exists: `grep -rn '\.url\b' apps/chat/public apps/chat/bin`.
+
+## Post-merge correction to §5 (mutation predictions) — recorded 2026-09-10 by the orchestrator, from QA finding F-3
+
+Three of §5's predicted failure sets are **wrong as written**. The implementation is right; the
+plan table is not. Ruben re-derived these independently in his own detached worktrees and
+reproduced Marcus's F1–F3 exactly, having read the implementer's report only afterwards.
+Corrected rows, observed-not-argued, each with a `--build` receipt:
+
+| Mutant | §5 predicted | Actually observed | Why |
+|---|---|---|---|
+| M-BASELINE | `{T1,T3,T5}`, T2 green | `{T1,T2,T3,T4,T5}` | T2 goes red at its `localhost` sub-case (actual `http://127.0.0.1:8799/…`, expected `http://localhost:8799/…`). Its `127.0.0.1` sub-case does pass, so §5's underlying claim ("invisible from the Mac") holds at *sub-case* granularity — but the T2-green narrative is false for the T2 this plan itself specified over four spellings. T4 is dragged in because its fall-through cases assert the inferred tailnet value. |
+| M-AC1 | `{T1,T3,T5}` | `{T1,T3,T4,T5}` | Same T4 coupling: any mutant to the inference branch takes T4 with it. |
+| M-AC5 | `{T4,T6}` | `{T4}` only | Structural, not incidental: T6's env sub-case asserts the **server** endpoint (`/api/config`) and the mutant is client-side. §4 defines T6 that way, so the §5 row contradicts §4. |
+
+Two standing lessons, both already company rules — this is the evidence, not a new rule:
+
+1. **A prediction that misses in the direction of a *wider* failure set is still a miss.** Two of
+   the three above are wider, one narrower. Marcus recorded them rather than smoothing them over,
+   and Ruben reproduced them cold; that agreement is the reason this correction can be trusted.
+   Recording cardinality (the exact failing-test set) is what made the mismatch visible at all —
+   a bare "mutation observed red" would have hidden all three.
+2. **T4's coupling to the inference branch means it is not an independent control for AC-5.** The
+   client half of AC-5 is genuinely unobservable from the suite; it was verified only by driving a
+   real browser against a branch server with `LATTICE_DASHBOARD_URL` set (review, "Beyond the
+   list"). AS-98's plan should not assume a suite test can stand in for that.
+
+§5's prose is left as originally written above so the miss stays visible in the record; this
+section supersedes its three rows.
