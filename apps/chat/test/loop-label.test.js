@@ -201,6 +201,80 @@ test('AS-75 label: a deploy holds the lock and says so — "Tick in flight · de
   assert.match(got.detail, /Tick from deploy \(pid 90824\) started 20 s ago\./);
 });
 
+// --- AS-95 / AC-6: the watcher loop reads differently from a single tick -----
+
+test('AS-95 label: a watcher loop is "Loop active · watcher, tick N", and the count comes from the lock first', () => {
+  const inLoop = describeLoopStatus(
+    status({
+      state: 'watcher-loop',
+      tick: { source: 'watcher', pid: 17217, startedAt: iso(-40_000), ageS: 40, loopTicks: 3 },
+      loop: { active: true, ticks: 3, startedAt: iso(-600_000), armedBy: 651, lastLoop: null },
+    }), NOW);
+  assert.equal(inLoop.label, 'Loop active · watcher, tick 3');
+  // The dot is green, like the other loop: watcher-loop is a fifth STATE, not a
+  // fifth colour, and an unmapped tone would render an unstyled invisible dot.
+  assert.equal(inLoop.tone, 'loop');
+  assert.match(inLoop.detail, /Loop tick from watcher \(pid 17217\) started 40 s ago\./);
+
+  // The lock is the tick being reported, so its marker wins when the mirror
+  // file is a poll behind. 4 vs 3 — the label must show the lock's number.
+  const ahead = describeLoopStatus(
+    status({
+      state: 'watcher-loop',
+      tick: { source: 'watcher', pid: 17217, startedAt: iso(-2_000), ageS: 2, loopTicks: 4 },
+      loop: { active: true, ticks: 3, startedAt: iso(-600_000), armedBy: 651, lastLoop: null },
+    }), NOW);
+  assert.equal(ahead.label, 'Loop active · watcher, tick 4');
+
+  // Marker absent (a lock written before this landed): fall back to the file.
+  const fileOnly = describeLoopStatus(
+    status({
+      state: 'watcher-loop',
+      tick: { source: 'watcher', pid: 17217, startedAt: iso(-2_000), ageS: 2, loopTicks: null },
+      loop: { active: true, ticks: 6, startedAt: iso(-600_000), armedBy: 651, lastLoop: null },
+    }), NOW);
+  assert.equal(fileOnly.label, 'Loop active · watcher, tick 6');
+
+  // Neither witness carries a number. The state is still true, so the label
+  // still says so — it just declines to invent a tick count.
+  const noCount = describeLoopStatus(
+    status({ state: 'watcher-loop', tick: { source: 'watcher', pid: 1, startedAt: iso(-1_000), ageS: 1, loopTicks: null } }), NOW);
+  assert.equal(noCount.label, 'Loop active · watcher');
+});
+
+test('AS-95 label: a stopped loop says WHY, in words, and only while no loop is running', () => {
+  const stopped = (reason, ticks) =>
+    describeLoopStatus(
+      status({ state: 'idle', loop: { active: false, ticks: 0, startedAt: null, armedBy: null, lastLoop: { reason, ticks, stoppedAt: iso(-120_000) } } }),
+      NOW).detail;
+
+  assert.match(stopped('dry', 7), /Last loop stopped after 7 ticks, 2 min ago: nothing was left to do\./);
+  assert.match(stopped('no-progress', 2), /two ticks in a row ended without a commit on master/);
+  assert.match(stopped('cap-hit', 24), /the safety cap was reached/);
+  assert.match(stopped('tick-failed-twice', 2), /two ticks in a row failed or hit the tick timeout/);
+  assert.match(stopped('dry', 1), /after 1 tick,/, 'one tick, not "1 ticks"');
+  // An unknown reason is still a stop worth showing, named rather than hidden.
+  assert.match(stopped('something-new', 3), /reason: something-new/);
+
+  // While a loop IS running, the previous loop's epitaph is noise.
+  const running = describeLoopStatus(
+    status({
+      state: 'watcher-loop',
+      tick: { source: 'watcher', pid: 1, startedAt: iso(-1_000), ageS: 1, loopTicks: 2 },
+      loop: { active: true, ticks: 2, startedAt: iso(-60_000), armedBy: 651, lastLoop: { reason: 'dry', ticks: 7, stoppedAt: iso(-600_000) } },
+    }), NOW).detail;
+  assert.equal(/Last loop stopped/.test(running), false);
+});
+
+test('AS-95 label: an absent or malformed loop key changes nothing (pre-AS-95 server parity)', () => {
+  const baseline = describeLoopStatus(status({ state: 'idle' }), NOW);
+  for (const bad of [undefined, null, 'nope', 42, [], { active: false }, { active: false, lastLoop: null }]) {
+    const got = describeLoopStatus(status({ state: 'idle', loop: bad }), NOW);
+    assert.equal(got.detail, baseline.detail, `loop=${JSON.stringify(bad)}: no sentence, no throw`);
+    assert.equal(got.tone, 'idle');
+  }
+});
+
 test('AS-75 label: an absent or malformed build key changes nothing', () => {
   // A pre-AS-75 server (no build key at all) must render exactly as before.
   const baseline = describeLoopStatus(status({ state: 'idle' }), NOW);

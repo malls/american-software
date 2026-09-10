@@ -1178,12 +1178,15 @@ function loopFixture(t) {
   const lock = join(dataDir, 'advance.lock');
   const pid = join(dataDir, 'advance-watcher.pid');
   const deploy = join(dataDir, 'deploy-state.json');
+  const loopState = join(dataDir, 'advance-loop.json'); // AS-95
   const iso = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString();
   return {
     dataDir,
-    /** Plant one of the four file configurations (AS-75 adds a third file). */
-    plant({ lockBody = null, pidBody = null, deployBody = null }) {
-      for (const [path, body] of [[lock, lockBody], [pid, pidBody], [deploy, deployBody]]) {
+    /** Plant one of the four file configurations (AS-75 adds a third file,
+     *  AS-95 a fourth). An omitted key deletes its file, so every call states
+     *  the whole world and no test inherits a neighbour's leftovers. */
+    plant({ lockBody = null, pidBody = null, deployBody = null, loopBody = null }) {
+      for (const [path, body] of [[lock, lockBody], [pid, pidBody], [deploy, deployBody], [loopState, loopBody]]) {
         if (body === null) {
           try { unlinkSync(path); } catch { /* already absent */ }
         } else {
@@ -1199,6 +1202,11 @@ function loopFixture(t) {
     deployState: (over = {}) => ({
       desiredId: 'aaaaaaaaaaaaaaaa', dirty: false, reason: 'current',
       dockerBin: '/usr/local/bin/docker', computedAt: iso(-5_000), lastAttempt: null, ...over,
+    }),
+    /** AS-95: advance-loop.json, exactly as the watcher's writeLoopState()
+     *  writes it — a live loop by default. */
+    loopFile: (over = {}) => ({
+      active: true, startedAt: iso(-600_000), ticks: 3, armedBy: 651, lastTick: null, lastLoop: null, ...over,
     }),
   };
 }
@@ -1242,6 +1250,66 @@ test('api: AS-27 — GET /api/loop-status reports each of the four states from i
   assert.equal(anon.data.status.state, 'tick');
   assert.equal(ghost.data.status.state, 'tick');
   assert.equal(anon.data.status.tick.source, 'manual');
+});
+
+test('api: AS-95 — a watcher loop is observable over /api/loop-status, with its tick count and its stop reason', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+
+  // Cardinality first: five configurations planted, five answers asserted —
+  // the four AS-27 states plus the one AS-95 adds.
+  const cases = [
+    ['watcher-loop', { lockBody: fx.freshLock('watcher', { loop: { ticks: 3 } }), pidBody: fx.livePid(), loopBody: fx.loopFile() }],
+    // The mirror file alone, lock unmarked: still a loop.
+    ['watcher-loop', { lockBody: fx.freshLock('watcher'), pidBody: fx.livePid(), loopBody: fx.loopFile({ ticks: 5 }) }],
+    // Same lock, no loop anywhere: the plain AS-27 tick. This is the pair that
+    // proves the endpoint is reading the loop file at all.
+    ['tick', { lockBody: fx.freshLock('watcher'), pidBody: fx.livePid(), loopBody: null }],
+    // A /loop session's own lock is untouched by AS-95.
+    ['loop', { lockBody: fx.freshLock('loop'), pidBody: fx.livePid(), loopBody: fx.loopFile() }],
+    // Between two loop ticks the lock is released; the loop is still live.
+    ['idle', { lockBody: null, pidBody: fx.livePid(), loopBody: fx.loopFile() }],
+  ];
+  assert.equal(cases.length, 5);
+  const seen = [];
+  for (const [expected, files] of cases) {
+    fx.plant(files);
+    const res = await get('/api/loop-status');
+    assert.equal(res.status, 200, expected);
+    assert.equal(res.data.status.state, expected, `${expected}: state`);
+    seen.push(res.data.status.state);
+  }
+  assert.deepEqual(seen, ['watcher-loop', 'watcher-loop', 'tick', 'loop', 'idle']);
+
+  // The tick count the sidebar renders reaches the client from both witnesses.
+  fx.plant({ lockBody: fx.freshLock('watcher', { loop: { ticks: 4 } }), pidBody: fx.livePid(), loopBody: fx.loopFile({ ticks: 3 }) });
+  const live = (await get('/api/loop-status')).data.status;
+  assert.equal(live.tick.loopTicks, 4, 'the running tick says which loop tick it is');
+  assert.equal(live.loop.ticks, 3, 'and the mirror file reports the last EVALUATED tick');
+  assert.equal(live.loop.active, true);
+
+  // Why the last loop stopped survives the loop. This is the whole point of
+  // the file for the board: "dry" and "cap-hit" are very different news.
+  fx.plant({
+    lockBody: null, pidBody: fx.livePid(),
+    loopBody: fx.loopFile({ active: false, ticks: 0, lastLoop: { stoppedAt: new Date(Date.now() - 60_000).toISOString(), reason: 'no-progress', ticks: 2, detail: { headBefore: 'abc' } } }),
+  });
+  const after = (await get('/api/loop-status')).data.status;
+  assert.equal(after.state, 'idle');
+  assert.equal(after.loop.active, false);
+  assert.equal(after.loop.lastLoop.reason, 'no-progress');
+  assert.equal(after.loop.lastLoop.ticks, 2);
+  assert.equal(Object.hasOwn(after.loop.lastLoop, 'detail'), false, 'the derivation ships named fields, not the file');
+
+  // A garbage loop file is a 200 and a null loop, never a 500 — the same
+  // degradation contract as the other three files in this directory.
+  for (const bad of ['not json{', '', '[]', 'null']) {
+    fx.plant({ lockBody: fx.freshLock('watcher'), pidBody: fx.livePid(), loopBody: bad });
+    const r = await get('/api/loop-status');
+    assert.equal(r.status, 200, `loop file ${JSON.stringify(bad)}`);
+    assert.equal(r.data.status.state, 'tick', `loop file ${JSON.stringify(bad)}: no invented loop`);
+    assert.equal(r.data.status.loop, null, `loop file ${JSON.stringify(bad)}: null, not a throw`);
+  }
 });
 
 test('api: AS-27 — the AS-16 nonce never leaves the server, and malformed files never 500', async (t) => {

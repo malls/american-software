@@ -184,6 +184,10 @@ export function createChatServer({
   // AS-75: what the host watcher last decided about the deploy. Same directory,
   // same degradation contract as the two files above.
   const DEPLOY_STATE_PATH = join(loopDir, 'deploy-state.json');
+  // AS-95: the host watcher's loop mirror. Same directory, same degradation
+  // contract as the three files above — absent means "no watcher loop has ever
+  // run here" (a pre-AS-95 watcher never writes it), which is not an error.
+  const LOOP_STATE_PATH = join(loopDir, 'advance-loop.json');
   // `unknown` is what an image built by hand (no CHAT_BUILD_ID in the env)
   // carries. It is not an id — treating it as one would let a hand-built image
   // claim currency it cannot have — so it normalises to null, exactly like an
@@ -245,6 +249,7 @@ export function createChatServer({
     const status = deriveLoopStatus({
       lock: readLoopFile(LOCK_PATH),
       watcher: readLoopFile(WATCHER_PID_PATH),
+      loopState: readLoopFile(LOOP_STATE_PATH),
       nowMs,
       lockStaleMs: LOCK_STALE_MS,
     });
@@ -284,6 +289,16 @@ export function createChatServer({
       // including it would emit a frame per poll to every connection forever —
       // the same reason every age field is excluded above.
       build: { id: s.build.id, desiredId: s.build.desiredId, current: s.build.current },
+      // AS-95: the tick COUNT is the thing that moves in the loop label, so a
+      // new loop tick must earn a frame; `startedAt` of the loop is already
+      // covered by `active` flipping. `lastLoop.stoppedAt` is included because
+      // a second loop can stop for the same reason after the same number of
+      // ticks, and the board should still see the sentence refresh.
+      loop: s.loop && {
+        active: s.loop.active,
+        ticks: s.loop.ticks,
+        lastLoop: s.loop.lastLoop && { reason: s.loop.lastLoop.reason, stoppedAt: s.loop.lastLoop.stoppedAt, ticks: s.loop.lastLoop.ticks },
+      },
     });
 
   // --- AS-25: SSE push delivery ---------------------------------------------

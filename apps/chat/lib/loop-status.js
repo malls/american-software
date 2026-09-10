@@ -63,6 +63,12 @@ function deriveTick(lock, nowMs, lockStaleMs) {
   const source = typeof rec.source === 'string' ? rec.source : null;
   const startedAt = typeof rec.startedAt === 'string' ? rec.startedAt : null;
   const pid = Number.isInteger(rec.pid) ? rec.pid : null;
+  // AS-95: the loop marker the watcher spreads into the lock body at fire time.
+  // `source` is deliberately still 'watcher' (the lock's acquire/release/stale
+  // logic is byte-identical — AS-84 owns that question), so this extra field is
+  // the ONLY way the lock itself says "this tick belongs to a loop". Read
+  // defensively: a pre-AS-95 watcher writes no `loop` key at all.
+  const loopTicks = rec.loop && Number.isInteger(rec.loop.ticks) ? rec.loop.ticks : null;
 
   if (rec.error) {
     return { tick: null, staleLock: { source: null, startedAt: null, ageS: null, reason: 'unparsable' } };
@@ -79,7 +85,39 @@ function deriveTick(lock, nowMs, lockStaleMs) {
   if (staleness.stale) {
     return { tick: null, staleLock: { source, startedAt, ageS, reason: staleness.reason } };
   }
-  return { tick: { source, pid, startedAt, ageS }, staleLock: null };
+  return { tick: { source, pid, startedAt, ageS, loopTicks }, staleLock: null };
+}
+
+/**
+ * AS-95: the loop half — what apps/chat/data/advance-loop.json says the host
+ * watcher's loop is doing. Built field by field for the same reason the tick is
+ * (never spread a file the watcher may grow), and every field is optional: a
+ * watcher on pre-AS-95 code writes no such file at all, which is `null` here
+ * and leaves the four AS-27 states exactly as they were.
+ *
+ * `lastLoop` deliberately survives `active:false` — WHY the last loop stopped
+ * is the thing the board asked to be able to see, and it is only legible after
+ * the loop has stopped.
+ */
+function deriveLoop(loopState) {
+  const rec = asRecord(loopState);
+  if (rec === null || rec.error) return null;
+  const last = asRecord(rec.lastLoop);
+  const lastLoop =
+    last && !last.error
+      ? {
+          reason: typeof last.reason === 'string' ? last.reason : null,
+          stoppedAt: typeof last.stoppedAt === 'string' ? last.stoppedAt : null,
+          ticks: Number.isInteger(last.ticks) ? last.ticks : null,
+        }
+      : null;
+  return {
+    active: rec.active === true,
+    ticks: Number.isInteger(rec.ticks) ? rec.ticks : 0,
+    startedAt: typeof rec.startedAt === 'string' ? rec.startedAt : null,
+    armedBy: rec.armedBy ?? null,
+    lastLoop,
+  };
 }
 
 /** The watcher half: is the host watcher alive and polling? */
@@ -107,28 +145,50 @@ function deriveWatcher(watcher, nowMs, watcherStaleMs) {
 /**
  * The four states the board asked about, derived from the two files.
  *
- *   loop  — a fresh lock whose source is "loop": a /loop /advance session is
- *           executing a tick right now.
- *   tick  — a fresh lock from any other source (watcher, manual).
- *   idle  — no fresh lock, watcher listening: the next board message fires.
- *   off   — no fresh lock, watcher not listening: nothing will fire.
+ *   loop         — a fresh lock whose source is "loop": a /loop /advance session
+ *                  is executing a tick right now.
+ *   watcher-loop — AS-95: a fresh WATCHER lock that belongs to a watcher loop
+ *                  (the board's message started a run of ticks). Distinguished
+ *                  from `tick` because "one tick, then silence" and "tick 3 of a
+ *                  run that continues until the company is dry" are different
+ *                  facts about the company, and the board asked to see which.
+ *   tick         — a fresh lock from any other source (watcher, manual).
+ *   idle         — no fresh lock, watcher listening: the next board message fires.
+ *   off          — no fresh lock, watcher not listening: nothing will fire.
  *
  * @param {object}  args
  * @param {object|null} args.lock          parsed advance.lock, null if absent,
  *                                         { error } if unreadable/unparsable
  * @param {object|null} args.watcher       parsed advance-watcher.pid, same convention
+ * @param {object|null} [args.loopState]   parsed advance-loop.json, same convention
  * @param {number}  args.nowMs
  * @param {number}  args.lockStaleMs       DEFAULTS.lockStaleMin * 60_000, from the watcher
  * @param {number} [args.watcherStaleMs]   defaults to WATCHER_STALE_MS
- * @returns {{ state: 'loop'|'tick'|'idle'|'off',
- *             tick: null|{source,pid,startedAt,ageS},
+ * @returns {{ state: 'loop'|'watcher-loop'|'tick'|'idle'|'off',
+ *             tick: null|{source,pid,startedAt,ageS,loopTicks},
+ *             loop: null|{active,ticks,startedAt,armedBy,lastLoop},
  *             staleLock: null|{source,startedAt,ageS,reason},
  *             watcher: {listening,heartbeatAt,ageS,reason?},
  *             checkedAt: string }}
  */
-export function deriveLoopStatus({ lock, watcher, nowMs, lockStaleMs, watcherStaleMs = WATCHER_STALE_MS }) {
+export function deriveLoopStatus({ lock, watcher, loopState = null, nowMs, lockStaleMs, watcherStaleMs = WATCHER_STALE_MS }) {
   const { tick, staleLock } = deriveTick(lock, nowMs, lockStaleMs);
   const w = deriveWatcher(watcher, nowMs, watcherStaleMs);
-  const state = tick ? (tick.source === 'loop' ? 'loop' : 'tick') : w.listening ? 'idle' : 'off';
-  return { state, tick, staleLock, watcher: w, checkedAt: new Date(nowMs).toISOString() };
+  const loop = deriveLoop(loopState);
+  // Two independent witnesses, either of which is enough: the mirror file says a
+  // loop is live, or the lock the running tick wrote carries the marker. Neither
+  // alone is reliable — the file can be a heartbeat behind a just-fired tick,
+  // and a pre-AS-95 lock has no marker — and requiring both would report a loop
+  // as a bare tick whenever one of them lagged.
+  const inWatcherLoop = tick !== null && tick.source === 'watcher' && ((loop !== null && loop.active) || tick.loopTicks !== null);
+  const state = tick
+    ? tick.source === 'loop'
+      ? 'loop'
+      : inWatcherLoop
+        ? 'watcher-loop'
+        : 'tick'
+    : w.listening
+      ? 'idle'
+      : 'off';
+  return { state, tick, loop, staleLock, watcher: w, checkedAt: new Date(nowMs).toISOString() };
 }
