@@ -164,23 +164,50 @@ guarantees an `AS-26`, `msg156` or `README.md` sitting inside a URL is never
 turned into a ref link; the pass is skipped entirely inside a markdown link's
 label, so an autolink can never nest inside one.
 
-## Links to Lattice (AS-10)
+## Links to Lattice (AS-10, host inference AS-93)
 
 The outbound direction: resolvable `AS-n` refs in any message (including
 `#lattice-events` posts) render as real anchors to the Lattice dashboard —
-`<LATTICE_DASHBOARD_URL>/#/task/<full-task-id>`, default
-`http://127.0.0.1:8799`. A plain click still opens the in-app task panel
-(which now carries an "Open in Lattice ↗" link); cmd/ctrl/shift/middle-click
-or copy-link goes straight to the dashboard. Unresolvable codes stay plain
-text.
+`<base>/#/task/<full-task-id>`. A plain click still opens the in-app task panel
+(which carries an "Open in Lattice ↗" link); cmd/ctrl/shift/middle-click or
+copy-link goes straight to the dashboard. Unresolvable codes stay plain text.
+
+**The base is derived in the browser, from the page you are looking at
+(AS-93).** Chat and the dashboard are reachable two ways, and the dashboard's
+port differs per path:
+
+| You loaded chat at | Deep links point to |
+|---|---|
+| `http://127.0.0.1:8347` (loopback) | `http://127.0.0.1:8799` |
+| `https://<host>.ts.net` (tailnet, Tailscale `serve` → 8347) | `https://<host>.ts.net:8443` (→ 8799) |
+
+The rule is one line: **the hostname and protocol are always the page's own;
+only the port is inferred** — `8799` when the page's hostname is a loopback
+name (`127.0.0.1`, `localhost`, `::1`), `8443` otherwise. So a link can never
+point at a host you are not already on, and there is no code path that falls
+back to `127.0.0.1` from a non-loopback page. Derivation is client-side
+(`public/dashboard-link.js`) rather than from the request's `Host` header,
+because one server fans one payload out to browsers on both hostnames at the
+same time — message refs ride the SSE broadcast, which is composed once and
+pushed to everyone.
+
+**Precedence.** An explicitly set `LATTICE_DASHBOARD_URL` beats inference: the
+server exposes it to the browser at `GET /api/config` (`null` when unset) and
+the browser uses it verbatim, trailing `/` trimmed. A non-`http(s)` value is
+ignored and inference applies. Explicit config beats a heuristic; a heuristic
+beats a hard-coded host.
+
+**The `url` field in the JSON API is the server-side answer, not the link you
+click.** `refs[].url`, `task.url` and `employee.work.url` are still emitted
+from `LATTICE_DASHBOARD_URL` or the `http://127.0.0.1:8799` default, unchanged
+since AS-10, and the browser overrides them per the rule above.
 
 The links are live only while the dashboard is running on the host — **run
-`lattice dashboard`** to make them resolve; otherwise they are well-formed
-but dead (connection refused), accepted for a loopback-only internal tool.
-Deliberate decision (AS-10 plan): the dashboard is NOT part of compose — it
-is vendor tooling that ships with the Lattice CLI (host pipx install), the
-same category as `git`, and containerizing it would add real maintenance
-cost while removing a single `lattice dashboard` invocation.
+`lattice dashboard`** to make them resolve; otherwise they are well-formed but
+dead (connection refused). Deliberate decision (AS-10 plan): the dashboard is
+NOT part of compose — it is vendor tooling that ships with the Lattice CLI
+(host pipx install), the same category as `git`. Making it survive without a
+live session is AS-94.
 
 ## Company roster in the sidebar (AS-8)
 
@@ -468,7 +495,7 @@ In-container values are set by the image/compose; callers only set `CHAT_ME`.
 | `CHAT_BIND` | compose | `0.0.0.0` | server bind inside the container (the app's own default stays `127.0.0.1`; loopback-only is enforced by the `127.0.0.1:8347:8347` port map) |
 | `CHAT_DB` | image | `/app/data/chat.db` | SQLite path in-container (bind-mounted to `apps/chat/data/`); used by the CLI only in direct mode — setting it explicitly (without `CHAT_API`) selects direct mode against that alternate store |
 | `CHAT_REPO_ROOT` | image | `/repo` | repo root inside the container. `server` mounts the whole checkout there read-only (AS-26) — `.lattice/`, `personnel/` (AS-8) and every other `*.md` `/api/file` may serve; `cli` mounts only `.lattice/` + `personnel/`, which is all it reads |
-| `LATTICE_DASHBOARD_URL` | caller | `http://127.0.0.1:8799` | base URL for the Lattice-dashboard deep links rendered by chat (AS-10); forwarded by compose, trailing `/` trimmed, empty = default |
+| `LATTICE_DASHBOARD_URL` | caller | `http://127.0.0.1:8799` | base URL for the Lattice-dashboard deep links (AS-10); forwarded by compose, trailing `/` trimmed, empty = default. Since AS-93 it is also exposed to the browser at `GET /api/config` and **overrides** the browser's host inference; a non-`http(s)` value is ignored |
 | `PORT` | — | `8347` | change only via a compose override file, not env |
 
 ## Storage
