@@ -8,8 +8,11 @@
 // mutant has a predicted red set stated in those ids.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
-  shouldContinue, readyBacklog, readBoard, headOf, LOOP_DEFAULTS, MID_LIFECYCLE,
+  shouldContinue, readyBacklog, readBoard, headOf, LOOP_DEFAULTS, MID_LIFECYCLE, makeLockOps,
 } from '../watch/advance-watcher.mjs';
 
 const T0 = Date.parse('2026-09-10T12:00:00.000Z');
@@ -378,6 +381,31 @@ test('head-worktree: a gitdir: pointer file is followed', () => {
     '/repo/.git/worktrees/AS-95/refs/heads/feat/AS-95-watcher-loop': `${sha}\n`,
   }));
   assert.equal(r, sha);
+});
+
+// --- the lock's loop marker (real lockfile in a temp dir, AS-13 house style) --
+
+function lockOps() {
+  const dir = mkdtempSync(join(tmpdir(), 'as95-lock-'));
+  const lockPath = join(dir, 'advance.lock');
+  return { lockPath, ops: makeLockOps({ lockPath, staleMs: 45 * 60 * 1000, log: () => {}, pid: 4242 }) };
+}
+
+test('lock-marker: a loop tick stamps loop.ticks into the lock body, source unchanged', () => {
+  const { lockPath, ops } = lockOps();
+  assert.equal(ops.acquireLock('deadbeefcafef00d', { loop: { ticks: 3 } }), true);
+  const body = JSON.parse(readFileSync(lockPath, 'utf8'));
+  assert.equal(body.source, 'watcher'); // AS-84/advance.md step 0 must not shift
+  assert.equal(body.nonce, 'deadbeefcafef00d');
+  assert.equal(body.pid, 4242);
+  assert.deepEqual(body.loop, { ticks: 3 });
+});
+
+test('lock-marker-absent: acquiring without the marker leaves the body exactly as it was', () => {
+  const { lockPath, ops } = lockOps();
+  assert.equal(ops.acquireLock('deadbeefcafef00d'), true);
+  const body = JSON.parse(readFileSync(lockPath, 'utf8'));
+  assert.deepEqual(Object.keys(body).sort(), ['nonce', 'pid', 'source', 'startedAt']);
 });
 
 test('head-unreadable: an unreadable repo yields null, never a throw', () => {
