@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-lena",
   "branch_links": [
     {
       "branch": "feat/AS-81-openstream-no-hang",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1MRHST1YSHFRF09WBS0BJWB",
-  "last_event_id": "ev_01M27ND9EA4R93E84EFJQXCZG9",
-  "last_status_changed_at": "2026-09-11T07:20:15Z",
+  "last_event_id": "ev_01M27NJNVCZZ836MP52JMGDDGR",
+  "last_status_changed_at": "2026-09-11T07:23:11Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-81",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat test harness: openStream() hangs the runner instead of failing \u2014 a stream regression wedges CI",
   "type": "task",
-  "updated_at": "2026-09-11T07:20:15Z",
+  "updated_at": "2026-09-11T07:23:12Z",
   "urgency": null
 }
