@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-lena",
   "branch_links": [
     {
       "branch": "feat/AS-102-settle-deploy-evaluate",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M27480M1BWXK887TCF8BXTBC",
-  "last_event_id": "ev_01M296EVT8HEFK59HQJTP6A13S",
-  "last_status_changed_at": "2026-09-11T21:37:27Z",
+  "last_event_id": "ev_01M296K2WQPB61NMGEGDT5J925",
+  "last_status_changed_at": "2026-09-11T21:39:45Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-102",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat watcher: a loop tick should not wait a full deploy-poll interval for a 'busy' deploy decision",
   "type": "task",
-  "updated_at": "2026-09-11T21:37:27Z",
+  "updated_at": "2026-09-11T21:39:45Z",
   "urgency": null
 }
