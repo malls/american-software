@@ -12,7 +12,7 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  shouldContinue, readyBacklog, readBoard, headOf, LOOP_DEFAULTS, MID_LIFECYCLE, makeLockOps,
+  shouldContinue, readyBacklog, readBoard, headOf, LOOP_DEFAULTS, MID_LIFECYCLE, makeLockOps, makeLoopOps, DEFAULTS,
   nextPollAction, makeDeployOps,
 } from '../watch/advance-watcher.mjs';
 
@@ -457,4 +457,227 @@ test('lock-marker-absent: acquiring without the marker leaves the body exactly a
 test('head-unreadable: an unreadable repo yields null, never a throw', () => {
   assert.equal(headOf('/repo', fakeHead({})), null);
   assert.equal(headOf('/repo', fakeHead({ '/repo/.git/HEAD': 'ref: refs/heads/master\n' })), null);
+});
+
+// --- makeLoopOps: the state machine, and the three cycle-1 defects ----------
+//
+// The predicate above was never what failed. What failed was the wiring around
+// it — armed here, resumed there, aborted somewhere else — which lived inside
+// main() where no test could reach it. These cases are the falsifiers for the
+// three defects the cycle-1 review found there (F1, F2, F3); each one fails
+// against the code as it stood before its fix, and the mutation log in the
+// implementation comment records which case each mutant reddens.
+
+/** A loop-ops under a fake clock, fake files and a captured log. Defaults are
+ *  the run3/run4b situation: one task in flight, one message already fired. */
+function loopHarness(over = {}) {
+  const logs = [];
+  const saved = [];
+  let clock = T0;
+  const ops = makeLoopOps({
+    loadBoard: () => ({ tasks: [task({ status: 'in_progress' })] }),
+    loadSentinel: () => ({ messageId: 1 }),
+    loadHighwater: () => ({ messageId: 1 }),
+    loadLock: () => null,
+    loadState: () => null,
+    saveState: (body) => saved.push(body),
+    log: (line) => logs.push(line),
+    now: () => clock,
+    resumeGraceMs: 30 * 60 * 1000,
+    limits: { ...LOOP_DEFAULTS, maxLockWaitMs: 60 * 60 * 1000 },
+    ...over,
+  });
+  return {
+    ops,
+    logs,
+    saved,
+    advance: (ms) => {
+      clock += ms;
+    },
+    lines: (prefix) => logs.filter((l) => l.startsWith(prefix)),
+  };
+}
+
+/** A lock body as makeLockOps writes it, `ageMs` old. */
+const lockBody = (ageMs, over = {}) => ({
+  pid: 4242,
+  startedAt: new Date(T0 - ageMs).toISOString(),
+  source: 'watcher',
+  nonce: 'deadbeefcafef00d',
+  ...over,
+});
+
+// F3 — the mirror is what a restarted watcher resumes from. Written only at
+// settle, it does not exist yet while tick 1 runs, so a death during tick 1
+// loses the loop entirely (observed: the watcher came back idle and the
+// company sat still until the next message).
+
+test('f3-mirror-at-start: arming a loop mirrors it immediately, before its first tick runs', () => {
+  const h = loopHarness();
+  h.ops.start({ messageId: 7 });
+  assert.equal(h.saved.length, 1, 'LOOP-START must write advance-loop.json');
+  assert.equal(h.saved[0].active, true);
+  assert.equal(h.saved[0].ticks, 0);
+  assert.equal(h.saved[0].armedBy, 7);
+});
+
+test('f3-mirror-is-resumable: what start() writes is what resume() re-enters', () => {
+  const first = loopHarness();
+  first.ops.start({ messageId: 7 });
+  const mirror = first.saved.at(-1);
+  const second = loopHarness({ loadState: () => mirror });
+  second.ops.resume();
+  assert.equal(second.ops.active(), true);
+  assert.equal(second.ops.pending(), true);
+  assert.equal(second.ops.snapshot().ticks, 0);
+  assert.equal(second.lines('LOOP-RESUME').length, 1);
+});
+
+// F1 — a loop tick that loses the lock. fire() aborted without telling the loop
+// anything, so nothing re-evaluated the predicate: no further tick, no
+// LOOP-STOP, a mirror frozen at active:true, and a board with no way to see
+// that the company had stopped.
+
+test('f1-abort-retries: an aborted loop fire keeps the debt and says so once', () => {
+  const h = loopHarness();
+  h.ops.start({ messageId: 1 });
+  h.ops.takeFire();
+  assert.equal(h.ops.pending(), false, 'poll() has taken the owed tick');
+  h.ops.aborted();
+  assert.equal(h.ops.pending(), true, 'the loop still owes a tick: retry on the next poll');
+  assert.equal(h.ops.active(), true);
+  assert.equal(h.lines('LOOP-WAIT lock').length, 1);
+  h.advance(5_000);
+  h.ops.aborted();
+  assert.equal(h.lines('LOOP-WAIT lock').length, 1, 'one line per wait episode, not one per poll');
+  assert.equal(h.ops.pending(), true);
+});
+
+test('f1-abort-bounded: a lock that never frees stops the loop with a reason the board can read', () => {
+  const h = loopHarness();
+  h.ops.start({ messageId: 1 });
+  h.ops.takeFire();
+  h.ops.aborted();
+  h.advance(60 * 60 * 1000);
+  h.ops.aborted();
+  assert.equal(h.ops.active(), false);
+  assert.equal(h.ops.pending(), false);
+  const stops = h.lines('LOOP-STOP');
+  assert.equal(stops.length, 1, 'every stop is logged, this one included');
+  assert.match(stops[0], /reason=lock-unavailable/);
+  assert.equal(h.ops.snapshot().lastLoop.reason, 'lock-unavailable');
+  assert.equal(h.saved.at(-1).active, false, 'the mirror stops claiming a live loop');
+  assert.equal(h.saved.at(-1).lastLoop.reason, 'lock-unavailable');
+});
+
+test('f1-abort-clears-on-success: a fire that gets the lock ends the wait episode', () => {
+  const h = loopHarness();
+  h.ops.start({ messageId: 1 });
+  h.ops.takeFire();
+  h.ops.aborted();
+  h.advance(59 * 60 * 1000);
+  h.ops.takeFire();
+  h.ops.start({ messageId: 1 }); // fire() succeeded: the loop is going ahead
+  h.advance(59 * 60 * 1000); // ... so the OLD wait must not carry over and stop it
+  h.ops.aborted();
+  assert.equal(h.ops.active(), true, 'the wait clock restarts with the new episode');
+  assert.equal(h.lines('LOOP-STOP').length, 0);
+  assert.equal(h.lines('LOOP-WAIT lock').length, 2, 'a new episode logs again');
+});
+
+test('f1-abort-outside-a-loop: an aborted message fire arms nothing and stops nothing', () => {
+  const h = loopHarness();
+  h.ops.aborted();
+  assert.equal(h.ops.active(), false);
+  assert.deepEqual(h.logs, []);
+  assert.deepEqual(h.saved, []);
+});
+
+test('f1-limit-default: the lock wait outlives both the tick timeout and the lock staleness rule', () => {
+  assert.equal(LOOP_DEFAULTS.maxLockWaitMs, 60 * 60 * 1000);
+  assert.ok(LOOP_DEFAULTS.maxLockWaitMs > DEFAULTS.tickTimeoutMin * 60 * 1000);
+  assert.ok(LOOP_DEFAULTS.maxLockWaitMs > DEFAULTS.lockStaleMin * 60 * 1000);
+});
+
+// F2 — resume over an orphan. A SIGKILLed watcher leaves its tick running and
+// its lock behind; the lock's pid is the DEAD watcher's, so the stale-steal
+// rule fires and the resumed loop starts a second tick beside the first. The
+// gate is lock AGE, deliberately not pid liveness: the pid in that file belongs
+// to the watcher, and whether the watcher is alive says nothing about whether
+// its child is (AS-84 owns the pid-vs-source question).
+
+const resumeState = { active: true, ticks: 1, startedAt: new Date(T0 - 60_000).toISOString(), armedBy: 3 };
+
+test('f2-resume-waits-out-a-live-lock: a young lock blocks the resumed fire, once, loudly', () => {
+  const h = loopHarness({ loadState: () => resumeState, loadLock: () => lockBody(5_000) });
+  h.ops.resume();
+  assert.equal(h.ops.pending(), true);
+  assert.equal(h.ops.blockedByLock(), true, 'the dead watcher may have left a live tick behind');
+  assert.equal(h.lines('LOOP-WAIT lock').length, 1);
+  assert.equal(h.ops.blockedByLock(), true);
+  assert.equal(h.lines('LOOP-WAIT lock').length, 1, 'one line per episode');
+});
+
+test('f2-resume-fires-when-the-lock-aged-out: older than a whole tick timeout is not a live tick', () => {
+  const h = loopHarness({ loadState: () => resumeState, loadLock: () => lockBody(31 * 60 * 1000) });
+  h.ops.resume();
+  assert.equal(h.ops.blockedByLock(), false);
+  assert.equal(h.lines('LOOP-WAIT lock').length, 0);
+});
+
+test('f2-resume-fires-with-no-lock: nothing held means nothing to wait for', () => {
+  const h = loopHarness({ loadState: () => resumeState });
+  h.ops.resume();
+  assert.equal(h.ops.blockedByLock(), false);
+});
+
+test('f2-gate-is-age-not-pid: a young lock whose owner pid is long dead still blocks', () => {
+  // This is the run4b lock exactly: written by the watcher that was SIGKILLed,
+  // so its pid is dead — and its claude child is not. Anything that consulted
+  // pid liveness here would fire straight over it.
+  const h = loopHarness({ loadState: () => resumeState, loadLock: () => lockBody(3_000, { pid: 999_999 }) });
+  h.ops.resume();
+  assert.equal(h.ops.blockedByLock(), true);
+});
+
+test('f2-undatable-lock-does-not-block-forever: a lock with no readable age is left to the steal rule', () => {
+  const h = loopHarness({ loadState: () => resumeState, loadLock: () => lockBody(0, { startedAt: 'not-a-date' }) });
+  h.ops.resume();
+  assert.equal(h.ops.blockedByLock(), false, 'an undatable lock never ages out; blocking on it would hang the loop');
+});
+
+test('f2-gate-is-resume-only: once the resumed loop fires its own tick, the gate is gone', () => {
+  const h = loopHarness({ loadState: () => resumeState, loadLock: () => lockBody(5_000) });
+  h.ops.resume();
+  assert.equal(h.ops.blockedByLock(), true);
+  h.ops.takeFire();
+  h.ops.start({ messageId: 3 }); // fire() got the lock; this one is ours
+  assert.equal(h.ops.blockedByLock(), false, 'our own tick’s lock must not block our own loop');
+  assert.equal(h.ops.snapshot().resumeHold, false);
+});
+
+test('f2-poll-order: a held lock outranks a pending deploy, and a message outranks both', () => {
+  const base = { decideAction: 'idle', loopPending: true, deployPending: false, lockHeld: false };
+  assert.equal(nextPollAction({ ...base, lockHeld: true, deployPending: true }), 'wait-lock');
+  assert.equal(nextPollAction({ ...base, lockHeld: true }), 'wait-lock');
+  assert.equal(nextPollAction({ ...base, deployPending: true }), 'wait-deploy');
+  assert.equal(nextPollAction(base), 'fire-loop');
+  // A message is the one thing a person is waiting on; decide() owns the lock
+  // question on that path (and has since AS-7), so the gate never delays it.
+  assert.equal(nextPollAction({ ...base, decideAction: 'fire', lockHeld: true }), 'fire-message');
+  // Nothing owed: a held lock is not this poll's business.
+  assert.equal(nextPollAction({ ...base, loopPending: false, lockHeld: true }), 'idle');
+});
+
+test('f1-retry-is-quiet: the retries inside a wait episode do not re-announce the tick', () => {
+  const h = loopHarness();
+  h.ops.start({ messageId: 1 });
+  h.ops.takeFire();
+  assert.deepEqual(h.lines('LOOP-FIRE'), ['LOOP-FIRE tick 1']);
+  h.ops.aborted();
+  h.ops.takeFire();
+  h.ops.aborted();
+  h.ops.takeFire();
+  assert.equal(h.lines('LOOP-FIRE').length, 1, 'a 5s poll that retries must not flood the log');
+  assert.equal(h.lines('LOOP-WAIT lock').length, 1);
 });
