@@ -112,12 +112,16 @@ function findCycles(active, byId) {
  * drains.
  */
 export function validateOrg({ roster = [], skipped = [], sources = [] } = {}) {
-  const all = Array.isArray(roster) ? roster : [];
-  const active = all.filter((e) => e && e.status === 'active');
+  // One rule for junk entries, applied once at the top: every later loop can
+  // then assume an object. Before AS-73 the active filter and the anyId loop
+  // each guarded individually and the invalid_status loop did not, so
+  // validateOrg threw on input buildOrgTree is tested to survive.
+  const all = (Array.isArray(roster) ? roster : []).filter(Boolean);
+  const active = all.filter((e) => e.status === 'active');
   const byId = new Map();
   for (const e of active) if (!byId.has(e.actorId)) byId.set(e.actorId, e);
   const anyId = new Map();
-  for (const e of all) if (e && !anyId.has(e.actorId)) anyId.set(e.actorId, e);
+  for (const e of all) if (!anyId.has(e.actorId)) anyId.set(e.actorId, e);
   const fileOf = new Map();
   for (const s of Array.isArray(sources) ? sources : []) {
     if (!fileOf.has(s.actorId)) fileOf.set(s.actorId, s.file);
@@ -138,9 +142,15 @@ export function validateOrg({ roster = [], skipped = [], sources = [] } = {}) {
       rule: 'orphan_reports_to',
       actorId: e.actorId,
       file: fileFor(e.actorId),
-      detail: known
-        ? `reports to ${target}, who is departed`
-        : `reports to ${target}, who has no dossier`,
+      // `known` is outside byId because it is not active — which means either
+      // departed, or a status the schema does not recognise. Saying "departed"
+      // for the second sends the reader to re-point a live manager instead of
+      // fixing the one typo'd line invalid_status is already flagging (AS-73).
+      detail: !known
+        ? `reports to ${target}, who has no dossier`
+        : known.status === 'departed'
+          ? `reports to ${target}, who is departed`
+          : `reports to ${target}, whose status ${JSON.stringify(known.status ?? '')} is invalid`,
     });
   }
 

@@ -30,6 +30,16 @@ function cleanValue(raw) {
   return v.trim();
 }
 
+/** The single "is this text a dossier?" test. Both the parser and the
+ *  unparsed-dossier classifier ask it, so a file cannot be a dossier to
+ *  one and not the other (AS-73 F1). Matches parseFrontmatter's historic
+ *  acceptance exactly: first line, trimmed, is the fence — which tolerates
+ *  a leading tab, a trailing space and a BOM, all of which the classifier's
+ *  old `/^---\r?\n/` regex rejected while the parser accepted them. */
+export function hasLeadingFence(text) {
+  return String(text).split(/\r?\n/, 1)[0].trim() === '---';
+}
+
 /**
  * Parse flat YAML-subset frontmatter: first line `---`, `key: value` lines
  * until the closing `---`. Returns a plain object, or null when the text has
@@ -37,7 +47,7 @@ function cleanValue(raw) {
  */
 export function parseFrontmatter(text) {
   const lines = String(text).split(/\r?\n/);
-  if (lines[0].trim() !== '---') return null;
+  if (!hasLeadingFence(text)) return null;
   const out = {};
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
@@ -56,22 +66,29 @@ export function parseFrontmatter(text) {
  * throws away (AS-33): which fenced files yielded nothing, and which file each
  * entry came from. Returns
  *
- *   { roster, skipped, sources }
+ *   { roster, skipped, sources, examined }
  *
  * - roster  — [{ actorId, name, title, class, reportsTo, team, hired, status }, …]
  *             sorted by name. IDENTICAL in shape and membership to what
  *             readRoster has always returned; parseFrontmatter remains the sole
  *             gate for inclusion, so no file's roster fate changes here.
- * - skipped — [{ file, reason }] for files that LOOK like dossiers (leading
- *             `---` fence) but produced no entry. reason ∈ malformed_frontmatter
+ * - skipped — [{ file, reason }] for files that LOOK like dossiers
+ *             (`hasLeadingFence`) but produced no entry. reason ∈ malformed_frontmatter
  *             | invalid_actor_id | missing_name | unreadable. Directory order.
  *             A file with no leading fence (README.md) is not a dossier and is
  *             skipped silently — absence from this list is the contract.
  * - sources — [{ file, actorId }] for every parsed entry, directory order. Two
  *             entries with one actorId is how a copy-pasted hire is detectable.
  *
- * Degradation contract is unchanged: a missing/unreadable directory yields all
- * three empty, never a throw — a broken mount must never take the server down.
+ * - examined — how many `.md` entries the loop attempted to read (README and
+ *             unreadable files included; non-`.md` entries excluded, they were
+ *             never opened). Cardinality before quantification (AS-73 F2): the
+ *             invariant is examined === roster.length + skipped.length + the
+ *             files with no leading fence.
+ *
+ * Degradation contract is unchanged: a missing/unreadable directory yields the
+ * three arrays empty and examined 0, never a throw — a broken mount must never
+ * take the server down.
  */
 export function readPersonnel(root) {
   const dir = join(root ?? latticeRoot(), 'personnel');
@@ -79,13 +96,15 @@ export function readPersonnel(root) {
   try {
     files = readdirSync(dir);
   } catch {
-    return { roster: [], skipped: [], sources: [] };
+    return { roster: [], skipped: [], sources: [], examined: 0 };
   }
   const roster = [];
   const skipped = [];
   const sources = [];
+  let examined = 0;
   for (const file of files) {
     if (!file.endsWith('.md')) continue;
+    examined++;
     let text;
     try {
       text = readFileSync(join(dir, file), 'utf8');
@@ -98,8 +117,9 @@ export function readPersonnel(root) {
       // parseFrontmatter returns null for BOTH "no leading fence" (README.md)
       // and "no closing fence" (a broken dossier). It is asked first, so the
       // roster's membership is decided by exactly the same call as before;
-      // the fence test below only classifies an already-excluded file.
-      if (/^---\r?\n/.test(text)) skipped.push({ file, reason: 'malformed_frontmatter' });
+      // the fence test below only classifies an already-excluded file — and it
+      // is the SAME test, so no file can be a dossier to one and not the other.
+      if (hasLeadingFence(text)) skipped.push({ file, reason: 'malformed_frontmatter' });
       continue;
     }
     if (!ACTOR_ID_RE.test(fm.actor_id ?? '')) {
@@ -123,7 +143,7 @@ export function readPersonnel(root) {
     sources.push({ file, actorId: fm.actor_id });
   }
   roster.sort((a, b) => a.name.localeCompare(b.name));
-  return { roster, skipped, sources };
+  return { roster, skipped, sources, examined };
 }
 
 /**
