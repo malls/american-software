@@ -405,3 +405,46 @@ test('lanes-compose-tolerant: hostile and half-written rows never throw', () => 
   assert.deepEqual(broken.worktree.errors, ['status: exit 128']);
   assert.equal(broken.worktree.dirtyCount, null, 'the failed call yields null, the others are still filled');
 });
+
+// --- AS-100 AC-16: the composer gains an input, not a shape -----------------
+
+test('lanes-liveness-shape-unchanged', () => {
+  const args = { snapshot: snap([wt({ relPath: '.', main: true, branch: 'master' }), wt()]), tasks: [task()], ids: {} };
+  const without = compose(args);
+  const bare = without.lanes[0];
+  assert.equal(bare.key, 'AS-99');
+  assert.equal(bare.stageStartedAt, null, 'the reserved slot stays null with no stream');
+  assert.equal(bare.subAgent, null);
+  assert.equal(without.events.reason, 'no-stream', 'no stream is a fact, not an error');
+  assert.deepEqual(Object.keys(without), ['checkedAt', 'snapshot', 'count', 'lanes', 'events']);
+
+  const liveness = {
+    'AS-99': {
+      stageStartedAt: '2026-09-11T03:50:00.000Z',
+      subAgent: {
+        actor: 'agent:developer-marcus',
+        stage: 'implement',
+        alive: true,
+        startedAt: '2026-09-11T03:52:00.000Z',
+        elapsedS: 480,
+        lastEvent: { id: 'cev_1', type: 'subagent_spawned', ts: '2026-09-11T03:52:00.000Z', outcome: null },
+      },
+    },
+  };
+  const withLiveness = compose({ ...args, liveness, events: { ...without.events, reason: 'ok', lastId: 'cev_1' } });
+  const lane = withLiveness.lanes[0];
+  // THE contract: filling the slots adds no key to the card, which is why
+  // AS-99's own api-lanes-key-whitelist test needs no edit.
+  assert.deepEqual(Object.keys(lane), Object.keys(bare));
+  assert.equal(lane.stageStartedAt, liveness['AS-99'].stageStartedAt);
+  assert.deepEqual(Object.keys(lane.subAgent), ['actor', 'stage', 'alive', 'startedAt', 'elapsedS', 'lastEvent']);
+  assert.deepEqual(Object.keys(lane.subAgent.lastEvent), ['id', 'type', 'ts', 'outcome']);
+  assert.equal(lane.subAgent.alive, true);
+  assert.equal(withLiveness.events.reason, 'ok');
+
+  // A lane the stream says nothing about keeps its null slots — liveness is
+  // joined on the lane key, never smeared across the list.
+  const other = compose({ ...args, liveness: { 'AS-42': liveness['AS-99'] } });
+  assert.equal(other.lanes[0].stageStartedAt, null);
+  assert.equal(other.lanes[0].subAgent, null);
+});

@@ -50,6 +50,18 @@ export const LANE_WORKTREE_KEYS = Object.freeze([
 
 const SHORT_ID_RE = /AS-\d+/;
 
+/** What `events` says when this projection was composed with no stream input —
+ *  AS-100's `no-stream` is a fact (a pre-AS-100 watcher writes no file), not an
+ *  error, and the UI reads it as "no event stream" in both liveness slots. */
+export const EVENTS_SHELL = Object.freeze({
+  reason: 'no-stream',
+  path: null,
+  lastId: null,
+  lastTs: null,
+  malformed: 0,
+  open: Object.freeze({ stages: 0, subagents: 0 }),
+});
+
 function isoAgeS(iso, nowMs) {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return null;
@@ -104,9 +116,29 @@ function snapshotShell(reason, { generatedAt = null, ageS = null, stale = true, 
  * @param nowMs    the server clock
  * @param staleMs  LANES_STALE_MS, injectable so the boundary test is a test
  */
-export function composeLanes({ snapshot, tasks = [], ids = {}, nowMs, staleMs = LANES_STALE_MS }) {
+export function composeLanes({
+  snapshot,
+  tasks = [],
+  ids = {},
+  nowMs,
+  staleMs = LANES_STALE_MS,
+  liveness = null,
+  events = null,
+}) {
   const checkedAt = new Date(nowMs).toISOString();
-  const blank = (reason, extra) => ({ checkedAt, snapshot: snapshotShell(reason, extra), count: null, lanes: null });
+  // AS-100's third input, reported as a sibling of `snapshot` and never mixed
+  // into it: the git half and the event half fail independently, so the lanes
+  // still render when the stream is missing and the two liveness slots carry
+  // the reason instead of a bare null.
+  const eventsShell = events ?? EVENTS_SHELL;
+  const live = (key) => (liveness && key && liveness[key]) || null;
+  const blank = (reason, extra) => ({
+    checkedAt,
+    snapshot: snapshotShell(reason, extra),
+    count: null,
+    lanes: null,
+    events: eventsShell,
+  });
 
   // A partial list must not masquerade as the list (Jonah's ledger): with no
   // readable snapshot the Lattice half alone IS partial, so `lanes` is null and
@@ -130,7 +162,7 @@ export function composeLanes({ snapshot, tasks = [], ids = {}, nowMs, staleMs = 
   // timestamp, but it enumerates no worktrees, so the lane list is empty rather
   // than "whatever .lattice alone knows" — same partial-list rule as above,
   // with the reason sentence carrying the explanation.
-  if (error) return { checkedAt, snapshot: shell('git-error'), count: 0, lanes: [] };
+  if (error) return { checkedAt, snapshot: shell('git-error'), count: 0, lanes: [], events: eventsShell };
 
   const byBranch = new Map();
   const byId = new Map();
@@ -164,8 +196,9 @@ export function composeLanes({ snapshot, tasks = [], ids = {}, nowMs, staleMs = 
     }
     if (task) joined.add(task.id);
     const view = worktreeView(row);
+    const key = task?.short_id ?? view.relPath ?? row.relPath ?? null;
     laneRows.push({
-      key: task?.short_id ?? view.relPath ?? row.relPath ?? null,
+      key,
       task: taskView(task),
       joinedBy,
       worktree: view,
@@ -175,11 +208,11 @@ export function composeLanes({ snapshot, tasks = [], ids = {}, nowMs, staleMs = 
         agree: authorsAgree(task?.assigned_to ?? null, row.lastCommit?.authorName ?? null),
       },
       stale: staleOf(task, row),
-      // Reserved for AS-100 (stage timers, sub-agent liveness). Present and
-      // null so the UI renders Jonah's visibly-absent placeholder slots from a
-      // real field, and so adding the producer changes no field name.
-      stageStartedAt: null,
-      subAgent: null,
+      // AS-100 fills the two slots AS-99 reserved. Filling them adds no key to
+      // the card — which is the contract's own test for "extensible, not a
+      // one-off" — so `api-lanes-key-whitelist` passes unmodified.
+      stageStartedAt: live(key)?.stageStartedAt ?? null,
+      subAgent: live(key)?.subAgent ?? null,
       sortKey: String(view.relPath ?? ''),
     });
   }
@@ -199,8 +232,8 @@ export function composeLanes({ snapshot, tasks = [], ids = {}, nowMs, staleMs = 
       worktree: null,
       employee: { assignee: task.assigned_to ?? null, lastCommitAuthor: null, agree: null },
       stale: staleOf(task, null),
-      stageStartedAt: null,
-      subAgent: null,
+      stageStartedAt: live(task.short_id ?? task.id)?.stageStartedAt ?? null,
+      subAgent: live(task.short_id ?? task.id)?.subAgent ?? null,
       sortKey: String(task.short_id ?? task.id),
     });
   }
@@ -212,5 +245,11 @@ export function composeLanes({ snapshot, tasks = [], ids = {}, nowMs, staleMs = 
   taskOnly.sort(cmp);
   const lanes = [...laneRows, ...taskOnly].map(({ sortKey, ...lane }) => lane);
 
-  return { checkedAt, snapshot: shell(stale ? 'stale-snapshot' : 'ok'), count: lanes.length, lanes };
+  return {
+    checkedAt,
+    snapshot: shell(stale ? 'stale-snapshot' : 'ok'),
+    count: lanes.length,
+    lanes,
+    events: eventsShell,
+  };
 }

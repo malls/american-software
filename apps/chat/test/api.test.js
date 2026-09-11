@@ -1729,7 +1729,10 @@ test('api: AS-99 — GET /api/lanes joins the watcher snapshot to the live board
   assert.equal(res.status, 200);
   assert.deepEqual(Object.keys(res.data), ['lanes'], 'one key, same envelope shape as /api/loop-status');
   const p = res.data.lanes;
-  assert.deepEqual(Object.keys(p), ['checkedAt', 'snapshot', 'count', 'lanes']);
+  // AS-100 adds exactly one top-level sibling of `snapshot` (the event
+  // stream's own reason block); the LANE CARD's key set is untouched, which is
+  // what api-lanes-key-whitelist below pins.
+  assert.deepEqual(Object.keys(p), ['checkedAt', 'snapshot', 'count', 'lanes', 'events']);
   assert.deepEqual(Object.keys(p.snapshot), ['generatedAt', 'ageS', 'stale', 'reason', 'error']);
   assert.equal(p.snapshot.reason, 'ok');
   assert.equal(p.snapshot.stale, false);
