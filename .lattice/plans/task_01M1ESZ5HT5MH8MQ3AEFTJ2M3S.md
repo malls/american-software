@@ -48,7 +48,9 @@ Not a protected top-level file among them, so no metawork handoff (§9).
 This is the whole difficulty, and it is judgement, not regex-hunting. I pulled
 the actual corpus first: **13 URL occurrences** across the chat DB (all
 channels, `sqlite3 …?mode=ro`). Trailing-character histogram of a greedy
-`https?://\S+` match: `/` ×4, letters ×4, `,` ×2, `.` ×1, `)` ×1. Every
+`https?://\S+` match: `/` ×4, letters ×5, `,` ×2, `.` ×1, `)` ×1 (sums to
+13; the original draft said letters ×4, which summed to 12 — corrected under
+AS-72 from two independent re-measurements in the AS-54 cycle-2 review). Every
 punctuation case in the rules below is a case that has actually occurred here.
 
 **Rule A — candidate.** `https?://` followed by one character from
