@@ -503,8 +503,12 @@ export function makeLockOps({
    * they guard concurrent races between live processes (pids differ by
    * construction); the nonce targets pid reuse across time.
    */
-  function acquireLock(nonce) {
-    const body = JSON.stringify({ pid, startedAt: new Date().toISOString(), source, nonce });
+  // AS-95: `extra` is spread into the body verbatim (the loop marker
+  // `{loop: {ticks}}`). Additive by construction — acquire/release/stale logic
+  // and `source` are untouched, so advance.md step 0 and AS-84 see the same
+  // fields they see today.
+  function acquireLock(nonce, extra = {}) {
+    const body = JSON.stringify({ pid, startedAt: new Date().toISOString(), source, nonce, ...extra });
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         writeFileSync(lockPath, body, { flag: 'wx' });
@@ -703,6 +707,7 @@ export function makeDeployOps({
 
   let deploying = false;
   let lastAttempt = null;
+  let lastDecision = null; // AS-95: the last evaluate() decision, for pendingDeploy()
   let lastWarn = null;
 
   /** One WARN per distinct condition, not one per poll (AS-13 #4's lesson). */
@@ -892,6 +897,7 @@ export function makeDeployOps({
     } else if (decision.action === 'restart-watcher') {
       restartWatcher(baselineDigest, digest);
     }
+    lastDecision = decision; // AS-95: pendingDeploy() reads this between loop ticks
     return decision;
   }
 
@@ -900,6 +906,13 @@ export function makeDeployOps({
     computeDesired,
     probeRunning,
     isDeploying: () => deploying,
+    // AS-95: a rebuild is owed but has not run yet — either the last evaluate
+    // deferred it because a tick held the lock, or it saw a stale build it has
+    // not deployed. The loop waits between ticks while this is true so tick
+    // N+1 runs against tick N's merged code. Unresolvable docker => false: the
+    // loop must not wait forever for a deploy that can never happen.
+    pendingDeploy: () =>
+      Boolean(docker.bin) && lastDecision !== null && (lastDecision.reason === 'busy' || lastDecision.reason === 'stale-build'),
     dockerBin: docker.bin,
     dockerReason: docker.reason,
     gitBin,
@@ -908,11 +921,497 @@ export function makeDeployOps({
   };
 }
 
+// --- AS-95: the loop -------------------------------------------------------
+// A board message starts a LOOP of ticks, not a single tick. Everything below
+// is pure: the predicate that decides continue/stop, a read-only reader for
+// the Lattice board, and a git-free HEAD reader. main() wiring lives further
+// down; these are exported so the suite can drive them with fixtures.
+
+export const LOOP_DEFAULTS = Object.freeze({
+  maxTicks: 24,
+  maxMs: 8 * 60 * 60 * 1000,
+  maxNoProgress: 2,
+  maxFailures: 2,
+  // How long a loop will wait for somebody else's lock before giving up and
+  // saying so. Longer than both the tick timeout (30 min, the longest a
+  // legitimate tick can hold the lock) and the staleness rule that lets the
+  // next fire steal it (45 min), so an honest foreign tick is always waited
+  // out; past that we are losing the race repeatedly, and a stop the board can
+  // read beats a wait nobody can see.
+  maxLockWaitMs: 60 * 60 * 1000,
+});
+
+/** Statuses that mean a task is somewhere inside its lifecycle — work in
+ *  flight that the next tick can advance one stage (plan §2.2 rule a). */
+export const MID_LIFECYCLE = Object.freeze(['in_planning', 'planned', 'in_progress', 'review']);
+/** A dependency is satisfied only by a terminal status. Anything else — including
+ *  a target we cannot find — is unmet (honest default, plan §2.2). */
+const TERMINAL = Object.freeze(['done', 'cancelled']);
+
+/** Chat-set membership per the CLAUDE.md scheduling rule. Affects the log
+ *  detail only, never the boolean: the predicate answers "is there anything
+ *  ready", the tick's own `lattice next` answers "which one". */
+function isChatSet(task) {
+  return String(task.title ?? '').startsWith('Chat:') || task.priority === 'critical';
+}
+
+/** Backlog tasks whose every dependency is done/cancelled. */
+export function readyBacklog(board) {
+  const tasks = board?.tasks ?? [];
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  return tasks.filter((t) => {
+    if (t.status !== 'backlog') return false;
+    return (t.dependsOn ?? []).every((id) => {
+      const dep = byId.get(id);
+      return Boolean(dep) && TERMINAL.includes(dep.status);
+    });
+  });
+}
+
+/**
+ * Should the loop fire another tick? Pure. Stop rules are evaluated BEFORE
+ * work rules so a cap is logged even when work remains (plan §2.2).
+ *
+ * @param board    {{tasks: Array<{id,status,priority,title,dependsOn}>}} from readBoard()
+ * @param sentinel {{messageId:number}|null}  latest human message
+ * @param highwater{{messageId:number}|null}  last message we fired for
+ * @param loop     {{startedAt:number,ticks:number,noProgress:number,failures:number}}
+ *                 counters BEFORE folding `tick` in
+ * @param tick     {{code,signal,timedOut,headBefore,headAfter}} the tick that just settled
+ * @returns {{continue:boolean, reason:string, detail:object, loop:object}}
+ */
+export function shouldContinue({ board, sentinel, highwater, loop, tick, now, limits = LOOP_DEFAULTS }) {
+  const t = tick ?? {};
+  const prior = {
+    startedAt: loop?.startedAt ?? now,
+    ticks: loop?.ticks ?? 0,
+    noProgress: loop?.noProgress ?? 0,
+    failures: loop?.failures ?? 0,
+  };
+
+  // (g) the tick itself failed — non-zero exit, a signal, or the 30-min box.
+  const failed = t.code !== 0 || Boolean(t.signal) || Boolean(t.timedOut);
+  const failures = failed ? prior.failures + 1 : 0;
+
+  // (e) did master move? An unreadable HEAD (null) counts as no progress:
+  // stopping early is cheap (a new message re-arms), a silent runaway is not.
+  const headKnown = Boolean(t.headBefore) && Boolean(t.headAfter);
+  const headMoved = headKnown && t.headBefore !== t.headAfter;
+  const noProgress = headMoved ? 0 : prior.noProgress + 1;
+
+  const ticks = prior.ticks + 1;
+  const elapsedMs = now - prior.startedAt;
+  const next = { startedAt: prior.startedAt, ticks, noProgress, failures };
+
+  const highwaterId = highwater ? highwater.messageId : 0;
+  const newMessage = Boolean(sentinel) && Number.isFinite(sentinel.messageId) && sentinel.messageId > highwaterId;
+  const midLifecycle = (board?.tasks ?? []).filter((x) => MID_LIFECYCLE.includes(x.status));
+  const ready = readyBacklog(board);
+  const work = {
+    newMessage,
+    midLifecycle: midLifecycle.map((x) => x.short_id ?? x.id),
+    ready: ready.length,
+  };
+  const stop = (reason, detail) => ({ continue: false, reason, detail, loop: next });
+  const go = (reason, detail) => ({ continue: true, reason, detail, loop: next });
+
+  if (failures >= limits.maxFailures) {
+    return stop('tick-failed-twice', { failures, code: t.code ?? null, signal: t.signal ?? null, timedOut: Boolean(t.timedOut) });
+  }
+  if (noProgress >= limits.maxNoProgress) {
+    return stop('no-progress', { noProgress, headKnown, ...work });
+  }
+  if (ticks >= limits.maxTicks || elapsedMs >= limits.maxMs) {
+    return stop('cap-hit', { ticks, elapsedMs });
+  }
+  if (newMessage) {
+    // The loop does NOT fire this itself — it returns continue and the normal
+    // poll() -> decide() -> fire() path consumes it, so the highwater moves once.
+    return go('new-message', { messageId: sentinel.messageId, highwaterId });
+  }
+  if (midLifecycle.length > 0) {
+    return go('mid-lifecycle', { tasks: work.midLifecycle });
+  }
+  if (ready.length > 0) {
+    const chatSet = ready.filter(isChatSet).length;
+    return go('backlog-ready', { chatSet, other: ready.length - chatSet });
+  }
+  return stop('dry', { ticks });
+}
+
+/**
+ * Read `.lattice/tasks/*.json` into the shape shouldContinue() wants. Pure over
+ * injected fs (AS-8/AS-27 pattern), read-only, and it never throws: an
+ * unreadable board yields `{tasks: []}` — which reads as `dry`, the safe stop.
+ * `dependsOn` for T = T's own `depends_on` edges, plus every other task's
+ * `blocks` edge that points at T (task files carry relationships_out only).
+ */
+export function readBoard(tasksDir, { readdir = readdirSync, readFile = readFileSync } = {}) {
+  let names = [];
+  try {
+    names = readdir(tasksDir).filter((n) => n.endsWith('.json'));
+  } catch {
+    return { tasks: [], unreadable: 0, missingDir: true };
+  }
+  const raw = [];
+  let unreadable = 0;
+  for (const name of names) {
+    try {
+      const body = JSON.parse(readFile(join(tasksDir, name), 'utf8'));
+      if (body && typeof body === 'object' && body.id) raw.push(body);
+      else unreadable += 1;
+    } catch {
+      unreadable += 1; // half-written tmp file, or hand-edited JSON — skip, count.
+    }
+  }
+  const deps = new Map(raw.map((t) => [t.id, new Set()]));
+  for (const t of raw) {
+    for (const rel of t.relationships_out ?? []) {
+      if (!rel || !rel.target_task_id) continue;
+      if (rel.type === 'depends_on') deps.get(t.id).add(rel.target_task_id);
+      // "A blocks B" is "B depends on A" seen from the other end.
+      if (rel.type === 'blocks' && deps.has(rel.target_task_id)) deps.get(rel.target_task_id).add(t.id);
+    }
+  }
+  const tasks = raw.map((t) => ({
+    id: t.id,
+    short_id: t.short_id,
+    title: t.title,
+    status: t.status,
+    priority: t.priority,
+    dependsOn: [...deps.get(t.id)],
+  }));
+  return { tasks, unreadable, missingDir: false };
+}
+
+/**
+ * AS-95 / AC-5 — what a single poll may fire. Pure, exported, and the ONLY
+ * place the message path and the loop path are ordered against each other.
+ *
+ * The property this exists to hold: a human message that arrives while a loop
+ * is between ticks is fired ONCE, by the normal decide()/fire() path, which is
+ * the path that moves the highwater. The loop never fires it a second time —
+ * it does not need to, because settle() folds that same tick into the loop
+ * counters afterwards. Written as two `if`s inside poll(), that guarantee was
+ * an argument about statement order; written here, it is a test.
+ *
+ * Deploy comes last on purpose: a pending rebuild delays the LOOP's own tick
+ * (so tick N+1 sees tick N's merged code) but must never delay the board's
+ * message, which is the one thing a person is waiting on.
+ *
+ * The lock gate comes before the deploy one and after the message: a resumed
+ * loop must not fire over a lock that may belong to a tick the dead watcher
+ * left running (cycle-1 F2), while a message is what a person is waiting on and
+ * decide() has owned the lock question on that path since AS-7.
+ *
+ * @param {'fire'|'debounce'|'skip-locked'|'idle'|string} decideAction  decide()'s verdict
+ * @param {boolean} loopPending   the loop owes a tick (set by settle())
+ * @param {boolean} deployPending a rebuild is due and can actually run
+ * @param {boolean} lockHeld      a lock is held that this loop must wait out
+ * @returns {'fire-message'|'fire-loop'|'wait-lock'|'wait-deploy'|'idle'}
+ */
+export function nextPollAction({ decideAction, loopPending, deployPending, lockHeld = false }) {
+  if (decideAction === 'fire') return 'fire-message';
+  if (!loopPending) return 'idle';
+  if (lockHeld) return 'wait-lock';
+  if (deployPending) return 'wait-deploy';
+  return 'fire-loop';
+}
+
+/**
+ * The commit HEAD points at, without shelling out to git. Follows a symbolic
+ * ref into `.git/refs/...`, falls back to `packed-refs`, and handles the
+ * `gitdir:` indirection a linked worktree uses. Returns null when unreadable —
+ * shouldContinue() treats an unknown HEAD as "no progress".
+ */
+export function headOf(repoRoot, { readFile = readFileSync } = {}) {
+  try {
+    let gitDir = join(repoRoot, '.git');
+    let dotGit;
+    try {
+      dotGit = readFile(gitDir, 'utf8'); // a file => linked worktree
+      const m = /^gitdir:\s*(.+)$/m.exec(dotGit);
+      if (m) gitDir = m[1].trim();
+    } catch {
+      /* .git is a directory — the normal case */
+    }
+    const head = readFile(join(gitDir, 'HEAD'), 'utf8').trim();
+    const ref = /^ref:\s*(.+)$/.exec(head);
+    if (!ref) return /^[0-9a-f]{7,40}$/.test(head) ? head : null; // detached HEAD
+    const refName = ref[1].trim();
+    try {
+      return readFile(join(gitDir, refName), 'utf8').trim() || null;
+    } catch {
+      const packed = readFile(join(gitDir, 'packed-refs'), 'utf8');
+      for (const line of packed.split('\n')) {
+        const [sha, name] = line.trim().split(/\s+/);
+        if (name === refName) return sha;
+      }
+      return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
 /** tmp + rename, the same atomic pattern every other file this watcher writes
  *  uses: a reader in the container must never observe a half-written body. */
 function defaultWriteState(path, body) {
   writeFileSync(path + '.tmp', JSON.stringify(body));
   renameSync(path + '.tmp', path);
+}
+
+/**
+ * AS-95 — the loop's state machine, as a factory beside makeLockOps and
+ * makeDeployOps rather than as inner functions of main().
+ *
+ * WHY THIS IS A FACTORY (cycle-1 review, F7). The first cut of AS-95 put this
+ * state machine inside main(): 142 unguarded lines carrying three policies —
+ * when a loop is armed, what a resumed loop does, what an aborted fire means —
+ * none of which any test could reach, because reaching them meant running
+ * main(). Both blocking defects of that cycle lived in exactly those lines. The
+ * pure predicate (shouldContinue) was not what failed and is not what changed;
+ * what failed was the part with no falsifier. So the effects are injected —
+ * every read, every write, the clock — and the policies become assertions.
+ *
+ * It owns: the live loop counters, the `pending` flag (poll() owes a tick), the
+ * mirror file, the resume policy, and the three stop paths (predicate, error,
+ * lock-unavailable). It owns no fs paths, no spawn, and no lock: the caller
+ * hands it readers and writers, and fire()/poll() stay in main().
+ *
+ * @param loadBoard     () => board            `readBoard(.lattice/tasks)`
+ * @param loadSentinel  () => {messageId}|null the latest human message
+ * @param loadHighwater () => {messageId}|null the last message we fired for
+ * @param loadLock      () => lockBody|null    parsed advance.lock (no pidAlive:
+ *                                             the resume gate judges AGE)
+ * @param loadState     () => mirror|null      parsed advance-loop.json
+ * @param saveState     (body) => void         writes advance-loop.json
+ * @param log           (line) => void
+ * @param now           () => ms
+ * @param limits        LOOP_DEFAULTS, injectable for tests
+ * @param resumeGraceMs how young a lock has to be for a resumed loop to wait it
+ *                      out — the tick timeout, so a legitimately running tick
+ *                      is always waited for and a dead one never is
+ */
+export function makeLoopOps({
+  loadBoard,
+  loadSentinel,
+  loadHighwater,
+  loadLock,
+  loadState,
+  saveState,
+  log,
+  now = () => Date.now(),
+  limits = LOOP_DEFAULTS,
+  resumeGraceMs = DEFAULTS.tickTimeoutMin * 60 * 1000,
+}) {
+  let loop = null; // the live loop, null when idle
+  let pending = false; // the last tick said continue; poll() owes a fire
+  let lastLoop = null; // why the previous loop stopped (survives, for the sidebar)
+  let lastTick = null;
+  let resumeHold = false; // we resumed and have not fired our own tick yet
+  let waitingSince = null; // when the current lock-wait episode began
+  let waitLogged = null; // one line per wait episode, not one per poll
+
+  function mirror() {
+    try {
+      saveState({
+        active: loop !== null,
+        startedAt: loop ? new Date(loop.startedAt).toISOString() : null,
+        ticks: loop ? loop.ticks : 0,
+        armedBy: loop ? loop.armedBy : null,
+        lastTick,
+        lastLoop,
+      });
+    } catch (err) {
+      log(`WARN loop state unwritable: ${err.message}`);
+    }
+  }
+
+  /** Every way a loop ends goes through here, so every end has a logged reason
+   *  and a `lastLoop` the sidebar can read. There is no other way to clear
+   *  `loop` — that is the point (cycle-1 F1 was an exit that took neither). */
+  function stop(reason, detail) {
+    const ticks = loop ? loop.ticks : 0;
+    lastLoop = { stoppedAt: new Date(now()).toISOString(), reason, ticks, detail };
+    log(`LOOP-STOP reason=${reason} after ${ticks} ticks (${JSON.stringify(detail)})`);
+    loop = null;
+    pending = false;
+    resumeHold = false;
+    waitingSince = null;
+    waitLogged = null;
+  }
+
+  /** A message armed a loop, or a loop tick is going ahead. Idempotent inside a
+   *  running loop: ticks are counted at settle, by the predicate. */
+  function start(sentinel) {
+    waitingSince = null;
+    waitLogged = null;
+    resumeHold = false;
+    if (loop !== null) return;
+    loop = { startedAt: now(), ticks: 0, noProgress: 0, failures: 0, armedBy: sentinel.messageId };
+    log(`LOOP-START armedBy messageId ${sentinel.messageId}`);
+    // F3: mirror NOW, not at the first settle. The mirror is the only thing a
+    // restarted watcher can resume from, and a death during tick 1 used to lose
+    // the loop entirely — the company sat idle until the next board message,
+    // which is the exact symptom this task exists to remove.
+    mirror();
+  }
+
+  /** The tail of a settled tick: fold it into the counters, ask the predicate,
+   *  log, mirror. Guarded end to end — the loop must never be able to kill the
+   *  watcher, for the same reason the heartbeat is guarded. */
+  function settle(tick) {
+    lastTick = {
+      endedAt: new Date(now()).toISOString(),
+      code: tick.code,
+      signal: tick.signal,
+      timedOut: Boolean(tick.timedOut),
+      headMoved: Boolean(tick.headBefore && tick.headAfter && tick.headBefore !== tick.headAfter),
+    };
+    if (loop === null) {
+      mirror();
+      return;
+    }
+    try {
+      const board = loadBoard();
+      if (board.missingDir) log('BOARD-UNREADABLE .lattice/tasks missing or unreadable; treating the board as dry');
+      const verdict = shouldContinue({
+        board,
+        sentinel: loadSentinel(),
+        highwater: loadHighwater(),
+        loop,
+        tick,
+        now: now(),
+        limits,
+      });
+      loop = { ...loop, ...verdict.loop };
+      log(
+        `LOOP-EVAL tick ${loop.ticks} reason=${verdict.reason} detail=${JSON.stringify(verdict.detail)} -> ` +
+          (verdict.continue ? 'continue' : 'stop')
+      );
+      if (verdict.continue) pending = true;
+      else stop(verdict.reason, verdict.detail);
+    } catch (err) {
+      // An unexpected failure stops the loop rather than spinning: a board
+      // message re-arms it, and a runaway loop costs real tokens.
+      stop('error', { message: err.message });
+    }
+    mirror();
+  }
+
+  /**
+   * F1 — fire() could not get the lock. Before this existed the loop simply
+   * ended there: poll() had already cleared the debt, nothing re-evaluated the
+   * predicate, and the company stopped with no LOOP-STOP line and a mirror
+   * still claiming a live loop. The message path has always self-healed from
+   * this (it writes the highwater only after the lock, so decide() re-fires);
+   * the loop path now does the same, and is bounded so the wait itself cannot
+   * become a silent stop.
+   */
+  function aborted() {
+    if (loop === null) return; // an aborted MESSAGE fire: pre-loop behaviour, untouched
+    pending = true; // keep the debt: the next poll retries
+    const at = now();
+    if (waitingSince === null) {
+      waitingSince = at;
+      log(`LOOP-WAIT lock held; loop tick ${loop.ticks + 1} will retry (suppressing repeats)`);
+      mirror();
+    }
+    if (at - waitingSince >= limits.maxLockWaitMs) {
+      stop('lock-unavailable', { waitedMs: at - waitingSince, ticks: loop.ticks });
+      mirror();
+    }
+  }
+
+  /**
+   * F2 — may a RESUMED loop fire right now? A watcher that died uncleanly left
+   * its tick running and its lock behind; the pid in that lock is the dead
+   * watcher's, so the stale-steal rule reads it as free and the resumed loop
+   * starts a second tick beside the orphan (observed: two ticks, three seconds
+   * after relaunch, unconditionally).
+   *
+   * The gate is the lock's AGE, deliberately not its pid: the pid belongs to
+   * the watcher, and a dead watcher says nothing about whether its child is
+   * still working. Whose lock it is and what `source` should mean is AS-84's
+   * question and is left alone here. An undatable lock does not block — it can
+   * never age out, so waiting on it would hang the loop forever, and the steal
+   * rule in acquireLock already handles it.
+   *
+   * Only a resume is gated. Between a loop's own ticks there is no lock of ours
+   * to trip over, and a foreign one lands in aborted() above.
+   */
+  function blockedByLock() {
+    if (!resumeHold) return false;
+    const held = loadLock();
+    const startedMs = held ? Date.parse(held.startedAt ?? '') : NaN;
+    if (!held || !Number.isFinite(startedMs) || now() - startedMs >= resumeGraceMs) {
+      resumeHold = false;
+      waitLogged = null;
+      return false;
+    }
+    if (waitLogged !== 'resume') {
+      waitLogged = 'resume';
+      log(
+        `LOOP-WAIT lock held by pid ${held.pid ?? '?'} (${Math.round((now() - startedMs) / 1000)}s old); ` +
+          'not firing the resumed loop over a tick that may still be running (suppressing repeats)'
+      );
+    }
+    return true;
+  }
+
+  /** Startup: a watcher restart (AS-75 self-restart or launchd relaunch) loses
+   *  the in-memory loop by design, so re-enter it from the file. ticks and
+   *  startedAt carry forward — the cap still counts from the board's message —
+   *  while noProgress/failures reset, because the evidence for them died with
+   *  the old process. */
+  function resume() {
+    const prior = loadState();
+    if (!prior || typeof prior !== 'object') return;
+    lastLoop = prior.lastLoop ?? null;
+    lastTick = prior.lastTick ?? null;
+    if (prior.active !== true) return;
+    const startedAt = Date.parse(prior.startedAt ?? '');
+    loop = {
+      startedAt: Number.isFinite(startedAt) ? startedAt : now(),
+      ticks: Number.isFinite(prior.ticks) ? prior.ticks : 0,
+      noProgress: 0,
+      failures: 0,
+      armedBy: prior.armedBy ?? null,
+    };
+    pending = true;
+    resumeHold = true; // F2: wait out anything the dead process left running
+    log(`LOOP-RESUME reason=watcher-restart tick ${loop.ticks} armedBy ${loop.armedBy}`);
+  }
+
+  return {
+    active: () => loop !== null,
+    pending: () => pending,
+    /** The number of the tick about to run — the lock's loop marker. */
+    nextTick: () => (loop ? loop.ticks : 0) + 1,
+    /** poll() is firing the loop's owed tick now. Announces the tick on the
+     *  first attempt only: a retry inside a wait episode has already been
+     *  announced by the LOOP-WAIT line, and the tick that eventually gets the
+     *  lock logs its own FIRE line. */
+    takeFire: () => {
+      pending = false;
+      if (waitingSince === null) log(`LOOP-FIRE tick ${loop ? loop.ticks + 1 : 1}`);
+    },
+    start,
+    aborted,
+    blockedByLock,
+    settle,
+    resume,
+    /** Test/report view of the private counters. Never the mirror body. */
+    snapshot: () => ({
+      active: loop !== null,
+      ticks: loop ? loop.ticks : 0,
+      pending,
+      resumeHold,
+      lastLoop,
+      lastTick,
+    }),
+  };
 }
 
 function main() {
@@ -927,6 +1426,7 @@ function main() {
     log: join(logsDir, 'advance-watcher.log'),
     settings: join(config.repoRoot, '.claude', 'settings.json'),
     deployState: join(dataDir, 'deploy-state.json'), // AS-75
+    loopState: join(dataDir, 'advance-loop.json'), // AS-95
   };
   mkdirSync(logsDir, { recursive: true });
 
@@ -970,6 +1470,7 @@ function main() {
   let child = null; // currently running tick, if any
   let lastBadSentinel = null; // log unparsable sentinel once per content change
   let lastSkipKey = null; // dedupe SKIP logs per episode (AS-13 #4)
+  let loopWaitLogged = false; // one LOOP-WAIT line per deploy wait, not one per poll
 
   function readSentinel() {
     if (!existsSync(paths.sentinel)) return null;
@@ -1006,14 +1507,39 @@ function main() {
     pruneLogs(logsDir, Date.now() - config.tickLogRetentionDays * 24 * 60 * 60 * 1000);
   }
 
+  // AS-95: the loop state machine (counters, mirror file, resume policy, stop
+  // paths). Everything it touches is passed in here and nowhere else, so main()
+  // keeps exactly the wiring below and the policies are unit-testable.
+  const loopOps = makeLoopOps({
+    loadBoard: () => readBoard(join(config.repoRoot, '.lattice', 'tasks')),
+    loadSentinel: readSentinel,
+    loadHighwater: () => readJson(paths.highwater),
+    loadLock: () => readJson(paths.lock),
+    loadState: () => readJson(paths.loopState),
+    saveState: (body) => defaultWriteState(paths.loopState, body),
+    log,
+    resumeGraceMs: config.tickTimeoutMin * 60 * 1000,
+  });
+
   function fire(sentinel) {
     // AS-16: one nonce per fire, minted before lock acquisition — the lock
     // body and both markers (argv + env) below carry this same value.
     const nonce = fireNonce();
-    if (!acquireLock(nonce)) {
-      log(`SKIP fire aborted: lock acquisition failed (messageId ${sentinel.messageId})`);
+    const headBefore = headOf(config.repoRoot);
+    if (!acquireLock(nonce, { loop: { ticks: loopOps.nextTick() } })) {
+      // F1: an aborted loop tick retries on the next poll instead of ending the
+      // loop in silence — and says so ONCE per wait episode, because a 5s poll
+      // that retries is exactly the log-flood AS-13 #4 was about. Outside a
+      // loop this is the pre-AS-95 SKIP line, fired once and not repeated
+      // because nothing retries it.
+      if (loopOps.active()) loopOps.aborted();
+      else log(`SKIP fire aborted: lock acquisition failed (messageId ${sentinel.messageId})`);
       return;
     }
+    // AS-95: a message arms a loop; every later tick of that loop reuses it.
+    // After the lock, not before: a fire that never happened must not arm a
+    // loop, and the marker written above already reads nextTick() === 1.
+    loopOps.start(sentinel);
     // Highwater advances NOW (at-most-once per message; see header comment).
     writeFileSync(
       paths.highwater + '.tmp',
@@ -1087,11 +1613,12 @@ function main() {
     }, config.tickTimeoutMin * 60 * 1000);
     termTimer.unref();
 
-    function settle() {
+    function settle(code = null, signal = null) {
       clearTimeout(termTimer);
       if (killTimer !== null) clearTimeout(killTimer);
       if (child === proc) child = null;
       releaseLock();
+      loopOps.settle({ code, signal, timedOut, headBefore, headAfter: headOf(config.repoRoot) });
     }
     proc.on('error', (err) => {
       if (!tickLog.writableEnded) tickLog.end(`\n[watcher] spawn error: ${err.message}\n`);
@@ -1101,7 +1628,7 @@ function main() {
     proc.on('exit', (code, signal) => {
       if (!tickLog.writableEnded) tickLog.end();
       log(`EXIT tick ${timedOut ? 'TIMEOUT ' : ''}code=${code} signal=${signal ?? 'none'}`);
-      settle();
+      settle(code, signal);
     });
   }
 
@@ -1150,8 +1677,43 @@ function main() {
       }
     } else if (result.action === 'fire') {
       if (result.reason.startsWith('lock-stale')) log(`NOTE firing over stale lock: ${result.reason}`);
-      fire(sentinel);
     }
+    // AS-95: exactly ONE decision about what this poll fires. The message path
+    // and the loop path are mutually exclusive by construction here rather than
+    // by the order of two `if`s further down a 1500-line file — which is what
+    // makes "a new message is delivered exactly once" (AC-5) a property of an
+    // exported pure function that a test can hold, instead of an argument.
+    const next = nextPollAction({
+      decideAction: result.action,
+      loopPending: loopOps.pending(),
+      deployPending: deployOps.pendingDeploy(),
+      lockHeld: loopOps.blockedByLock(), // F2; logs its own one-per-episode line
+    });
+    if (next === 'idle') return;
+    if (next === 'fire-message') {
+      fire(sentinel);
+      return; // the message path just fired; the loop folds it in at settle()
+    }
+    if (next === 'wait-lock') return; // blockedByLock() has already said so
+    if (next === 'wait-deploy') {
+      // Yield so tick N+1 runs against tick N's merged code. One line per wait
+      // episode, not one per 5s poll (AS-13 #4's rule, applied to this log too).
+      if (!loopWaitLogged) {
+        loopWaitLogged = true;
+        log('LOOP-WAIT deploy pending');
+      }
+      return;
+    }
+    loopWaitLogged = false;
+    loopOps.takeFire(); // logs LOOP-FIRE, once per tick rather than per retry
+    // The REAL sentinel, when there is one — load-bearing, not incidental. A
+    // loop tick re-fires the message the run is still answering, so fire()
+    // rewrites the highwater to the value it already holds (no move, AC-5), and
+    // the tick log names the message a reader is looking for. The synthetic
+    // fallback is for the case where the sentinel file is gone or unparsable:
+    // the current highwater id, so the rewrite is still a no-op.
+    const highwater = readJson(paths.highwater);
+    fire(sentinel ?? { messageId: highwater ? highwater.messageId : 0, authorId: 'loop' });
   }
 
   // AS-75 deploy poll. Everything it does lives in makeDeployOps (exported,
@@ -1183,6 +1745,7 @@ function main() {
       `(poll ${config.pollS}s, debounce ${config.debounceS}s, timeout ${config.tickTimeoutMin}min, ` +
       `stale ${config.lockStaleMin}min, mode ${config.permissionMode})`
   );
+  loopOps.resume(); // AS-95: re-enter a loop the previous process was running
   const interval = setInterval(poll, config.pollS * 1000);
   poll(); // immediate startup pass: missed-while-down recovery (plan §4)
 

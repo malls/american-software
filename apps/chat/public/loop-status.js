@@ -76,6 +76,28 @@ function buildSentence(build) {
   return `Deploy freshness unknown: ${why}.`;
 }
 
+/** AS-95: why the last watcher loop stopped, in the board's terms. The enum is
+ *  shouldContinue()'s `reason`; as with WATCHER_REASONS above, no bare enum
+ *  reaches the UI. An unknown reason falls back to the raw string rather than
+ *  to silence — a stop the sidebar cannot name is still a stop worth showing. */
+const LOOP_STOP_REASONS = {
+  dry: 'nothing was left to do',
+  'no-progress': 'two ticks in a row ended without a commit on master',
+  'cap-hit': 'the safety cap was reached',
+  'tick-failed-twice': 'two ticks in a row failed or hit the tick timeout',
+  'lock-unavailable': 'another tick held the advance lock for an hour, so the loop stopped rather than go on waiting',
+  error: 'the watcher hit an unexpected error while evaluating the loop',
+};
+
+/** The tone the sidebar dot renders. AS-95's `watcher-loop` is a fifth STATE
+ *  but not a fifth colour: it is a loop, and the green loop dot is the honest
+ *  paint for it. Mapping here (rather than adding a .loop-dot--watcher-loop
+ *  rule) keeps the new state from silently rendering an unstyled, invisible dot
+ *  if the CSS and the derivation ever ship in different releases. */
+function toneFor(state) {
+  return state === 'watcher-loop' ? 'loop' : state;
+}
+
 /**
  * @param {object|null} status  the /api/loop-status payload's `status`, or
  *                              null when the fetch failed
@@ -97,6 +119,14 @@ export function describeLoopStatus(status, nowMs = Date.now()) {
     case 'loop':
       label = 'Loop active';
       break;
+    case 'watcher-loop': {
+      // The tick number comes from the lock the running tick wrote when it can
+      // (it is the tick being reported), and from the mirror file otherwise.
+      const ticks = (status.tick && Number.isInteger(status.tick.loopTicks) ? status.tick.loopTicks : null) ??
+        (status.loop && Number.isInteger(status.loop.ticks) ? status.loop.ticks : null);
+      label = ticks === null ? 'Loop active · watcher' : `Loop active · watcher, tick ${ticks}`;
+      break;
+    }
     case 'tick':
       label = `Tick in flight · ${status.tick && status.tick.source ? status.tick.source : 'unknown source'}`;
       break;
@@ -110,9 +140,13 @@ export function describeLoopStatus(status, nowMs = Date.now()) {
 
   if (status.tick) {
     parts.push(
-      `${status.state === 'loop' ? 'Loop tick' : 'Tick'} from ${status.tick.source || 'unknown source'}` +
+      `${status.state === 'loop' || status.state === 'watcher-loop' ? 'Loop tick' : 'Tick'} from ${status.tick.source || 'unknown source'}` +
         ` (pid ${status.tick.pid ?? '?'}) started ${fmtAge(ageSince(status.tick.startedAt, nowMs))} ago.`
     );
+  } else if (status.state === 'watcher-loop') {
+    // AS-95 F5: the gap between two loop ticks. The company has not stopped —
+    // saying so is the whole point of showing the loop rather than the lock.
+    parts.push('Between loop ticks: no tick holds the lock this instant, and the next one fires within a poll.');
   } else if (status.state === 'idle') {
     parts.push('No tick is running; a board message fires one.');
   } else if (status.state === 'off') {
@@ -126,9 +160,26 @@ export function describeLoopStatus(status, nowMs = Date.now()) {
   if (!status.tick && status.lastTick && status.lastTick.endedAt) {
     parts.push(
       `Last tick: ${status.lastTick.source || 'unknown source'}, ended ` +
-        `${fmtAge(ageSince(status.lastTick.endedAt, nowMs))} ago. ` +
-        'A loop releases the lock between ticks, so a running loop reads as idle in that gap.'
+        `${fmtAge(ageSince(status.lastTick.endedAt, nowMs))} ago.` +
+        // A session's /loop still reads as idle in the gap (nothing mirrors its
+        // state), so C5's explanation stays — but not on a watcher loop, which
+        // since AS-95 says what it is doing in the line above.
+        (status.state === 'watcher-loop'
+          ? ''
+          : ' A loop releases the lock between ticks, so a running loop reads as idle in that gap.')
     );
+  }
+
+  // AS-95: why the company stopped. Shown only when no watcher loop is running
+  // — while one is, the interesting fact is the loop, not its predecessor — and
+  // it is the sentence the board reads to tell "dry" (nothing left to do) from
+  // "no-progress"/"cap-hit" (stopped in spite of work remaining).
+  if (status.state !== 'watcher-loop' && status.loop && !status.loop.active && status.loop.lastLoop && status.loop.lastLoop.reason) {
+    const { reason, ticks, stoppedAt } = status.loop.lastLoop;
+    const why = LOOP_STOP_REASONS[reason] || `reason: ${reason}`;
+    const after = Number.isInteger(ticks) ? ` after ${ticks} tick${ticks === 1 ? '' : 's'}` : '';
+    const ago = stoppedAt ? `, ${fmtAge(ageSince(stoppedAt, nowMs))} ago` : '';
+    parts.push(`Last loop stopped${after}${ago}: ${why}.`);
   }
 
   if (status.staleLock) {
@@ -153,5 +204,5 @@ export function describeLoopStatus(status, nowMs = Date.now()) {
   const build = buildSentence(status.build);
   if (build) parts.push(build);
 
-  return { tone: status.state, label, detail: parts.join(' ') };
+  return { tone: toneFor(status.state), label, detail: parts.join(' ') };
 }
