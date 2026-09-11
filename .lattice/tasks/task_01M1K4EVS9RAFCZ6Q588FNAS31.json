@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 5,
   "complexity": "low",
   "created_at": "2026-09-03T07:59:12Z",
   "created_by": "agent:qa-priya",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1K4EVS9RAFCZ6Q588FNAS31",
-  "last_event_id": "ev_01M27Q56J7Y5ARZXJ7GW2AW9KF",
-  "last_status_changed_at": "2026-09-11T07:50:47Z",
+  "last_event_id": "ev_01M27QW1SM2EKD1EXWS90Q77VZ",
+  "last_status_changed_at": "2026-09-11T08:01:18Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-73",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Chat: the org gate cannot see a person it never classified, and reports no examined count",
   "type": "task",
-  "updated_at": "2026-09-11T07:50:47Z",
+  "updated_at": "2026-09-11T08:03:16Z",
   "urgency": null
 }

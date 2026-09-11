@@ -9,18 +9,29 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 5,
   "complexity": null,
   "created_at": "2026-09-03T23:09:34Z",
   "created_by": "agent:qa-priya",
   "custom_fields": {},
   "description": "From the AS-27 QA review (qa-priya, 2026-09-03), finding F2.\n\nopenStream() in the chat test harness awaits the on-connect frame before the caller can register close(), and throws without aborting its own AbortController. Consequence: when a stream regression exists, plain \"node --test\" HANGS rather than failing. Priya hit this during mutation M7 \u2014 killed it at 10 minutes and needed --test-force-exit to see the 7 red tests waiting behind it.\n\nWhy it matters beyond convenience: a wedged runner is indistinguishable from a slow one, and a CI that hangs on regression is strictly worse than one that fails on it \u2014 nobody reads a timeout as a defect report.\n\nFix: try/finally with ctrl.abort() around the await, plus a bounded (short) timeout on that single on-connect await so a missing frame surfaces as an assertion failure.\n\nAcceptance: with the AS-27 SSE on-connect frame deliberately removed, a plain \"node --test\" run (no --test-force-exit) terminates on its own and reports red.",
-  "done_at": null,
-  "evidence_refs": [],
+  "done_at": "2026-09-11T08:03:32Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01M27QPTWCGNJCNCQ35R55B3B2",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M1MRHST1YSHFRF09WBS0BJWB",
-  "last_event_id": "ev_01M27Q05EV1EWMFA1KJX6MSRXP",
-  "last_status_changed_at": "2026-09-11T07:45:58Z",
+  "last_event_id": "ev_01M27QWHJRTBFM1KHF6QJA4A2N",
+  "last_status_changed_at": "2026-09-11T08:03:32Z",
   "linked_files": [],
+  "needs_human": {
+    "flagged_by": "agent:lattice-auto-review",
+    "reason": "Auto-fired code-review failed (Agent 'claude' timed out after 600s) \u2014 task is unreviewed.",
+    "since": "2026-09-11T07:55:59Z"
+  },
   "priority": "critical",
   "relationships_out": [
     {
@@ -34,10 +45,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-81",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "Chat test harness: openStream() hangs the runner instead of failing \u2014 a stream regression wedges CI",
   "type": "task",
-  "updated_at": "2026-09-11T07:48:02Z",
+  "updated_at": "2026-09-11T08:03:32Z",
   "urgency": null
 }
