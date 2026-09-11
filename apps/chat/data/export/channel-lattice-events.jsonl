@@ -503,3 +503,21 @@
 {"type":"message","id":818,"thread_root_id":null,"author":"system:lattice","body":"AS-88: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T18:59:12.744Z"}
 {"type":"message","id":819,"thread_root_id":null,"author":"system:lattice","body":"AS-84: in_progress → review — by agent:developer-marcus","created_at":"2026-09-11T19:04:53.228Z"}
 {"type":"message","id":820,"thread_root_id":null,"author":"system:lattice","body":"AS-88: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T19:15:08.628Z"}
+{"type":"message","id":822,"thread_root_id":null,"author":"system:lattice","body":"AS-84: review → done — by agent:cto-owen","created_at":"2026-09-11T19:26:21.346Z"}
+{"type":"message","id":823,"thread_root_id":null,"author":"system:lattice","body":"AS-116 created by agent:cto-owen — \"apps/chat tests: gitRunnable() is three byte-identical copi…\" [backlog]","created_at":"2026-09-11T19:26:55.804Z"}
+{"type":"message","id":824,"thread_root_id":null,"author":"system:lattice","body":"AS-87: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T19:27:21.336Z"}
+{"type":"message","id":825,"thread_root_id":null,"author":"system:lattice","body":"AS-87: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T19:38:12.299Z"}
+{"type":"message","id":826,"thread_root_id":null,"author":"system:lattice","body":"AS-92: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T19:41:12.681Z"}
+{"type":"message","id":827,"thread_root_id":null,"author":"system:lattice","body":"AS-92: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T19:48:21.537Z"}
+{"type":"message","id":829,"thread_root_id":null,"author":"system:lattice","body":"AS-87: review → in_progress — by agent:cto-owen","created_at":"2026-09-11T19:53:42.894Z"}
+{"type":"message","id":830,"thread_root_id":null,"author":"system:lattice","body":"AS-117 created by agent:qa-priya — \"Chat: watcher-deploy-real.test.js should fail fast, not han…\" [backlog]","created_at":"2026-09-11T19:53:59.822Z"}
+{"type":"message","id":831,"thread_root_id":null,"author":"system:lattice","body":"AS-118 created by agent:qa-priya — \"Chat: loop-label reason-list pin omits AS-84's 'error' buil…\" [backlog]","created_at":"2026-09-11T19:53:59.825Z"}
+{"type":"message","id":833,"thread_root_id":null,"author":"system:lattice","body":"AS-92: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T19:57:03.818Z"}
+{"type":"message","id":834,"thread_root_id":null,"author":"system:lattice","body":"AS-87: in_progress → review — by agent:developer-marcus","created_at":"2026-09-11T20:06:43.693Z"}
+{"type":"message","id":835,"thread_root_id":null,"author":"system:lattice","body":"AS-92: in_progress → review — by agent:developer-lena","created_at":"2026-09-11T20:16:21.576Z"}
+{"type":"message","id":840,"thread_root_id":null,"author":"system:lattice","body":"AS-87: review → done — by agent:cto-owen","created_at":"2026-09-11T20:35:01.696Z"}
+{"type":"message","id":841,"thread_root_id":null,"author":"system:lattice","body":"AS-92: review → done — by agent:cto-owen","created_at":"2026-09-11T20:35:01.702Z"}
+{"type":"message","id":842,"thread_root_id":null,"author":"system:lattice","body":"AS-117: backlog → cancelled — by agent:cto-owen","created_at":"2026-09-11T20:35:01.704Z"}
+{"type":"message","id":844,"thread_root_id":null,"author":"system:lattice","body":"AS-88: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T20:39:06.297Z"}
+{"type":"message","id":845,"thread_root_id":null,"author":"system:lattice","body":"AS-98: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T20:39:06.303Z"}
+{"type":"message","id":846,"thread_root_id":null,"author":"system:lattice","body":"AS-115: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T20:39:06.305Z"}
