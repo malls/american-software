@@ -20,12 +20,18 @@
 //                         alternate store is by definition not the DB the
 //                         server owns (keeps the test suite hermetic).
 //   5. neither          — probe http://127.0.0.1:8347, as in 3.
+//
+// The probe's wall-clock budget is CHAT_PROBE_TIMEOUT_MS (positive integer
+// milliseconds; default lib/client.js DEFAULT_PROBE_TIMEOUT_MS) — AS-83, after
+// a loaded box lost the race and the CLI refused a live server as ambiguous.
+// The budget changes only how long ambiguity takes to declare itself: a
+// timeout is 'ambiguous', never 'down', at any value.
 
 import { resolve, dirname, join } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { openStore, StoreError, EVENTS_CHANNEL } from '../lib/store.js';
-import { probe, createApiBackend, DEFAULT_API } from '../lib/client.js';
+import { probe, createApiBackend, DEFAULT_API, DEFAULT_PROBE_TIMEOUT_MS } from '../lib/client.js';
 import { ingestNewEvents, resolveRefs, resolveShortId, latticeRoot, assignmentsByActor } from '../lib/lattice.js';
 import { readRoster } from '../lib/personnel.js';
 
@@ -57,7 +63,9 @@ const USAGE = `usage: chat <command> [args] [--me <identity>] [--json]
   Backend (AS-24): auto — proxies via the chat server when one is reachable
   ($CHAT_API or http://127.0.0.1:8347), opens the DB directly only when no
   server is provably listening or $CHAT_DB names an alternate store.
-  Override with CHAT_MODE=api|direct. DB: $CHAT_DB or apps/chat/data/chat.db`;
+  Override with CHAT_MODE=api|direct. CHAT_PROBE_TIMEOUT_MS sets the probe's
+  budget in milliseconds (positive integer, default ${DEFAULT_PROBE_TIMEOUT_MS}).
+  DB: $CHAT_DB or apps/chat/data/chat.db`;
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
@@ -102,8 +110,26 @@ function convLabel(conv, me) {
 
 // --- mode resolution (AS-24) -------------------------------------------------
 
-const REFUSAL = (base) =>
-  `chat: something is listening at ${base} but the probe failed; refusing to touch the shared DB directly — host-side access can silently fork it (AS-24). If the server is really down, retry or set CHAT_MODE=direct.`;
+const REFUSAL = (base, reason) =>
+  `chat: something is listening at ${base} but the probe failed; refusing to touch the shared DB directly — host-side access can silently fork it (AS-24). If the server is really down, retry or set CHAT_MODE=direct. (${reason})`;
+
+/**
+ * The probe's wall-clock budget (AS-83). Unset or empty → the library default;
+ * a positive integer string → that many milliseconds; anything else is a usage
+ * error. Validated on EVERY path, including the ones that never probe
+ * (CHAT_MODE=direct, rule 4): a typo'd budget that happens to be unused on this
+ * run is still a typo, and silently ignoring it hides the operator's mistake
+ * until the run where it matters.
+ */
+function probeBudget() {
+  const raw = process.env.CHAT_PROBE_TIMEOUT_MS || null;
+  if (raw === null) return DEFAULT_PROBE_TIMEOUT_MS;
+  const ms = Number(raw);
+  if (!/^\d+$/.test(raw) || !(ms > 0)) {
+    fail(`chat: invalid CHAT_PROBE_TIMEOUT_MS '${raw}' — a positive integer of milliseconds (AS-83).`);
+  }
+  return ms;
+}
 
 /**
  * One mode decision per invocation, before any store open. Returns a backend;
@@ -120,27 +146,30 @@ async function resolveBackend() {
   if (mode && mode !== 'api' && mode !== 'direct') {
     fail(`chat: invalid CHAT_MODE '${mode}' — use 'api' or 'direct' (AS-24).`);
   }
+  const timeoutMs = probeBudget();
+
   if (mode === 'api') {
     const base = api || DEFAULT_API;
-    if ((await probe(base)) !== 'up') {
+    const forced = await probe(base, { timeoutMs });
+    if (forced.state !== 'up') {
       fail(
-        `chat: CHAT_MODE=api but the probe of ${base} failed; no direct-DB fallback in api mode (AS-24). Start the server (docker compose up -d) or unset CHAT_MODE.`
+        `chat: CHAT_MODE=api but the probe of ${base} failed; no direct-DB fallback in api mode (AS-24). Start the server (docker compose up -d) or unset CHAT_MODE. (${forced.reason})`
       );
     }
     return createApiBackend(base);
   }
   if (mode === 'direct') return createDirectBackend(db || DEFAULT_DB);
   if (api) {
-    const result = await probe(api);
-    if (result === 'up') return createApiBackend(api);
-    if (result === 'down') return createDirectBackend(db || DEFAULT_DB);
-    fail(REFUSAL(api));
+    const result = await probe(api, { timeoutMs });
+    if (result.state === 'up') return createApiBackend(api);
+    if (result.state === 'down') return createDirectBackend(db || DEFAULT_DB);
+    fail(REFUSAL(api, result.reason));
   }
   if (db) return createDirectBackend(db); // explicit alternate store: provably not the server's DB
-  const result = await probe(DEFAULT_API);
-  if (result === 'up') return createApiBackend(DEFAULT_API);
-  if (result === 'down') return createDirectBackend(DEFAULT_DB);
-  fail(REFUSAL(DEFAULT_API));
+  const result = await probe(DEFAULT_API, { timeoutMs });
+  if (result.state === 'up') return createApiBackend(DEFAULT_API);
+  if (result.state === 'down') return createDirectBackend(DEFAULT_DB);
+  fail(REFUSAL(DEFAULT_API, result.reason));
 }
 
 /**
