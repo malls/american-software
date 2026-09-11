@@ -42,6 +42,7 @@ into something load-bearing.
 | `logs/deploy-<timestamp>.log` | watcher | full output of each unattended rebuild (AS-75); same 14-day pruning |
 | `deploy-state.json` | watcher | AS-75: what the last deploy-poll decided — `{desiredId, dirty, reason, desiredReason, runningId, dockerBin, dockerReason, computedAt, lastAttempt}`. The chat server reads it for the sidebar's build line. |
 | `advance-loop.json` | watcher | AS-95: where the loop is — `{active, startedAt, ticks, armedBy, lastTick, lastLoop}`. The chat server reads it for the sidebar's loop label and its stop reason. |
+| `worktrees.json` | watcher | AS-99: what `git worktree list` says, plus ahead/behind, dirty count, last commit and a merged classification per row — `{schema, source, generatedAt, master, error, worktrees[]}`. Written every lanes poll (`ADVANCE_LANES_POLL_S`, default 15 s) whether or not anything changed, so `generatedAt` is the freshness signal; the chat server joins it to `.lattice` and serves the result at `/api/lanes`. Git runs on the host only — the container has no git binary and linked worktrees carry absolute host gitdir paths, so it could not run them anyway. |
 | `logs/launchd.{out,err}.log` | launchd | crashes before our logger exists |
 | `logs/lattice-dashboard.out.log` | launchd | Lattice dashboard stdout (AS-94) |
 | `logs/lattice-dashboard.err.log` | launchd | Lattice dashboard stderr (AS-94) |

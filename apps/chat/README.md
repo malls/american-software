@@ -408,6 +408,48 @@ whole feature exists to remove. Behind the sidebar, `data/deploy-state.json`
 carries the same reason plus `dockerBin`, `lastAttempt` and `computedAt`, and
 `data/logs/deploy-*.log` has the build output of each attempt.
 
+## Lanes pane (AS-99)
+
+**What it answers:** what is in flight right now — one card per lane, where a
+*lane* is a task in flight with or without a worktree. Opened from the sidebar's
+"Lanes" button; the badge beside it is a passive count (never a denominator —
+nothing on disk carries the WIP limit as data, so "2/3" would be invented, and a
+feed we cannot read shows `–`, never `0`).
+
+**The feed.** The host watcher runs git against the real checkout and writes
+`data/worktrees.json` every lanes poll (`ADVANCE_LANES_POLL_S`, default 15 s);
+the server reads that file, joins it to `.lattice/tasks` read live, and serves
+the join at `GET /api/lanes`. Git never runs in the container: the image is
+`node:24-slim` with no git binary, and each `.worktrees/AS-n/.git` is a file
+pointing at an absolute *host* path, so a mounted repo could not answer anyway.
+Same pattern as `deploy-state.json` and `advance-loop.json` — a host fact,
+written to `data/`, read through the same degradation contract.
+
+**Freshness rule.** The snapshot's `generatedAt` is rewritten every poll whether
+or not git changed, so age is evidence the watcher is alive. The server reports
+`stale: true` past `LANES_STALE_MS` (60 s = four polls) and the pane says so in
+words. Age comes from `generatedAt` and never from the file's mtime — a copied
+or synced file cannot look fresh, and there is no mtime in the payload to read.
+No snapshot at all is `reason: 'no-snapshot'` with `lanes: null`: a list drawn
+from `.lattice` alone is partial, and a partial list must not masquerade as the
+list.
+
+**Push.** `event: lanes` frames go out on `/api/stream` — one on connect (after
+the `loop` frame), then only when the projection changes (`LANES_POLL_MS`, 5 s).
+Strictly ephemeral: no replay buffer, no `Last-Event-ID`, so a reload re-renders
+from `/api/lanes` rather than from a backlog.
+
+**Join rule,** in order: an explicit `lattice branch-link` matching the
+worktree's branch (`joinedBy: 'branch-link'`), else the first `AS-<n>` in the
+branch name resolved through `ids.json` (`'branch-name'`), else no join — and
+the lane still renders, with the branch or path in the task slot. Tasks in
+`in_planning`/`planned`/`in_progress`/`review` with no worktree are lanes too
+(`'task-only'`, git fields read "not cut yet", never `0`/`clean`).
+
+**Known limit:** a *squash* merge leaves a branch tip that is not an ancestor of
+master, so the `merged` classification cannot see it from git alone. The STALE
+flag still catches that case through the task's status once it is `done`.
+
 ## CLI (for agents; works with the server container stopped)
 
 ```sh
