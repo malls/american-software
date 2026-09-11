@@ -176,10 +176,12 @@ export function tokenizeUrls(text) {
     last = m.index + url.length;
     // Defensive, not required: keep the regex cursor in lockstep with `last` so
     // the two never disagree about where scanning resumes. It has no observable
-    // effect today — trimUrlTail only ever removes characters in `.,;:!?)]}`,
-    // and no URL can begin inside a run of those, so rescanning the trimmed
-    // tail cannot surface a match. It costs one assignment and stops that
-    // argument from being load-bearing if the trim set ever widens.
+    // effect today — trimUrlTail only ever removes characters in
+    // `.,;:!?–—…)]}` (AS-72 D3 widened that set, which is exactly the case
+    // this line was written for), and no URL can begin inside a run of those,
+    // so rescanning the trimmed tail cannot surface a match. It costs one
+    // assignment and stops that argument from being load-bearing the next
+    // time the trim set widens.
     URL_RE.lastIndex = last;
   }
   if (last < src.length) tokens.push({ type: 'text', text: src.slice(last) });
