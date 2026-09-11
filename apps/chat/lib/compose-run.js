@@ -71,7 +71,7 @@ export function parseNetworkLs(text) {
   return String(text || '').split('\n').map((l) => l.trim()).filter(Boolean);
 }
 
-/** `docker compose ls -a --format json` -> project names. Tolerates empty/garbage. */
+/** `docker compose ls --format json` (running projects only) -> project names. Tolerates empty/garbage. */
 export function parseComposeLs(text) {
   try {
     const arr = JSON.parse(text || '[]');
@@ -83,8 +83,8 @@ export function parseComposeLs(text) {
 
 /**
  * Best-effort owner guess from a network name, for the `--check` listing.
- * `asc-review-as102_default` -> "AS-102 reviewer"; `asc-as94-lena_default` ->
- * "AS-94 lena"; `asc-marcus95_default` -> "marcus AS-95". Unknown shapes get
+ * `asc-review-as102_default` -> "AS-102 review"; `asc-as94-lena_default` ->
+ * "AS-94 lena"; `asc-marcus95_default` -> "marcus" (no `as<n>` token). Unknown shapes get
  * "unknown" — the listing is a lead for the orchestrator, never an authority.
  */
 export function guessOwner(networkName) {

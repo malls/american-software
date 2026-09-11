@@ -856,7 +856,9 @@ node apps/chat/bin/compose-run.mjs --check
 
 `compose-run.mjs` is the one way to take a counted run. It refuses a project
 name that is not `asc-*`, is a production `name:` (`asc-chat`, `asc-invoicing`),
-or is a project `compose ls` already reports (exit 2, no docker call); refuses
+or is a project `compose ls` already reports (exit 2; only the read-only
+`network ls` / `compose ls` observations happen before the guard, nothing is
+run or torn down); refuses
 when the daemon already carries `ASC_NETWORK_CEILING` (20) or more `asc-*`
 networks (exit 3, leftovers listed); runs
 `DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose -p <project> run --rm --build test`;
