@@ -22,13 +22,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { IMAGE_INPUTS } from '../watch/advance-watcher.mjs';
+import { IMAGE_INPUTS, NOT_IMAGE_INPUTS, classifyImagePaths } from '../watch/advance-watcher.mjs';
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const COMPOSE = readFileSync(join(APP_DIR, 'compose.yaml'), 'utf8');
 const DOCKERFILE = readFileSync(join(APP_DIR, 'Dockerfile'), 'utf8');
+// AS-86: readable here only because the file stopped excluding itself and the
+// Dockerfile now COPYs it in — the same "manifests as data" move as above.
+const DOCKERIGNORE = readFileSync(join(APP_DIR, '.dockerignore'), 'utf8');
+
+/** Is real git runnable in this environment? False in the mountless test
+ *  container (node:24-slim ships no git and holds no checkout), true on a
+ *  developer host. The git-backed guards below skip on false — a COUNTED
+ *  skip, never a silent pass. */
+function gitRunnable() {
+  const probe = spawnSync('git', ['--version'], { encoding: 'utf8' });
+  return !probe.error && probe.status === 0;
+}
 
 // A stand-in for the host checkout root. compose.yaml lives at
 // <CHECKOUT>/apps/chat/compose.yaml, so relative host paths in its volume
@@ -183,6 +196,29 @@ function parseCopySources(text) {
   return sources;
 }
 
+/** AS-86: the .dockerignore patterns, in order. One pattern per line; `#`
+ *  comments and blanks skipped; a trailing `/` stripped so `data/` and `data`
+ *  compare equal to an IMAGE_INPUTS path.
+ *
+ *  Strict for the same reason parseCopySources is: BuildKit's ignore semantics
+ *  (negation, globs, anchoring) are subtle, and a pattern this parser misread
+ *  would make the "hides no input" assertion below quietly wrong in the one
+ *  direction that matters — an ignore rule shrinking a COPY'd directory with
+ *  nobody noticing. So every form we have not needed THROWS. If we ever want
+ *  one, teach it here deliberately; do not let it shrug. */
+function parseDockerignore(text) {
+  const patterns = [];
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (line === '' || line.startsWith('#')) continue;
+    if (line.startsWith('!')) throw new Error(`.dockerignore: negation unsupported: ${line}`);
+    if (/[*?[\]]/.test(line)) throw new Error(`.dockerignore: glob unsupported: ${line}`);
+    if (line.startsWith('/')) throw new Error(`.dockerignore: leading-slash anchor unsupported: ${line}`);
+    patterns.push(line.replace(/\/+$/, ''));
+  }
+  return patterns;
+}
+
 /** "../..:/repo:ro" -> { host, container, mode }. Mode defaults to rw, as Docker does. */
 function parseMount(spec) {
   const parts = spec.split(':');
@@ -295,11 +331,14 @@ test('deploy-shape: IMAGE_INPUTS is exactly the set the Dockerfile COPYs', () =>
   // compared, so a parser that stops seeing the file fails here, loudly.
   const sources = parseCopySources(DOCKERFILE);
   const copyLines = DOCKERFILE.split('\n').filter((l) => /^COPY(\s|$)/i.test(l.trim()));
-  // 7, not the plan §3.1's "6": the plan miscounted the COPY lines. The source
-  // count (9) it named is right, and that is the one IMAGE_INPUTS must match.
+  // 7, not the AS-75 plan §3.1's "6": that plan miscounted the COPY lines. The
+  // source count it named (9) was right for AS-75; AS-86 made .dockerignore a
+  // COPY source on the same line as the other manifests, so the line count is
+  // unchanged at 7 and the source count is 10 — which is the one IMAGE_INPUTS
+  // must match.
   assert.equal(copyLines.length, 7, '7 COPY lines parsed');
-  assert.equal(sources.length, 9, '9 COPY source paths parsed');
-  assert.equal(IMAGE_INPUTS.length, 9, 'IMAGE_INPUTS declares 9 paths');
+  assert.equal(sources.length, 10, '10 COPY source paths parsed');
+  assert.equal(IMAGE_INPUTS.length, 10, 'IMAGE_INPUTS declares 10 paths');
 
   // The actual guard: the watcher's digest must cover every input the image is
   // built from, and nothing that is not one. A path in the Dockerfile but not
@@ -331,6 +370,102 @@ test('deploy-shape: the COPY parser throws on forms it does not understand', () 
   // ...and it does parse the forms the real file uses, or the throws above
   // would be meaningless (everything throwing is not a discriminating test).
   assert.deepEqual(parseCopySources('FROM x\nCOPY a b ./\nCOPY lib ./lib\n'), ['a', 'b', 'lib']);
+});
+
+// --- AS-86: the context-shaping input, and the index as a second expected set -
+
+test('deploy-shape: .dockerignore is an image input and hides no manifest', () => {
+  // Cardinality FIRST, twice. A parser that silently read nothing would satisfy
+  // every "hides nothing" assertion below against an empty pattern set — the
+  // vacuous shape this file exists to catch — and a shrunken IMAGE_INPUTS would
+  // make the containment loop trivially true.
+  const patterns = parseDockerignore(DOCKERIGNORE);
+  assert.equal(patterns.length, 3, '3 ignore patterns parsed');
+  assert.deepEqual(patterns, ['data', 'README.md', 'chat']);
+  assert.equal(IMAGE_INPUTS.length, 10, 'IMAGE_INPUTS declares 10 paths');
+
+  // F2's own line: the file that shapes the build context is inside the digest.
+  assert.ok(IMAGE_INPUTS.includes('.dockerignore'), '.dockerignore is an image input');
+  // ...and the build can actually see it. A self-exclusion would fail the COPY
+  // that carries it in ("file not found in build context") and this file could
+  // not be read in the mountless runner at all.
+  assert.ok(!patterns.includes('.dockerignore'), '.dockerignore does not exclude itself');
+  for (const manifest of ['Dockerfile', 'compose.yaml', '.dockerignore']) {
+    assert.ok(IMAGE_INPUTS.includes(manifest), `${manifest} rides into the image as data`);
+  }
+
+  // The hazard F2 named, generalised: an ignore pattern that equals an image
+  // input, sits under one, or contains one shrinks what that COPY actually
+  // copies. Since AS-86 the digest would at least MOVE when such a line is
+  // committed, so it is no longer silent — but it is still a decision, and this
+  // literal is where the author has to make it out loud.
+  for (const pattern of patterns) {
+    for (const input of IMAGE_INPUTS) {
+      assert.ok(
+        pattern !== input && !pattern.startsWith(input + '/') && !input.startsWith(pattern + '/'),
+        `.dockerignore pattern "${pattern}" hides image input "${input}": the image would be ` +
+          'built from less than the digest covers. If that is intended, say so here.',
+      );
+    }
+  }
+});
+
+test('deploy-shape: the .dockerignore parser throws on forms it does not understand', () => {
+  // Same contract as the COPY parser's: BuildKit ignore forms whose meaning
+  // this parser would get wrong must refuse, not be skipped. A skipped pattern
+  // is an input hidden from the assertion above.
+  const unrecognised = [
+    ['negation', '!lib\n'],
+    ['star glob', 'public/*.map\n'],
+    ['question glob', 'lib/store?.js\n'],
+    ['bracket glob', 'lib[0-9]\n'],
+    ['double-star glob', '**/fixtures\n'],
+    ['leading-slash anchor', '/data\n'],
+  ];
+  assert.equal(unrecognised.length, 6, 'six unrecognised forms examined');
+  for (const [name, text] of unrecognised) {
+    assert.throws(() => parseDockerignore(text), /\.dockerignore:/, `${name} must throw, not be skipped`);
+  }
+
+  // ...and it does parse the plain forms, or everything throwing would make the
+  // assertions above undiscriminating.
+  assert.deepEqual(parseDockerignore('# c\n\n  data/  \nREADME.md\n'), ['data', 'README.md']);
+});
+
+test('deploy-shape: every tracked path under apps/chat is an image input or declared not one', (t) => {
+  // The COPY-set guard proves IMAGE_INPUTS == the COPY set. It structurally
+  // cannot prove the COPY set is ALL of the inputs — that is the hole F2 fell
+  // through, and it reopens the day someone commits compose.override.yaml. So
+  // this guard's expected set comes from a different source entirely: the git
+  // index. Host-only; the test image has no git and no checkout.
+  if (!gitRunnable()) {
+    t.skip('git not runnable here — host-only guard');
+    return;
+  }
+  const res = spawnSync('git', ['ls-files', '--', '.'], { cwd: APP_DIR, encoding: 'utf8' });
+  assert.ok(!res.error, `git ls-files must run: ${res.error?.message}`);
+  assert.equal(res.status, 0, `git ls-files exits 0: ${res.stderr}`);
+  const tracked = res.stdout.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  // CARDINALITY FIRST: a git that answered nothing would classify an empty list
+  // into three empty buckets and "pass". Two named files must be in the answer.
+  assert.ok(tracked.length >= 40, `git ls-files listed ${tracked.length} tracked paths under apps/chat`);
+  assert.ok(tracked.includes('Dockerfile'), 'the tracked list contains Dockerfile');
+  assert.ok(tracked.includes('.dockerignore'), 'the tracked list contains .dockerignore');
+
+  const { inputs, declared, unclassified } = classifyImagePaths(tracked);
+  assert.equal(inputs.length + declared.length + unclassified.length, tracked.length, 'every path classified once');
+  // Precedence never decides anything, because the two roots sets are disjoint.
+  for (const root of NOT_IMAGE_INPUTS) assert.ok(!IMAGE_INPUTS.includes(root), `${root} is not also an input`);
+
+  assert.deepEqual(
+    unclassified,
+    [],
+    'a tracked path under apps/chat is either an image input (in IMAGE_INPUTS, or under one) ' +
+      'or declared not to be (NOT_IMAGE_INPUTS). Unclassified paths listed above are in the ' +
+      'build context with nobody having decided whether they change the image.',
+  );
+  assert.ok(inputs.length > 0 && declared.length > 0, 'both classified buckets are non-empty');
 });
 
 test('deploy-shape: the server image is stamped with the build id the deployer computes', () => {

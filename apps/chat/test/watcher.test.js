@@ -12,7 +12,8 @@ import { join } from 'node:path';
 import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, tickArgv, loadPermissionRules, fireNonce, writeWatcherPid } from '../watch/advance-watcher.mjs';
 // AS-75: the deploy half.
 import {
-  IMAGE_INPUTS, DOCKER_CANDIDATES, resolveDockerBin, resolveGitBin, parseLsTree,
+  IMAGE_INPUTS, NOT_IMAGE_INPUTS, classifyImagePaths,
+  DOCKER_CANDIDATES, resolveDockerBin, resolveGitBin, parseLsTree,
   watchSourceDigest, isPrunableLog, pruneLogs, decideDeploy, makeDeployOps,
 } from '../watch/advance-watcher.mjs';
 
@@ -633,20 +634,20 @@ test('AS-75 resolveGitBin: absolute when it exists, bare name otherwise, overrid
 test('AS-75 parseLsTree: a short input set is a refusal, and the digest ignores git output order', () => {
   const line = (i, p) => `100644 blob ${String(i % 10).repeat(40)}\tapps/chat/${p}`;
   const full = IMAGE_INPUTS.map((p, i) => line(i, p));
-  assert.equal(full.length, 9, 'nine input lines built');
+  assert.equal(full.length, 10, 'ten input lines built');
 
   const ok = parseLsTree(full.join('\n'), IMAGE_INPUTS);
   assert.equal(ok.reason, 'ok');
   assert.match(ok.id, /^[0-9a-f]{16}$/);
-  assert.equal(ok.count, 9);
+  assert.equal(ok.count, 10);
 
-  // AC-3: a digest over 8 of 9 would be stable, wrong, and would stop
+  // AC-3: a digest over 9 of 10 would be stable, wrong, and would stop
   // triggering rebuilds forever. It must refuse instead.
   for (const short of [full.slice(1), full.slice(0, 4), []]) {
     const r = parseLsTree(short.join('\n'), IMAGE_INPUTS);
     assert.equal(r.id, null, `${short.length} lines: no digest`);
     assert.equal(r.reason, 'inputs-missing');
-    assert.equal(r.expected, 9);
+    assert.equal(r.expected, 10);
   }
   // ...and so does a LONGER set (a path matched twice, or a stray line).
   assert.equal(parseLsTree([...full, line(9, 'extra')].join('\n'), IMAGE_INPUTS).reason, 'inputs-missing');
@@ -664,6 +665,43 @@ test('AS-75 parseLsTree: a short input set is a refusal, and the digest ignores 
 
   // Blank lines and trailing whitespace are not inputs.
   assert.equal(parseLsTree(full.join('\n') + '\n\n  \n', IMAGE_INPUTS).id, ok.id);
+});
+
+test('AS-86 classifyImagePaths: strays are named, roots cover their children, and names are not prefixes', () => {
+  // A literal fixture, not the real index: this is the pure half of the guard,
+  // and it has to be able to contain paths the real repo must never have. The
+  // four strays are the realistic ones — compose auto-merges an override file,
+  // compose interpolates .env, BuildKit reads a per-Dockerfile ignore file, and
+  // a stray doc is the general case.
+  const fixture = [
+    'compose.override.yaml',
+    'lib/store.js',
+    '.env',
+    'data/export/a.jsonl',
+    'Dockerfile.dockerignore',
+    '.dockerignore',
+    'chat',
+    'docs/x.md',
+    'Dockerfile',
+    'README.md',
+  ];
+  assert.equal(fixture.length, 10, 'ten fixture paths classified');
+
+  const { inputs, declared, unclassified } = classifyImagePaths(fixture);
+  // The point of the whole export: an unknown tracked path is NAMED, in input
+  // order, not quietly absorbed into either known bucket.
+  assert.deepEqual(unclassified, ['compose.override.yaml', '.env', 'Dockerfile.dockerignore', 'docs/x.md']);
+  // Dockerfile.dockerignore is the name-boundary case: `Dockerfile` is an
+  // image input, and a startsWith without the separator would swallow it.
+  assert.deepEqual(inputs, ['lib/store.js', '.dockerignore', 'Dockerfile']);
+  assert.deepEqual(declared, ['data/export/a.jsonl', 'chat', 'README.md']);
+  assert.equal(inputs.length + declared.length + unclassified.length, fixture.length);
+
+  // Roots classify as themselves, and the two root sets are disjoint, so
+  // inputs-beat-declared precedence never actually decides a path.
+  assert.deepEqual(classifyImagePaths(IMAGE_INPUTS).unclassified, []);
+  assert.deepEqual(classifyImagePaths(NOT_IMAGE_INPUTS).inputs, []);
+  assert.deepEqual(classifyImagePaths([]), { inputs: [], declared: [], unclassified: [] });
 });
 
 test('AS-75 watchSourceDigest: order-independent, content-sensitive, and name-boundary safe', () => {
@@ -1004,7 +1042,7 @@ test('AS-75 makeDeployOps: a dirty image-input tree refuses, and a broken git re
   s.state.lsTree = s.state.lsTree.split('\n').slice(1).join('\n');
   assert.deepEqual(await s.ops.evaluate({}), { action: 'noop', reason: 'no-git' });
   assert.equal(s.readState().desiredReason, 'inputs-missing');
-  assert.ok(s.logs.some((l) => /8 of 9 image inputs/.test(l)));
+  assert.ok(s.logs.some((l) => /9 of 10 image inputs/.test(l)));
 });
 
 test('AS-75 makeDeployOps: no docker binary is a refusal that names the remedy, not a crash', async (t) => {
