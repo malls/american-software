@@ -100,6 +100,26 @@ with one identical neutral message — the API 404s are byte-identical by
 design. The tokenizer is the pure module `public/msg-refs.js`
 (`test/msg-refs.test.js`).
 
+## Copy chips for hashes and branch names (AS-115)
+
+A lowercase commit hash (7–40 hex, word-fenced; all-digit only at length 7,
+minus the three a–f English words) or a `feat/AS-<n>-<slug>` branch name
+renders as an inline `<span class="copy-ref" role="button">` chip: plain
+click or Enter/Space writes the exact matched slice to the clipboard and
+flashes a "copied" state for about a second; without a clipboard API the chip
+is selected instead so Cmd/Ctrl-C works. It is never an `<a>` and carries no
+href of any spelling (`test/copy-refs.test.js` pins the `.href =` count in
+`app.js`). Tokenizers: `public/copy-refs.js`. The per-leaf pass chain now
+lives in `public/leaf-refs.js` as the pure `tokenizeLeaf`, in the order
+URLs → branches → AS-refs → msg-refs → file-refs → hashes → text, every match
+terminal; the order is tested by falsifier inputs in `test/leaf-refs.test.js`,
+and a markdown link's label (`autolink: false`) skips the URL, branch and
+hash passes. Styling uses the design tokens: `public/tokens.css` is a
+byte-identical copy of `docs/design/tokens/tokens.css` — edit the source file
+under `docs/`, then copy; `test/tokens-parity.test.js` enforces it — linked
+ahead of `style.css` with `<html data-theme="light">` pinned so the chip stays
+light regardless of OS theme.
+
 ## Repo file links & inline markdown (AS-26)
 
 Repo-relative `*.md` paths in message bodies (bare `README.md` or backticked

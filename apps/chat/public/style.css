@@ -183,6 +183,32 @@ body {
 }
 .md-link { color: #1264a3; }
 
+/* AS-115: click-to-copy chips for commit hashes and branch names. Tokens from
+   tokens.css (AS-29); this is the first rule set in this file to use them. */
+.copy-ref {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-accent-text-on-subtle);
+  border: var(--border-width-hairline) solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+  cursor: copy;
+  user-select: text;
+}
+.copy-ref:hover { border-color: var(--color-border-interactive); }
+.copy-ref:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.copy-ref.copied {
+  background: var(--color-success-bg-subtle);
+  color: var(--color-success-text-on-subtle);
+  border-color: var(--color-success-text);
+}
+/* Inside a code span the span already draws the chip; don't draw two. */
+.body code .copy-ref { background: transparent; padding: 0; }
+
 /* m= deep-link anchor (AS-9): one-shot highlight that fades on its own. */
 .message.anchored { animation: anchored-fade 2.5s ease-out 1 both; }
 @keyframes anchored-fade {

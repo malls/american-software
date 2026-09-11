@@ -7,8 +7,8 @@ import { shouldCloseOnEscape, shouldCloseOnBackdropGesture } from './thread-moda
 import { applyMessage, maxLoadedId } from './live.js';
 import { rosterOrder, dmOrder, togglePin, sanitizePins } from './dm-sort.js';
 import { BOARD_ROOT, buildOrgTree } from './org-chart.js';
-import { tokenizeMsgRefs, tokenizeFileRefs } from './msg-refs.js';
-import { tokenizeInline, parseBlocks, tokenizeUrls } from './markdown.js';
+import { tokenizeInline, parseBlocks } from './markdown.js';
+import { tokenizeLeaf } from './leaf-refs.js';
 import { describeLoopStatus } from './loop-status.js';
 // AS-99: every word the lanes badge and pane show is decided in this module,
 // where it is unit-tested; this file does DOM only.
@@ -133,26 +133,10 @@ function fmtTime(iso) {
 }
 
 // --- body rendering: composed ref pipeline (AS-10 refs + AS-26 msg refs) ---
-// Ref passes run per plain-text leaf, the AS-54 URL pass FIRST and then
-// AS-refs before msg-refs so "AS-26" can never get its "26" half-eaten by the
-// msg-ref pass (the patterns are disjoint, but the order is the recorded
-// invariant). All content via el()/createTextNode.
-
-/** Split text into { type:'text'|'asref' } tokens against resolved refs. */
-function tokenizeAsRefs(text, refs) {
-  if (!text) return [];
-  if (refs.length === 0) return [{ type: 'text', text }];
-  const re = new RegExp(`\\b(${refs.map((r) => r.shortId).join('|')})\\b`, 'g');
-  const tokens = [];
-  let last = 0;
-  for (const m of text.matchAll(re)) {
-    if (m.index > last) tokens.push({ type: 'text', text: text.slice(last, m.index) });
-    tokens.push({ type: 'asref', text: m[0], ref: refs.find((r) => r.shortId === m[0]) });
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) tokens.push({ type: 'text', text: text.slice(last) });
-  return tokens;
-}
+// Ref passes run per plain-text leaf in the order fixed by tokenizeLeaf in
+// leaf-refs.js (AS-115): URLs, branches, AS-refs, msg-refs, file-refs, hashes.
+// The order is a tested invariant there, not a control-flow accident here.
+// All content via el()/createTextNode.
 
 /** AS-n ref anchor (AS-10): plain click → task panel, modified → dashboard. */
 function asRefLink(ref) {
@@ -197,6 +181,60 @@ function fileRefLink(tok) {
   return a;
 }
 
+// AS-115: click-to-copy chips for commit hashes and branch names. A span, not
+// an <a> and not a <button>: it flows and selects like prose, and there is
+// nothing to navigate to — no href of any spelling, ever (the AS-93/AS-98
+// link-site guards and test/copy-refs.test.js AC-17 keep it that way).
+const COPIED_MS = 1200;
+
+function selectNode(node) {
+  const sel = window.getSelection();
+  if (!sel) return;
+  sel.removeAllRanges();
+  sel.selectAllChildren(node);
+}
+
+function flashCopied(node) {
+  node.classList.add('copied');
+  node.title = 'Copied';
+  clearTimeout(node._copiedTimer);
+  node._copiedTimer = setTimeout(() => {
+    node.classList.remove('copied');
+    node.title = 'Click to copy';
+  }, COPIED_MS);
+}
+
+/** Write `text` to the clipboard; fall back to selecting the chip so the
+ *  user can Cmd/Ctrl-C (insecure contexts, or a refused write). */
+function copyText(node, text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => flashCopied(node), () => selectNode(node));
+  } else {
+    selectNode(node);
+  }
+}
+
+/** Copy chip for a hash or branch token: the payload is the tokenizer's exact
+ *  source slice, never the DOM's textContent. */
+function copyRefNode(tok) {
+  const node = el('span', 'copy-ref', tok.text);
+  node.setAttribute('role', 'button');
+  node.tabIndex = 0;
+  node.title = 'Click to copy';
+  node.dataset.kind = tok.type;
+  node.addEventListener('click', (e) => {
+    if (isModifiedClick(e)) return;
+    e.preventDefault();
+    copyText(node, tok.text);
+  });
+  node.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    copyText(node, tok.text);
+  });
+  return node;
+}
+
 /** Bare-URL anchor (AS-54): plain external navigation, same affordance as a
  *  markdown link. The href is the verbatim matched slice — the tokenizer's
  *  http/https allowlist is the only gate, and nothing here transforms it. */
@@ -208,34 +246,22 @@ function urlLink(tok) {
   return a;
 }
 
-/** Append a plain-text leaf with every pass applied, in order: URLs, then
- *  AS-refs, then msg-refs, then file-refs (the AS-first invariant, with the
- *  AS-54 URL pass ahead of all three). URL tokens are terminal — their text is
- *  never fed to another pass, so no ref pattern can ever observe text lying
- *  inside an autolinked URL. `autolink: false` skips the pass entirely (the
- *  markdown-link call site), which makes an anchor inside an anchor
- *  unreachable rather than merely unlikely. */
-function appendRefLeaf(parent, text, refs, { autolink = true } = {}) {
-  for (const u of autolink ? tokenizeUrls(text) : [{ type: 'text', text }]) {
-    if (u.type === 'url') {
-      parent.appendChild(urlLink(u));
-      continue;
-    }
-    for (const seg of tokenizeAsRefs(u.text, refs)) {
-      if (seg.type === 'asref') {
-        parent.appendChild(asRefLink(seg.ref));
-        continue;
-      }
-      for (const tok of tokenizeMsgRefs(seg.text)) {
-        if (tok.type === 'msgref') {
-          parent.appendChild(msgRefLink(tok));
-          continue;
-        }
-        for (const f of tokenizeFileRefs(tok.text)) {
-          if (f.type === 'fileref') parent.appendChild(fileRefLink(f));
-          else parent.appendChild(document.createTextNode(f.text));
-        }
-      }
+/** Append a plain-text leaf with every pass applied — tokenizeLeaf (leaf-refs.js)
+ *  owns the order (URLs → branches → AS-refs → msg-refs → file-refs → hashes)
+ *  and the terminal rule (a matched token's text never reaches a later pass).
+ *  `autolink: false` (the markdown-link label call site) skips every pass that
+ *  would create a clickable element with no server-resolved ref — URL, branch,
+ *  hash — which keeps an anchor out of an anchor by construction. */
+function appendRefLeaf(parent, text, refs, opts) {
+  for (const tok of tokenizeLeaf(text, refs, opts)) {
+    switch (tok.type) {
+      case 'url': parent.appendChild(urlLink(tok)); break;
+      case 'branch':
+      case 'hash': parent.appendChild(copyRefNode(tok)); break;
+      case 'asref': parent.appendChild(asRefLink(tok.ref)); break;
+      case 'msgref': parent.appendChild(msgRefLink(tok)); break;
+      case 'fileref': parent.appendChild(fileRefLink(tok)); break;
+      default: parent.appendChild(document.createTextNode(tok.text));
     }
   }
 }
