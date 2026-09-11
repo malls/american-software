@@ -5,6 +5,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseJsonl } from './events.js';
 
 // Default repo root: two levels up from apps/chat/ (this file is apps/chat/lib/).
 const DEFAULT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -215,15 +216,10 @@ export function readTaskEvents(root) {
   for (const file of readdirSync(dir)) {
     if (!file.startsWith('task_') || !file.endsWith('.jsonl')) continue;
     const text = readFileSync(join(dir, file), 'utf8');
-    for (const line of text.split('\n')) {
-      if (!line.trim()) continue;
-      try {
-        const ev = JSON.parse(line);
-        if (ev && ev.id) events.push(ev);
-      } catch {
-        // Malformed line: skip; ingestion must never crash on someone else's file.
-      }
-    }
+    // AS-100: one tolerant parser for both event streams (lib/events.js). The
+    // rule is unchanged — a malformed line is skipped, never thrown — but the
+    // company stream and the Lattice stream must not drift into two dialects.
+    for (const ev of parseJsonl(text).events) events.push(ev);
   }
   events.sort((a, b) =>
     a.ts === b.ts ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.ts < b.ts ? -1 : 1
