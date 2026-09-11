@@ -770,9 +770,19 @@ test('api: AS-72 — app.js schedules exactly two intervals (balanced-paren scan
     const args = splitArgs(app.slice(open + 1, close));
     return { kind: m[2], at: m.index, args, body: args.slice(0, -1).join(','), last: args[args.length - 1] };
   });
-  assert.equal(timers.length, 2, `exactly two timers in app.js (got ${timers.map((x) => x.kind).join(', ')})`);
+  // AS-115: the copy chip's "copied" flash is a UI timer, not a poll — pinned
+  // to exactly one setTimeout(…, COPIED_MS) inside flashCopied() and excluded
+  // from the cadence rules below.
+  const flashAt = app.indexOf('function flashCopied(');
+  assert.ok(flashAt !== -1, 'flashCopied is present');
+  const flashEnd = app.indexOf('\n}\n', flashAt);
+  const flash = timers.filter((x) => x.at > flashAt && x.at < flashEnd);
+  assert.deepEqual(flash.map((x) => [x.kind, x.last]), [['setTimeout', 'COPIED_MS']],
+    'the only flash timer is setTimeout(…, COPIED_MS) in flashCopied');
+  const polls = timers.filter((x) => !flash.includes(x));
+  assert.equal(polls.length, 2, `exactly two poll timers in app.js (got ${polls.map((x) => x.kind).join(', ')})`);
   assert.deepEqual(
-    timers.map((x) => x.kind),
+    polls.map((x) => x.kind),
     ['setInterval', 'setInterval'],
     'both timers are intervals — no setTimeout schedules work in app.js',
   );
@@ -781,13 +791,13 @@ test('api: AS-72 — app.js schedules exactly two intervals (balanced-paren scan
   const initAt = app.indexOf('async function init()');
   const initEnd = app.indexOf('init().catch(');
   assert.ok(initAt > 0 && initEnd > initAt, 'init() located');
-  for (const timer of timers) {
+  for (const timer of polls) {
     assert.ok(timer.at > initAt && timer.at < initEnd, `timer at ${timer.at} is inside init()`);
   }
 
   // Each call's LAST argument is its ms literal — not the first `, <digits>)`
   // the old lazy regex happened to reach.
-  const ms = timers.map((timer) => {
+  const ms = polls.map((timer) => {
     assert.match(timer.last, /^\d[\d_]*$/, `cadence is a numeric literal (got ${timer.last})`);
     return Number(timer.last.replaceAll('_', ''));
   });
@@ -795,17 +805,17 @@ test('api: AS-72 — app.js schedules exactly two intervals (balanced-paren scan
   // Timer 1 — the reconcile poll. Complete contents: it calls refreshSidebar
   // and nothing else. A nested timer, a fetch, or a second helper is a change
   // in what the cadence means, and must fail here.
-  assert.deepEqual(callNames(timers[0].body), ['refreshSidebar'], 'reconcile body calls refreshSidebar and nothing else');
+  assert.deepEqual(callNames(polls[0].body), ['refreshSidebar'], 'reconcile body calls refreshSidebar and nothing else');
   assert.ok(ms[0] >= 30_000, `reconcile cadence >= 30s (got ${ms[0]})`);
 
   // Timer 2 — the local age tick. Complete contents: the render calls, no
   // network of any kind.
   assert.deepEqual(
-    callNames(timers[1].body).sort(),
+    callNames(polls[1].body).sort(),
     ['renderLanes', 'renderLanesBadge', 'renderLoopStatus'],
     'age tick renders exactly the local views',
   );
-  assert.doesNotMatch(timers[1].body, /refreshSidebar|\bapi\(|fetch\(/, 'the age tick never hits the network');
+  assert.doesNotMatch(polls[1].body, /refreshSidebar|\bapi\(|fetch\(/, 'the age tick never hits the network');
   assert.ok(ms[1] > 0, `age tick cadence is positive (got ${ms[1]})`);
 });
 
@@ -837,7 +847,10 @@ test('api: AS-26 — msg-refs.js and markdown.js are served; index.html ships th
 
   // The served app.js actually imports both and ships the permalink affordance.
   const app = await (await fetch(base + '/app.js')).text();
-  assert.match(app, /from '\.\/msg-refs\.js'/, 'body pipeline goes through msg-refs.js');
+  // AS-115: the leaf chain moved to leaf-refs.js; app.js reaches msg-refs.js through it.
+  assert.match(app, /from '\.\/leaf-refs\.js'/, 'body pipeline goes through leaf-refs.js');
+  const leafMod = await (await fetch(base + '/leaf-refs.js')).text();
+  assert.match(leafMod, /from '\.\/msg-refs\.js'/, 'leaf chain goes through msg-refs.js');
   assert.match(app, /from '\.\/markdown\.js'/, 'inline styling goes through markdown.js');
   assert.match(app, /msg-permalink/, 'meta row carries the permalink anchor');
   // AS-74 item 4: the markup-sink line that stood here is now one enumerating
@@ -1053,39 +1066,21 @@ test('api: AS-54 — served app.js autolinks through markdown.js and never insid
   // The file the browser actually runs, not the one on disk beside this test.
   const app = await (await fetch(base + '/app.js')).text();
 
-  assert.match(app, /import \{[^}]*tokenizeUrls[^}]*\} from '\.\/markdown\.js'/,
+  // AS-115: the leaf chain (URL pass first, url tokens terminal) lives in
+  // leaf-refs.js as the pure tokenizeLeaf; its order and terminality are
+  // proven red in test/leaf-refs.test.js (T8/T11), not by reading control flow
+  // here. This guard keeps the seam: app.js renders every leaf through it, the
+  // URL pass still comes from markdown.js, and the markdown-link label opts out.
+  const leafSrc = await (await fetch(base + '/leaf-refs.js')).text();
+  assert.match(leafSrc, /import \{[^}]*tokenizeUrls[^}]*\} from '\.\/markdown\.js'/,
     'the bare-URL pass comes from markdown.js — one scheme allowlist, one module');
+  assert.ok(!/tokenizeUrls\(/.test(app), 'app.js never runs the URL pass itself');
   assert.ok(app.includes('appendRefLeaf(a, tok.inner, refs, { autolink: false })'),
     'the markdown-link call site opts out of autolinking verbatim');
-
-  // Pass order (§3.3): inside appendRefLeaf the URL pass runs before the ref
-  // chain, which is what makes url tokens terminal. The comparison is scoped
-  // to that function body on purpose — tokenizeAsRefs is DEFINED above
-  // appendRefLeaf, so a whole-file index comparison is true no matter what
-  // order the calls are in.
   const start = app.indexOf('function appendRefLeaf(');
   assert.ok(start !== -1, 'appendRefLeaf is present in the served app.js');
   const leaf = app.slice(start, app.indexOf('\n}\n', start));
-  const urlAt = leaf.indexOf('tokenizeUrls(');
-  const asAt = leaf.indexOf('tokenizeAsRefs(');
-  assert.ok(urlAt !== -1, 'appendRefLeaf calls the URL pass');
-  assert.ok(asAt !== -1, 'appendRefLeaf calls the AS-ref pass');
-  assert.ok(urlAt < asAt, 'the URL pass runs first among the leaf passes');
-
-  // Terminality (§3.3): the url branch appends the anchor and `continue`s, so a
-  // url token's text is never handed to the ref chain. Pass order alone does
-  // not give that — dropping the `continue` leaves urlAt < asAt true while the
-  // URL text falls through into three more passes. Scoped to the branch and
-  // asserted as the whole branch body, so a fall-through cannot hide in it.
-  const branchAt = leaf.indexOf("if (u.type === 'url') {");
-  assert.ok(branchAt !== -1, 'appendRefLeaf has a url branch');
-  assert.ok(branchAt < asAt, 'the url branch precedes the ref chain: moved below it, the branch keeps this exact text while every URL falls through three more passes and renders twice');
-  const urlBranch = leaf.slice(branchAt, leaf.indexOf('\n    }', branchAt));
-  assert.deepEqual(
-    urlBranch.split('\n').slice(1).map((l) => l.trim()).filter(Boolean),
-    ['parent.appendChild(urlLink(u));', 'continue;'],
-    'url tokens are terminal: the branch appends the anchor and continues',
-  );
+  assert.match(leaf, /tokenizeLeaf\(text, refs, opts\)/, 'appendRefLeaf renders through tokenizeLeaf and forwards opts');
 
   // The anchor: verbatim href, no transformation between token and attribute.
   // Scoped to urlLink's OWN body on purpose. `a.href = tok.href;` occurs three
@@ -1384,7 +1379,7 @@ test('api: AS-74 — served app.js keeps the org chart node label as title · cl
     'the meta element is built by el(), so its text goes through textContent');
 });
 
-test('api: AS-74 — every served public/ module is free of markup sinks (12 examined)', async (t) => {
+test('api: AS-74 — every served public/ module is free of markup sinks (14 examined)', async (t) => {
   const { base } = await bootServer(t);
 
   // AS-74 item 4: this replaces four whole-file sink assertions that lived in
@@ -1400,8 +1395,8 @@ test('api: AS-74 — every served public/ module is free of markup sinks (12 exa
   // Cardinality before quantification, and the anti-vacuity pin: a readdir
   // that returns nothing, or a module added without a thought for the house
   // rule, fails here rather than passing over an empty set.
-  assert.equal(modules.length, 12,
-    `expected 12 served modules under public/, found ${modules.length}: ${modules.join(', ')} `
+  assert.equal(modules.length, 14,
+    `expected 14 served modules under public/, found ${modules.length}: ${modules.join(', ')} `
     + '— a new public/ module updates this count in the same task, and must be sink-free');
 
   const SINKS = ['.innerHTML', 'insertAdjacentHTML', 'outerHTML', 'document.write'];
