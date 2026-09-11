@@ -43,6 +43,16 @@ import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes, createHash } from 'node:crypto';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+// AS-100: one implementation of the envelope, the fold and the outcome rules,
+// shared by the CLI, the watcher and the server so they cannot drift.
+import {
+  makeEvent,
+  appendEvent,
+  readStream,
+  openItems,
+  tickOutcome,
+  stageCloseOutcome,
+} from '../lib/events.js';
 
 // --- configuration (env-overridable; defaults per plan §4) ------------------
 
@@ -65,6 +75,11 @@ export const DEFAULTS = Object.freeze({
   // staleness threshold the server applies to the snapshot (lib/lanes.js).
   // Read-only git calls only, and deliberately NOT gated on `busy`.
   lanesPollS: 15,
+  // AS-100 events sweep. Level-triggered reconciliation of stages a tick this
+  // watcher did not fire left open. 60s is one order below the tick box it
+  // compares against, so a cut stage is labelled within a minute of the box
+  // expiring, and it costs one read of a small append-only file.
+  eventsSweepS: 60,
 });
 
 // AS-75: the image's git-committed inputs, as repo-relative-to-apps/chat paths.
@@ -107,6 +122,7 @@ export function loadConfig(env = process.env) {
     deployCooldownMin: envNum(env, 'ADVANCE_DEPLOY_COOLDOWN_MIN', DEFAULTS.deployCooldownMin),
     chatUrl: env.ADVANCE_CHAT_URL || DEFAULTS.chatUrl,
     lanesPollS: envNum(env, 'ADVANCE_LANES_POLL_S', DEFAULTS.lanesPollS),
+    eventsSweepS: envNum(env, 'ADVANCE_EVENTS_SWEEP_S', DEFAULTS.eventsSweepS),
   };
 }
 
@@ -924,6 +940,9 @@ export function makeDeployOps({
     gitBin,
     baselineDigest,
     lastAttempt: () => lastAttempt,
+    // AS-100 borrows this rather than restating the staleness rule: one rule
+    // for "a tick is running", two callers.
+    lockIsBusy,
   };
 }
 
@@ -1704,6 +1723,239 @@ export function makeLanesOps({
   return { evaluate, statePath, gitBin };
 }
 
+/**
+ * AS-100 — the company-events reconciler, the fourth factory beside
+ * makeLockOps / makeDeployOps / makeLoopOps. main() keeps only wiring.
+ *
+ * The property this exists to hold (T2, AC-7): a stage cut by the tick timeout
+ * is recorded as `cut_by_timeout`, never as `completed`. The orchestrator that
+ * would have emitted stage_ended is dead exactly when it matters, so the
+ * watcher closes what it left open — at settle() (exact, immediate) and in
+ * sweep() (level-triggered, for ticks this process did not fire).
+ *
+ * What is "open" is DERIVED from the stream on every call (openItems in
+ * lib/events.js). There is no open-set file and no in-memory set that outlives
+ * one call: if the orchestrator's own stage_ended landed, the next read simply
+ * sees the stage closed. One stream, and the reconciler is another projection
+ * of it that happens to write back.
+ *
+ * Nothing here throws. A failed append degrades the feed, not the tick — the
+ * makeDeployOps persist() pattern, with the same warn-once rule.
+ */
+export function makeEventsOps({
+  streamPath,
+  tickTimeoutMs = DEFAULTS.tickTimeoutMin * 60 * 1000,
+  lockBusy = () => false,
+  isBusy = () => false,
+  now = () => Date.now(),
+  readFile = readFileSync,
+  append = appendFileSync,
+  mkdir = mkdirSync,
+  log = () => {},
+}) {
+  let lastWriteWarn = null;
+
+  function read() {
+    return readStream(streamPath, { readFile });
+  }
+
+  /** One event appended, or null if the append failed. Never throws. */
+  function emit(type, data, nowMs) {
+    try {
+      const ev = makeEvent({ type, actor: 'system:watcher', data, now: new Date(nowMs) });
+      appendEvent(streamPath, ev, { append, mkdir });
+      lastWriteWarn = null;
+      return ev;
+    } catch (err) {
+      if (lastWriteWarn !== err.message) {
+        lastWriteWarn = err.message;
+        log(`WARN cannot append ${streamPath} (${err.message}); the events feed degrades, the tick does not`);
+      }
+      return null;
+    }
+  }
+
+  function secondsSince(ts, nowMs) {
+    const started = Date.parse(ts);
+    return Number.isFinite(started) ? Math.round((nowMs - started) / 1000) : null;
+  }
+
+  function ageMs(ts, nowMs) {
+    const started = Date.parse(ts);
+    // An unparsable ts is not evidence of age: treat it as young so the sweep
+    // never closes a stage on the strength of a malformed timestamp.
+    return Number.isFinite(started) ? nowMs - started : 0;
+  }
+
+  /**
+   * The current tick's scope: the last tick_started with no tick_ended after
+   * it, plus the stage_started events that followed it. Single-flight is what
+   * makes this correct — exactly one tick runs at a time, so stage events after
+   * an open tick_started belong to that tick (derived, never declared: T1 §1).
+   */
+  function tickScope(events) {
+    let startIdx = -1;
+    for (let i = 0; i < events.length; i += 1) {
+      if (events[i].type === 'tick_started') startIdx = i;
+      else if (events[i].type === 'tick_ended') startIdx = -1;
+    }
+    const tickEv = startIdx >= 0 ? events[startIdx] : null;
+    const scoped = startIdx >= 0 ? events.slice(startIdx + 1) : [];
+    const lanesTouched = [];
+    let stagesStarted = 0;
+    for (const ev of scoped) {
+      if (ev.type !== 'stage_started') continue;
+      stagesStarted += 1;
+      const task = ev.data?.task;
+      if (task && !lanesTouched.includes(task)) lanesTouched.push(task);
+    }
+    return { tickEv, stagesStarted, lanesTouched };
+  }
+
+  /** Close every open sub-agent then every open stage, with one outcome.
+   *  Returns the number of STAGES closed (tick_ended.stagesClosed). */
+  function closeOpen(open, { outcome, exit, closedBy, reason, nowMs }) {
+    for (const sub of open.subagents) {
+      emit(
+        'subagent_exited',
+        {
+          task: sub.task,
+          stage: sub.stage,
+          actor: sub.actor,
+          exit,
+          closedBy,
+          spawnedId: sub.id,
+          durationS: secondsSince(sub.ts, nowMs),
+          tokens: null,
+          costUsd: null,
+        },
+        nowMs
+      );
+    }
+    let stagesClosed = 0;
+    for (const stage of open.stages) {
+      emit(
+        'stage_ended',
+        {
+          task: stage.task,
+          stage: stage.stage,
+          actor: stage.actor,
+          outcome,
+          reason,
+          closedBy,
+          startedId: stage.id,
+          durationS: secondsSince(stage.ts, nowMs),
+        },
+        nowMs
+      );
+      stagesClosed += 1;
+    }
+    return stagesClosed;
+  }
+
+  function tickStarted({ source = 'watcher', pid = null, messageId = null, loopTick = null, nowMs = now() } = {}) {
+    const startedAt = new Date(nowMs).toISOString();
+    // No nonce, deliberately (T1 §1): the fire nonce is the lock's anti-spoof
+    // token and /api/events is a read-back endpoint. The tick's identity in the
+    // stream is this event's own id, which tick_ended.tickId references.
+    return emit('tick_started', { source, pid, startedAt, messageId, loopTick }, nowMs);
+  }
+
+  function tickEnded({ code = null, signal = null, timedOut = false, headBefore = null, headAfter = null, nowMs = now() } = {}) {
+    const { events } = read();
+    const { tickEv, stagesStarted, lanesTouched } = tickScope(events);
+    const outcome = stageCloseOutcome({ code, signal, timedOut });
+    // (b) BEFORE (c) — a stated property (T2): a consumer must never observe a
+    // closed tick with a stage still open.
+    const stagesClosed = closeOpen(openItems(events), {
+      outcome,
+      exit: outcome,
+      closedBy: 'watcher-settle',
+      reason: null,
+      nowMs,
+    });
+    const headMoved = Boolean(headBefore && headAfter && headBefore !== headAfter);
+    return emit(
+      'tick_ended',
+      {
+        tickId: tickEv ? tickEv.id : null,
+        outcome: tickOutcome({ code, signal, timedOut, stagesStarted, headMoved }),
+        code,
+        signal,
+        timedOut,
+        headMoved,
+        lanesTouched,
+        stagesClosed,
+        reason: null,
+      },
+      nowMs
+    );
+  }
+
+  /**
+   * Level-triggered reconciliation for ticks this watcher did not fire (a live
+   * `/loop /advance` session, or a watcher restarted mid-tick). Gated off while
+   * our own child runs or ANY fresh lock is held — lockBusy is the deploy's own
+   * staleness rule, injected rather than restated, so there is one rule.
+   */
+  function sweep({ nowMs = now() } = {}) {
+    if (isBusy()) return { action: 'noop', reason: 'child-running', closed: 0 };
+    if (lockBusy(nowMs)) return { action: 'noop', reason: 'lock-fresh', closed: 0 };
+    const { events } = read();
+    const open = openItems(events);
+    // Younger than the tick box: a live-session tick that released its lock
+    // between stages, or an orchestrator about to emit. Left alone.
+    const stale = {
+      stages: open.stages.filter((s) => ageMs(s.ts, nowMs) >= tickTimeoutMs),
+      subagents: open.subagents.filter((s) => ageMs(s.ts, nowMs) >= tickTimeoutMs),
+    };
+    const closed = closeOpen(stale, {
+      outcome: 'cut_by_timeout',
+      exit: 'cut_by_timeout',
+      closedBy: 'watcher-sweep',
+      reason: 'sweep',
+      nowMs,
+    });
+    let tickClosed = false;
+    if (open.tick && open.tick.open) {
+      // No fresh lock (checked above) and a tick still open: the watcher died
+      // mid-tick and was relaunched. A resumed loop must not leave the previous
+      // process's tick open forever.
+      const { tickEv, stagesStarted, lanesTouched } = tickScope(events);
+      emit(
+        'tick_ended',
+        {
+          tickId: tickEv ? tickEv.id : null,
+          outcome: 'error',
+          code: null,
+          signal: null,
+          timedOut: false,
+          headMoved: false,
+          lanesTouched,
+          stagesClosed: closed,
+          reason: 'watcher-restarted',
+        },
+        nowMs
+      );
+      tickClosed = true;
+      void stagesStarted;
+    }
+    if (closed || stale.subagents.length || tickClosed) {
+      log(`EVENTS-SWEEP closed ${closed} stage(s), ${stale.subagents.length} sub-agent(s)${tickClosed ? ', 1 open tick' : ''}`);
+      return { action: 'closed', reason: 'stale', closed };
+    }
+    return { action: 'noop', reason: 'nothing-open', closed: 0 };
+  }
+
+  return {
+    tickStarted,
+    tickEnded,
+    sweep,
+    openItems: () => openItems(read().events),
+    streamPath,
+  };
+}
+
 function main() {
   const config = loadConfig();
   const dataDir = join(config.repoRoot, 'apps', 'chat', 'data');
@@ -1718,6 +1970,7 @@ function main() {
     deployState: join(dataDir, 'deploy-state.json'), // AS-75
     loopState: join(dataDir, 'advance-loop.json'), // AS-95
     worktrees: join(dataDir, 'worktrees.json'), // AS-99
+    events: join(dataDir, 'events', 'company.jsonl'), // AS-100
   };
   mkdirSync(logsDir, { recursive: true });
 
@@ -1837,6 +2090,14 @@ function main() {
       JSON.stringify({ messageId: sentinel.messageId, firedAt: new Date().toISOString() })
     );
     renameSync(paths.highwater + '.tmp', paths.highwater);
+    // AS-100: the tick's own record, immediately after the highwater write —
+    // the same instant the tick becomes a fact for every other reader.
+    eventsOps.tickStarted({
+      source: 'watcher',
+      pid: process.pid,
+      messageId: sentinel.messageId,
+      loopTick: loopOps.nextTick() - 1,
+    });
     pruneTickLogs();
 
     const stamp = new Date().toISOString().replaceAll(':', '-');
@@ -1909,7 +2170,12 @@ function main() {
       if (killTimer !== null) clearTimeout(killTimer);
       if (child === proc) child = null;
       releaseLock();
-      loopOps.settle({ code, signal, timedOut, headBefore, headAfter: headOf(config.repoRoot) });
+      const headAfter = headOf(config.repoRoot);
+      // AS-100, after releaseLock() and before loopOps.settle(): this is the
+      // only code that knows timedOut/code/signal, and it runs after the child
+      // has exited, so anything still open belongs to a tick that is over.
+      eventsOps.tickEnded({ code, signal, timedOut, headBefore, headAfter });
+      loopOps.settle({ code, signal, timedOut, headBefore, headAfter });
     }
     proc.on('error', (err) => {
       if (!tickLog.writableEnded) tickLog.end(`\n[watcher] spawn error: ${err.message}\n`);
@@ -2047,6 +2313,20 @@ function main() {
   lanesInterval.unref();
   void lanesOps.evaluate(); // first snapshot now, not 15s from now
 
+  // AS-100 company events. Everything it does lives in makeEventsOps
+  // (exported, unit-tested); these lines are the entire unguarded wiring.
+  // lockIsBusy comes from deployOps so "a tick is running" has one definition.
+  const eventsOps = makeEventsOps({
+    streamPath: paths.events,
+    tickTimeoutMs: config.tickTimeoutMin * 60 * 1000,
+    lockBusy: deployOps.lockIsBusy,
+    isBusy: () => Boolean(child),
+    log,
+  });
+  log(`EVENTS-SWEEP every ${config.eventsSweepS}s (tick box ${config.tickTimeoutMin}min) -> ${paths.events}`);
+  const eventsInterval = setInterval(() => eventsOps.sweep(), config.eventsSweepS * 1000);
+  eventsInterval.unref();
+
   log(
     `START watcher pid ${process.pid} repo ${config.repoRoot} ` +
       `(poll ${config.pollS}s, debounce ${config.debounceS}s, timeout ${config.tickTimeoutMin}min, ` +
@@ -2061,6 +2341,7 @@ function main() {
     clearInterval(interval);
     clearInterval(deployInterval);
     clearInterval(lanesInterval);
+    clearInterval(eventsInterval);
     if (child) {
       log('STOP terminating in-flight tick');
       child.kill('SIGTERM');
