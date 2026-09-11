@@ -848,13 +848,47 @@ rather than a dedicated bind; read-only is unchanged, and so is the rule.
 ## Tests (in-container, no mounts)
 
 ```sh
-cd apps/chat
-DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose run --rm --build test
+# A counted run (the receipt reviewers quote) — AS-106:
+node apps/chat/bin/compose-run.mjs --project asc-<stage>-as<n> --cwd <worktree>/apps/chat [--log <file>]
+# What is left on the daemon, with owners; removes nothing (exit 1 when leftovers exist):
+node apps/chat/bin/compose-run.mjs --check
 ```
+
+`compose-run.mjs` is the one way to take a counted run. It refuses a project
+name that is not `asc-*`, is a production `name:` (`asc-chat`, `asc-invoicing`),
+or is a project `compose ls` already reports (exit 2, no docker call); refuses
+when the daemon already carries `ASC_NETWORK_CEILING` (20) or more `asc-*`
+networks (exit 3, leftovers listed); runs
+`DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose -p <project> run --rm --build test`;
+**always** runs `down -v --rmi local --remove-orphans` afterwards, whether the
+run passed, failed, or threw; then asserts no `<project>_*` network and no
+`<project>-*` image survived (exit 4, `LEAK:`), and that the output carried a
+`Built` line (exit 5 — the `--build` corollary made executable). It prints one
+receipt block:
+
+```
+RECEIPT project=asc-impl-as106
+  built: Image asc-impl-as106-test Built
+  tests=571 pass=563 fail=0 skipped=8
+  run exit=0
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=0
+```
+
+Why: `run --rm` removes only the container. Before AS-106 the `test` service
+sat on the project's `default` network, so every counted `-p asc-*` run left a
+`<project>_default` network behind, and at ~27 of them Docker Desktop's
+address pool was exhausted and voided counted acceptance runs. The `test`
+service is now `network_mode: none` (pinned by `test/deploy-shape.test.js`),
+so a bare `docker compose run --rm --build test` no longer leaks a network
+either — but only the script tears down the image and proves it.
 
 Runs `node --test` inside the image against the COPY'd `test/` and fixtures.
 The test service mounts no volumes — passing with zero mounts is itself
-evidence the suite touches no real state.
+evidence the suite touches no real state. Docker is resolved by absolute path
+(`ADVANCE_DOCKER_BIN`, else the watcher's candidate list) because it is off
+PATH in headless ticks.
 
 That same mountlessness is a blind spot: a suite that injects its own temp
 repo root cannot see whether the *deployed* container mounts anything useful

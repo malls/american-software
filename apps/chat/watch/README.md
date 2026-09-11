@@ -335,6 +335,18 @@ Env knobs: `ADVANCE_DEPLOY_POLL_S` (60), `ADVANCE_DEPLOY_TIMEOUT_MIN` (15),
 `ADVANCE_CHAT_URL` (`http://127.0.0.1:8347`), `ADVANCE_SHUTDOWN_GRACE_S` (10).
 There is no knob for the compose project (see AS-88 above).
 
+## Counted runs (AS-106)
+
+The watcher's deploy is the production project; a *counted* test run in a tick
+or a review is a scratch project and goes through
+`node apps/chat/bin/compose-run.mjs --project asc-<stage>-as<n> --cwd <worktree>/apps/chat`,
+which resolves docker the same way this watcher does (`ADVANCE_DOCKER_BIN`,
+else the candidate list), refuses production and running project names, runs
+`run --rm --build test`, always tears the project down, and asserts nothing
+survived. `--check` lists every `asc-*` network on the daemon as production /
+live / leftover and removes nothing. Details and the receipt format:
+`apps/chat/README.md` § Tests.
+
 ## Prerequisites
 
 - Host `node >= 20` (the watcher is zero-dependency ESM using `node:` builtins):

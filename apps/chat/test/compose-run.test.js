@@ -154,6 +154,11 @@ test('T7a parseReceipt: Built line verbatim, counts from TAP and spec summaries'
   assert.deepEqual(spec, { built: true, builtLine: 'Image asc-impl-as106-test Built', tests: 554, pass: 547, fail: 0, skipped: 7 });
   const tap = parseReceipt('# tests 12\n# pass 11\n# fail 1\n# skipped 0\n Image x-test Built \n');
   assert.deepEqual([tap.tests, tap.pass, tap.fail, tap.skipped, tap.built], [12, 11, 1, 0, true]);
+  // A test name containing "Built" is not the image line (the first counted
+  // run on this branch quoted this very test's name as its receipt).
+  const decoy = parseReceipt('✔ T7a parseReceipt: Built line verbatim (1ms)\nℹ tests 1\nℹ pass 1\nℹ fail 0\nℹ skipped 0\n');
+  assert.equal(decoy.built, false);
+  assert.equal(decoy.builtLine, null);
 });
 
 test('T7b runCounted: a run with no Built line is exit 5 even when every test passes', () => {

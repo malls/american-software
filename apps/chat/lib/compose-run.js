@@ -124,7 +124,10 @@ export function classifyNetworks(networkNames, runningProjects, productionNames)
  */
 export function parseReceipt(output) {
   const lines = String(output || '').split('\n');
-  const builtLine = lines.find((l) => /\bBuilt\b/.test(l) && /Image|Built/.test(l)) || null;
+  // Compose's own line is exactly ` Image <name> Built ` — anchored, so a test
+  // name that happens to contain "Built" (T7a's does; the first counted run
+  // quoted it) cannot stand in for the image line.
+  const builtLine = lines.find((l) => /^\s*Image \S+ Built\s*$/.test(l)) || null;
   // node's summary is `# tests N` under the TAP reporter (no TTY) and
   // `ℹ tests N` under spec (compose `run` allocates a TTY) — measured in the
   // AC-1 probe; both are read.
