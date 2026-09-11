@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 1,
+  "complexity": null,
+  "created_at": "2026-09-11T02:20:16Z",
+  "created_by": "agent:developer-marcus",
+  "custom_fields": {},
+  "description": null,
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M27480M1BWXK887TCF8BXTBC",
+  "last_event_id": "ev_01M2748BMHRDE2X2631WQ36RRC",
+  "last_status_changed_at": "2026-09-11T02:20:16Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-11T02:20:17Z",
+      "created_by": "agent:developer-marcus",
+      "note": null,
+      "target_task_id": "task_01M25XTX7VPDQDTGRY69CJ7ANE",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-102",
+  "status": "backlog",
+  "tags": null,
+  "title": "Chat watcher: a loop tick should not wait a full deploy-poll interval for a 'busy' deploy decision",
+  "type": "task",
+  "updated_at": "2026-09-11T02:20:28Z",
+  "urgency": null
+}

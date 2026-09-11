@@ -7,7 +7,8 @@
       "backlog": "urgency",
       "done": "group:assignee",
       "needs_human": "group:tag"
-    }
+    },
+    "theme": "linear"
   },
   "default_actor": "human:Forrest",
   "default_priority": "medium",
