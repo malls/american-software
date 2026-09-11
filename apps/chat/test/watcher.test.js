@@ -1655,8 +1655,11 @@ test('AS-88 makeDeployOps refuses a COMPOSE_PROJECT_NAME the scrub would discard
 });
 
 test('AS-88 makeDeployOps accepts an agreeing or empty COMPOSE_PROJECT_NAME', (t) => {
-  // AC-5: the refusal is not over-broad. Unset, '', whitespace (compose treats
-  // all three as unset — measured, plan §0.1) and an EQUAL value construct.
+  // AC-5: the refusal is not over-broad. Unset, '' (compose treats both as
+  // unset — measured, plan §0.1), whitespace (NOT unset to compose: `docker
+  // compose config` rejects "  " as an invalid project name — measured in the
+  // AS-88 review; the guard reads it as no intent because the scrub drops it
+  // before compose could ever object) and an EQUAL value all construct.
   const base = { ADVANCE_DOCKER_BIN: '/fake/docker', PATH: '/bin', HOME: '/h', USER: 'u', LOGNAME: 'u' };
   const cases = [
     { env: base, composeProject: 'asc-chat' },
