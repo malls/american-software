@@ -81,8 +81,18 @@ services:
 
   # No mounts here by design: the suite passing mountless proves the tests
   # touch no real state (personnel/ access included — fixtures only).
+  #
+  # AS-106: no network either. `run --rm` removes only the container; a
+  # service on the project's `default` network makes compose create
+  # `<project>_default`, which survives until someone runs `down` — every
+  # counted `-p asc-*` review run leaked one, and at ~27 the daemon's address
+  # pool was exhausted and voided three acceptance runs. With `network_mode:
+  # none` there is no `default` network to create (loopback still exists, so
+  # api/live tests binding 127.0.0.1 are unaffected). Same shape as
+  # apps/invoicing/compose.yaml. Pinned by test/deploy-shape.test.js.
   test:
     build: .
     platform: linux/amd64
     profiles: ["tools"]
+    network_mode: none
     command: ["node", "--test"]
