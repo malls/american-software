@@ -1,0 +1,33 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": null,
+  "created_at": "2026-09-11T05:10:31Z",
+  "created_by": "agent:lattice-auto-review",
+  "custom_fields": {},
+  "description": null,
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M27DZR9HG254RGZRM4GP5GN7",
+  "last_event_id": "ev_01M27DZRDZPXXRVWE0XDGTC8DH",
+  "last_status_changed_at": "2026-09-11T05:10:31Z",
+  "linked_files": [],
+  "needs_human": {
+    "flagged_by": "agent:lattice-auto-review",
+    "reason": "claude review agent failed 2 times \u2014 investigate",
+    "since": "2026-09-11T05:10:32Z"
+  },
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-105",
+  "status": "backlog",
+  "tags": null,
+  "title": "Investigate claude review failures \u2014 failed 2 times",
+  "type": "task",
+  "updated_at": "2026-09-11T05:10:32Z",
+  "urgency": null
+}

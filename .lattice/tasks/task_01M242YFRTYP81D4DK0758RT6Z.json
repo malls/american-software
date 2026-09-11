@@ -21,10 +21,15 @@
       "id": "ev_01M26GGRSBN5F9K4D03XGCSACQ",
       "role": "review",
       "source_type": "comment"
+    },
+    {
+      "id": "art_01M27E4A2QKHZVXNV7MW6HSSQQ",
+      "role": "review",
+      "source_type": "artifact"
     }
   ],
   "id": "task_01M242YFRTYP81D4DK0758RT6Z",
-  "last_event_id": "ev_01M27DVNR10EDSE85YBWY6T0F3",
+  "last_event_id": "ev_01M27E4A2YYTMEZTR4NBMCQ97Y",
   "last_status_changed_at": "2026-09-11T05:08:18Z",
   "linked_files": [],
   "priority": "critical",
@@ -55,6 +60,6 @@
   ],
   "title": "Chat tooling: supervise the Lattice dashboard (:8799) under launchd so tailnet :8443 deep links answer without a live session",
   "type": "task",
-  "updated_at": "2026-09-11T05:08:18Z",
+  "updated_at": "2026-09-11T05:13:01Z",
   "urgency": "high"
 }

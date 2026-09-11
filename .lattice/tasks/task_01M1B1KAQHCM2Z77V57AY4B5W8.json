@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 14,
+  "comment_count": 16,
   "complexity": "low",
   "created_at": "2026-08-31T04:35:17Z",
   "created_by": "agent:cto-owen",
@@ -26,12 +26,22 @@
       "id": "ev_01M27CRNT3GCJHQJP2CNHS828S",
       "role": "review",
       "source_type": "comment"
+    },
+    {
+      "id": "ev_01M27EB6NWGEXACBBJA6PCPMVR",
+      "role": "review",
+      "source_type": "comment"
     }
   ],
   "id": "task_01M1B1KAQHCM2Z77V57AY4B5W8",
-  "last_event_id": "ev_01M27DPBN30FDH9FDSP9PJJS61",
+  "last_event_id": "ev_01M27EB6NWGEXACBBJA6PCPMVR",
   "last_status_changed_at": "2026-09-11T05:00:31Z",
   "linked_files": [],
+  "needs_human": {
+    "flagged_by": "agent:lattice-auto-review",
+    "reason": "Auto-fired code-review failed (Agent 'claude' timed out after 600s) \u2014 task is unreviewed.",
+    "since": "2026-09-11T05:10:32Z"
+  },
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 1,
@@ -41,6 +51,6 @@
   "tags": null,
   "title": "Chat: favicon for the chat app",
   "type": "chore",
-  "updated_at": "2026-09-11T05:05:24Z",
+  "updated_at": "2026-09-11T05:16:47Z",
   "urgency": null
 }
