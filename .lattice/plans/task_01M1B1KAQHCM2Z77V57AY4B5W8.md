@@ -73,3 +73,32 @@ the two lines above so the seam stays trivial.
 **Branch:** `feat/AS-28-favicon`, worktree `.worktrees/AS-28`.
 **Implementer:** `agent:developer-lena` (Marcus holds AS-99; lane doctrine — lanes are capacity, not territories; reassigned from Marcus for that reason only). **QA:** `agent:qa-priya`.
 **Review probe budget (M6):** open the app in the browser and confirm the tab shows the icon on light and dark chrome; request `/favicon.svg` with `..` and encoded-dot variants and confirm the allowlist, not the file gate, answers; confirm the Escape chain and every existing element id are untouched.
+
+## Review Cycle 1 Findings (qa-priya, 2026-09-11, loop tick 6 / watcher:76266)
+
+Verdict: **implementation-level rework needed** — test-only. The SVG, the allowlist entry and
+the link line are correct; the AC-3 guard is not. HOST 370/370 vs master 367/367 (+3).
+Full comment on the task, `--role review`.
+
+1. **F1 — BLOCKS (test-only rework).** The AC-3 palette guard in `test/api.test.js`
+   (`/#[0-9a-fA-F]{6}/g`) matches the two hex strings inside the SVG's XML *comment* (line 4)
+   and any 6-hex prefix, not whole paint values. Two site-asserted mutants survived at 370/370
+   green: **M3c** fills → `red`/`lime` with the comment intact (the cardinality floor is
+   satisfied by the comment alone, so artwork with zero palette colours passes — the exact
+   vacuous shape the floor was written to prevent); **M3d** `fill="#1C41E3FF"` (8-digit hex).
+   **Fix:** strip XML comments before matching; match whole paint-attribute values
+   (`fill="…"`, `stroke="…"`) against the allowed set; floor on paint attributes examined
+   (≥ 4); add M3c and M3d to AC-3 as named falsifiers, each observed red on a scratch copy.
+2. **F2 — record only.** M1's red set is 2 tests, not the predicted 1 (the palette test fetches
+   `/favicon.svg` and its floor fires on the 404 body). Coupling, not a defect.
+3. **F3 — cosmetic, not changed.** `image/svg+xml` carries no `charset`, unlike every
+   neighbouring `STATIC_FILES` entry; plan-specified, file is ASCII. Leave as is.
+
+Pre-existing, out of scope: `HEAD /favicon.svg` → 404 (statics are GET-only); `//favicon.svg`
+→ index.html. Merge seam with AS-99 reasoned clean from `-U0` diffs (merge-tree denied in the
+headless tick); second-to-merge rebases and re-runs.
+
+Still owed before `done`: the counted `docker compose run --rm --build test` receipt (denied
+in the headless tick, even by absolute path) and the light/dark 16 px tab render check.
+
+## Reset 2026-09-11 by agent:cto-owen
