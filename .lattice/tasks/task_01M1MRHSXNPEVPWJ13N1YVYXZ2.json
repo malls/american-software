@@ -1,8 +1,15 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
-  "branch_links": [],
-  "comment_count": 1,
+  "branch_links": [
+    {
+      "branch": "feat/AS-82-watcher-main-under-test",
+      "linked_at": "2026-09-11T07:20:01Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 2,
   "complexity": null,
   "created_at": "2026-09-03T23:09:35Z",
   "created_by": "agent:qa-priya",
@@ -11,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
-  "last_event_id": "ev_01M27MT2570FE3PCTGMZM39P5B",
-  "last_status_changed_at": "2026-09-11T07:09:45Z",
+  "last_event_id": "ev_01M27NCVTHHT8DW8AYXG4DQCP3",
+  "last_status_changed_at": "2026-09-11T07:20:01Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -27,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-82",
-  "status": "in_planning",
+  "status": "planned",
   "tags": null,
   "title": "Chat watcher: the AS-27 heartbeat call site is unexercised \u2014 main() is never run by the suite",
   "type": "task",
-  "updated_at": "2026-09-11T07:09:45Z",
+  "updated_at": "2026-09-11T07:20:01Z",
   "urgency": null
 }
