@@ -182,9 +182,12 @@ longer does. Every `ADVANCE_DEPLOY_POLL_S` seconds (default 60) the watcher
 evaluates a pure predicate over three observable facts and takes **at most one
 action**:
 
-1. **desired** — a sha256 over `git ls-tree HEAD` of the nine image inputs
+1. **desired** — a sha256 over `git ls-tree HEAD` of the ten image inputs
    (`IMAGE_INPUTS`, kept equal to the Dockerfile's `COPY` set by
-   `test/deploy-shape.test.js`). Deliberately not the whole `apps/chat`
+   `test/deploy-shape.test.js`). Nine are COPY sources the image runs or reads;
+   the tenth, `.dockerignore`, is the one *context-shaping* input — it never
+   runs, but it decides what each `COPY` actually copies, so a committed edit to
+   it changes the image (AS-86). Deliberately not the whole `apps/chat`
    directory: `data/export/` is tracked and rewritten by every records export,
    so a directory-wide digest would rebuild the image on chat traffic.
 2. **running** — the id the container itself reports at `GET /api/build`, baked
@@ -225,8 +228,8 @@ watcher update, and a briefly stale heartbeat is the quieter, honest signal.
 | Reason | Meaning |
 |---|---|
 | `busy` | any fresh `advance.lock` — a rebuild restarts the server, and must never land under a tick mid-write to the chat API |
-| `inputs-dirty` | uncommitted changes under the nine paths. "Merged code is live" means *committed* code; baking uncommitted bytes under a label claiming to be `HEAD` is worse than being stale |
-| `no-git` / short input set | the digest could not be computed. A digest over 8 of 9 inputs would be stable, wrong, and would stop triggering rebuilds forever, so a short `ls-tree` is a refusal, not a shorter digest |
+| `inputs-dirty` | uncommitted changes under the ten paths. "Merged code is live" means *committed* code; baking uncommitted bytes under a label claiming to be `HEAD` is worse than being stale |
+| `no-git` / short input set | the digest could not be computed. A digest over 9 of 10 inputs would be stable, wrong, and would stop triggering rebuilds forever, so a short `ls-tree` is a refusal, not a shorter digest |
 | `no-docker` | the binary did not resolve; set `ADVANCE_DOCKER_BIN` in the plist |
 | `cooldown` | the last attempt at *this same id* failed less than `ADVANCE_DEPLOY_COOLDOWN_MIN` (30) ago. A new merge changes the id and retries immediately |
 
