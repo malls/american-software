@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [
     {
       "branch": "feat/AS-98-href-allowlist-guard",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M26C7SHH3G5YDP39FGXQHX6W",
-  "last_event_id": "ev_01M2953XF6HZG83QPHNKYMYT7K",
-  "last_status_changed_at": "2026-09-11T21:13:56Z",
+  "last_event_id": "ev_01M295BHS1QHZS359S5HSFCDHE",
+  "last_status_changed_at": "2026-09-11T21:18:10Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-98",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat: the AS-93 link-site guard catches the literal, not the .url field \u2014 a fourth link site stays fully green",
   "type": "task",
-  "updated_at": "2026-09-11T21:14:00Z",
+  "updated_at": "2026-09-11T21:18:10Z",
   "urgency": null
 }
