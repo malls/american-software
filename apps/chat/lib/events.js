@@ -303,7 +303,15 @@ function matches(open, ev, idKey) {
   if (!open) return false;
   const declared = ev.data?.[idKey];
   if (declared) return declared === open.id;
-  return open.task === ev.data?.task && open.stage === ev.data?.stage && open.actor === ev.data?.actor;
+  // The fallback, for a close emitted WITHOUT the id of its own open event —
+  // what the CLI produces when an orchestrator closes a stage by hand. The
+  // lane is keyed by `data.task` and `open` came out of that lane, so the task
+  // already matches by construction; comparing `open.task` (which the fold
+  // does not store on the stage or sub record) made this whole branch
+  // unreachable, and every hand-closed stage stayed open until the sweep cut
+  // it as a timeout. Found by api-events-since-exclusive, whose planted
+  // stage_ended carries a null startedId exactly as `events close` emits one.
+  return open.stage === ev.data?.stage && open.actor === ev.data?.actor;
 }
 
 function lastEventOf(ev, outcome = null) {

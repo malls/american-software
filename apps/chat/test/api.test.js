@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { createChatServer, LOOP_POLL_MS, LANES_POLL_MS, composeBuild } from '../server.js';
+import { createChatServer, LOOP_POLL_MS, LANES_POLL_MS, EVENTS_POLL_MS, composeBuild } from '../server.js';
+import { makeEvent, serialiseEvent, EVENT_SHAPES, ENVELOPE_KEYS } from '../lib/events.js';
 import { LANES_STALE_MS, LANE_WORKTREE_KEYS } from '../lib/lanes.js';
 import { describeLanes, EMPTY_STATES } from '../public/lanes.js';
 import { DEFAULTS } from '../watch/advance-watcher.mjs';
@@ -1255,14 +1256,16 @@ function loopFixture(t) {
   const deploy = join(dataDir, 'deploy-state.json');
   const loopState = join(dataDir, 'advance-loop.json'); // AS-95
   const worktrees = join(dataDir, 'worktrees.json'); // AS-99
+  const events = join(dataDir, 'events', 'company.jsonl'); // AS-100
+  mkdirSync(join(dataDir, 'events'), { recursive: true });
   const iso = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString();
   return {
     dataDir,
     /** Plant one of the file configurations (AS-75 adds a third file, AS-95 a
      *  fourth, AS-99 a fifth). An omitted key deletes its file, so every call
      *  states the whole world and no test inherits a neighbour's leftovers. */
-    plant({ lockBody = null, pidBody = null, deployBody = null, loopBody = null, worktreesBody = null }) {
-      for (const [path, body] of [[lock, lockBody], [pid, pidBody], [deploy, deployBody], [loopState, loopBody], [worktrees, worktreesBody]]) {
+    plant({ lockBody = null, pidBody = null, deployBody = null, loopBody = null, worktreesBody = null, eventsBody = null }) {
+      for (const [path, body] of [[lock, lockBody], [pid, pidBody], [deploy, deployBody], [loopState, loopBody], [worktrees, worktreesBody], [events, eventsBody]]) {
         if (body === null) {
           try { unlinkSync(path); } catch { /* already absent */ }
         } else {
@@ -1286,6 +1289,22 @@ function loopFixture(t) {
     loopFile: (over = {}) => ({
       active: true, startedAt: iso(-600_000), ticks: 3, armedBy: 651, lastTick: null, lastLoop: null, ...over,
     }),
+    /** AS-100: JSONL for events/company.jsonl, built through makeEvent so a
+     *  fixture can never plant a shape the producer could not emit. */
+    eventLines: (specs) =>
+      specs
+        .map((spec, i) =>
+          `${serialiseEvent(
+            makeEvent({
+              type: spec.type,
+              actor: spec.actor ?? 'agent:developer-lena',
+              taskId: spec.taskId ?? null,
+              data: spec.data ?? {},
+              now: new Date(Date.parse(iso(-600_000)) + i * 1_000),
+            })
+          ).trimEnd()}\n`
+        )
+        .join(''),
     /** AS-99: worktrees.json, exactly as makeLanesOps writes it. The default is
      *  one main row plus one linked worktree whose branch carries AS-7's short
      *  code — the fixture repo's ids.json resolves it, so the lane joins by
@@ -1867,4 +1886,107 @@ test('api: AS-99 — LANES_POLL_MS is the pinned production cadence', async () =
   const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
   assert.match(server, /lanesPollMs = LANES_POLL_MS/, 'the default is the exported constant');
   assert.equal(LANES_STALE_MS, 60_000, 'four watcher polls');
+});
+
+// --- AS-100: the company event stream over HTTP -----------------------------
+
+test('api-events-since-exclusive: AS-100 — /api/events filters by since, task and limit, and reports its own stream reason', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+
+  // Cardinality first: five lines planted across two tasks, five read back.
+  const specs = [
+    { type: 'stage_started', data: { task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', worktree: '.worktrees/AS-7', branch: 'feat/AS-7-thing', cycle: 1 } },
+    { type: 'subagent_spawned', data: { task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', model: 'fable' } },
+    { type: 'stage_started', data: { task: 'AS-8', stage: 'review', actor: 'agent:qa-priya', worktree: '.worktrees/AS-8', branch: 'feat/AS-8-thing', cycle: 1 } },
+    { type: 'subagent_exited', data: { task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', exit: 'ok', closedBy: 'orchestrator', spawnedId: null, durationS: 90, tokens: null, costUsd: null } },
+    { type: 'stage_ended', data: { task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', outcome: 'completed', reason: null, closedBy: 'orchestrator', startedId: null, durationS: 120 } },
+  ];
+  fx.plant({ eventsBody: fx.eventLines(specs) });
+  const all = await get('/api/events');
+  assert.equal(all.status, 200);
+  assert.equal(all.data.events.length, 5, 'five planted, five read');
+  assert.equal(all.data.stream.reason, 'ok');
+  assert.equal(all.data.stream.path, null, 'the host path is never in the payload');
+  assert.equal(all.data.stream.malformed, 0);
+  assert.equal(all.data.stream.lastId, all.data.events[4].id);
+  assert.deepEqual(all.data.stream.open, { stages: 1, subagents: 0 }, 'AS-8 open, AS-7 closed');
+
+  // `since` is EXCLUSIVE: the named id is the last one already seen.
+  const since = await get(`/api/events?since=${all.data.events[1].id}`);
+  assert.deepEqual(
+    since.data.events.map((e) => e.id),
+    all.data.events.slice(2).map((e) => e.id),
+    'since returns everything AFTER the named id, never the id itself'
+  );
+  assert.equal(since.data.stream.lastId, all.data.events[4].id, 'stream reports the file, not the slice');
+
+  // An id the file has never seen returns nothing rather than the whole log.
+  for (const bogus of ['nonsense', 'ev_01ARZ3NDEKTSV4RRFFQ69G5FAV']) {
+    const miss = await get(`/api/events?since=${bogus}`);
+    assert.equal(miss.status, 200);
+    assert.deepEqual(miss.data.events, [], `unknown since (${bogus}) replays nothing`);
+  }
+
+  const byTask = await get('/api/events?task=AS-8');
+  assert.deepEqual(byTask.data.events.map((e) => e.data.task), ['AS-8']);
+  const limited = await get('/api/events?limit=2');
+  assert.equal(limited.data.events.length, 2, 'limit truncates');
+  const capped = await get('/api/events?limit=99999');
+  assert.equal(capped.data.events.length, 5, 'a limit past the cap is not an error');
+
+  // The three reasons, each from its own planted world.
+  fx.plant({});
+  const absent = await get('/api/events');
+  assert.equal(absent.status, 200, 'a pre-AS-100 watcher writes no file; that is not an error');
+  assert.equal(absent.data.stream.reason, 'no-stream');
+  assert.deepEqual(absent.data.events, []);
+  fx.plant({ eventsBody: 'not json at all\n{oh dear\n' });
+  const garbage = await get('/api/events');
+  assert.equal(garbage.status, 200);
+  assert.equal(garbage.data.stream.reason, 'unreadable-stream');
+  assert.equal(garbage.data.stream.malformed, 2);
+});
+
+test('api-events-key-whitelist: AS-100 — a line that grew a field reaches no reader', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+
+  // Cardinality: one planted line per event type, all six.
+  const shaped = {
+    tick_started: { source: 'watcher', pid: 5285, startedAt: new Date().toISOString(), messageId: 651, loopTick: 3 },
+    tick_ended: { tickId: null, outcome: 'ok', code: 0, signal: null, timedOut: false, headMoved: true, lanesTouched: ['AS-7'], stagesClosed: 0, reason: null },
+    stage_started: { task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', worktree: '.worktrees/AS-7', branch: 'feat/AS-7-thing', cycle: 1 },
+    stage_ended: { task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', outcome: 'completed', reason: null, closedBy: 'orchestrator', startedId: null, durationS: 12 },
+    subagent_spawned: { task: 'AS-8', stage: 'review', actor: 'agent:qa-priya', model: 'fable' },
+    subagent_exited: { task: 'AS-8', stage: 'review', actor: 'agent:qa-priya', exit: 'ok', closedBy: 'orchestrator', spawnedId: null, durationS: 9, tokens: null, costUsd: null },
+  };
+  const types = Object.keys(shaped);
+  assert.equal(types.length, 6, 'six types planted');
+  // Each line is grown by hand AFTER makeEvent: an extra data key and an extra
+  // envelope key, exactly the drift the whitelist exists to stop.
+  const body = types
+    .map((type, i) => {
+      const ev = makeEvent({ type, actor: 'agent:developer-lena', data: shaped[type], now: new Date(Date.now() - 60_000 + i * 1_000) });
+      return JSON.stringify({ ...ev, host: '/Users/forrest/secret/path', data: { ...ev.data, secret: 'do-not-leak' } }) + '\n';
+    })
+    .join('');
+  fx.plant({ eventsBody: body });
+
+  const res = await get('/api/events');
+  assert.equal(res.data.events.length, 6);
+  for (const ev of res.data.events) {
+    assert.deepEqual(Object.keys(ev).sort(), [...ENVELOPE_KEYS].sort(), `${ev.type}: envelope keys are exactly the seven`);
+    assert.deepEqual(Object.keys(ev.data), [...EVENT_SHAPES[ev.type]], `${ev.type}: data keys are exactly its shape, in order`);
+  }
+  const wire = JSON.stringify(res.data);
+  assert.ok(!wire.includes('secret'), 'no grown data key reaches a reader');
+  assert.ok(!wire.includes('/Users/forrest/secret/path'), 'no grown envelope key reaches a reader');
+  assert.ok(!wire.includes(fx.dataDir), 'and the stream never names its own host path');
+});
+
+test('api: AS-100 — EVENTS_POLL_MS is the pinned production cadence', async () => {
+  assert.equal(EVENTS_POLL_MS, 2_000);
+  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  assert.match(server, /eventsPollMs = EVENTS_POLL_MS/, 'the default is the exported constant');
 });
