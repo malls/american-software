@@ -81,6 +81,11 @@ if (args.json) {
   process.exit(violations.length > 0 ? 1 : 0);
 }
 
+// Cardinality before quantification (AS-73 F2): how many files were looked at,
+// stated before how many of them parsed. A gate that only reports what it
+// classified cannot tell you it classified nothing.
+process.stdout.write(`Examined ${data.examined} .md files in ${root}/personnel\n`);
+
 if (data.roster.length === 0 && data.skipped.length === 0) {
   // Degradation contract, matching `chat roster`: absence is not a violation,
   // and inventing one would make this command useless in a bare checkout.

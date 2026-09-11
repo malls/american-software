@@ -15,7 +15,7 @@
 // bin/check-org.js` is what checks the real roster.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
@@ -135,6 +135,46 @@ test('org: orphan_reports_to names a departed manager as the reason', () => {
       detail: 'reports to agent:gone, who is departed',
     },
   ]);
+});
+
+test('org: orphan_reports_to names an invalid status, not departed, when that is the reason', () => {
+  // AS-73 F4b. A manager outside byId is not automatically departed — an
+  // unrecognised status keeps them out too, and "who is departed" then sends
+  // the reader to re-point a live manager instead of fixing one typo'd line.
+  const roster = [
+    emp({ actorId: 'agent:ceo', name: 'Ceo', class: 'cofounder' }),
+    emp({ actorId: 'agent:mgr', name: 'Mgr', class: 'manager', reportsTo: 'agent:ceo', status: 'activ' }),
+    emp({ actorId: 'agent:dev', name: 'Dev', reportsTo: 'agent:mgr' }),
+  ];
+  assert.deepEqual(validateOrg({ roster }), [
+    {
+      rule: 'invalid_status',
+      actorId: 'agent:mgr',
+      file: null,
+      detail: 'status "activ" is not one of active, departed',
+    },
+    {
+      rule: 'orphan_reports_to',
+      actorId: 'agent:dev',
+      file: null,
+      detail: 'reports to agent:mgr, whose status "activ" is invalid',
+    },
+  ]);
+});
+
+test('org: validateOrg tolerates a null roster entry, as buildOrgTree does', () => {
+  // AS-73 F4a. Same junk input, two functions, one answer: buildOrgTree was
+  // already tested to degrade, validateOrg threw on `e.status` of null.
+  const roster = [null, emp({ actorId: 'agent:ceo', name: 'Ceo', class: 'cofounder' })];
+  assert.deepEqual(
+    validateOrg({ roster, skipped: [], sources: [], examined: 2 }),
+    []
+  );
+  assert.deepEqual(
+    buildOrgTree(roster).root.reports.map((n) => n.actorId),
+    ['agent:ceo'],
+    'buildOrgTree degrades on the same input validateOrg now tolerates'
+  );
 });
 
 // --- rule 2: missing_reports_to ---------------------------------------------
@@ -493,6 +533,7 @@ function checkOrg(args) {
 test('check-org: exits 0 on a clean fixture root', () => {
   const r = checkOrg(['--root', CLEAN_ROOT]);
   assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /^Examined 5 \.md files in /m);
   assert.match(r.stdout, /3 active of 4 dossiers parsed, 0 unparsed/);
   assert.match(r.stdout, /No violations\./);
 });
@@ -504,6 +545,7 @@ test('check-org: exits 1 and names every violation on the dirty fixture root', (
   // not "fix" the fixture to make this pass differently.
   const r = checkOrg(['--root', FIXTURE_ROOT]);
   assert.equal(r.status, 1);
+  assert.match(r.stdout, /^Examined 6 \.md files in /m);
   assert.match(r.stdout, /2 active of 3 dossiers parsed, 2 unparsed/);
   assert.deepEqual(
     r.stdout
@@ -537,6 +579,7 @@ test('check-org: a root with no personnel/ is exit 0 and says so', () => {
   try {
     const r = checkOrg(['--root', bare]);
     assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /^Examined 0 \.md files in /m);
     assert.match(r.stdout, /No personnel records found/);
     const asJson = checkOrg(['--root', bare, '--json']);
     assert.equal(asJson.status, 0);
@@ -544,4 +587,38 @@ test('check-org: a root with no personnel/ is exit 0 and says so', () => {
   } finally {
     rmSync(bare, { recursive: true, force: true });
   }
+});
+
+test('check-org: reports the examined count and every unclassifiable person on a scratch root', (t) => {
+  // AS-73 F1+F2 at the gate. The dirty fixture root's broken dossier carries a
+  // clean `---\n` fence, which is exactly why the AS-33 suite never saw the
+  // classifier's narrower fence test. This root plants the four it missed.
+  const root = mkdtempSync(join(tmpdir(), 'org-cli-as73-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, 'personnel'));
+  const plant = (file, text) => writeFileSync(join(root, 'personnel', file), text, 'utf8');
+  plant('bare.md', '---');
+  plant('bom.md', '﻿---\nactor_id: agent:bom\nname: Bom\n');
+  plant('lead.md', '\t---\nactor_id: agent:lead\nname: Lead\n');
+  plant('ok-bom.md', '﻿---\nactor_id: agent:ok\nname: Ok\nclass: cofounder\nreports_to: human:forrest\nstatus: active\n---\n');
+  plant('README.md', '# not a dossier\n');
+  plant('trail.md', '--- \nactor_id: agent:trail\nname: Trail\n');
+
+  const r = checkOrg(['--root', root]);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^Examined 6 \.md files in /m);
+  assert.match(r.stdout, /1 active of 1 dossiers parsed, 4 unparsed/);
+  assert.deepEqual(
+    r.stdout
+      .split('\n')
+      .filter((l) => /^unparsed_dossier\s/.test(l))
+      .map((l) => l.split(/\s{2,}/).slice(0, 2)),
+    [
+      ['unparsed_dossier', 'bare.md'],
+      ['unparsed_dossier', 'bom.md'],
+      ['unparsed_dossier', 'lead.md'],
+      ['unparsed_dossier', 'trail.md'],
+    ]
+  );
+  assert.match(r.stdout, /^4 violations\.$/m);
 });
