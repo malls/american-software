@@ -1,8 +1,15 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
-  "branch_links": [],
-  "comment_count": 1,
+  "branch_links": [
+    {
+      "branch": "feat/AS-73-org-gate-predicates",
+      "linked_at": "2026-09-11T07:15:53Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 2,
   "complexity": "low",
   "created_at": "2026-09-03T07:59:12Z",
   "created_by": "agent:qa-priya",
@@ -11,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1K4EVS9RAFCZ6Q588FNAS31",
-  "last_event_id": "ev_01M27MT1FFZRJ5EJ0Z9QFX4413",
-  "last_status_changed_at": "2026-09-11T07:09:44Z",
+  "last_event_id": "ev_01M27N59TEMMJ8B3BG6Q36WXB2",
+  "last_status_changed_at": "2026-09-11T07:15:53Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -27,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-73",
-  "status": "in_planning",
+  "status": "planned",
   "tags": null,
   "title": "Chat: the org gate cannot see a person it never classified, and reports no examined count",
   "type": "task",
-  "updated_at": "2026-09-11T07:09:44Z",
+  "updated_at": "2026-09-11T07:15:53Z",
   "urgency": null
 }
