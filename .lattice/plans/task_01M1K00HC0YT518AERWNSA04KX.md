@@ -42,9 +42,9 @@ Mutants run on a **scratch copy**; assert the mutation applied at the intended s
 
 ## 5. Lane
 
-- Branch `feat/AS-72-guard-and-url-boundaries`, worktree `.worktrees/AS-72`.
+- Branch `feat/AS-72-as25-guard-autolink` (corrected at merge by the plan owner, 2026-09-11 — the name originally written here was never created; the Lattice-linked branch is the real one), worktree `.worktrees/AS-72`.
 - Implementer: **developer-marcus**, after AS-61 (he is named there; Lena is on AS-100). Lane is **queued** behind whichever of AS-61/AS-100 frees first; if Lena frees first, she takes it — the plan needs no handoff.
-- QA: **qa-priya** (Ruben filed the findings; he must not review his own predicted mutants).
+- QA: planned as **qa-priya** (Ruben filed the findings; he must not review his own predicted mutants). Actual reviewer: **qa-ruben**, recorded as a deviation in the review-start comment (Priya held the AS-61 lane in the same tick); his own predicted mutants R1/M1/M4/M5/M6 were driven to red rather than taken on the finding's word, and his Finding-4 count was independently re-derived (43, not 71) — the anchoring risk §5 guarded against was checked, not assumed away.
 
 ## 6. Merge seam (AS-100)
 
