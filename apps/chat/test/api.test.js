@@ -1982,19 +1982,20 @@ test('api: AS-93 — all four dashboard link sites go through the helper (4 exam
   // match this and must stay green: the ban is on server-baked .url bases.
   assert.doesNotMatch(
     app,
-    /\.href = [A-Za-z_$][\w.$]*\.url\b/,
-    'no href is assigned from a server-baked .url (AS-93)'
+    /\.href\s*=\s*[A-Za-z_$][\w.$]*\.url\b/,
+    'no href is assigned from a server-baked .url, however spaced (AS-93, AS-98)'
   );
 
-  // AC-9, host-literal ban: the backstop for a FOURTH link site added later.
-  // The directory is enumerated rather than listed — a hard-coded list is how
-  // the next new module escapes the ban.
+  // AC-9, host-literal ban: defense in depth behind test/link-sites.test.js
+  // (AS-98), which allowlists every href source — this catches a host that
+  // enters by some non-href path. The directory is enumerated rather than
+  // listed — a hard-coded list is how the next new module escapes the ban.
   const publicDir = new URL('../public/', import.meta.url);
   const files = readdirSync(publicDir).filter((f) => f !== 'dashboard-link.js');
   assert.ok(files.length >= 10, `${files.length} public/ files examined (dashboard-link.js excluded)`);
   for (const file of files) {
     const body = readFileSync(new URL(file, publicDir), 'utf8');
-    for (const literal of ['8799', '8443', '127.0.0.1']) {
+    for (const literal of ['8799', '8443', '127.0.0.1', 'localhost', '.ts.net', '::1']) {
       assert.ok(
         !body.includes(literal),
         `${files.length} public/ files examined: ${file} must not hard-code ${literal} — ` +
