@@ -28,6 +28,7 @@ import {
   tickArgv,
   tickChildEnv,
   readBoard,
+  PRODUCTION_COMPOSE_PROJECT,
 } from '../watch/advance-watcher.mjs';
 import { readStream, openItems } from '../lib/events.js';
 
@@ -678,4 +679,22 @@ test('AS-92 makeWatcher: fire() spawns the tick with the prepended PATH and logs
   // line, which is the diagnostic for exactly that failure.
   const fireAt = h.logs.findIndex((l) => l.startsWith('FIRE '));
   assert.ok(fireAt >= 0 && h.logs.indexOf(lines[0]) > fireAt, 'TICK-PATH follows FIRE');
+});
+
+test('AS-88 makeWatcher: deploys to the production project — start() without injected deploy ops builds them with PRODUCTION_COMPOSE_PROJECT', (t) => {
+  // AC-8: the one place the production wiring is a test rather than a grep.
+  // `deployOps: undefined` makes start() run the real makeDeployOps over the
+  // temp paths. Nothing deploys: deployPollS is an hour and start() fires no
+  // deploy evaluate of its own (only the lanes poll runs immediately, and it is
+  // injected). Note makeWatcher's own env/exists (AS-92) do NOT reach
+  // makeDeployOps — it reads process.env, which is exactly what the refusal
+  // guard is for under launchd — so this test also proves construction holds
+  // in the environment the suite actually runs in.
+  const h = watcherHarness(t, { watcher: { deployOps: undefined } });
+  h.start();
+  const deploy = h.watcher.ops().deploy;
+  assert.ok(deploy && typeof deploy.evaluate === 'function', 'real deploy ops were built');
+  assert.equal(deploy.composeProject, PRODUCTION_COMPOSE_PROJECT);
+  assert.equal(deploy.composeProject, 'asc-chat', "and the constant is the live stack's name");
+  assert.equal(h.logged(/^DEPLOY-POLL every 3600s/).length, 1, 'the deploy poll was armed once');
 });

@@ -9,6 +9,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
 import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, tickArgv, loadPermissionRules, fireNonce, writeWatcherPid } from '../watch/advance-watcher.mjs';
 // AS-92: the tick child's PATH.
 import { GH_CANDIDATES, resolveGhBin, tickPathPrepend } from '../watch/advance-watcher.mjs';
@@ -1008,6 +1010,9 @@ function deployHarness(t, { preState, ...over } = {}) {
     reprobeDelayMs: 0,
     pid: 4242,
     isPidAlive: () => true,
+    // AS-88: required, no default. 'asc-test' is deliberately NOT the production
+    // name: a harness must choose, and this one never reaches a real compose.
+    composeProject: 'asc-test',
     ...over,
   });
   return {
@@ -1459,6 +1464,7 @@ test('AS-84 runDockerCompose: a compose log stream error is logged, not thrown �
   const pending = runDockerCompose({
     dockerBin: '/nonexistent/docker', cwd: '/', env: {}, logPath: '/nonexistent/deploy.log', timeoutMs: 60_000,
     log: (l) => logs.push(l),
+    composeProject: 'asc-test', // AS-88: required; spawn is faked
     spawnFn: () => proc,
     createLog: () => out,
   });
@@ -1550,6 +1556,7 @@ test('AS-87 runDockerCompose argv: compose is spawned with --progress plain, nev
   const pending = runDockerCompose({
     dockerBin: '/fake/docker', cwd: '/repo/apps/chat', env: { PATH: '/bin' }, logPath: '/nonexistent/deploy.log', timeoutMs: 60_000,
     log: () => {},
+    composeProject: 'asc-chat', // AS-88: required; this pin is the production shape
     spawnFn: (bin, args, opts) => { spawns.push({ bin, args, opts }); return proc; },
     createLog: () => new PassThrough(),
   });
@@ -1558,6 +1565,119 @@ test('AS-87 runDockerCompose argv: compose is spawned with --progress plain, nev
   assert.equal(spawns.length, 1, 'one spawn examined');
   assert.equal(spawns[0].bin, '/fake/docker');
   // Exact pin on purpose: a flag reorder or a new flag is a deliberate edit here.
-  assert.deepEqual(spawns[0].args, ['compose', '--progress', 'plain', 'up', '-d', '--build']);
+  // AS-88 edited it (AS-87 owns the test): `-p <project>` now precedes the
+  // subcommand — a compose global flag — so the target is explicit in argv.
+  assert.deepEqual(spawns[0].args, ['compose', '-p', 'asc-chat', '--progress', 'plain', 'up', '-d', '--build']);
   assert.ok(!spawns[0].args.includes('quiet'));
+});
+
+/** AS-88: a runDockerCompose with the spawn and the log sink faked, returning
+ *  what it captured. `proc` is emitted `exit` by the caller. */
+function fakeCompose(over = {}) {
+  const spawns = [];
+  const logsOpened = [];
+  const proc = new EventEmitter();
+  proc.stdout = new PassThrough();
+  proc.stderr = new PassThrough();
+  proc.kill = () => true;
+  const run = () => runDockerCompose({
+    dockerBin: '/fake/docker', cwd: '/repo/apps/chat', env: { PATH: '/bin' }, logPath: '/nonexistent/deploy.log', timeoutMs: 60_000,
+    log: () => {},
+    spawnFn: (bin, args, opts) => { spawns.push({ bin, args, opts }); return proc; },
+    createLog: (path) => { logsOpened.push(path); return new PassThrough(); },
+    ...over,
+  });
+  return { run, proc, spawns, logsOpened };
+}
+
+test('AS-88 runDockerCompose names the caller\'s project: -p carries composeProject, not a literal', async () => {
+  // AC-1's second half. With only the pin above, replacing `composeProject` in
+  // argv with the literal 'asc-chat' would still pass; a custom name here makes
+  // "dropped -p" and "hard-coded asc-chat" distinguishable mutants.
+  const c = fakeCompose({ composeProject: 'asc-scratch-1' });
+  const pending = c.run();
+  c.proc.emit('exit', 0, null);
+  const result = await pending;
+  assert.equal(c.spawns.length, 1, 'one spawn examined');
+  assert.deepEqual(c.spawns[0].args, ['compose', '-p', 'asc-scratch-1', '--progress', 'plain', 'up', '-d', '--build']);
+  assert.equal(result.code, 0);
+});
+
+test('AS-88 runDockerCompose refuses an implicit project: no composeProject -> throws before opening the log or spawning', () => {
+  // AC-2. The order matters: the guard sits above createLog, so a refused call
+  // leaves no empty deploy-*.log behind and no compose child running.
+  const shapes = [{}, { composeProject: undefined }, { composeProject: '' }, { composeProject: '   ' }, { composeProject: 42 }];
+  assert.equal(shapes.length, 5, 'five implicit shapes examined');
+  for (const over of shapes) {
+    const c = fakeCompose(over);
+    assert.throws(() => c.run(), /composeProject is required/, `throws for ${JSON.stringify(over)}`);
+    assert.equal(c.spawns.length, 0, `no spawn for ${JSON.stringify(over)}`);
+    assert.equal(c.logsOpened.length, 0, `no log opened for ${JSON.stringify(over)}`);
+  }
+});
+
+test('AS-88 performDeploy passes composeProject through to deploy() and names it in the DEPLOY building line', async (t) => {
+  // AC-3. The harness never reaches a real compose; what it proves is that the
+  // project the ops were constructed with is the one every deploy carries.
+  const h = deployHarness(t, { composeProject: 'asc-scratch-1' });
+  const decision = await h.ops.evaluate({ busy: false });
+  assert.equal(decision.action, 'deploy');
+  assert.equal(h.calls.deploy.length, 1, 'one deploy examined');
+  assert.equal(h.calls.deploy[0].composeProject, 'asc-scratch-1');
+  assert.equal(h.ops.composeProject, 'asc-scratch-1', 'the returned field agrees');
+  const building = h.logs.filter((l) => l.startsWith('DEPLOY building'));
+  assert.equal(building.length, 1, 'one building line examined');
+  assert.match(building[0], /^DEPLOY building [0-9a-f]{16} \(project asc-scratch-1\) -> /);
+});
+
+test('AS-88 makeDeployOps refuses a COMPOSE_PROJECT_NAME the scrub would discard (AS-75 review F8)', (t) => {
+  // AC-4, the F8 headline, with Ruben's exact input: the harness expressed
+  // isolation through the variable, the ops were built for the live project.
+  // Before AS-88 this constructed silently and the deploy hit `asc-chat`.
+  const env = { ADVANCE_DOCKER_BIN: '/fake/docker', PATH: '/bin', HOME: '/h', USER: 'u', LOGNAME: 'u', COMPOSE_PROJECT_NAME: 'asc-scratch-1' };
+  let calls = null;
+  assert.throws(
+    () => { const h = deployHarness(t, { env, composeProject: 'asc-chat' }); calls = h.calls; },
+    (err) => {
+      assert.match(err.message, /COMPOSE_PROJECT_NAME=asc-scratch-1/);
+      assert.match(err.message, /'asc-chat'/);
+      assert.match(err.message, /pass composeProject/);
+      return true;
+    },
+  );
+  assert.equal(calls, null, 'construction never returned, so no deploy could have been called');
+  // The disagreement is symmetric: the PRODUCTION name in the variable with a
+  // scratch composeProject is still two intents, and still refused.
+  assert.throws(
+    () => deployHarness(t, { env: { ...env, COMPOSE_PROJECT_NAME: 'asc-chat' }, composeProject: 'asc-scratch-1' }),
+    /COMPOSE_PROJECT_NAME=asc-chat .* would target 'asc-scratch-1'/,
+  );
+});
+
+test('AS-88 makeDeployOps accepts an agreeing or empty COMPOSE_PROJECT_NAME', (t) => {
+  // AC-5: the refusal is not over-broad. Unset, '', whitespace (compose treats
+  // all three as unset — measured, plan §0.1) and an EQUAL value construct.
+  const base = { ADVANCE_DOCKER_BIN: '/fake/docker', PATH: '/bin', HOME: '/h', USER: 'u', LOGNAME: 'u' };
+  const cases = [
+    { env: base, composeProject: 'asc-chat' },
+    { env: { ...base, COMPOSE_PROJECT_NAME: '' }, composeProject: 'asc-chat' },
+    { env: { ...base, COMPOSE_PROJECT_NAME: '  ' }, composeProject: 'asc-chat' },
+    { env: { ...base, COMPOSE_PROJECT_NAME: 'asc-chat' }, composeProject: 'asc-chat' },
+    { env: { ...base, COMPOSE_PROJECT_NAME: 'asc-scratch-1' }, composeProject: 'asc-scratch-1' },
+  ];
+  assert.equal(cases.length, 5, 'five constructions examined');
+  for (const c of cases) {
+    const h = deployHarness(t, c);
+    assert.equal(h.ops.composeProject, c.composeProject, `constructs for ${JSON.stringify(c.env.COMPOSE_PROJECT_NAME)}`);
+  }
+});
+
+test('AS-88 makeDeployOps requires composeProject: no default, throws at construction', (t) => {
+  // AC-7. `over` spreads after the harness's own 'asc-test', so undefined here
+  // really does reach the factory as "not provided".
+  const shapes = [{ composeProject: undefined }, { composeProject: '' }, { composeProject: ' ' }, { composeProject: null }];
+  assert.equal(shapes.length, 4, 'four implicit shapes examined');
+  for (const over of shapes) {
+    assert.throws(() => deployHarness(t, over), /composeProject is required/, `throws for ${JSON.stringify(over)}`);
+  }
 });

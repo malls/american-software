@@ -25,7 +25,7 @@ import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { IMAGE_INPUTS, NOT_IMAGE_INPUTS, classifyImagePaths } from '../watch/advance-watcher.mjs';
+import { IMAGE_INPUTS, NOT_IMAGE_INPUTS, PRODUCTION_COMPOSE_PROJECT, classifyImagePaths } from '../watch/advance-watcher.mjs';
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const COMPOSE = readFileSync(join(APP_DIR, 'compose.yaml'), 'utf8');
@@ -265,6 +265,17 @@ test('deploy-shape: parser sees the manifests it is about to assert on', () => {
   assert.deepEqual([...SERVICES.keys()], ['server', 'cli', 'test']);
   assert.ok(mountsOf(SERVICES, 'server').length > 0, 'server declares volumes');
   assert.match(COMPOSE, /^name: asc-chat$/m);
+});
+
+test('deploy-shape: PRODUCTION_COMPOSE_PROJECT is the `name:` compose.yaml declares', () => {
+  // AS-88 AC-9. The watcher passes `-p PRODUCTION_COMPOSE_PROJECT` on every
+  // deploy; compose resolves `-p` above `name:`, so if the two ever disagreed
+  // the deploy would silently create a SECOND stack beside the live one rather
+  // than replace it. Parsed from the file, not from the regex above, so a
+  // renamed project fails here by value.
+  const m = /^name:[ \t]*(\S+)[ \t]*$/m.exec(COMPOSE);
+  assert.ok(m, 'compose.yaml declares a top-level name:');
+  assert.equal(m[1], PRODUCTION_COMPOSE_PROJECT);
 });
 
 test('deploy-shape: /api/file reaches every repo markdown path the app links', () => {
