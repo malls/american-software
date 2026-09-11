@@ -48,6 +48,7 @@ import {
   appendFileSync,
   statSync,
   readdirSync,
+  realpathSync,
   createWriteStream,
 } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
@@ -1565,6 +1566,13 @@ function defaultWriteState(path, body) {
   renameSync(path + '.tmp', path);
 }
 
+/** makeLanesOps's default root canonicaliser (AS-108). `.native` asks the OS
+ *  directly instead of Node's lstat-per-component walk. Throws (ENOENT etc.)
+ *  and the caller falls back to the path as given. */
+function defaultRealpath(p) {
+  return realpathSync.native(p);
+}
+
 /**
  * AS-95 — the loop's state machine, as a factory beside makeLockOps and
  * makeDeployOps rather than as inner functions of main().
@@ -1917,8 +1925,22 @@ export const OUTSIDE_REPO = '<outside repo>';
  *  add /tmp/throwaway`), and the absolute host path must NEVER reach the
  *  snapshot — the plan's T4 says so outright, and the payload flows straight to
  *  a browser through lane.worktree.relPath and lane.key. Such a row is marked
- *  instead, keeping only the basename so two outside worktrees stay distinct
- *  lanes (the key falls back to relPath when no task joins). */
+ *  instead: `<outside repo>/<basename>#<8 hex>`.
+ *
+ *  The suffix exists because the basename alone is not a key (AS-108 N2):
+ *  `/tmp/a/scratch` and `/tmp/b/scratch` collapsed to one relPath, and the
+ *  composer uses relPath as lane.key when no task joins, so two lanes became
+ *  one. It is the first 8 hex of sha256(path with trailing slashes stripped),
+ *  not an ordinal, so it is identical across polls — AS-100's liveness join
+ *  (and AS-103's) is keyed on it, and an ordinal would re-key every sibling
+ *  when one worktree is removed. It reveals no directory component, and it is
+ *  applied to every outside row, not only on collision: a key that depends on
+ *  which siblings exist is non-local. The bare root `/` has no basename and
+ *  only one such path exists, so it stays plain OUTSIDE_REPO.
+ *
+ *  `repoRoot` is expected to be canonical (makeLanesOps realpaths it once per
+ *  poll — N1): git prints canonical worktree paths, so a symlinked root that
+ *  is compared as given marks every row, main included, as outside. */
 export function relPathOf(repoRoot, path) {
   const root = String(repoRoot ?? '').replace(/\/+$/, '');
   const p = String(path ?? '');
@@ -1926,8 +1948,11 @@ export function relPathOf(repoRoot, path) {
   if (root && p.startsWith(root + '/')) return p.slice(root.length + 1);
   // Already relative (or empty): nothing to leak, leave it alone.
   if (!p.startsWith('/')) return p;
-  const base = p.replace(/\/+$/, '').split('/').pop();
-  return base ? `${OUTSIDE_REPO}/${base}` : OUTSIDE_REPO;
+  const stripped = p.replace(/\/+$/, '');
+  const base = stripped.split('/').pop();
+  if (!base) return OUTSIDE_REPO;
+  const digest = createHash('sha256').update(stripped).digest('hex').slice(0, 8);
+  return `${OUTSIDE_REPO}/${base}#${digest}`;
 }
 
 /** Porcelain v1 status lines -> { dirtyCount, dirtyLattice }. `dirtyLattice`
@@ -1982,8 +2007,33 @@ export function makeLanesOps({
   now = () => Date.now(),
   writeState = defaultWriteState,
   log = () => {},
+  realpath = defaultRealpath,
 }) {
   let lastWriteWarn = null;
+  let lastRealpathWarn = null;
+
+  /** The root git will print. `git worktree list` emits canonical paths, and a
+   *  repoRoot reached through a symlink (ADVANCE_REPO_ROOT=/link/repo, or a
+   *  checkout under a symlinked ~/Code) compared as given would mark EVERY row
+   *  as outside the repo (AS-108 N1). Resolved once per poll, not once per
+   *  construction: one lstat chain every 15 s is nothing, and a root re-linked
+   *  mid-run must not strand the view. A root that cannot be resolved (the
+   *  test harness's '/repo' fiction, or a vanished directory) is used as
+   *  given, with one WARN per distinct reason. */
+  function canonRoot() {
+    try {
+      const real = realpath(repoRoot);
+      lastRealpathWarn = null;
+      return real;
+    } catch (err) {
+      const key = `realpath:${err?.code ?? err?.message}`;
+      if (lastRealpathWarn !== key) {
+        lastRealpathWarn = key;
+        log(`WARN cannot realpath ${repoRoot} (${err?.message}); lanes use the path as given`);
+      }
+      return repoRoot;
+    }
+  }
 
   function persist(body) {
     try {
@@ -2010,6 +2060,9 @@ export function makeLanesOps({
     const generatedAt = new Date(now()).toISOString();
     const base = { schema: 1, source: 'watcher:git', generatedAt };
     try {
+      // Canonical root for the relPath compare below; git's cwd stays repoRoot
+      // (git resolves either).
+      const root = canonRoot();
       const list = git(['worktree', 'list', '--porcelain'], repoRoot);
       if (list.code !== 0) {
         const error = list.code === -1 ? 'no-git' : `worktree-list-failed: ${firstLine(list.stderr) || `exit ${list.code}`}`;
@@ -2029,7 +2082,7 @@ export function makeLanesOps({
       const worktrees = [];
       for (const row of parseWorktreeList(list.stdout)) {
         const out = {
-          relPath: relPathOf(repoRoot, row.path),
+          relPath: relPathOf(root, row.path),
           main: row.main,
           head: row.head,
           branch: row.branch,

@@ -515,11 +515,17 @@ the lane still renders, with the branch or path in the task slot. Tasks in
 `in_planning`/`planned`/`in_progress`/`review` with no worktree are lanes too
 (`'task-only'`, git fields read "not cut yet", never `0`/`clean`).
 
-**Paths.** `relPath` is relative to the repo root; the absolute host path is
-never written into the snapshot. A worktree that lives *outside* the root
-(`git worktree add /tmp/throwaway` is legal) is reported as
-`<outside repo>/<basename>` — a marker no real repo-relative path can collide
-with, keeping the basename so two such worktrees remain distinct lanes.
+**Paths.** `relPath` is relative to the repo root, which the watcher resolves
+through `realpath` once per poll (git prints canonical worktree paths, so a
+root reached through a symlink would otherwise mark every row as outside the
+repo — AS-108); the absolute host path is never written into the snapshot. A
+worktree that lives *outside* the root (`git worktree add /tmp/throwaway` is
+legal) is reported as `<outside repo>/<basename>#<8 hex>` — e.g.
+`<outside repo>/scratch#3f9a1c07` — a marker no real repo-relative path can
+collide with. The suffix is the first 8 hex of `sha256` of the host path, so
+two outside worktrees sharing a basename stay distinct lanes, the key is stable
+across polls (the liveness join depends on that), and no directory component
+leaks. The bare root `/` is reported as plain `<outside repo>`.
 
 **Two ways to read an empty pane, and they never look alike.** `Lanes · 0` with
 "No lanes in flight." is a measurement: git answered and nothing was in flight.
