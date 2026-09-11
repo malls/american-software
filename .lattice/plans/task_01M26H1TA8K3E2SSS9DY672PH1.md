@@ -531,3 +531,88 @@ description's enum, and I did it because the alternative was a recorded lie.
 **Correction to T2, applied:** the plan describes the sweep's orphan-tick case as "an open `tick_started` with no `tick_ended`", but the merged fold carries no `open` flag on the tick — `foldEvent` sets `state.tick` on `tick_started` and clears it to `null` on `tick_ended`, so non-null *is* open. The first implementation tested `open.tick.open` and silently never closed an orphaned tick; `watcher-events-sweep-closes-open-tick-as-error` caught it. While fixing it, the hand-rolled tick-scope scan was replaced by the fold's own `tick.lanesTouched` / `tick.stagesStarted`, so `tick_ended.lanesTouched` cannot drift from the projection the server serves.
 
 **Test-id hygiene, fixed on the branch:** AC-6's id `watcher-events-outcome-timeout` was already claimed by cycle 1 in `test/events.test.js` (it covers `tickOutcome` and `stageCloseOutcome` together, both pure core). Cycle 2 briefly declared a second test under the same name; two tests sharing one id makes a mutant's red set ambiguous about which guard fired. The duplicate was removed and its one extra case folded into the cycle-1 test. Rule for the rest of this task: one id names exactly one test.
+
+## Implementation notes — cycle 3 (developer-lena, 2026-09-11T06:21Z; stopped by the tick clock, tree clean)
+
+**Done (commits 0de28a7, 1411753):** the `server.js` half of T6 row 2 — `EVENTS_PATH`
+(`CHAT_EVENTS_PATH` override, else `<loopDir>/events/company.jsonl`), exported
+`EVENTS_POLL_MS = 2_000` with an injectable `eventsPollMs`, the byte-offset tail
+(`{offset, partial, fold, reason, lastId, lastTs, malformed}` + `tailEvents()`), the
+`eventsPoll` interval pushing one `company` frame per newly-appended event in file order,
+`GET /api/events?since=&task=&limit=` served from a fresh `readStream()` read rather than the
+tail, `readLanes()` passing `liveness` (from the tail's fold) and `tickLive` (from
+`readLoopStatus().tick !== null`) plus the `events` stream object, the `lanesKey` restructure
+cycle 1 recorded as required, and `clearInterval(eventsPoll)` in `close()`. Then **AC-11 and
+AC-12** in `test/api.test.js`: `loopFixture` gains `eventsBody` (planted at
+`<dataDir>/events/company.jsonl`, same "an omitted key deletes its file" rule as the other
+five) and `eventLines()` (built through `makeEvent`, so a fixture can never plant a shape the
+producer could not emit), plus `api-events-since-exclusive`, `api-events-key-whitelist` and
+the `EVENTS_POLL_MS` production-value pin.
+
+**Host run: 453 → 456, 0 failing (host `node --test`; the compose `--build` receipt is still
+owed and no count here is a compose count). 3 mutants, 3 red, 0 survivors** — drivers and
+the intended-site assertions in `scratchpad/developer-lena/` (`mutants-row2.sh` is the
+written battery; the harness refused to execute a shell script in this tick, so each mutant
+was driven line by line through `node -e`, which is also what produced the line numbers
+below):
+
+| # | Mutation | Site asserted | Red set |
+|---|---|---|---|
+| M-A | `since` becomes inclusive (`slice(at)`) | `server.js:460`, the one slice in `readEvents` | exactly `{api-events-since-exclusive}` |
+| M-B | `/api/events` stops projecting (raw lines to the reader) | `server.js:477` | exactly `{api-events-key-whitelist}` |
+| M-C | the fold's fallback match goes back to comparing `open.task` | `lib/events.js:314`, inside `matches()` | exactly `{api-events-since-exclusive}` |
+
+**A real defect, found by the new guard (M-C is its regression lock).** `matches()` in
+`lib/events.js` — my own cycle-1 code — fell back to `open.task === ev.data?.task` when a
+close event carries no `startedId`/`spawnedId`. The fold never stores `task` on the stage or
+sub record (the lane is keyed by it), so that comparison was `undefined === 'AS-7'` and the
+**entire fallback branch was unreachable**: a `stage_ended` or `subagent_exited` emitted by
+hand through the CLI never closed its lane, the stage stayed "open" until the sweep cut it as
+`cut_by_timeout`, and the board would have read a finished stage as a timed-out one. Fixed in
+1411753 by comparing `stage` and `actor` only. Worth recording for the reviewer: the whole of
+cycle 1's `test/events.test.js` stays **green** under M-C, so that branch had no coverage at
+all until an integration test planted a close event the way the CLI actually emits one. The
+watcher's own `makeEventsOps` always passes the ids, which is why nothing caught it earlier.
+
+**What this means for the gate: AC-11 and AC-12 are met (falsifiers observed). AC-13, AC-14
+and AC-17 are NOT.** Their mechanisms are on the branch and nothing has broken them; under M4
+that is documentation, not a guarantee, and a reviewer should read it that way.
+
+**Remaining, in order:**
+1. `test/stream.test.js` — AC-13 (change-only, in order, `eventsPollMs` injected small),
+   AC-14 (truncate to 0, one further frame, `reason: 'truncated'`, cleared on the next
+   append), AC-17 (a stage change earns a `lanes` frame, ten elapsed-only polls do not).
+   Mutants: `stream-company-change-only`, `stream-company-truncation`,
+   `stream-lanes-liveness-change-only`.
+2. `public/lanes.js` / `public/app.js` words (AC-18, mutant `lanes-label-stale-open-not-running`)
+   and the `apps/chat/README.md` "Company events (AS-100)" section.
+
+**Decisions taken where T4 was silent, all boring, all reversible:**
+- **`partial` is a Buffer, not a string.** A multi-byte character split across two reads
+  would decode to replacement characters and corrupt a line that was never malformed.
+- **An unknown `since` returns zero events, not all of them.** T4 says `since` is exclusive
+  by id but not what an id absent from the file means; replaying the whole log is how a
+  client renders the same hour twice. The plan's own M6 probe ("a nonsense id and a Lattice
+  `ev_` id → empty result, 200") reads as confirmation of this choice.
+- **The tail is primed at construction and pushes no frame for it** — the same priming the
+  loop and lanes polls do, for the same reason: events already in the file when the process
+  booted are history, and `/api/events` is the catch-up door.
+- **`truncated` survives the poll that detects it** and clears on the next poll that reads a
+  new line, which is what AC-14's "the next append clears the reason" requires when the
+  truncate and the first re-append land inside one poll window.
+- **`/api/events` reads the file, the SSE frames come from the tail.** Two readers of one
+  file by design: the tail is a push cursor over arrivals, the HTTP door answers "what
+  happened before I connected", and serving the latter from the former would make a
+  restarted server claim the log was empty.
+- **Change-only for `company` is by construction, not by key comparison.** An append-only
+  file has no "current" to diff; whatever the tail read since the last poll is new by
+  definition. AC-13's mutant (re-emit the last event each poll) is still the right falsifier.
+- **`lanesKey`'s lane reduction is conservative:** `key`, `task` and `worktree` are carried
+  through whole (they were already inside the wholesale `p.lanes` serialisation AS-99 keyed
+  on, so nothing that earned a frame before stops earning one), and only the three liveness
+  fields named in T4 are added. `subAgent.elapsedS` is the one field deliberately excluded.
+
+**Merge seam:** `server.js`, `lib/events.js`, and `test/api.test.js` in exactly three places —
+the import line at the top, `loopFixture` (~line 1250), and three new tests appended at the
+end of the file. AS-72's AS-25 timer-regex region (~line 657) is untouched, and the remaining
+work belongs in `test/stream.test.js` and `public/`, so it stays untouched.
