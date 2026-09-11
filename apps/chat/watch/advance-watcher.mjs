@@ -961,6 +961,13 @@ export function makeDeployOps({
   // mid-crash-loop retried the same failing build at once.
   let lastAttempt = hydrateAttempt(readState(statePath)?.lastAttempt);
   let lastDecision = null; // AS-95: the last evaluate() decision, for pendingDeploy()
+  // AS-102: the evaluation in flight, or null. evaluate() has a second caller
+  // now (the tick's settle(), beside the interval), and `deploying` alone does
+  // not serialize them: it is set inside performDeploy, two awaits past entry,
+  // so two evaluations could both probe, both decide `deploy`, and race for the
+  // lock. Named `evaluating` rather than the plan's `inflight` because that name
+  // is already the AS-87 heartbeat's state-fields record above.
+  let evaluating = null;
   let lastWarn = null;
   // AS-84: the in-flight compose child and the promise that resolves when the
   // performDeploy guarding it has fully settled (lock released, attempt
@@ -1255,7 +1262,7 @@ export function makeDeployOps({
    * false (reason is neither 'busy' nor 'stale-build') and a broken poll cannot
    * make the AS-95 loop wait forever.
    */
-  async function evaluate(opts = {}) {
+  async function evaluateGuarded(opts) {
     try {
       return await evaluateInner(opts);
     } catch (err) {
@@ -1265,6 +1272,32 @@ export function makeDeployOps({
       persist({ reason: 'error', desiredReason: 'error' });
       return decision;
     }
+  }
+
+  /**
+   * AS-102: at most one evaluation per instance at a time — a property, not an
+   * interval-spacing accident. A call that arrives while one is in flight JOINS
+   * it (returns the same promise; the first caller's `busy` wins) rather than
+   * starting a second probe-and-decide. Cleared in `finally`, so it releases on
+   * resolve and on throw alike — evaluateGuarded never rejects, but the guard
+   * does not depend on that.
+   *
+   * The `deploying` check comes FIRST and is load-bearing, not a belt: the
+   * evaluation that decided `deploy` stays in flight for the whole build, and a
+   * poll that merely joined it would never reach evaluateInner's heartbeat
+   * branch — AS-87's deploy-state.json rewrite during a build would stop, and
+   * the sidebar would read a live build as a crashed watcher again. From the
+   * moment an evaluation resumes past its probe, decide -> performDeploy ->
+   * `deploying = true` is one synchronous run, so there is no gap in which a
+   * call can pass this check and then race the build for the lock.
+   */
+  function evaluate(opts = {}) {
+    if (deploying) return evaluateGuarded(opts);
+    if (evaluating !== null) return evaluating;
+    evaluating = evaluateGuarded(opts).finally(() => {
+      evaluating = null;
+    });
+    return evaluating;
   }
 
   return {
@@ -2533,6 +2566,14 @@ export function makeWatcher({
       // has exited, so anything still open belongs to a tick that is over.
       eventsOps.tickEnded({ code, signal, timedOut, headBefore, headAfter });
       loopOps.settle({ code, signal, timedOut, headBefore, headAfter });
+      // AS-102: re-decide the deploy question NOW rather than at the next
+      // interval poll. Every poll that overlapped this tick recorded `busy`, and
+      // pendingDeploy() reads that record until something overwrites it — so a
+      // loop tick used to LOOP-WAIT for up to a whole deployPollS (60 s) with
+      // nothing to deploy. After releaseLock() (our lock must not read as busy)
+      // and via deployPoll(), so the F6 catch still stands between a rejection
+      // and the process. Not awaited: settle() stays synchronous for AS-84.
+      void deployPoll();
       // AS-84, last: a shutdown waiting on this tick may exit the process the
       // moment this resolves, so everything above must already have happened.
       if (settled === thisSettled) settled = null;

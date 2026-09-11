@@ -1056,6 +1056,115 @@ test('AS-95 makeDeployOps: pendingDeploy() answers "a rebuild is owed and can ru
   assert.equal(noDocker.ops.pendingDeploy(), false, 'unresolvable docker never makes the loop wait');
 });
 
+// AS-102 — evaluate() has a second caller now (the tick's settle(), beside the
+// interval), so "at most one evaluation at a time" has to be a property the
+// ops hold rather than a spacing accident of one setInterval.
+
+/** A deployHarness whose probe is gated: evaluate() parks at probeRunning()
+ *  until the test releases it, and every probe is counted. */
+function gatedProbeHarness(t, over = {}) {
+  const gate = { release: null, probes: 0 };
+  const h = deployHarness(t, {
+    fetchJson: async () => {
+      gate.probes += 1;
+      await new Promise((ok) => { gate.release = ok; });
+      return h.state.runningId === null ? null : { build: { id: h.state.runningId } };
+    },
+    ...over,
+  });
+  return { h, gate, settle: () => new Promise((ok) => setImmediate(ok)) };
+}
+
+test('AS-102 makeDeployOps: concurrent evaluate() calls coalesce — the second returns the first\'s promise and evaluateInner runs once', async (t) => {
+  const { h, gate, settle } = gatedProbeHarness(t);
+  h.state.runningId = h.ops.computeDesired().desired.id; // nothing owed: the decision will be 'current'
+
+  const first = h.ops.evaluate({ busy: true });
+  const second = h.ops.evaluate({ busy: false });
+  assert.equal(second, first, 'the joiner gets the SAME promise, not a second evaluation');
+  assert.equal(gate.probes, 1, 'one probe for two calls');
+
+  gate.release();
+  const [a, b] = await Promise.all([first, second]);
+  assert.deepEqual(a, { action: 'noop', reason: 'busy' }, "the first caller's busy:true won");
+  assert.deepEqual(b, a);
+  await settle();
+  assert.equal(gate.probes, 1, 'still one probe after both resolved');
+});
+
+test('AS-102 makeDeployOps: after the in-flight evaluation resolves, the next evaluate() runs fresh (inflight is cleared on resolve AND on throw)', async (t) => {
+  // On resolve.
+  const { h, gate } = gatedProbeHarness(t);
+  h.state.runningId = h.ops.computeDesired().desired.id;
+  const first = h.ops.evaluate({});
+  gate.release();
+  await first;
+  const next = h.ops.evaluate({});
+  assert.notEqual(next, first, 'a new promise: the guard released');
+  assert.equal(gate.probes, 2, 'a second probe ran');
+  gate.release();
+  assert.equal((await next).reason, 'current');
+
+  // On throw. evaluate() turns a throwing collaborator into {noop, error}
+  // (AS-84) — the guard must release on that path too, or one broken poll
+  // would pin every later one to a stale error decision.
+  let boom = true;
+  const g = deployHarness(t, {
+    fetchJson: async () => {
+      if (boom) throw new Error('probe exploded');
+      return { build: { id: g.state.runningId } };
+    },
+  });
+  g.state.runningId = g.ops.computeDesired().desired.id;
+  const errored = await g.ops.evaluate({});
+  assert.equal(errored.reason, 'error');
+  boom = false;
+  const recovered = await g.ops.evaluate({});
+  assert.equal(recovered.reason, 'current', 'the evaluation after a throw is a fresh one');
+});
+
+test('AS-102 makeDeployOps: a coalesced call cannot start a second performDeploy — one build, one lock take, one running-id re-probe', async (t) => {
+  // Two callers arrive while the first is still probing, and the container is
+  // stale, so the decision is 'deploy'. Before the guard both could pass the
+  // `deploying` check (it is set inside performDeploy, two awaits past entry),
+  // both decide deploy, and race for the lock.
+  let takes = 0;
+  const dir = mkdtempSync(join(tmpdir(), 'chat-as102-lock-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const lockPath = join(dir, 'advance.lock');
+  const realLock = makeLockOps({ lockPath, staleMs: 60_000, log: () => {}, pid: 4242, isPidAlive: () => true, source: 'deploy' });
+  const lockOps = { ...realLock, acquireLock: (nonce) => { takes += 1; return realLock.acquireLock(nonce); } };
+  const { h, gate } = gatedProbeHarness(t, { lockOps, lockPath });
+
+  const first = h.ops.evaluate({});
+  const second = h.ops.evaluate({});
+  assert.equal(second, first);
+  gate.release(); // the initial probe
+  // performDeploy's reprobe() probes again after the build and parks at the
+  // gate too (reprobeAttempts is 2; the first attempt succeeds). Release it.
+  while (gate.probes < 2) await new Promise((ok) => setImmediate(ok));
+  gate.release();
+  const decision = await first;
+  assert.equal(decision.action, 'deploy');
+  assert.equal(h.calls.deploy.length, 1, 'ONE build');
+  assert.equal(takes, 1, 'ONE deploy-source lock take');
+  assert.equal(gate.probes, 2, 'one pre-decision probe plus one re-probe — a second evaluation would have added two more');
+  assert.equal(existsSync(lockPath), false, 'and the lock was given back');
+});
+
+test('AS-102 makeDeployOps: evaluate({busy:false}) after a \'busy\' record overwrites lastDecision, so pendingDeploy() reads false when nothing is owed', async (t) => {
+  // The symptom: every poll that overlapped a tick recorded 'busy', and nothing
+  // re-decided until the next interval. settle() now calls evaluate again with
+  // busy:false; this is the half that makes that call worth making.
+  const h = deployHarness(t);
+  h.state.runningId = h.ops.computeDesired().desired.id; // the running build IS master
+  assert.deepEqual(await h.ops.evaluate({ busy: true }), { action: 'noop', reason: 'busy' });
+  assert.equal(h.ops.pendingDeploy(), true, 'the record says busy');
+  assert.deepEqual(await h.ops.evaluate({ busy: false }), { action: 'noop', reason: 'current' });
+  assert.equal(h.ops.pendingDeploy(), false, 'one honest evaluation clears it');
+  assert.equal(h.calls.deploy.length, 0, 'nothing was owed, nothing was built');
+});
+
 test('AS-75 makeDeployOps: a stale container is rebuilt with the right env, and success means the RUNNING id changed', async (t) => {
   const h = deployHarness(t);
   const decision = await h.ops.evaluate({ busy: false });

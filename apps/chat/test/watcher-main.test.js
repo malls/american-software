@@ -29,6 +29,9 @@ import {
   tickChildEnv,
   readBoard,
   PRODUCTION_COMPOSE_PROJECT,
+  makeDeployOps,
+  IMAGE_INPUTS,
+  DEFAULTS,
 } from '../watch/advance-watcher.mjs';
 import { readStream, openItems } from '../lib/events.js';
 
@@ -120,6 +123,10 @@ function watcherHarness(t, over = {}) {
     return proc;
   };
 
+  // AS-102: `over.deployOps` may be a function of the harness paths, so a test
+  // can inject REAL makeDeployOps over the same lock file the watcher uses —
+  // the settle-time evaluation's `lockIsBusy` half is only honest against that.
+  const deployOver = typeof over.deployOps === 'function' ? over.deployOps({ paths, log, now, dir }) : over.deployOps;
   const deployOps = {
     evaluate: async () => ({ action: 'noop', reason: 'test' }),
     abort: async () => {}, // AS-84: shutdown() calls this whenever a deploy is in flight
@@ -131,7 +138,7 @@ function watcherHarness(t, over = {}) {
     gitBin: 'git',
     baselineDigest: null,
     lastAttempt: () => null,
-    ...over.deployOps,
+    ...deployOver,
   };
   const lanesOps = { evaluate: async () => {}, gitBin: 'git', statePath: paths.worktrees };
 
@@ -623,6 +630,200 @@ test('AS-84 makeWatcher: deployPoll() survives a rejecting evaluate — no unhan
   await new Promise((ok) => setImmediate(ok)); // an unhandled rejection is reported a turn later
   assert.deepEqual(unhandled, [], 'the rejection was handled');
   assert.equal(h.logged(/^ERROR deploy poll rejected: boom$/).length, 1);
+});
+
+// AS-102 — a loop tick used to LOOP-WAIT for up to a whole deployPollS after
+// settling, because every deploy poll that overlapped the tick recorded 'busy'
+// and nothing re-decided until the next interval. settle() now runs one
+// evaluation itself. These four drive the WIRING: the real makeDeployOps over
+// the harness's own lock file, the real loop ops over a seeded board.
+
+/** One mid-lifecycle task, so shouldContinue() says continue after a tick. */
+function seedBoard(dir) {
+  const tasksDir = join(dir, '.lattice', 'tasks');
+  mkdirSync(tasksDir, { recursive: true });
+  writeFileSync(join(tasksDir, 'task_1.json'), JSON.stringify({ id: 'task_1', short_id: 'AS-1', title: 'x', status: 'in_progress' }));
+}
+
+/** Real makeDeployOps with every host collaborator injected (the deployHarness
+ *  pattern in watcher.test.js), over the WATCHER's lock and state paths. */
+function realDeployOps({ paths, log, now, dir }, state) {
+  const lsTree = IMAGE_INPUTS.map((p, i) => `100644 blob ${String(i % 10).repeat(40)}\tapps/chat/${p}`).join('\n');
+  return makeDeployOps({
+    repoRoot: dir,
+    appDir: join(dir, 'apps', 'chat'),
+    watchDir: join(dir, 'apps', 'chat', 'watch'),
+    logsDir: join(dir, 'apps', 'chat', 'data', 'logs'),
+    statePath: paths.deployState,
+    lockPath: paths.lock,
+    lockStaleMs: DEFAULTS.lockStaleMin * 60 * 1000,
+    cooldownMs: DEFAULTS.deployCooldownMin * 60 * 1000,
+    deployTimeoutMs: DEFAULTS.deployTimeoutMin * 60 * 1000,
+    retentionMs: 14 * 24 * 60 * 60 * 1000,
+    log,
+    now,
+    env: { ADVANCE_DOCKER_BIN: '/fake/docker', PATH: '/bin', HOME: '/h', USER: 'u', LOGNAME: 'u' },
+    exists: (p) => p === '/fake/docker' || p === '/usr/bin/git',
+    run: (bin, args) => (args[0] === 'ls-tree' ? { code: 0, stdout: lsTree, stderr: '' } : { code: 0, stdout: '', stderr: '' }),
+    fetchJson: async () => {
+      state.probes += 1;
+      return state.runningId === null ? null : { build: { id: state.runningId } };
+    },
+    deploy:
+      state.deploy ??
+      (async (opts) => {
+        state.runningId = opts.env.CHAT_BUILD_ID;
+        return { code: 0, signal: null, timedOut: false };
+      }),
+    readSources: () => [{ name: 'advance-watcher.mjs', content: 'v1' }],
+    exit: () => {},
+    sleep: async () => {},
+    reprobeAttempts: 2,
+    reprobeDelayMs: 0,
+    pid: WATCHER_PID,
+    isPidAlive: () => true,
+    composeProject: 'asc-test',
+  });
+}
+
+const turn = () => new Promise((ok) => setImmediate(ok));
+
+test('AS-102 makeWatcher: settle() triggers exactly one deploy evaluation with busy:false, after loopOps.settle and before the settled promise resolves', async (t) => {
+  const seen = [];
+  const h = watcherHarness(t, {
+    deployOps: {
+      evaluate: async (opts) => {
+        const rec = { opts, lockPresent: existsSync(h.paths.lock), loopFolded: h.loopState()?.lastTick != null, exitAt: {} };
+        seen.push(rec);
+        // "Before settled resolves" is a microtask-order fact: a shutdown that
+        // is waiting on `settled` reaches finish() -> exit(0) three microtask
+        // turns after resolveSettled(). An evaluation STARTED before that
+        // resolve sees exit still unrun on its own third turn; one started
+        // after it does not. The fourth turn pins the chain length itself, so
+        // a Node that changed Promise internals fails here loudly rather than
+        // letting the third-turn assertion go vacuous.
+        for (let i = 1; i <= 4; i++) {
+          await null;
+          rec.exitAt[i] = h.calls.exit.length;
+        }
+        return { action: 'noop', reason: 'current' };
+      },
+    },
+  });
+  h.start();
+  const child = driveFire(h, 5);
+  assert.equal(seen.length, 0, 'nothing evaluated at fire time');
+
+  const done = h.stop(); // shutdown waits on settled
+  child.emit('exit', 0, null);
+  await assert.rejects(done, ExitSignal);
+
+  assert.equal(seen.length, 1, 'exactly one evaluation');
+  assert.deepEqual(seen[0].opts, { busy: false }, 'our own tick is over: not busy');
+  assert.equal(seen[0].lockPresent, false, 'after releaseLock(): our lock must not read as a foreign busy');
+  assert.equal(seen[0].loopFolded, true, 'after loopOps.settle(): the loop mirror already carries this tick');
+  assert.equal(seen[0].exitAt[3], 0, 'started BEFORE resolveSettled(): the shutdown chain has not reached exit on our third turn');
+  assert.equal(seen[0].exitAt[4], 1, 'chain-length pin: exit ran on the fourth turn');
+  assert.equal(h.logged(/^ERROR deploy poll/).length, 0);
+});
+
+test('AS-102 makeWatcher: a loop tick whose deploy record is \'busy\' does not LOOP-WAIT after settle — the next poll fires the loop tick without a deploy-interval tick elapsing', async (t) => {
+  const state = { runningId: null, probes: 0 };
+  let ops;
+  const h = watcherHarness(t, { deployOps: (ctx) => (ops = realDeployOps(ctx, state)) });
+  seedBoard(h.dir);
+  state.runningId = ops.computeDesired().desired.id; // the running build IS master: nothing owed
+  h.start();
+  const child = driveFire(h, 5);
+
+  // The interval poll that overlaps the tick (deployPollS is an hour here, so
+  // this is the only one): it records 'busy', exactly as on the host.
+  assert.equal((await h.watcher.deployPoll()).reason, 'busy');
+  assert.equal(ops.pendingDeploy(), true, 'the record says a rebuild may be owed');
+  const probesBefore = state.probes;
+
+  child.emit('exit', 0, null);
+  await turn(); // the settle-time evaluation's probe resolves
+  assert.equal(state.probes, probesBefore + 1, 'settle ran ONE evaluation');
+  assert.equal(ops.pendingDeploy(), false, 'and it overwrote the busy record with the truth');
+  assert.equal(h.logged(/^LOOP-EVAL .* -> continue$/).length, 1, 'the loop owes a tick');
+
+  h.watcher.poll(); // the next 5 s poll — no deploy interval has elapsed
+  assert.equal(h.logged(/^LOOP-WAIT deploy pending$/).length, 0, 'no yield for a rebuild that is not owed');
+  assert.equal(h.logged(/^LOOP-FIRE tick 2$/).length, 1);
+  assert.equal(h.calls.spawn.length, 2, 'the loop tick spawned');
+});
+
+test('AS-102 makeWatcher: a settle-triggered evaluation that rejects is caught by deployPoll — one ERROR line, process alive, settled still resolves', async (t) => {
+  const h = watcherHarness(t, {
+    deployOps: { evaluate: async () => { throw new Error('boom'); } },
+  });
+  h.start();
+  const child = driveFire(h, 5);
+
+  const unhandled = [];
+  const sentinel = (err) => unhandled.push(err);
+  process.on('unhandledRejection', sentinel);
+  t.after(() => process.removeListener('unhandledRejection', sentinel));
+
+  const done = h.stop(); // waits on settled — proves settle() completed despite the rejection
+  child.emit('exit', 0, null);
+  await assert.rejects(done, ExitSignal);
+  await turn(); // an unhandled rejection is reported a turn later
+
+  assert.deepEqual(unhandled, [], 'the rejection was handled');
+  assert.equal(h.logged(/^ERROR deploy poll rejected: boom$/).length, 1);
+  assert.deepEqual(h.calls.exit, [0], 'exited on the settle path');
+  assert.equal(h.logged(/^STOP grace expired/).length, 0, 'not on the grace timer');
+});
+
+test('AS-102 makeWatcher: settle\'s evaluation still yields when a rebuild is genuinely owed — stale-build record => LOOP-WAIT, and the loop fires only after the deploy resolves it', async (t) => {
+  let releaseBuild;
+  const gate = new Promise((ok) => { releaseBuild = ok; });
+  let buildStarted;
+  const started = new Promise((ok) => { buildStarted = ok; });
+  const state = {
+    runningId: 'oldoldoldoldoldo', // stale: master's image inputs differ
+    probes: 0,
+    deploy: async (opts) => {
+      buildStarted();
+      await gate;
+      state.runningId = opts.env.CHAT_BUILD_ID;
+      return { code: 0, signal: null, timedOut: false };
+    },
+  };
+  let ops;
+  const h = watcherHarness(t, { deployOps: (ctx) => (ops = realDeployOps(ctx, state)) });
+  seedBoard(h.dir);
+  h.start();
+  const child = driveFire(h, 5);
+  assert.equal((await h.watcher.deployPoll()).reason, 'busy');
+
+  child.emit('exit', 0, null); // settle's evaluation decides 'deploy' and starts the build
+  await started;
+  assert.equal(ops.isDeploying(), true);
+  h.watcher.poll();
+  // While the build runs poll() returns at the AS-75 isDeploying() gate — the
+  // server is restarting — so there is no LOOP-WAIT line yet, and no fire.
+  assert.equal(h.logged(/^LOOP-FIRE/).length, 0, 'no fire under a rebuild');
+  assert.equal(h.calls.spawn.length, 1);
+
+  releaseBuild();
+  while (ops.isDeploying()) await turn();
+  await turn();
+  // The record is now the deploy decision itself ('stale-build'): still owed
+  // until an evaluation confirms the running id — same as the interval path.
+  assert.equal(ops.pendingDeploy(), true, 'a deploy decision is not yet a confirmed current build');
+  h.watcher.poll();
+  assert.equal(h.logged(/^LOOP-WAIT deploy pending$/).length, 1, 'yields on the stale-build record');
+  assert.equal(h.logged(/^LOOP-FIRE/).length, 0, 'still yielding');
+  assert.equal(h.calls.spawn.length, 1);
+
+  assert.equal((await h.watcher.deployPoll()).reason, 'current', 'the deploy resolved it');
+  assert.equal(ops.pendingDeploy(), false);
+  h.watcher.poll();
+  assert.equal(h.logged(/^LOOP-FIRE tick 2$/).length, 1);
+  assert.equal(h.calls.spawn.length, 2, 'the loop tick fired after, not during, the rebuild');
 });
 
 test('AS-82 makeWatcher: a spawn error settles the tick and frees the lock', (t) => {

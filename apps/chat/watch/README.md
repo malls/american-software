@@ -109,7 +109,11 @@ schedulers that disagree.
 
 The loop yields to a pending rebuild (`LOOP-WAIT deploy pending`) so tick N+1
 runs against tick N's merged code. If docker is unresolvable a rebuild can
-never happen, so the loop does **not** wait — it would wait forever.
+never happen, so the loop does **not** wait — it would wait forever. A tick's
+settle runs one deploy evaluation itself (AS-102), so the between-tick yield
+costs one evaluation — two git calls and one probe — rather than one deploy
+poll interval: every poll that overlapped the tick recorded `busy`, and without
+that evaluation the record stood until the next `ADVANCE_DEPLOY_POLL_S`.
 
 ### Across a watcher restart
 
