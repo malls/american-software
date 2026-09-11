@@ -952,9 +952,9 @@ function laneField(label, value, className) {
   return row;
 }
 
-function laneCard(lane, nowMs) {
+function laneCard(lane, nowMs, eventsReason = 'ok') {
   const card = el('div', 'lane-card');
-  const c = describeLane(lane, nowMs);
+  const c = describeLane(lane, nowMs, eventsReason);
 
   const head = el('header', 'lane-head');
   if (c.shortId) {
@@ -988,9 +988,12 @@ function laneCard(lane, nowMs) {
   if (c.errorsText) card.appendChild(laneField('git', c.errorsText, 'lane-errors'));
 
   // The two AS-100 slots: always rendered, never omitted, never styled as an
-  // error. Absence has to read as "not built yet", not "forgotten".
-  card.appendChild(laneField('Stage timer', c.stageTimer, 'lane-placeholder'));
-  card.appendChild(laneField('Sub-agent', c.subAgent, 'lane-placeholder'));
+  // error. The tone class is the only styling difference — `alert` is the
+  // stale-open / cut / unclosed family, which the board should be able to find
+  // without reading every card; `none` keeps AS-99's placeholder tone.
+  const liveClass = c.liveTone === 'none' ? 'lane-placeholder' : `lane-live lane-live--${c.liveTone}`;
+  card.appendChild(laneField('Stage timer', c.stageTimer, liveClass));
+  card.appendChild(laneField('Sub-agent', c.subAgent, liveClass));
 
   // AS-103's transient line: the element and its three states ship here with
   // NO PRODUCER. Blank until a frame arrives, and blank again after a reload —
@@ -1014,6 +1017,9 @@ function renderLanes() {
   tickLine.appendChild(el('span', 'lanes-tick-caption', tick.caption));
   nodes.push(tickLine);
   nodes.push(el('div', `lanes-caption${view.stale ? ' lanes-caption--stale' : ''}`, view.caption));
+  // AS-100: the event stream's own caption, separate from the snapshot's,
+  // because either input can be degraded while the other is healthy.
+  if (view.eventsCaption) nodes.push(el('div', 'lanes-caption lanes-caption--stale', view.eventsCaption));
 
   if (view.lanes.length === 0) {
     // The sentence comes from the label module, keyed off the snapshot REASON.
@@ -1023,7 +1029,7 @@ function renderLanes() {
     nodes.push(el('div', 'lanes-empty', view.emptyText));
   } else {
     const list = el('div', 'lane-list');
-    for (const lane of view.lanes) list.appendChild(laneCard(lane, nowMs));
+    for (const lane of view.lanes) list.appendChild(laneCard(lane, nowMs, view.eventsReason));
     nodes.push(list);
   }
   body.replaceChildren(...nodes);

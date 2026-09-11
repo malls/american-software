@@ -8,6 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { composeLanes, LANES_REASON_CODES, LANES_STALE_MS } from '../lib/lanes.js';
+import { EVENTS_REASON_CODES, STAGE_OUTCOMES, SUBAGENT_EXITS } from '../lib/events.js';
 import {
   describeLanes,
   describeLane,
@@ -18,6 +19,12 @@ import {
   EMPTY_STATES,
   EMPTY_STATE_CODES,
   ACTIVITY_DECAY_MS,
+  EVENTS_REASONS,
+  EVENTS_REASON_CODE_LIST,
+  STAGE_OUTCOME_WORDS,
+  STAGE_OUTCOME_CODES,
+  SUBAGENT_EXIT_WORDS,
+  SUBAGENT_EXIT_CODES,
 } from '../public/lanes.js';
 
 const NOW = Date.parse('2026-09-11T04:00:00.000Z');
@@ -160,8 +167,10 @@ test('lanes-label-task-only-not-cut-yet: a lane with no branch never reads 0 or 
   assert.ok(!Object.values(card).includes('clean'), 'nothing about an uncut lane reads clean');
   assert.equal(card.stage, 'in_planning');
   assert.equal(card.employee, 'agent:cto-owen');
-  assert.equal(card.stageTimer, 'no live signal yet');
-  assert.equal(card.subAgent, 'no live signal yet');
+  // AS-100 AC-18 replaced AS-99's shared placeholder: with a readable stream
+  // and no stage events for this lane, the slot says which of the two it is.
+  assert.equal(card.stageTimer, 'no stage events yet');
+  assert.equal(card.subAgent, 'no stage events yet');
 });
 
 test('lanes-label-card-fields: a worktree lane renders all eight durable fields in words', () => {
@@ -238,4 +247,149 @@ test('lanes-label-activity-has-no-producer-yet: blank, live and decayed at the 1
   assert.deepEqual(describeActivity(null, NOW), { state: 'blank', text: '' });
   assert.deepEqual(describeActivity({ text: 'running tests', at: iso(-1_000) }, NOW), { state: 'live', text: 'now: running tests' });
   assert.equal(describeActivity({ text: 'running tests', at: iso(-(ACTIVITY_DECAY_MS + 1_000)) }, NOW).state, 'decayed');
+});
+
+// --- AS-100 AC-18: the words the board reads about a LIVE stage -------------
+//
+// Same house rule as the snapshot tables above, one input over: no reason code
+// and no outcome enum reaches the board without a sentence, and the key-set
+// assertions are what links this browser-side table to lib/events.js — which
+// this file may import and public/lanes.js may not, since it is node-only.
+
+const live = (over = {}) => ({
+  actor: 'agent:developer-lena',
+  stage: 'implement',
+  alive: true,
+  startedAt: iso(-252_000),
+  elapsedS: 252,
+  lastEvent: { id: 'cev_1', type: 'subagent_spawned', ts: iso(-252_000), outcome: null },
+  ...over,
+});
+
+const laneWith = (subAgent) => ({
+  key: 'AS-100',
+  task: { taskId: 'task_a', shortId: 'AS-100', title: 'Chat: events feed', status: 'in_progress' },
+  worktree: null,
+  employee: { assignee: 'agent:developer-lena', lastCommitAuthor: null, agree: null },
+  stale: { flag: false, reasons: [] },
+  stageStartedAt: subAgent ? subAgent.startedAt : null,
+  subAgent,
+});
+
+test('lanes-label-events-reason-table: every stream reason has a sentence, and no sentence is orphaned', () => {
+  assert.deepEqual([...EVENTS_REASON_CODE_LIST].sort(), [...EVENTS_REASON_CODES].sort());
+  for (const code of EVENTS_REASON_CODES) {
+    const sentence = EVENTS_REASONS[code];
+    assert.equal(typeof sentence, 'string', `${code} has a sentence`);
+    if (code !== 'ok') {
+      assert.ok(sentence.length > 20, `${code}'s sentence explains rather than restates`);
+      assert.ok(!sentence.includes(code), `${code} does not leak its own enum into the UI`);
+    }
+  }
+
+  // ...and the caption the pane draws is the STREAM's own, not the snapshot's:
+  // a healthy git snapshot with a missing stream degrades two fields, not the
+  // pane, and must not make a fresh lane list read as stale.
+  const p = composeLanes({ snapshot: snapshot(), tasks: [], ids: {}, nowMs: NOW });
+  const out = describeLanes(p, NOW);
+  assert.equal(out.eventsReason, 'no-stream');
+  assert.match(out.eventsCaption, /^Live stage signal unavailable — /);
+  assert.match(out.eventsCaption, /watcher/, 'the caption names what to do, not the enum');
+  assert.equal(out.caption, 'Snapshot 8 s old.', "the git half's caption is untouched by the stream's state");
+  assert.equal(out.stale, false, 'a missing event stream does not make a fresh snapshot stale');
+
+  const ok = describeLanes({ ...p, events: { ...p.events, reason: 'ok' } }, NOW);
+  assert.equal(ok.eventsCaption, '', 'a healthy stream says nothing');
+});
+
+test('lanes-label-outcome-tables: every stage outcome and sub-agent exit has a sentence', () => {
+  assert.deepEqual([...STAGE_OUTCOME_CODES].sort(), [...STAGE_OUTCOMES].sort());
+  assert.deepEqual([...SUBAGENT_EXIT_CODES].sort(), [...SUBAGENT_EXITS].sort());
+  for (const [table, codes] of [[STAGE_OUTCOME_WORDS, STAGE_OUTCOMES], [SUBAGENT_EXIT_WORDS, SUBAGENT_EXITS]]) {
+    for (const code of codes) {
+      const word = table[code];
+      assert.equal(typeof word, 'string', `${code} has a sentence`);
+      assert.ok(!word.includes('_'), `${code} does not leak its snake_case enum into the UI`);
+    }
+  }
+  // The two tables are separate because the enums overlap in meaning but not in
+  // spelling: one table would have to pick a single word for `ok` and
+  // `completed`, which is how a sub-agent's exit starts describing its stage.
+  assert.notEqual(SUBAGENT_EXIT_WORDS.ok, STAGE_OUTCOME_WORDS.completed);
+});
+
+test('lanes-label-no-stream-fills-both-slots: the missing input is named, not blanked', () => {
+  const card = describeLane(laneWith(null), NOW, 'no-stream');
+  assert.equal(card.stageTimer, 'no event stream');
+  assert.equal(card.subAgent, 'no event stream');
+  assert.equal(card.liveTone, 'none');
+  // The git half of the same card is unaffected — two inputs, two fates.
+  assert.equal(card.stage, 'in_progress');
+  assert.equal(card.employee, 'agent:developer-lena');
+
+  // "no stream" and "this lane has emitted nothing" are different facts and
+  // must not render the same (the AS-99 dash-vs-zero rule, one field over).
+  const noEvents = describeLane(laneWith(null), NOW, 'ok');
+  assert.equal(noEvents.stageTimer, 'no stage events yet');
+  assert.notEqual(noEvents.stageTimer, card.stageTimer);
+});
+
+test('lanes-label-stale-open-not-running: an expired tick box is never reported as running', () => {
+  // alive:false with the last event still an OPENING one — the tick died and
+  // the sweep has not closed the stage yet. The board reads "no signal", and
+  // the word "running" must not appear anywhere on the card.
+  const card = describeLane(laneWith(live({ alive: false })), NOW, 'ok');
+  assert.equal(card.stageTimer, 'implement — no signal since 03:55Z (tick box expired)');
+  assert.equal(card.subAgent, 'agent:developer-lena · no signal since 03:55Z');
+  assert.equal(card.liveTone, 'alert');
+  for (const [field, value] of Object.entries(card)) {
+    if (typeof value === 'string') assert.ok(!/running/i.test(value), `${field} must not claim it is running`);
+  }
+
+  // The same shape with `stage_started` as the last event (no sub-agent event
+  // ever landed) reads the same way — both opening types are "no signal".
+  const stageOnly = describeLane(
+    laneWith(live({ alive: false, lastEvent: { id: 'cev_0', type: 'stage_started', ts: iso(-252_000), outcome: null } })),
+    NOW,
+    'ok',
+  );
+  assert.match(stageOnly.stageTimer, /no signal since 03:55Z/);
+  assert.ok(!/running/i.test(stageOnly.stageTimer));
+});
+
+test('lanes-label-live-counts-up-and-ended-says-its-outcome', () => {
+  // Alive: elapsed is recomputed from startedAt against the CLIENT clock, so
+  // the card counts up on the 15 s render timer without a new request — the
+  // payload's own elapsedS is a convenience for non-browser consumers (AS-27).
+  const card = describeLane(laneWith(live({ elapsedS: 9_999 })), NOW, 'ok');
+  assert.equal(card.stageTimer, 'implement running for 4 min');
+  assert.equal(card.subAgent, 'agent:developer-lena · working');
+  assert.equal(card.liveTone, 'live');
+  assert.ok(!card.stageTimer.includes('167'), 'the payload elapsedS is not what was rendered');
+
+  const done = describeLane(
+    laneWith(live({
+      alive: false,
+      elapsedS: 252,
+      lastEvent: { id: 'cev_2', type: 'subagent_exited', ts: iso(-1_000), outcome: 'ok' },
+    })),
+    NOW,
+    'ok',
+  );
+  assert.equal(done.subAgent, 'agent:developer-lena · finished');
+  assert.equal(done.stageTimer, 'implement ran 4 min');
+  assert.equal(done.liveTone, 'done');
+
+  const cut = describeLane(
+    laneWith(live({
+      alive: false,
+      elapsedS: 1_800,
+      lastEvent: { id: 'cev_3', type: 'stage_ended', ts: iso(-1_000), outcome: 'cut_by_timeout' },
+    })),
+    NOW,
+    'ok',
+  );
+  assert.equal(cut.stageTimer, 'implement cut off when the tick hit its timeout · ran 30 min');
+  assert.equal(cut.liveTone, 'alert', 'nobody closed this cleanly, and the card is toned so it can be found');
+  assert.ok(!cut.stageTimer.includes('cut_by_timeout'));
 });

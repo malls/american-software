@@ -79,6 +79,72 @@ export const EMPTY_STATE_CODES = Object.freeze(Object.keys(EMPTY_STATES));
 /** What the pane says when it has no reason code at all (the fetch failed). */
 const NO_LANE_DATA = 'No lane data to show.';
 
+/** AS-100. Why the LIVE STAGE SIGNAL is degraded, in the board's terms. Keys
+ *  are lib/events.js's EVENTS_REASON_CODES, exactly — restated here for the
+ *  same reason SNAPSHOT_REASONS is, and asserted equal in
+ *  test/lanes-label.test.js. The git half of a lane renders regardless: a
+ *  missing event stream degrades two fields, not the pane. */
+export const EVENTS_REASONS = Object.freeze({
+  ok: '',
+  'no-stream':
+    'the host watcher has written no company event stream — it may be running pre-AS-100 code, in which case ' +
+    'restarting it (launchctl kickstart; see apps/chat/watch/README.md) corrects this',
+  'unreadable-stream':
+    "the company event stream is on disk but could not be read, so nothing here knows which stages are live",
+  truncated:
+    'the company event stream shrank underneath the server — it was rotated or rewritten — so anything before ' +
+    'the cut is missing from this view until the server is restarted',
+});
+
+/** Same sanity check as SNAPSHOT_REASON_CODES, one table over (AC-18). */
+export const EVENTS_REASON_CODE_LIST = Object.freeze(Object.keys(EVENTS_REASONS));
+
+/** How a stage ENDED, in words — lib/events.js's STAGE_OUTCOMES, exactly. The
+ *  two reconciler-only outcomes say who closed it and why, because "cut" and
+ *  "unclosed" are the board's evidence that the tick procedure was or was not
+ *  followed (plan T5). */
+export const STAGE_OUTCOME_WORDS = Object.freeze({
+  completed: 'completed',
+  error: 'ended in error',
+  cut_by_timeout: 'cut off when the tick hit its timeout',
+  unclosed: 'left unclosed when the tick ended',
+});
+
+export const STAGE_OUTCOME_CODES = Object.freeze(Object.keys(STAGE_OUTCOME_WORDS));
+
+/** How a sub-agent EXITED, in words — lib/events.js's SUBAGENT_EXITS, exactly.
+ *  Separate table from the stage one on purpose: `ok` and `completed` are
+ *  different enums that would silently merge if one table served both. */
+export const SUBAGENT_EXIT_WORDS = Object.freeze({
+  ok: 'finished',
+  error: 'exited with an error',
+  cut_by_timeout: 'cut off when the tick hit its timeout',
+  unclosed: 'left unclosed when the tick ended',
+});
+
+export const SUBAGENT_EXIT_CODES = Object.freeze(Object.keys(SUBAGENT_EXIT_WORDS));
+
+/** The outcomes that mean nobody closed this cleanly — the card tones them so
+ *  the board can find them without reading every line. Not an error state. */
+const ALERT_OUTCOMES = new Set(['error', 'cut_by_timeout', 'unclosed']);
+
+/** What the two live slots say when the stream itself is missing (AC-18): the
+ *  slot is not empty and not zero — it states which input is absent. */
+const NO_STREAM_SLOT = 'no event stream';
+
+/** ...and when the stream is fine but this lane has never emitted a stage. */
+const NO_STAGE_EVENTS = 'no stage events yet';
+
+/** A wall-clock stamp for "no signal since". UTC, and it says so: the board
+ *  reads this next to a tick timeout that is itself measured in UTC, and a
+ *  browser-local rendering of a server-side clock is how two people end up
+ *  comparing different hours. */
+function stampUTC(iso) {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return 'an unknown time';
+  return `${new Date(t).toISOString().slice(11, 16)}Z`;
+}
+
 /** The stale-lane badge reasons, same rule: a sentence each, never the enum. */
 export const STALE_REASONS = Object.freeze({
   'task-done': 'its task is done',
@@ -108,6 +174,8 @@ export function describeLanes(projection, nowMs = Date.now()) {
       lanes: [],
       reason: null,
       emptyText: NO_LANE_DATA,
+      eventsReason: 'unreadable-stream',
+      eventsCaption: '',
     };
   }
 
@@ -115,6 +183,14 @@ export function describeLanes(projection, nowMs = Date.now()) {
   const reason = typeof snap.reason === 'string' ? snap.reason : 'unreadable-snapshot';
   const why = SNAPSHOT_REASONS[reason] ?? `reason: ${reason}`;
   const lanes = Array.isArray(projection.lanes) ? projection.lanes : null;
+
+  // AS-100: the event stream is an INDEPENDENT input from the git snapshot —
+  // either half can be degraded while the other is fine, so it gets its own
+  // reason and its own caption line rather than folding into the snapshot's.
+  const evs = projection.events && typeof projection.events === 'object' ? projection.events : {};
+  const eventsReason = typeof evs.reason === 'string' && evs.reason in EVENTS_REASONS ? evs.reason : 'unreadable-stream';
+  const eventsWhy = EVENTS_REASONS[eventsReason];
+  const eventsCaption = eventsReason === 'ok' ? '' : `Live stage signal unavailable — ${eventsWhy}.`;
 
   // lanes === null is the server saying "a partial list must not masquerade as
   // the list" — so the badge says the same thing the caption does. An empty
@@ -135,6 +211,8 @@ export function describeLanes(projection, nowMs = Date.now()) {
       lanes: [],
       reason,
       emptyText: EMPTY_STATES[reason] ?? NO_LANE_DATA,
+      eventsReason,
+      eventsCaption,
     };
   }
 
@@ -153,6 +231,8 @@ export function describeLanes(projection, nowMs = Date.now()) {
     lanes,
     reason,
     emptyText: EMPTY_STATES[reason] ?? NO_LANE_DATA,
+    eventsReason,
+    eventsCaption,
   };
 }
 
@@ -180,7 +260,7 @@ export function describeTickLine(status, nowMs = Date.now()) {
  * fields, the two AS-100 placeholder slots, and the AS-103 transient line's
  * state — so app.js does DOM only.
  */
-export function describeLane(lane, nowMs = Date.now()) {
+export function describeLane(lane, nowMs = Date.now(), eventsReason = 'ok') {
   const task = lane && lane.task ? lane.task : null;
   const wt = lane && lane.worktree ? lane.worktree : null;
   const emp = lane && lane.employee ? lane.employee : {};
@@ -264,9 +344,87 @@ export function describeLane(lane, nowMs = Date.now()) {
     staleText: staleFlag ? `STALE — ${staleWhy}` : '',
     errorsText: errors.length ? `git could not answer: ${errors.join('; ')}` : '',
     // The two AS-100 slots. Always rendered, never omitted, never styled as an
-    // error: they are not broken, they are not sourced yet.
-    stageTimer: lane && lane.stageStartedAt ? `stage started ${fmtAge(ageSince(lane.stageStartedAt, nowMs))} ago` : 'no live signal yet',
-    subAgent: lane && lane.subAgent ? String(lane.subAgent) : 'no live signal yet',
+    // error: an absent signal is a fact about the stream, not a failure.
+    ...describeLive(lane, eventsReason, nowMs),
+  };
+}
+
+/**
+ * AS-100 — the two live slots' words (AC-18).
+ *
+ * Three inputs decide them, in this order: is there a stream at all; has this
+ * lane ever emitted a stage; is that stage alive. The middle case is the one
+ * that has to stay distinct — "the watcher is not reporting" and "this lane has
+ * not started a stage" are different facts, and rendering them the same way is
+ * the AS-99 dash-versus-zero failure wearing a different field.
+ *
+ * @param {object|null} lane          one lane card from the projection
+ * @param {string} eventsReason       the projection's `events.reason`
+ * @param {number} nowMs             client clock — elapsed is recomputed here
+ *                                    on the render timer, never trusted from
+ *                                    the payload's `elapsedS` (AS-27 pattern)
+ */
+function describeLive(lane, eventsReason, nowMs) {
+  const sub = lane && lane.subAgent && typeof lane.subAgent === 'object' ? lane.subAgent : null;
+
+  // 1. No stream: both slots name the missing input, and neither claims a
+  //    measurement. `no-stream` is the pre-AS-100 watcher, which is a fact.
+  if (eventsReason !== 'ok' && !sub) {
+    return { stageTimer: NO_STREAM_SLOT, subAgent: NO_STREAM_SLOT, liveTone: 'none' };
+  }
+
+  // 2. Stream is readable, this lane has emitted nothing. NOT "no signal":
+  //    a lane in `in_planning` with no stage started yet is working as designed.
+  if (!sub) {
+    return { stageTimer: NO_STAGE_EVENTS, subAgent: NO_STAGE_EVENTS, liveTone: 'none' };
+  }
+
+  const stage = sub.stage || 'stage';
+  const actor = sub.actor || 'unknown employee';
+  const last = sub.lastEvent && typeof sub.lastEvent === 'object' ? sub.lastEvent : {};
+  const outcome = typeof last.outcome === 'string' ? last.outcome : null;
+
+  // 3a. Alive: elapsed from `startedAt` against the client clock, so the card
+  //     counts up on the 15 s render timer without a new request.
+  if (sub.alive === true) {
+    const secs = ageSince(sub.startedAt, nowMs);
+    const elapsed = Number.isFinite(secs) ? fmtAge(secs) : fmtAge(sub.elapsedS);
+    return {
+      stageTimer: `${stage} running for ${elapsed}`,
+      subAgent: `${actor} · working`,
+      liveTone: 'live',
+    };
+  }
+
+  // 3b. Not alive, and nothing ever closed it: the tick box expired with the
+  //     stage still open. This is the one the board must never read as
+  //     "running" — the employee is gone and the sweep has not caught up yet.
+  const openTypes = last.type === 'stage_started' || last.type === 'subagent_spawned';
+  if (openTypes) {
+    const since = stampUTC(last.ts ?? sub.startedAt);
+    return {
+      stageTimer: `${stage} — no signal since ${since} (tick box expired)`,
+      subAgent: `${actor} · no signal since ${since}`,
+      liveTone: 'alert',
+    };
+  }
+
+  // 3c. Closed. The two tables decide the word; a bare enum never gets here,
+  //     which is what the key-set assertions in test/lanes-label.test.js buy.
+  const ended = fmtAge(sub.elapsedS);
+  if (last.type === 'subagent_exited') {
+    const word = SUBAGENT_EXIT_WORDS[outcome] ?? `exit: ${outcome}`;
+    return {
+      stageTimer: `${stage} ran ${ended}`,
+      subAgent: `${actor} · ${word}`,
+      liveTone: ALERT_OUTCOMES.has(outcome) ? 'alert' : 'done',
+    };
+  }
+  const word = STAGE_OUTCOME_WORDS[outcome] ?? `outcome: ${outcome}`;
+  return {
+    stageTimer: `${stage} ${word} · ran ${ended}`,
+    subAgent: `${actor} · ${word}`,
+    liveTone: ALERT_OUTCOMES.has(outcome) ? 'alert' : 'done',
   };
 }
 
