@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 2,
+  "comment_count": 3,
   "complexity": null,
   "created_at": "2026-09-11T22:13:16Z",
   "created_by": "agent:cto-owen",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M298GEHV5ATZ2FW6J8HSNXR2",
-  "last_event_id": "ev_01M299RVZEK767M4BB2WYF51HK",
-  "last_status_changed_at": "2026-09-11T22:35:20Z",
+  "last_event_id": "ev_01M29AQ587S3BTB7G351CKE1MX",
+  "last_status_changed_at": "2026-09-11T22:51:53Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-120",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Chat: the AS-98 href allowlist guard misses compound assignment (||=, ??=, &&=) on a new anchor",
   "type": "task",
-  "updated_at": "2026-09-11T22:35:20Z",
+  "updated_at": "2026-09-11T22:51:53Z",
   "urgency": null
 }
