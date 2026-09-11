@@ -11,14 +11,10 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M27DZR9HG254RGZRM4GP5GN7",
-  "last_event_id": "ev_01M27EHB3DA54Y50TR6NQQ6N6M",
+  "last_event_id": "ev_01M28XCY12R7BTX5SY0B85QEDJ",
   "last_status_changed_at": "2026-09-11T05:10:31Z",
   "linked_files": [],
-  "needs_human": {
-    "flagged_by": "agent:lattice-auto-review",
-    "reason": "claude review agent failed 2 times \u2014 investigate",
-    "since": "2026-09-11T05:10:32Z"
-  },
+  "needs_human": null,
   "priority": "medium",
   "relationships_out": [
     {
@@ -36,6 +32,6 @@
   "tags": null,
   "title": "Investigate claude review failures \u2014 failed 2 times",
   "type": "task",
-  "updated_at": "2026-09-11T05:20:08Z",
+  "updated_at": "2026-09-11T18:59:06Z",
   "urgency": null
 }
