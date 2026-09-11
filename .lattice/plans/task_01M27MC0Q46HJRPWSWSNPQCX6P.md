@@ -1,0 +1,1 @@
+# AS-111: Chat: AS-100 review residuals — pin the /api/events since-before-task-filter fix (Ruben F1, b0763ad has no test), lanesKey earns a lanes frame on every appended event (F2), tail misses file replacement (F3), (stage, actor) close fallback can close a newer rework cycle (F4)
