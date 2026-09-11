@@ -106,9 +106,11 @@ Repo-relative `*.md` paths in message bodies (bare `README.md` or backticked
 `` `apps/chat/README.md` ``; `.lattice/…` is the only dot-leading segment
 allowed) render as links that open an in-app viewer. The viewer fetches
 through `GET /api/file?path=…` — a traversal-hardened gate: strict charset,
-segment rules, realpath-prefix containment (symlink-escape proof), regular
-file, 512 KB cap. Every rejection 404s byte-identically to a nonexistent
-file; only the size cap is a distinct 400. The endpoint has no `me` gate
+segment rules, realpath-prefix containment (symlink-escape proof), realpath
+equality (3b, AS-34 — no symlink below the root), regular file with exactly
+one link (4b, AS-61 — no hard link), 512 KB cap. Every rejection 404s
+byte-identically to a nonexistent file; only the size cap is a distinct
+400. The endpoint has no `me` gate
 because everything under it is repo-public by construction — which is one
 more reason the AS-6 rule stays load-bearing: private-channel content must
 never be written to a `*.md` file in the repo.
@@ -128,8 +130,17 @@ resolution, the resolved path below the (resolved) repo root must equal the
 requested path byte-for-byte, so a symlink anywhere inside the tree 404s —
 `link/x.md` where `link -> .git`, and equally a symlink to a servable
 location. The dot rule therefore holds for real locations, not just
-requested spellings: `.git/`, `.claude/` and `.worktrees/` are categorically
-unreachable regardless of how the tree is aliased. Symlinks *above* the repo
+requested spellings. Since AS-61 the gate also refuses the one aliasing
+mechanism realpath resolution structurally cannot see: a hard link is the
+same inode under a second name, with no link to resolve, so any file whose
+link count is not exactly 1 404s (check 4b). The check is symmetric:
+hard-linking a servable file to a second name makes both names 404 until
+the extra link is removed — fail-closed by design. So `.git/`, `.claude/`
+and `.worktrees/` are categorically unreachable by any spelling, by symlink
+(3b), or by hard link (4b, AS-61). The gate does not — cannot — detect a
+copy: a copied file is a fresh inode with one name and serves like any
+other `.md`, which is exactly why the AS-6 rule (never write private
+content to a repo `*.md`) stays load-bearing. Symlinks *above* the repo
 root (a symlinked parent directory) stay irrelevant — both sides of the
 comparison sit below the resolved root. The mount is read-only at the
 kernel, so the container cannot write the repo
