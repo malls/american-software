@@ -638,6 +638,14 @@ export function createChatServer({
   }, loopPollMs);
   loopPoll.unref();
 
+  // AS-100: prime the tail BEFORE the lanes key below, not after. `lanesKey`
+  // includes `events.reason`, and an unprimed tail still reads its constructed
+  // default `no-stream`; priming the lanes key from that state made the first
+  // tail poll (which sets `ok`) change the key and push one lanes frame whose
+  // visible content was identical — an empty frame to every client that
+  // connected near boot (AC-17). The two primings must see the same tail.
+  tailEvents();
+
   // AS-99: lanes push, change-only. Primed at construction for the same reason
   // the loop poll is: the first poll after boot must not emit a frame for a
   // state nothing has changed since.
@@ -671,8 +679,8 @@ export function createChatServer({
   // and a poll that read nothing pushes nothing. Primed here for the same
   // reason the two polls above are primed: the events already in the file when
   // this process booted are history, not news, and /api/events is how a client
-  // catches up on them.
-  tailEvents();
+  // catches up on them. (The priming call itself is made above, before the
+  // lanes key is primed — see the AS-100 note there.)
   const eventsPoll = setInterval(() => {
     let fresh;
     try {

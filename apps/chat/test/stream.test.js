@@ -640,6 +640,67 @@ test('stream-company-truncation: a truncated stream is reported as a fact and th
   assert.equal(healed.data.lanes.events.reason, 'ok', 'the next append clears the reason');
 });
 
+test('stream-lanes-liveness-change-only: a stage event earns a lanes frame; elapsed time alone does not', async (t) => {
+  const dataDir = loopDataDir(t);
+  const path = eventsFile(dataDir);
+  writeFileSync(path, '');
+  writeFileSync(join(dataDir, 'worktrees.json'), laneSnapshot(new Date().toISOString(), {
+    worktrees: [
+      { relPath: '.', main: true, head: 'f6717b8', branch: 'master', detached: false, ahead: null, behind: null,
+        dirtyCount: null, dirtyLattice: null, merged: null, lastCommit: null, errors: [] },
+      { relPath: '.worktrees/AS-7', main: false, head: 'abc1234', branch: 'feat/AS-7-thing', detached: false,
+        ahead: 1, behind: 0, dirtyCount: 0, dirtyLattice: false, merged: false, lastCommit: null, errors: [] },
+    ],
+  }));
+  const { base } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS, eventsPollMs: FAST_POLL_MS,
+  });
+
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+  const laneWithAgent = (frame) => frame.data.lanes.lanes.find((l) => l.subAgent);
+  assert.equal(stream.initialLanes.data.lanes.lanes.some((l) => l.subAgent), false,
+    'no events yet: every lane says so rather than guessing');
+
+  // A stage opens. Exactly one lanes frame, and the lane it belongs to is live.
+  // The count is the point: this caught a boot-order defect where the lanes key
+  // was primed from an unprimed tail, so the first poll pushed a second frame
+  // with byte-identical content.
+  appendFileSync(path, stageStarted('AS-7'));
+  const framesA = await drain(stream, FAST_POLL_MS * 8 + 300);
+  const lanesA = framesA.filter((f) => f.event === 'lanes');
+  assert.equal(lanesA.length, 1, 'one stage event, one lanes frame');
+  const liveLane = laneWithAgent(lanesA[0]);
+  assert.ok(liveLane, 'the event joined a lane');
+  assert.equal(liveLane.subAgent.alive, true);
+  assert.equal(liveLane.subAgent.stage, 'implement');
+  assert.ok(liveLane.stageStartedAt);
+
+  // Ten polls with nothing appended. `subAgent.elapsedS` grows on every one of
+  // them — it is recomputed from the clock — so a key that carried it would
+  // emit ten frames here. That is the whole reason elapsedS is excluded.
+  assert.deepEqual(
+    (await drain(stream)).filter((f) => f.event === 'lanes'),
+    [],
+    'zero lanes frames while only elapsed time moves'
+  );
+
+  // The stage closes: a real change, one frame, and the lane goes quiet.
+  appendFileSync(path, eventLine('stage_ended', {
+    task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', outcome: 'completed',
+    reason: null, closedBy: 'orchestrator', startedId: null, durationS: 42,
+  }));
+  const framesB = await drain(stream, FAST_POLL_MS * 8 + 300);
+  const lanesB = framesB.filter((f) => f.event === 'lanes');
+  assert.equal(lanesB.length, 1, 'one close event, one lanes frame');
+  assert.equal(laneWithAgent(lanesB[0]).subAgent.alive, false);
+  assert.deepEqual(
+    (await drain(stream)).filter((f) => f.event === 'lanes'),
+    [],
+    'and a closed stage settles — no frame per poll'
+  );
+});
+
 test('stream: AS-99 — lanes frames reach every viewer identically (no visibility gate)', async (t) => {
   const dataDir = loopDataDir(t);
   const { base } = await bootServer(t, FIXTURE_ROOT, {
