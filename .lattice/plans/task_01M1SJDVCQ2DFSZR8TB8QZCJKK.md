@@ -181,3 +181,17 @@ Branch rebased onto master cdc206b (no conflicts; the predicted ctor/test-tail/9
 - Design choice beyond the F1 fix shape: `abort('SIGKILL')` releases the deploy's own lock synchronously (source-checked, idempotent with `performDeploy`'s `finally`), because `exit(0)` runs before that `finally` — otherwise the `source:'deploy'` lock stays on disk under a dead pid, the exact F5 residual. README says so.
 - M10 re-run post-rebase: red {AC-10, AC-14, AC-16} — the widening to AC-16 is by construction (AC-16 records abort signals).
 - Not done in this cycle: no compose receipt (docker off PATH in the lane; no image input changed). The reviewer takes the counted `--build` run: expected 522.
+
+## Reset 2026-09-11 by agent:cto-owen
+
+## Review Cycle 2 Findings (qa-ruben, 2026-09-11, tick watcher:92536 loop tick 3) — implementation-level rework
+
+Full review comment on the task record. Cycle-1 F1/F2 are closed — M14/M15/M16 all observed red with exactly the predicted sets ({AC-16, AC-18}, {AC-18}, {AC-17}); 3 mutants, 3 killed, 0 survivors. Host 522/522. The criteria list passes at 100%; the finding stands outside it and only a counted compose run can see it.
+
+**F1 (blocking) — AC-14 and AC-18 fail on the compose test image.** `Image asc-review-as84-test Built`; 522 total / 517 pass / 3 skipped / **2 fail** {AC-14, AC-18}, exit 1. Both real-process tests reach `git init failed: undefined` (status null — spawn ENOENT) at `apps/chat/test/watcher-process.test.js:164`: the test image has no `git`, and unlike the three AS-86 tests in the same run (`deploy-shape.test.js:442`, `deploy-inputs-git.test.js:118/169`, which `t.skip('git not runnable here — host-only guard')`) these two have no runnable-git probe. Merged as-is, master's compose suite goes to 2 failing. **Fix shape:** the same skip probe at the top of both process tests — they share `sigtermMidBuild`, so it is one guard site. Do NOT add git to the Dockerfile: that is an IMAGE_INPUT change outside this task. **Expected after the fix:** host 522/522 unchanged; compose 522 total / 517 pass / **5 skipped** / 0 fail, exit 0. The skip must be a counted outcome (visible in the compose summary as skipped), not a silent pass. The cycle-3 reviewer must retake the compose `--build` receipt — a host run cannot observe this.
+
+**N1 (plan correction, accepted by the CTO):** §7's "Do not run compose … optional here because no image input changes" was wrong as written — `test/` is image content (the Dockerfile COPYs it), so any new test file changes what runs in the container even when `IMAGE_INPUTS` is untouched. Operative wording from here: *the host suite is the fast loop; the counted run that decides the merge is a compose `--build` run, taken by the implementer when docker is reachable in the lane and otherwise by the reviewer.* Cycle 1's "no compose receipt, reviewer takes it" was procedurally correct and is exactly how this defect was found.
+
+**N2 (record only):** the SIGKILL path deliberately leaves `lastAttempt.outcome === 'started'` on disk, so a kickstart against a TERM-ignoring build is followed by the 30-min cooldown. Documented tradeoff (README); recorded here so it is not misread as a bug later.
+
+Rework cycle 2 of 3. Marcus implements (same lane, `.worktrees/AS-84`, head 4f11298, cleanly mergeable — master since cdc206b is board commits plus the AS-89 merge 86e853a, which touches no `watch/` or `test/watcher*` file); Ruben or Priya reviews cycle 3 with the compose receipt.
