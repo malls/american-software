@@ -426,9 +426,15 @@ a weak guard). Test names are the ids; a wider or narrower red set is itself a f
     `stream-company-change-only`.
 14. **AC-14 truncation is a fact, not a crash.** After two frames, truncate the file to 0 and
     append one new line → the server stays up, `stream.reason === 'truncated'` on
-    `/api/events` and on the lanes projection's `events`, exactly one further `company` frame
-    (the new line), and the next append clears the reason. Mutant: throw on `size < offset` →
-    red `stream-company-truncation`.
+    the lanes projection's `events` block, `/api/events` stays 200 and returns the
+    post-truncate content, exactly one further `company` frame (the new line), and the next
+    append clears the reason. Mutant: throw on `size < offset` → red
+    `stream-company-truncation`. *(Amended 2026-09-11 by the plan owner at cycle 4, from
+    Lena's deviation note: `/api/events` re-reads the file through `readStream()`, so after a
+    truncate the file it reads is intact — "truncated" is a fact about this process's byte
+    cursor, which only the tail, and therefore only the lanes projection, holds. The original
+    wording asked `/api/events` to report the tail's reason, which contradicts the cycle-3
+    decision that the two doors are separate readers.)*
 15. **AC-15 liveness reducer.** Cases: open + 5 min + no tick → `alive: true`; open + 31 min +
     no tick → `alive: false`, `lastEvent.type === 'stage_started'`; open + 31 min + `tickLive`
     → `alive: true`; ended `completed` → `alive: false`, `elapsedS === durationS`,
