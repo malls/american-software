@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 7,
+  "comment_count": 8,
   "complexity": null,
   "created_at": "2026-09-11T05:16:55Z",
   "created_by": "agent:qa-ruben",
@@ -24,7 +24,7 @@
     }
   ],
   "id": "task_01M27EBEMAPD226BC2N41GXN5C",
-  "last_event_id": "ev_01M29DM5VEECBH6WMSPEY720J1",
+  "last_event_id": "ev_01M29DV8EB1RJSZEZQ13C24FJD",
   "last_status_changed_at": "2026-09-11T23:41:07Z",
   "linked_files": [],
   "priority": "medium",
@@ -36,6 +36,6 @@
   "tags": null,
   "title": "Chat tooling: counted compose review runs leave one docker network per -p project behind; address pool exhausts and voids runs",
   "type": "task",
-  "updated_at": "2026-09-11T23:42:41Z",
+  "updated_at": "2026-09-11T23:46:33Z",
   "urgency": null
 }
