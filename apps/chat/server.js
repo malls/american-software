@@ -37,6 +37,7 @@ const STATIC_FILES = {
   '/loop-status.js': ['loop-status.js', 'text/javascript; charset=utf-8'],
   '/dashboard-link.js': ['dashboard-link.js', 'text/javascript; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
+  '/favicon.svg': ['favicon.svg', 'image/svg+xml'],
 };
 
 const INGEST_THROTTLE_MS = 10_000;

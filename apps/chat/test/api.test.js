@@ -1167,6 +1167,79 @@ test('api: AS-32 — style.css truncates the roster title to one line', async (t
   }
 });
 
+// --- AS-28: the favicon ------------------------------------------------------
+
+test('api: AS-28 — /favicon.svg is served with the SVG content type', async (t) => {
+  const { base } = await bootServer(t);
+  const res = await fetch(base + '/favicon.svg');
+
+  // The STATIC_FILES allowlist is the only route to a static file (the server
+  // 404s everything else), so this is a load-bearing-entry test, not a file
+  // test: drop the entry and this goes red even with the file on disk.
+  assert.equal(res.status, 200);
+  assert.ok(
+    (res.headers.get('content-type') || '').startsWith('image/svg+xml'),
+    `content-type is image/svg+xml, got ${res.headers.get('content-type')}`
+  );
+  const body = await res.text();
+  assert.ok(body.startsWith('<svg'), 'the body is an SVG document');
+  assert.ok(body.includes('viewBox="0 0 32 32"'), 'the documented 32-unit viewBox');
+});
+
+test('api: AS-28 — index.html links the favicon', async (t) => {
+  const { base } = await bootServer(t);
+  const page = await (await fetch(base + '/')).text();
+
+  // Exact substring: the wiring is what is under test, not the file's
+  // existence. A served favicon nothing points at is an unfindable tab.
+  assert.ok(
+    page.includes('<link rel="icon" type="image/svg+xml" href="/favicon.svg">'),
+    'the served page carries the rel="icon" link'
+  );
+});
+
+test('api: AS-28 — the favicon uses only palette hex values', async (t) => {
+  const { base } = await bootServer(t);
+  const svg = await (await fetch(base + '/favicon.svg')).text();
+
+  // BRANDING.md §3.1: --color-accent-500 and --color-ink-white. Raw hex is
+  // unavoidable in a standalone SVG, so the token discipline is enforced here.
+  //
+  // Cycle-1 F1: the first cut matched /#[0-9a-fA-F]{6}/g over the whole file,
+  // which (a) counted the two hex strings in the SVG's XML *comment* toward the
+  // cardinality floor — so artwork repainted `red`/`lime` passed with zero
+  // palette colours, the exact vacuous shape the floor exists to prevent — and
+  // (b) matched any 6-hex prefix, so `#1C41E3FF` passed. Both are closed by
+  // dropping comments and comparing WHOLE paint-attribute values.
+  const allowed = new Set(['#1c41e3', '#ffffff']);
+  const artwork = svg.replace(/<!--[\s\S]*?-->/g, '');
+
+  // Paint can only arrive through the attributes examined below, so the two
+  // doors that would smuggle a colour past them must stay shut. If this icon
+  // ever needs CSS, this guard learns to parse it in the same change.
+  assert.ok(!/<style[\s>]/i.test(artwork), 'the artwork declares no <style> element');
+  assert.ok(!/\sstyle\s*=/i.test(artwork), 'the artwork declares no style="" attribute');
+
+  const paints = [...artwork.matchAll(
+    /\b(fill|stroke|stop-color|flood-color|lighting-color)\s*=\s*"([^"]*)"/g
+  )];
+
+  // Cardinality before quantification: this artwork paints one path and three
+  // circles, so anything under four paint attributes means the guard is looking
+  // at the wrong set (or the artwork lost its colour) — red, never a pass.
+  assert.ok(paints.length >= 4,
+    `${paints.length} paint attributes examined, expected at least 4`);
+  for (const [, attr, value] of paints) {
+    // Whole value, not a substring: `#1C41E3FF`, `#F00`, `red`, `rgb(...)` are
+    // all non-tokens and all fail here.
+    assert.ok(
+      allowed.has(value.trim().toLowerCase()),
+      `${paints.length} paint attributes examined: ${attr}="${value}" is not a ` +
+        'palette token (#1C41E3 --color-accent-500, #FFFFFF --color-ink-white)'
+    );
+  }
+});
+
 // --- AS-27: the advance-loop status endpoint --------------------------------
 
 /** A scratch data dir standing in for apps/chat/data — the two files the host
