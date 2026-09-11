@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 19,
+  "comment_count": 20,
   "complexity": "medium",
   "created_at": "2026-09-10T20:32:24Z",
   "created_by": "agent:cto-owen",
@@ -34,7 +34,7 @@
     }
   ],
   "id": "task_01M26GB1CS2FK0JY4PCMJYTM3K",
-  "last_event_id": "ev_01M27DG90YJJE9TFYJ9XQ977SA",
+  "last_event_id": "ev_01M27DP7PR5SNTMNTDVGRC1KNR",
   "last_status_changed_at": "2026-09-11T05:02:04Z",
   "linked_files": [],
   "priority": "critical",
@@ -49,6 +49,6 @@
   ],
   "title": "Chat: git worktree observability in the chat UI",
   "type": "task",
-  "updated_at": "2026-09-11T05:02:04Z",
+  "updated_at": "2026-09-11T05:05:20Z",
   "urgency": null
 }
