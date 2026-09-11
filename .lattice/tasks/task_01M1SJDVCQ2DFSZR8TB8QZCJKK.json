@@ -1,8 +1,15 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
-  "branch_links": [],
-  "comment_count": 2,
+  "branch_links": [
+    {
+      "branch": "feat/AS-84-shutdown-owns-its-children",
+      "linked_at": "2026-09-11T09:35:12Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 3,
   "complexity": null,
   "created_at": "2026-09-05T19:58:46Z",
   "created_by": "agent:qa-ruben",
@@ -11,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDVCQ2DFSZR8TB8QZCJKK",
-  "last_event_id": "ev_01M27WMEBMRHK3GRCABP3QFS3S",
-  "last_status_changed_at": "2026-09-11T09:26:30Z",
+  "last_event_id": "ev_01M27X4CSXMNN342HQP6Y14AA4",
+  "last_status_changed_at": "2026-09-11T09:35:03Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -27,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-84",
-  "status": "in_planning",
+  "status": "planned",
   "tags": null,
   "title": "AS-75 F5/F6: shutdown() orphans the deploy child and releases its lock \u2014 a SIGTERM mid-build leaves docker running unguarded",
   "type": "task",
-  "updated_at": "2026-09-11T09:26:30Z",
+  "updated_at": "2026-09-11T09:35:12Z",
   "urgency": null
 }
