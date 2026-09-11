@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-lena",
   "branch_links": [
     {
       "branch": "feat/AS-106-compose-run-teardown",
@@ -18,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M27EBEMAPD226BC2N41GXN5C",
-  "last_event_id": "ev_01M2991TR8H7W98WCH3M4114JZ",
-  "last_status_changed_at": "2026-09-11T22:22:38Z",
+  "last_event_id": "ev_01M299RW7GFDYZSV3ZBF3DDBEZ",
+  "last_status_changed_at": "2026-09-11T22:35:21Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-106",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat tooling: counted compose review runs leave one docker network per -p project behind; address pool exhausts and voids runs",
   "type": "task",
-  "updated_at": "2026-09-11T22:22:46Z",
+  "updated_at": "2026-09-11T22:35:21Z",
   "urgency": null
 }

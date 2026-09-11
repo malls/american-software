@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [
     {
       "branch": "feat/AS-120-href-assignment-operators",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M298GEHV5ATZ2FW6J8HSNXR2",
-  "last_event_id": "ev_01M29926PWHB75G8R9R73V0TR2",
-  "last_status_changed_at": "2026-09-11T22:22:58Z",
+  "last_event_id": "ev_01M299RVZEK767M4BB2WYF51HK",
+  "last_status_changed_at": "2026-09-11T22:35:20Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-120",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat: the AS-98 href allowlist guard misses compound assignment (||=, ??=, &&=) on a new anchor",
   "type": "task",
-  "updated_at": "2026-09-11T22:22:58Z",
+  "updated_at": "2026-09-11T22:35:20Z",
   "urgency": null
 }
