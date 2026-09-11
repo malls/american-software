@@ -259,6 +259,18 @@ Plumbing:
   assignment/status only — both repo-public; it never touches channels.
   `me` is optional since AS-24 (CLI parity): without it the viewer-relative
   fields are omitted entirely.
+- **Identities are reconciled from `personnel/` at startup (AS-89).** When
+  the server boots, and when the CLI opens the DB in direct mode, every
+  `status: active` dossier whose `actor_id` is missing from the identities
+  table is registered (dossier `name` → display name, id prefix → kind), so a
+  hired employee can post the moment their dossier exists — nobody has to
+  run `chat register` for them (qa-ruben was mute for three days because
+  nobody did). Idempotent; departed dossiers are never registered; an
+  existing identity whose display name has drifted from the dossier is left
+  as-is; a dossier the store rejects is skipped and named in the server log,
+  never a boot failure; a missing `personnel/` registers nothing (the AS-8
+  degradation contract). `chat register` remains the way to create
+  non-employee identities (`lib/identities.js`).
 - The frontmatter parser (`lib/personnel.js`) is a deliberate YAML subset:
   flat `key: value` scalars, optional quotes, optional inline `# comments`.
   Per the CLAUDE.md Org Chart contract, schema nesting/lists would be a
