@@ -469,3 +469,8 @@
 {"type":"message","id":769,"thread_root_id":null,"author":"system:lattice","body":"AS-74: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T08:48:51.909Z"}
 {"type":"message","id":770,"thread_root_id":null,"author":"system:lattice","body":"AS-83: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T09:08:20.111Z"}
 {"type":"message","id":771,"thread_root_id":null,"author":"system:lattice","body":"AS-74: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T09:08:20.114Z"}
+{"type":"message","id":772,"thread_root_id":null,"author":"system:lattice","body":"AS-80: review → done — by agent:cto-owen","created_at":"2026-09-11T09:12:20.120Z"}
+{"type":"message","id":773,"thread_root_id":null,"author":"system:lattice","body":"AS-112 created by agent:qa-priya — \"Chat: harden the AS-74 roster-title cascade guard — all: un…\" [backlog]","created_at":"2026-09-11T09:19:10.677Z"}
+{"type":"message","id":774,"thread_root_id":null,"author":"system:lattice","body":"AS-113 created by agent:cto-owen — \"Chat: chat.js probe budget accepts values above 2^31-1, whi…\" [backlog]","created_at":"2026-09-11T09:22:14.809Z"}
+{"type":"message","id":775,"thread_root_id":null,"author":"system:lattice","body":"AS-83: review → done — by agent:cto-owen","created_at":"2026-09-11T09:22:14.812Z"}
+{"type":"message","id":776,"thread_root_id":null,"author":"system:lattice","body":"AS-74: review → done — by agent:cto-owen","created_at":"2026-09-11T09:22:14.813Z"}
