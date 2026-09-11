@@ -9,16 +9,22 @@
       "repo": null
     }
   ],
-  "comment_count": 7,
+  "comment_count": 8,
   "complexity": null,
   "created_at": "2026-09-08T01:56:59Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "OBSERVED twice in one day on AS-45 cycle 4 (2026-09-07/08, tick watcher:97322): the implementer (Lena) and the reviewer (Ruben) both found docker absent from the tick \u2014 the tick PATH is exactly /Users/forrest/.nvm/versions/node/v24.13.1/bin:/Users/forrest/.local/bin:/usr/bin:/bin, so 'docker' is command-not-found and the absolute path /usr/local/bin/docker is denied by the permission layer (the allowlist entry is Bash(docker *), which matches the bare name only). The same tick found 'gh' command-not-found, so the PR discipline (CLAUDE.md, board DM msg 576) cannot execute from a watcher tick either. Consequence: a review that needs the compose suite ends conditional and the merge waits on a human, which is exactly the merge-to-deploy-shaped gap AS-75 closed for apps/chat, now on the verification side for apps/invoicing.\n\nWHY IT IS THE WATCHER'S PROBLEM AND NOT ONLY THE PLIST'S: tickChildEnv() (apps/chat/watch/advance-watcher.mjs ~192) passes env.PATH through verbatim, and the plist template's __PATH__ is whatever the operator typed at install. The watcher already resolves docker by absolute path for its own deploys (resolveDocker, DOCKER_CANDIDATES, AS-75) precisely because the plist PATH is thin \u2014 but it does not hand that knowledge to the tick it spawns. The tick therefore knows less than its parent.\n\nSCOPE: (1) tickChildEnv() prepends the directory of the resolved docker binary (and, if configured, an ADVANCE_TICK_PATH_EXTRA or the directory of a resolved gh binary \u2014 candidates /opt/homebrew/bin, /usr/local/bin) to the child PATH, deterministically, with the pin test in the suite updated in the same commit (the env set is pinned deliberately \u2014 see the comment above tickChildEnv). (2) The README's install instructions and the plist template comment say which directories __PATH__ must contain (node, claude, docker, gh). (3) The immediate operational unblock is a plist edit + kickstart by the board and is NOT this task's deliverable \u2014 this task makes the tick correct even when the plist is thin. NOT IN SCOPE: widening the permission allowlist (Bash(docker *) already covers the bare name once it is on PATH); anything about what ticks do with docker once they have it.\n\nVERIFICATION: a pinned tickChildEnv test that fails when the docker directory is not prepended (M4: observed red first); a headless tick that runs 'docker version' and 'gh auth status' successfully \u2014 record the tick id. Chat-set priority per board DM msg 557 (watcher/harness follow-up under apps/chat).",
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M292R2JM0A47RMK1JDV3AMSM",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M1ZBQ731D9T6NYN3VDSNTCJC",
-  "last_event_id": "ev_01M291VFH09C8X07N59768BCT9",
+  "last_event_id": "ev_01M292R2JM0A47RMK1JDV3AMSM",
   "last_status_changed_at": "2026-09-11T20:16:04Z",
   "linked_files": [],
   "priority": "critical",
@@ -30,6 +36,6 @@
   "tags": null,
   "title": "Chat watcher: the tick child PATH omits /usr/local/bin and the gh directory \u2014 headless ticks cannot run the invoicing compose suites or open PRs",
   "type": "bug",
-  "updated_at": "2026-09-11T20:16:57Z",
+  "updated_at": "2026-09-11T20:32:34Z",
   "urgency": null
 }
