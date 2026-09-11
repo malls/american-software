@@ -840,7 +840,8 @@ test('api: AS-26 — msg-refs.js and markdown.js are served; index.html ships th
   assert.match(app, /from '\.\/msg-refs\.js'/, 'body pipeline goes through msg-refs.js');
   assert.match(app, /from '\.\/markdown\.js'/, 'inline styling goes through markdown.js');
   assert.match(app, /msg-permalink/, 'meta row carries the permalink anchor');
-  assert.doesNotMatch(app, /\.innerHTML/, 'zero innerHTML use — the house rule holds');
+  // AS-74 item 4: the markup-sink line that stood here is now one enumerating
+  // guard over every served public/ module — see the AS-74 sink case below.
 
   // The served page carries the file-viewer modal skeleton.
   const html = await (await fetch(base + '/')).text();
@@ -1103,7 +1104,8 @@ test('api: AS-54 — served app.js autolinks through markdown.js and never insid
     'urlLink assigns the token href unchanged, and makes no other assignment to a.href',
   );
 
-  assert.doesNotMatch(app, /\.innerHTML/, 'zero innerHTML use — the house rule holds');
+  // AS-74 item 4: the markup-sink line that stood here is now one enumerating
+  // guard over every served public/ module — see the AS-74 sink case below.
 });
 
 // --- AS-33: the org chart endpoint, the served module, and CLI/API parity ---
@@ -1207,12 +1209,11 @@ test('api: AS-33 — org-chart.js is served, imported, and holds the no-innerHTM
   const app = await (await fetch(base + '/app.js')).text();
   assert.match(app, /from '\.\/org-chart\.js'/, 'the chart view goes through org-chart.js');
 
-  // The house rule is structural, not sanitising, and its ONLY enforcement is
-  // this guard. A new public/ module that no guard covers is how an absolute
-  // rule quietly becomes a convention, so the line is drawn on the new file
-  // too — not merely on the one that existed when the guard was written.
-  assert.doesNotMatch(app, /\.innerHTML/, 'zero innerHTML use — the house rule holds');
-  assert.doesNotMatch(org, /\.innerHTML/, 'zero innerHTML use in org-chart.js too');
+  // The house rule is structural, not sanitising. AS-74 item 4: the two
+  // markup-sink lines that stood here (app.js and org-chart.js) are now one
+  // enumerating guard over every served public/ module — see the AS-74 sink
+  // case below. A new module updates that guard's literal count; it does not
+  // add a fourth copy of this line.
   // org-chart.js is pure: it emits text and structure and knows nothing about
   // the DOM. app.js turns its plain objects into elements with el().
   for (const dom of [/\bdocument\b/, /\bwindow\b/, /createElement/, /createTextNode/]) {
@@ -1270,8 +1271,13 @@ test('api: AS-32 — served app.js renders the roster title through el() and sho
   // let a wrong extra line through on AS-54 (review cycle 1): with `includes`
   // a stray el('div', 'roster-team', …) is invisible. deepEqual on the whole
   // sorted set fails on a missing class AND on an extra one.
+  // AS-74 item 3: both quote styles. The original pattern was single-quote
+  // only, so el("div", "roster-extra") was a stray this assertion could not
+  // see — the set is complete in English and was not complete in regex.
+  // `el("` occurs 0 times in app.js today, so widening it changes no value
+  // here; it closes the hole rather than moving it.
   assert.deepEqual(
-    [...region.matchAll(/el\('[a-z]+',\s*'([^']+)'/g)].map((m) => m[1]).sort(),
+    [...region.matchAll(/el\((['"])[a-z]+\1,\s*(['"])([^'"]+)\2/g)].map((m) => m[3]).sort(),
     ['badge', 'pin-toggle', 'ref-link', 'roster-name', 'roster-row',
      'roster-status', 'roster-title', 'roster-top'],
     'rosterRow builds exactly these classes — a missing one and a stray extra one both fail',
@@ -1292,12 +1298,8 @@ test('api: AS-32 — served app.js renders the roster title through el() and sho
   assert.ok(region.includes("el('div', 'roster-title', emp.title)"),
     'the title element is built by el(), so its text goes through textContent');
 
-  // The house rule, extended to the sinks a third rendering path could reach
-  // for — not just the one that existed when the guard was written.
-  for (const sink of ['.innerHTML', 'insertAdjacentHTML', 'outerHTML', 'document.write']) {
-    assert.equal(app.split(sink).length - 1, 0,
-      `zero ${sink} use in the served app.js — the house rule holds`);
-  }
+  // AS-74 item 4: the four-sink loop that stood here is now one enumerating
+  // guard over every served public/ module — see the AS-74 sink case below.
 
   // The server does not escape, and a test that expected it to would be
   // asserting a defence that does not exist. Proven on a scratch root: the
@@ -1347,6 +1349,72 @@ test('api: AS-32 — style.css truncates the roster title to one line', async (t
     'the premise of this rule: roster rows opt out of the sidebar-wide nowrap');
   for (const decl of ['white-space: nowrap', 'overflow: hidden', 'text-overflow: ellipsis']) {
     assert.ok(rule.includes(decl), `.roster-title declares ${decl}`);
+  }
+});
+
+// --- AS-74: the other half of the AS-32 divergence, and one sink guard -------
+//
+// (The AS-32 truncation CONTRACT — that the .roster-title rule wins the
+// cascade, not merely that it exists — is guarded in test/roster-truncation.test.js.)
+
+test('api: AS-74 — served app.js keeps the org chart node label as title · class · team (the other half of the AS-32 divergence)', async (t) => {
+  const { base } = await bootServer(t);
+  const app = await (await fetch(base + '/app.js')).text();
+
+  // Scoped to orgNodeItem's OWN body (AS-54 precedent). The AS-32 case above
+  // pins the sidebar row to the title ALONE; that divergence is only a
+  // divergence while BOTH halves are pinned — collapsing this label to
+  // title-only would leave that case green and the deliberate difference gone.
+  const start = app.indexOf('function orgNodeItem(node) {');
+  assert.ok(start !== -1, 'orgNodeItem is present in the served app.js');
+  const region = app.slice(start, app.indexOf('\n}\n', start));
+
+  assert.ok(
+    region.includes("const meta = [node.title, node.class, node.team].filter(Boolean).join(' \\u00b7 ');"),
+    'the org node meta line joins title · class · team, in that order, separated by the middle dot',
+  );
+  assert.equal((region.match(/node\.class/g) || []).length, 1,
+    'orgNodeItem reads node.class exactly once — in the meta line');
+  assert.equal((region.match(/node\.team/g) || []).length, 1,
+    'orgNodeItem reads node.team exactly once — in the meta line');
+
+  // Structure-first, same as the roster row: the label becomes an element via
+  // el(), whose third argument goes to textContent.
+  assert.ok(region.includes("el('span', 'org-node-meta', meta)"),
+    'the meta element is built by el(), so its text goes through textContent');
+});
+
+test('api: AS-74 — every served public/ module is free of markup sinks (12 examined)', async (t) => {
+  const { base } = await bootServer(t);
+
+  // AS-74 item 4: this replaces four whole-file sink assertions that lived in
+  // the AS-26, AS-54, AS-33 and AS-32 cases. Three of them ran the same regex
+  // over the same string, so they passed and failed together — one guard
+  // counted three times, while eleven other served modules had no sink guard
+  // at all. The enumeration is over what is on disk, so a NEW module is
+  // covered the day it lands; the literal count below is what forces the
+  // author to notice.
+  const publicDir = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'public');
+  const modules = readdirSync(publicDir).filter((f) => f.endsWith('.js')).sort();
+
+  // Cardinality before quantification, and the anti-vacuity pin: a readdir
+  // that returns nothing, or a module added without a thought for the house
+  // rule, fails here rather than passing over an empty set.
+  assert.equal(modules.length, 12,
+    `expected 12 served modules under public/, found ${modules.length}: ${modules.join(', ')} `
+    + '— a new public/ module updates this count in the same task, and must be sink-free');
+
+  const SINKS = ['.innerHTML', 'insertAdjacentHTML', 'outerHTML', 'document.write'];
+  for (const file of modules) {
+    // The file the browser actually runs: every module on disk is served, so a
+    // 404 here means the STATIC_FILES allowlist (AS-26) lost an entry.
+    const res = await fetch(`${base}/${file}`);
+    assert.equal(res.status, 200, `public/${file} is served — STATIC_FILES must carry it`);
+    const src = await res.text();
+    for (const sink of SINKS) {
+      assert.equal(src.split(sink).length - 1, 0,
+        `zero ${sink} use in the served ${file} — the house rule is structural, not sanitising`);
+    }
   }
 });
 
