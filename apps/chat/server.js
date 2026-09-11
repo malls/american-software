@@ -451,14 +451,18 @@ export function createChatServer({
   function readEvents({ since = null, task = null, limit = 200 } = {}) {
     const s = readStream(EVENTS_PATH);
     let events = s.events;
-    if (task) events = events.filter((ev) => ev && ev.data && ev.data.task === task);
     if (since) {
+      // Resolve the cursor on the FULL stream, before any task filter: a client
+      // that tails one task with the last id it saw on the unfiltered `company`
+      // frames must not get an empty catch-up because that id belongs to another
+      // lane (qa-ruben review, AS-100: `task=AS-7&since=<AS-8 id>` returned []).
       const at = events.findIndex((ev) => ev.id === since);
       // An unknown `since` (a Lattice `ev_` id, a typo) returns nothing rather
       // than everything: a catch-up that silently replays the whole log is how
       // a client ends up rendering the same hour twice.
       events = at === -1 ? [] : events.slice(at + 1);
     }
+    if (task) events = events.filter((ev) => ev && ev.data && ev.data.task === task);
     const n = Number(limit);
     const capped = Math.min(Math.max(1, Number.isFinite(n) ? Math.trunc(n) : 200), 1000);
     const last = s.events.length ? s.events[s.events.length - 1] : null;
