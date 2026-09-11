@@ -534,3 +534,11 @@
 {"type":"message","id":859,"thread_root_id":null,"author":"system:lattice","body":"AS-102: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T21:40:14.868Z"}
 {"type":"message","id":860,"thread_root_id":null,"author":"system:lattice","body":"AS-102: in_progress → review — by agent:developer-lena","created_at":"2026-09-11T21:58:39.358Z"}
 {"type":"message","id":862,"thread_root_id":null,"author":"system:lattice","body":"AS-98: review → done — by agent:cto-owen","created_at":"2026-09-11T22:11:03.436Z"}
+{"type":"message","id":863,"thread_root_id":null,"author":"system:lattice","body":"AS-115: review → needs_human — by agent:cto-owen","created_at":"2026-09-11T22:12:21.283Z"}
+{"type":"message","id":865,"thread_root_id":null,"author":"system:lattice","body":"AS-119 created by agent:cto-owen — \"Chat: the AS-98 href allowlist guard misses compound assign…\" [backlog]","created_at":"2026-09-11T22:13:06.293Z"}
+{"type":"message","id":866,"thread_root_id":null,"author":"system:lattice","body":"AS-119: backlog → cancelled — by agent:cto-owen","created_at":"2026-09-11T22:13:22.192Z"}
+{"type":"message","id":867,"thread_root_id":null,"author":"system:lattice","body":"AS-120 created by agent:cto-owen — \"Chat: the AS-98 href allowlist guard misses compound assign…\" [backlog]","created_at":"2026-09-11T22:13:22.195Z"}
+{"type":"message","id":868,"thread_root_id":null,"author":"system:lattice","body":"AS-120: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T22:17:03.168Z"}
+{"type":"message","id":869,"thread_root_id":null,"author":"system:lattice","body":"AS-106: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T22:17:03.174Z"}
+{"type":"message","id":870,"thread_root_id":null,"author":"system:lattice","body":"AS-106: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T22:23:12.666Z"}
+{"type":"message","id":871,"thread_root_id":null,"author":"system:lattice","body":"AS-120: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T22:23:12.669Z"}
