@@ -16,6 +16,13 @@
            full evidence (ages, stale locks, watcher reason) rides in the
            title attribute. Both spans are filled by textContent in app.js. -->
       <div id="loop-status" role="status" aria-live="polite"><span class="loop-dot"></span><span id="loop-label"></span></div>
+      <!-- AS-99: the ambient glance at what is in flight. The badge is passive
+           (a count, never a denominator — nothing on disk carries the WIP
+           limit as data); the button opens the pane that says what, exactly. -->
+      <div id="lanes-line">
+        <button id="lanes-open" type="button">Lanes</button>
+        <span id="lanes-badge" role="status" aria-live="polite"></span>
+      </div>
       <section id="identity-box">
         <label for="identity-picker">I am</label>
         <select id="identity-picker"></select>
@@ -110,6 +117,22 @@
           <button id="org-close" title="Close org chart">×</button>
         </header>
         <div id="org-body"></div>
+      </div>
+    </div>
+
+    <!-- AS-99: the Lanes pane, patterned on the org modal above. Every card is
+         derived live from /api/lanes (watcher git snapshot joined to .lattice)
+         and refreshed by the 'lanes' SSE frame — never a cached artifact, and
+         never a list drawn from half the sources. Close button + Esc dismiss;
+         every node is built by el()/textContent in app.js. -->
+    <div id="lanes-modal" hidden>
+      <div id="lanes-dialog" role="dialog" aria-modal="true"
+           aria-labelledby="lanes-title" tabindex="-1">
+        <header>
+          <span id="lanes-title">Lanes</span>
+          <button id="lanes-close" title="Close lanes">×</button>
+        </header>
+        <div id="lanes-body"></div>
       </div>
     </div>
 

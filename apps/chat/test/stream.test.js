@@ -100,6 +100,7 @@ async function openStream(base, me) {
     status: res.status,
     headers: res.headers,
     initialLoop: null,
+    initialLanes: null, // AS-99: the second on-connect frame, consumed below
     pending: () => frames.length,
     nextFrame: (ms = 5000) =>
       new Promise((resolveP, rejectP) => {
@@ -132,6 +133,16 @@ async function openStream(base, me) {
       throw new Error(`expected a loop frame on connect, got ${first.event}`);
     }
     api.initialLoop = first;
+    // AS-99: the server sends one `lanes` frame immediately after the `loop`
+    // frame, so a reconnecting client renders the pane without a fetch. This
+    // helper consumes it for the same reason it consumes the loop frame: every
+    // ordering assertion below counts frames from the first CHANGE, and an
+    // unconsumed on-connect frame would shift all of them by one.
+    const second = await api.nextFrame();
+    if (second.event !== 'lanes') {
+      throw new Error(`expected a lanes frame after the loop frame on connect, got ${second.event}`);
+    }
+    api.initialLanes = second;
   }
   return api;
 }
