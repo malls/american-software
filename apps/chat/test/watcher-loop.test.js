@@ -681,3 +681,46 @@ test('f1-retry-is-quiet: the retries inside a wait episode do not re-announce th
   assert.equal(h.lines('LOOP-FIRE').length, 1, 'a 5s poll that retries must not flood the log');
   assert.equal(h.lines('LOOP-WAIT lock').length, 1);
 });
+
+// The mirror is the loop's only durable witness: the sidebar reads it, and a
+// restarted watcher resumes from it. Every evaluation must reach it — a mutant
+// that deleted settle()'s write survived the whole suite while this file had
+// only the LOOP-START half.
+
+test('f3-mirror-after-every-settle: a settled tick is in the file before the next one fires', () => {
+  const h = loopHarness();
+  h.ops.start({ messageId: 9 });
+  h.ops.takeFire();
+  h.advance(120_000);
+  h.ops.settle(okTick());
+  const mirror = h.saved.at(-1);
+  assert.equal(h.saved.length, 2, 'armed, then settled');
+  assert.equal(mirror.active, true);
+  assert.equal(mirror.ticks, 1, 'the tick that just ran is counted in the file, not only in memory');
+  assert.equal(mirror.armedBy, 9);
+  assert.equal(mirror.lastTick.headMoved, true);
+  assert.equal(mirror.lastTick.code, 0);
+  assert.equal(mirror.lastLoop, null);
+});
+
+test('f3-mirror-records-the-stop: the file says the loop ended and why', () => {
+  const h = loopHarness({ loadBoard: () => ({ tasks: [] }) });
+  h.ops.start({ messageId: 9 });
+  h.ops.takeFire();
+  h.ops.settle(okTick());
+  const mirror = h.saved.at(-1);
+  assert.equal(mirror.active, false, 'a stopped loop must not go on claiming the sidebar');
+  assert.equal(mirror.ticks, 0);
+  assert.equal(mirror.lastLoop.reason, 'dry');
+  assert.equal(mirror.lastLoop.ticks, 1);
+  assert.equal(h.lines('LOOP-STOP').length, 1);
+});
+
+test('f3-mirror-outside-a-loop: a tick with no loop still refreshes lastTick', () => {
+  const h = loopHarness();
+  h.ops.settle(okTick({ headAfter: 'aaa' }));
+  assert.equal(h.saved.length, 1);
+  assert.equal(h.saved[0].active, false);
+  assert.equal(h.saved[0].lastTick.headMoved, false);
+  assert.equal(h.lines('LOOP-EVAL').length, 0, 'no loop, no evaluation');
+});
