@@ -61,6 +61,9 @@ const STATIC_FILES = {
   '/loop-status.js': ['loop-status.js', 'text/javascript; charset=utf-8'],
   '/lanes.js': ['lanes.js', 'text/javascript; charset=utf-8'],
   '/dashboard-link.js': ['dashboard-link.js', 'text/javascript; charset=utf-8'],
+  '/copy-refs.js': ['copy-refs.js', 'text/javascript; charset=utf-8'],
+  '/leaf-refs.js': ['leaf-refs.js', 'text/javascript; charset=utf-8'],
+  '/tokens.css': ['tokens.css', 'text/css; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
   '/favicon.svg': ['favicon.svg', 'image/svg+xml'],
 };
