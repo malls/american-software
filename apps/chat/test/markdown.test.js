@@ -293,6 +293,29 @@ test('urls: href is a verbatim source slice; round-trip holds over a fuzz corpus
   assert.ok(saltPunct >= 15_000, `the scheme-then-non-alnum branch must fire; saw ${saltPunct}`);
 });
 
+test('urls: AS-72 — a trailing en dash / em dash / ellipsis is prose; mid-URL it is not (D3)', () => {
+  for (const [name, ch] of [['en dash', '–'], ['em dash', '—'], ['ellipsis', '…']]) {
+    const src = `see https://x.dev/a${ch} then`;
+    const tokens = tokenizeUrls(src);
+    const url = tokens.find((t) => t.type === 'url');
+    assert.ok(url, `${name}: a url token exists`);
+    assert.equal(url.href, 'https://x.dev/a', `${name}: trailing char trimmed off the href`);
+    assert.equal(url.text, url.href, `${name}: href is still the verbatim token text`);
+    assert.equal(tokens.map((t) => t.text).join(''), src, `${name}: round-trip holds`);
+
+    // Mid-URL the same character is part of the URL — the rule is a tail rule.
+    const mid = tokenizeUrls(`https://x.dev/a${ch}b`);
+    assert.equal(mid.find((t) => t.type === 'url').href, `https://x.dev/a${ch}b`, `${name}: kept mid-URL`);
+
+    // Runs trim to nothing left of the prose, one char at a time.
+    assert.equal(
+      tokenizeUrls(`https://x.dev/a${ch}${ch}.`).find((t) => t.type === 'url').href,
+      'https://x.dev/a',
+      `${name}: a run of tail punctuation trims fully`,
+    );
+  }
+});
+
 test('urls: pass order — refs inside a URL are never linkified; refs outside still are', () => {
   // The appendRefLeaf order, minus the AS pass (tokenizeAsRefs lives in app.js
   // and is not importable): URL first, then msg-refs, then file-refs, with url

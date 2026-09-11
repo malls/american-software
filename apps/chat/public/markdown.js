@@ -119,7 +119,13 @@ export function parseBlocks(text) {
 // honest host).
 const URL_RE = /https?:\/\/[A-Za-z0-9][^\s<>"'`\\]*/g;
 
-const SENTENCE_TAIL = '.,;:!?';
+// AS-72 D3: typographic tail punctuation is prose, on the same rule as `.`
+// and `,` — trimmed only at the TAIL, never mid-URL, so a Wikipedia title
+// carrying an en dash stays whole. Basis: in the corpus an en dash after a
+// URL is glued-left 62/62 times; a URL that genuinely ends in a raw en dash,
+// em dash or ellipsis does not occur and would be percent-encoded by anything
+// that emits it.
+const SENTENCE_TAIL = '.,;:!?–—…';
 const BRACKETS = [['(', ')'], ['[', ']'], ['{', '}']];
 const count = (s, ch) => {
   let n = 0;
