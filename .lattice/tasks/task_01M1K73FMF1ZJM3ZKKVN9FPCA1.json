@@ -11,8 +11,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1K73FMF1ZJM3ZKKVN9FPCA1",
-  "last_event_id": "ev_01M27S53S76FXPYMZESAMB3MG6",
-  "last_status_changed_at": "2026-09-11T08:25:41Z",
+  "last_event_id": "ev_01M27SR9YAFD9DD0J971D3XK6A",
+  "last_status_changed_at": "2026-09-11T08:36:10Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -27,10 +27,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-74",
-  "status": "in_planning",
+  "status": "planned",
   "tags": null,
   "title": "Chat: the roster truncation contract has no standing guard, and three smaller coverage gaps",
   "type": "task",
-  "updated_at": "2026-09-11T08:25:41Z",
+  "updated_at": "2026-09-11T08:36:10Z",
   "urgency": null
 }

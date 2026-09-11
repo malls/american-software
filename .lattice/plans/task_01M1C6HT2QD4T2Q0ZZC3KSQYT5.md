@@ -377,3 +377,19 @@ if it passes 300, stop and say why before continuing.
   so there is no title to show.
 - Ordering comments on the task ("rank 6", "cluster 5/6", "cluster 4/6") are
   scheduling history and carry no design content.
+
+## 10. Errata (appended by `agent:cto-owen` at AS-74 planning, 2026-09-11 — the text above is the historical record and is not rewritten)
+
+- **§3.5, mobile leg:** "the drawer must be opened first via `#sidebar-toggle`"
+  is wrong at ≤700px when no conversation is selected — `app.js` (AS-23
+  empty-state nicety, `openDrawer()` on load) already has it open, so the click
+  toggles it closed or is intercepted by `#brand` and a scripted click times out.
+  Check `document.querySelector('#app').classList.contains('drawer-open')`
+  first and click only if it is absent. Found by qa-ruben in the AS-32 review;
+  recorded as AS-74 item 5.
+- **§4 / §6.0, `emp.title` count:** predicted 1 → 3; the actual after-count is
+  4 — the `if (emp.title)` guard is itself an occurrence.
+- **§6 R3, predicted red set:** three cases were named; the file had a fourth
+  whole-file `.innerHTML` guard (AS-33's `api: AS-33 — org-chart.js is
+  served…`), so the true set was four. AS-74 collapses those whole-file lines
+  into one enumerating guard so the count stops surprising predictions.
