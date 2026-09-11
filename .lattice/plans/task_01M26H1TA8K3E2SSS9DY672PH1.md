@@ -509,3 +509,15 @@ stage events carry a tick id, should live-session ticks get `tick_*` — could a
 Default taken: interval correlation under single-flight, watcher-only tick events, the gap
 written in T2 with its revisit trigger. The `unclosed` outcome is the one place I widened the
 description's enum, and I did it because the alternative was a recorded lie.
+
+---
+
+## Implementation notes — cycle 1 (developer-lena, 2026-09-11T05:42Z, watcher:25355; hard-stopped by the tick clock, tree clean)
+
+**Done (commits 145ad17, 7ff7860, 0205cc7, efadfac):** T6 rows 1, 2 and 5 — `lib/events.js` + `test/events.test.js`, the `lib/lattice.js` parser switch, `bin/events.js` + `test/events-cli.test.js`, the `lib/lanes.js` composer half + `test/lanes.test.js`. Host run at efadfac: 441/441 (baseline 423). 13 mutants, 13 red, 0 survivors (one first-run survivor was a genuinely weak guard, fixed in efadfac; drivers and logs in `scratchpad/developer-lena/`).
+
+**Remaining, in order:** (1) `watch/advance-watcher.mjs` `makeEventsOps` + wiring + `test/watcher-events.test.js` (AC-6..10); (2) `server.js` `/api/events`, `company` SSE, tail/truncation, `readLanes()` liveness, `loopFixture.eventsBody` (AC-11..14, 17); (3) `public/lanes.js`/`app.js` words (AC-18) + both READMEs.
+
+**Plan-level correction for row (2), T4 `lanesKey`:** the merged `lanesKey` in `server.js` (~line 321) serialises `lanes: p.lanes` wholesale, not field by field. AC-17 therefore cannot be met by adding fields: `lanesKey` must be restructured to map each lane to a reduced projection (`key`, the existing git/task fields, `stageStartedAt`, `subAgent.alive`, `subAgent.lastEvent.id`) so `elapsedS` stays out of the key. Required change, not an addition. The two reserved slots in `lib/lanes.js` match T4 exactly.
+
+**Quiet adaptations already on the branch:** AC-3's grep narrowed to call sites (the literal `truncate` matched the reader's `'truncated'` reason string; M5 proves the narrowed pattern still catches a real call); the projection's top-level key list in `test/api.test.js` gains `events` (the one AS-99 assertion edited, as AC-16 sanctions — the lane-card list and `api-lanes-key-whitelist` are untouched); `stage_ended` and `tick_ended` carry a `reason` key (T2 requires it on the sweep's `tick_ended`; T1's table had omitted it). **Recorded weakness:** AC-15's `events-fold-incremental-equals-batch` is near-vacuous by construction because both paths share `foldEvent`; kept as a regression lock, and the plan's named mutant for it cannot be built — M8 covers the reducer's real content instead.
