@@ -110,7 +110,9 @@ test('lanes-relpath-outside-repo: a worktree outside the root is marked, never c
   }
   // One literal pin so the digest INPUT is fixed, not just its length: the
   // trailing-slash-stripped path alone, no root mixed in.
-  assert.equal(relPathOf('/Users/x/repo', '/tmp/throwaway-wt'), `${OUTSIDE_REPO}/throwaway-wt#${sha8('/tmp/throwaway-wt')}`);
+  const pinned = `${OUTSIDE_REPO}/throwaway-wt#${sha8('/tmp/throwaway-wt')}`;
+  assert.equal(relPathOf('/Users/x/repo', '/tmp/throwaway-wt'), pinned);
+  assert.equal(relPathOf('/Users/x/repo', '/tmp/throwaway-wt/'), pinned, 'the trailing slash is stripped before the digest, not after');
   // The basename is kept precisely so two outside worktrees stay distinct lanes.
   assert.notEqual(relPathOf('/repo', '/tmp/a'), relPathOf('/repo', '/tmp/b'));
 });
