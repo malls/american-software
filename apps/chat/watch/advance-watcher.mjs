@@ -94,9 +94,22 @@ export const DEFAULTS = Object.freeze({
 });
 
 // AS-75: the image's git-committed inputs, as repo-relative-to-apps/chat paths.
-// This is a hand-maintained copy of a fact that lives in the Dockerfile's COPY
-// lines, so it gets a guard: test/deploy-shape.test.js parses those COPY lines
-// and asserts set equality against this list. Change one, change both.
+// AS-86 fixed the definition: an image input is a tracked path under apps/chat
+// whose COMMITTED CONTENT can change the bytes of the built image — not "a path
+// the Dockerfile COPYs". The two coincide by construction, and the COPY set is
+// the mechanism that keeps them coinciding: this is a hand-maintained copy of a
+// fact that lives in the Dockerfile's COPY lines, so it gets a guard
+// (test/deploy-shape.test.js parses those COPY lines and asserts set equality
+// against this list). Change one, change both.
+//
+// `.dockerignore` is here because it is the one CONTEXT-SHAPING input: it never
+// runs, but it decides what `COPY lib ./lib` actually copies, so a committed
+// edit to it can shrink the image without touching any other path. It was
+// outside this list until AS-86, and no guard could see the gap — the COPY-set
+// guard derives its expectation from the COPY lines, so a file in no COPY line
+// is invisible to it by construction. The fix was to make it a COPY source, so
+// the existing equality guard now REQUIRES it here. The second guard against
+// the general case is classifyImagePaths below.
 //
 // Deliberately NOT `apps/chat` wholesale: apps/chat/data/export/ is tracked and
 // rewritten by every records export, so a whole-directory digest would rebuild
@@ -111,7 +124,41 @@ export const IMAGE_INPUTS = Object.freeze([
   'test',
   'compose.yaml',
   'Dockerfile',
+  '.dockerignore',
 ]);
+
+// AS-86: tracked paths under apps/chat that are in the build context but are
+// NOT image inputs. Every tracked path must be an IMAGE_INPUTS path (or under
+// one), or one of these. Anything else is unclassified, and the guard in
+// test/deploy-shape.test.js fails on it — which is the thing the COPY-set guard
+// structurally cannot do: prove that the COPY set is ALL of the inputs. Adding
+// a tracked file under apps/chat is therefore a decision someone has to record
+// here or in the Dockerfile, not something that can happen silently.
+export const NOT_IMAGE_INPUTS = Object.freeze(['README.md', 'chat', 'data']);
+
+/**
+ * Split tracked apps/chat-relative paths into { inputs, declared, unclassified },
+ * each in input order. A path belongs to a root when it IS that root or lies
+ * under it (`x/`), so directory roots such as `lib` cover `lib/store.js` while
+ * `Dockerfile` does not cover `Dockerfile.dockerignore`.
+ *
+ * Pure — the caller supplies the list (`git ls-files`), so the test that runs
+ * real git and the test that feeds a literal fixture exercise the same code.
+ * `inputs` is checked before `declared`; the two sets are asserted disjoint in
+ * the tests so the precedence never actually decides anything.
+ */
+export function classifyImagePaths(trackedPaths) {
+  const under = (p, roots) => roots.some((root) => p === root || p.startsWith(root + '/'));
+  const inputs = [];
+  const declared = [];
+  const unclassified = [];
+  for (const p of trackedPaths) {
+    if (under(p, IMAGE_INPUTS)) inputs.push(p);
+    else if (under(p, NOT_IMAGE_INPUTS)) declared.push(p);
+    else unclassified.push(p);
+  }
+  return { inputs, declared, unclassified };
+}
 
 function envNum(env, name, fallback) {
   const v = Number(env[name]);

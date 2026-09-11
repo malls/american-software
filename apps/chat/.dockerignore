@@ -1,8 +1,13 @@
 data/
 README.md
-.dockerignore
 chat
 # Dockerfile and compose.yaml are deliberately NOT ignored (AS-26): the image
 # COPYs them in as DATA for test/deploy-shape.test.js, which asserts that the
 # compose mounts actually cover what CHAT_REPO_ROOT + /api/file must serve.
 # Nothing at runtime reads them.
+#
+# AS-86: this file no longer excludes ITSELF, and that is load-bearing. It is
+# an image input (it shapes what every COPY above actually copies), so the
+# Dockerfile COPYs it in as data too — a self-exclusion would fail that COPY
+# with "file not found in build context", and deploy-shape.test.js could not
+# read it in the mountless runner to assert it hides no input.

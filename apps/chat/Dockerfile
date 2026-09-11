@@ -20,7 +20,11 @@ COPY test ./test
 # test/deploy-shape.test.js parses these to assert that compose's repo mount
 # covers every path CHAT_REPO_ROOT + /api/file must serve. The mountless test
 # service cannot reach the host checkout, so the manifests have to ride along.
-COPY compose.yaml Dockerfile ./
+# AS-86 adds .dockerignore for the same reason plus one of its own: it shapes
+# the build context (it decides what `COPY lib ./lib` actually copies), so it
+# is an image input, and making it a COPY source is what puts it inside
+# IMAGE_INPUTS' existing equality guard instead of a second hand-kept list.
+COPY compose.yaml Dockerfile .dockerignore ./
 RUN mkdir -p /app/data && chown -R node:node /app
 # AS-75: the build id the deployer computed for this image's inputs. Placed
 # after every COPY (and after the one RUN) on purpose — an ARG/ENV earlier in
