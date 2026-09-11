@@ -409,9 +409,14 @@ test('lanes-compose-tolerant: hostile and half-written rows never throw', () => 
 // --- AS-100 AC-16: the composer gains an input, not a shape -----------------
 
 test('lanes-liveness-shape-unchanged', () => {
+  // The card's key list, written out rather than compared to another card from
+  // the same run: a mutant that adds a key adds it to BOTH cards, and a
+  // self-comparison would stay green through it (observed, M12).
+  const LANE_KEYS = ['key', 'task', 'joinedBy', 'worktree', 'employee', 'stale', 'stageStartedAt', 'subAgent'];
   const args = { snapshot: snap([wt({ relPath: '.', main: true, branch: 'master' }), wt()]), tasks: [task()], ids: {} };
   const without = compose(args);
   const bare = without.lanes[0];
+  assert.deepEqual(Object.keys(bare), LANE_KEYS);
   assert.equal(bare.key, 'AS-99');
   assert.equal(bare.stageStartedAt, null, 'the reserved slot stays null with no stream');
   assert.equal(bare.subAgent, null);
@@ -435,7 +440,7 @@ test('lanes-liveness-shape-unchanged', () => {
   const lane = withLiveness.lanes[0];
   // THE contract: filling the slots adds no key to the card, which is why
   // AS-99's own api-lanes-key-whitelist test needs no edit.
-  assert.deepEqual(Object.keys(lane), Object.keys(bare));
+  assert.deepEqual(Object.keys(lane), LANE_KEYS);
   assert.equal(lane.stageStartedAt, liveness['AS-99'].stageStartedAt);
   assert.deepEqual(Object.keys(lane.subAgent), ['actor', 'stage', 'alive', 'startedAt', 'elapsedS', 'lastEvent']);
   assert.deepEqual(Object.keys(lane.subAgent.lastEvent), ['id', 'type', 'ts', 'outcome']);
