@@ -22,10 +22,21 @@
 //     in Lattice claims and SQLite. Do not "fix" it into something load-bearing.
 //
 // The fire/skip decision is pure (decide/isLockStale below) and unit-tested in
-// apps/chat/test/watcher.test.js; fs/spawn effects live in the thin shell at
-// the bottom, which only runs when this file is executed directly. The lock
-// ops are lifted into the exported makeLockOps factory (AS-13) so tests can
-// drive them against a real temp-dir lockfile without ever running main().
+// apps/chat/test/watcher.test.js. The fs/spawn effects live in the exported
+// makeWatcher factory (AS-82), beside the five older ops factories: every
+// collaborator it touches — the clock, the spawn, the pid, the log stream, the
+// exit — is injectable, and apps/chat/test/watcher-main.test.js drives the
+// poll/fire/settle/shutdown paths against a temp data dir with a fake child.
+// AS-13 did the same for the lock ops (makeLockOps), AS-95 for the loop state
+// machine (makeLoopOps); AS-82 finished the job, because the residue left in
+// main() was where every unguarded line had accumulated (the AS-27 heartbeat
+// call site among them: deleting it left the whole suite green).
+//
+// main() is now config, paths, log rotation, the log closure and the two signal
+// handlers — nothing else — and apps/chat/test/watcher-process.test.js runs the
+// real entry point once, against a temp data dir with no sentinel, to cover the
+// one property no fake can hold: that the heartbeat advances on its own
+// interval in a real process, and that SIGTERM removes the pid file.
 
 import {
   existsSync,
@@ -1949,65 +1960,76 @@ export function makeEventsOps({
   };
 }
 
-function main() {
-  const config = loadConfig();
-  const dataDir = join(config.repoRoot, 'apps', 'chat', 'data');
-  const logsDir = join(dataDir, 'logs');
-  const paths = {
-    sentinel: join(dataDir, 'last-human-message.json'),
-    highwater: join(dataDir, 'advance-watcher.highwater.json'),
-    lock: join(dataDir, 'advance.lock'),
-    pid: join(dataDir, 'advance-watcher.pid'),
-    log: join(logsDir, 'advance-watcher.log'),
-    settings: join(config.repoRoot, '.claude', 'settings.json'),
-    deployState: join(dataDir, 'deploy-state.json'), // AS-75
-    loopState: join(dataDir, 'advance-loop.json'), // AS-95
-    worktrees: join(dataDir, 'worktrees.json'), // AS-99
-    events: join(dataDir, 'events', 'company.jsonl'), // AS-100
-  };
-  mkdirSync(logsDir, { recursive: true });
-
-  // Startup size cap: rotate a >5 MiB watcher log aside rather than grow forever.
-  try {
-    if (existsSync(paths.log) && statSync(paths.log).size > 5 * 1024 * 1024) {
-      renameSync(paths.log, paths.log + '.old');
-    }
-  } catch {
-    /* log rotation is best-effort */
-  }
-
-  function log(line) {
-    const entry = `${new Date().toISOString()} ${line}\n`;
-    try {
-      appendFileSync(paths.log, entry);
-    } catch {
-      /* keep running even if the log is unwritable */
-    }
-    process.stdout.write(entry);
-  }
-
-  // Single instance: refuse to start beside a live watcher (launchd holds the
-  // supervised one; this guards the "ran it manually too" case).
-  // Known + accepted (AS-13 #5): the read-then-write below races two manual
-  // watchers started in the same instant — launchd owns the supervised
-  // instance and the fire-time wx lock bounds the damage to log noise.
-  const existingPid = readJson(paths.pid);
-  if (existingPid && pidAlive(existingPid.pid) && existingPid.pid !== process.pid) {
-    log(`FATAL another watcher is alive (pid ${existingPid.pid}); exiting`);
-    process.exit(1);
-  }
-  // AS-27: startedAt is captured once and echoed by every later heartbeat, so
-  // the file always answers both "since when" and "as of when". Deliberately
-  // NOT guarded: if we cannot write this at startup the single-instance marker
-  // does not exist, and failing loudly beats running unmarked.
-  const watcherStartedAt = new Date().toISOString();
-  writeWatcherPid({ path: paths.pid, pid: process.pid, startedAt: watcherStartedAt, now: watcherStartedAt });
-
+/**
+ * AS-82 — everything main() used to do, as a factory beside the five above.
+ *
+ * WHY THIS IS A FACTORY. The same argument makeLoopOps was lifted out on
+ * (AS-95 cycle-1 F7), one layer up: the poll/fire/settle/shutdown body was
+ * ~400 lines that no test could reach, because reaching them meant running
+ * main(). What lived there was not incidental wiring — it was the AS-27
+ * heartbeat call site, the lock take and release, the AS-21 spawn argv/env
+ * call site, the highwater write, the AS-100 tick events, the tick box, and
+ * the shutdown sequence. Priya's AS-27 review proved the cost exactly:
+ * deleting the heartbeat call left 255 tests green, so the suite was not
+ * evidence that the loop-status indicator would ever leave "Off".
+ *
+ * Every collaborator is injected with the value main() passes today as its
+ * default, so the production path is unchanged by construction: the clock, the
+ * pid, the liveness probe, the spawn, the tick-log stream and the exit. The
+ * five ops are built by start() (not at factory-call time) so the sequence of
+ * side effects stays what it is today — makeDeployOps reads the watch dir and
+ * probes for docker at construction, and that must still happen AFTER the
+ * single-instance check, not before.
+ *
+ * @param config     loadConfig() result
+ * @param paths      { sentinel, highwater, lock, pid, settings, deployState,
+ *                     loopState, worktrees, events }
+ * @param logsDir    where tick-*.log and deploy-*.log land
+ * @param watchDir   this file's directory (the deploy's self-digest input)
+ * @param log        (line) => void
+ * @param lockOps|loopOps|deployOps|lanesOps|eventsOps  optional overrides; when
+ *                   absent start() builds each exactly as main() does today
+ */
+export function makeWatcher({
+  config,
+  paths,
+  logsDir,
+  watchDir,
+  log,
+  pid = process.pid,
+  isPidAlive = pidAlive,
+  now = () => Date.now(),
+  spawnFn = spawn,
+  createLog = createWriteStream,
+  exit = (code) => process.exit(code),
+  lockOps: injectedLockOps,
+  loopOps: injectedLoopOps,
+  deployOps: injectedDeployOps,
+  lanesOps: injectedLanesOps,
+  eventsOps: injectedEventsOps,
+}) {
+  let watcherStartedAt = null;
   let debounceUntil = null;
   let child = null; // currently running tick, if any
   let lastBadSentinel = null; // log unparsable sentinel once per content change
   let lastSkipKey = null; // dedupe SKIP logs per episode (AS-13 #4)
   let loopWaitLogged = false; // one LOOP-WAIT line per deploy wait, not one per poll
+
+  // Built by start(), in today's order. fire()/poll() reference them the same
+  // way main() did; the forward reference is a `let` here instead of a TDZ
+  // const, and is assigned before the first poll() exactly as before.
+  let lockOps = null;
+  let acquireLock = null;
+  let releaseLock = null;
+  let readLock = null;
+  let loopOps = null;
+  let deployOps = null;
+  let lanesOps = null;
+  let eventsOps = null;
+  let interval = null;
+  let deployInterval = null;
+  let lanesInterval = null;
+  let eventsInterval = null;
 
   function readSentinel() {
     if (!existsSync(paths.sentinel)) return null;
@@ -2030,33 +2052,12 @@ function main() {
     }
   }
 
-  const { acquireLock, releaseLock, readLock } = makeLockOps({
-    lockPath: paths.lock,
-    staleMs: config.lockStaleMin * 60 * 1000,
-    log,
-    pid: process.pid,
-  });
-
   // AS-75: the loop moved to the exported pruneLogs (which also covers
   // deploy-*.log, on the same retention) so it is under test rather than
   // stranded inside main(); this stays as the fire-time call site.
   function pruneTickLogs() {
-    pruneLogs(logsDir, Date.now() - config.tickLogRetentionDays * 24 * 60 * 60 * 1000);
+    pruneLogs(logsDir, now() - config.tickLogRetentionDays * 24 * 60 * 60 * 1000);
   }
-
-  // AS-95: the loop state machine (counters, mirror file, resume policy, stop
-  // paths). Everything it touches is passed in here and nowhere else, so main()
-  // keeps exactly the wiring below and the policies are unit-testable.
-  const loopOps = makeLoopOps({
-    loadBoard: () => readBoard(join(config.repoRoot, '.lattice', 'tasks')),
-    loadSentinel: readSentinel,
-    loadHighwater: () => readJson(paths.highwater),
-    loadLock: () => readJson(paths.lock),
-    loadState: () => readJson(paths.loopState),
-    saveState: (body) => defaultWriteState(paths.loopState, body),
-    log,
-    resumeGraceMs: config.tickTimeoutMin * 60 * 1000,
-  });
 
   function fire(sentinel) {
     // AS-16: one nonce per fire, minted before lock acquisition — the lock
@@ -2080,22 +2081,22 @@ function main() {
     // Highwater advances NOW (at-most-once per message; see header comment).
     writeFileSync(
       paths.highwater + '.tmp',
-      JSON.stringify({ messageId: sentinel.messageId, firedAt: new Date().toISOString() })
+      JSON.stringify({ messageId: sentinel.messageId, firedAt: new Date(now()).toISOString() })
     );
     renameSync(paths.highwater + '.tmp', paths.highwater);
     // AS-100: the tick's own record, immediately after the highwater write —
     // the same instant the tick becomes a fact for every other reader.
     eventsOps.tickStarted({
       source: 'watcher',
-      pid: process.pid,
+      pid,
       messageId: sentinel.messageId,
       loopTick: loopOps.nextTick() - 1,
     });
     pruneTickLogs();
 
-    const stamp = new Date().toISOString().replaceAll(':', '-');
+    const stamp = new Date(now()).toISOString().replaceAll(':', '-');
     const tickLogPath = join(logsDir, `tick-${stamp}.log`);
-    const tickLog = createWriteStream(tickLogPath, { flags: 'a' });
+    const tickLog = createLog(tickLogPath, { flags: 'a' });
     log(`FIRE messageId ${sentinel.messageId} from ${sentinel.authorId} -> ${tickLogPath}`);
 
     // AS-21: permission grants re-read from .claude/settings.json at every
@@ -2134,12 +2135,12 @@ function main() {
     // the mutable module-level `child` — a timed-out tick's stray SIGKILL
     // timer must not be able to kill a successor tick. `child` remains only
     // the poll()/shutdown() gate, nulled iff it still points at this proc.
-    const proc = spawn(
+    const proc = spawnFn(
       config.claudeBin,
-      tickArgv(process.pid, nonce, config.permissionMode, rules ?? undefined),
+      tickArgv(pid, nonce, config.permissionMode, rules ?? undefined),
       {
         cwd: config.repoRoot,
-        env: tickChildEnv(process.env, process.pid, nonce),
+        env: tickChildEnv(process.env, pid, nonce),
         stdio: ['ignore', 'pipe', 'pipe'],
       }
     );
@@ -2194,9 +2195,9 @@ function main() {
     try {
       writeWatcherPid({
         path: paths.pid,
-        pid: process.pid,
+        pid,
         startedAt: watcherStartedAt,
-        now: new Date().toISOString(),
+        now: new Date(now()).toISOString(),
       });
     } catch {
       /* heartbeat is best-effort; the indicator degrades, the watcher does not */
@@ -2208,7 +2209,7 @@ function main() {
       sentinel,
       highwater: readJson(paths.highwater),
       lock: readLock(),
-      now: Date.now(),
+      now: now(),
       config,
       debounceUntil,
     });
@@ -2266,69 +2267,6 @@ function main() {
     fire(sentinel ?? { messageId: highwater ? highwater.messageId : 0, authorId: 'loop' });
   }
 
-  // AS-75 deploy poll. Everything it does lives in makeDeployOps (exported,
-  // unit-tested); these six lines are the entire unguarded wiring, and they are
-  // enumerated in the implementation report so a reviewer can check the claim
-  // against the diff rather than re-derive it. `void` because evaluate() is
-  // async and a rejected promise here must not become an unhandled rejection —
-  // every branch inside it already handles its own failure.
-  const deployOps = makeDeployOps({
-    repoRoot: config.repoRoot,
-    appDir: join(config.repoRoot, 'apps', 'chat'),
-    watchDir: dirname(fileURLToPath(import.meta.url)),
-    logsDir,
-    statePath: paths.deployState,
-    lockPath: paths.lock,
-    lockStaleMs: config.lockStaleMin * 60 * 1000,
-    cooldownMs: config.deployCooldownMin * 60 * 1000,
-    deployTimeoutMs: config.deployTimeoutMin * 60 * 1000,
-    retentionMs: config.tickLogRetentionDays * 24 * 60 * 60 * 1000,
-    chatUrl: config.chatUrl,
-    log,
-  });
-  log(`DEPLOY-POLL every ${config.deployPollS}s (docker ${deployOps.dockerBin ?? `unresolved: ${deployOps.dockerReason}`}, git ${deployOps.gitBin}, watcher source ${deployOps.baselineDigest})`);
-  const deployInterval = setInterval(() => void deployOps.evaluate({ busy: Boolean(child) }), config.deployPollS * 1000);
-  deployInterval.unref();
-
-  // AS-99 lanes poll. Everything it does lives in makeLanesOps (exported,
-  // unit-tested); these six lines are the entire unguarded wiring. NOT gated on
-  // `child`: a tick running is exactly when lanes move, and every call it makes
-  // is read-only (the status call carries --no-optional-locks so it cannot even
-  // take an index lock in a worktree an employee is committing in).
-  const lanesOps = makeLanesOps({
-    repoRoot: config.repoRoot,
-    statePath: paths.worktrees,
-    gitBin: deployOps.gitBin,
-    log,
-  });
-  log(`LANES-POLL every ${config.lanesPollS}s (git ${lanesOps.gitBin}) -> ${paths.worktrees}`);
-  const lanesInterval = setInterval(() => void lanesOps.evaluate(), config.lanesPollS * 1000);
-  lanesInterval.unref();
-  void lanesOps.evaluate(); // first snapshot now, not 15s from now
-
-  // AS-100 company events. Everything it does lives in makeEventsOps
-  // (exported, unit-tested); these lines are the entire unguarded wiring.
-  // lockIsBusy comes from deployOps so "a tick is running" has one definition.
-  const eventsOps = makeEventsOps({
-    streamPath: paths.events,
-    tickTimeoutMs: config.tickTimeoutMin * 60 * 1000,
-    lockBusy: deployOps.lockIsBusy,
-    isBusy: () => Boolean(child),
-    log,
-  });
-  log(`EVENTS-SWEEP every ${config.eventsSweepS}s (tick box ${config.tickTimeoutMin}min) -> ${paths.events}`);
-  const eventsInterval = setInterval(() => eventsOps.sweep(), config.eventsSweepS * 1000);
-  eventsInterval.unref();
-
-  log(
-    `START watcher pid ${process.pid} repo ${config.repoRoot} ` +
-      `(poll ${config.pollS}s, debounce ${config.debounceS}s, timeout ${config.tickTimeoutMin}min, ` +
-      `stale ${config.lockStaleMin}min, mode ${config.permissionMode})`
-  );
-  loopOps.resume(); // AS-95: re-enter a loop the previous process was running
-  const interval = setInterval(poll, config.pollS * 1000);
-  poll(); // immediate startup pass: missed-while-down recovery (plan §4)
-
   function shutdown(signal) {
     log(`STOP ${signal}`);
     clearInterval(interval);
@@ -2345,10 +2283,191 @@ function main() {
     } catch {
       /* already gone */
     }
-    process.exit(0);
+    exit(0);
   }
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+
+  /** Everything main() did after the log closure, in exactly that order. */
+  function start() {
+    // Single instance: refuse to start beside a live watcher (launchd holds the
+    // supervised one; this guards the "ran it manually too" case).
+    // Known + accepted (AS-13 #5): the read-then-write below races two manual
+    // watchers started in the same instant — launchd owns the supervised
+    // instance and the fire-time wx lock bounds the damage to log noise.
+    const existingPid = readJson(paths.pid);
+    if (existingPid && isPidAlive(existingPid.pid) && existingPid.pid !== pid) {
+      log(`FATAL another watcher is alive (pid ${existingPid.pid}); exiting`);
+      exit(1);
+      return;
+    }
+    // AS-27: startedAt is captured once and echoed by every later heartbeat, so
+    // the file always answers both "since when" and "as of when". Deliberately
+    // NOT guarded: if we cannot write this at startup the single-instance marker
+    // does not exist, and failing loudly beats running unmarked.
+    watcherStartedAt = new Date(now()).toISOString();
+    writeWatcherPid({ path: paths.pid, pid, startedAt: watcherStartedAt, now: watcherStartedAt });
+
+    lockOps =
+      injectedLockOps ??
+      makeLockOps({
+        lockPath: paths.lock,
+        staleMs: config.lockStaleMin * 60 * 1000,
+        log,
+        pid,
+        isPidAlive,
+      });
+    ({ acquireLock, releaseLock, readLock } = lockOps);
+
+    // AS-95: the loop state machine (counters, mirror file, resume policy, stop
+    // paths). Everything it touches is passed in here and nowhere else, so the
+    // wiring stays exactly the lines below and the policies are unit-testable.
+    loopOps =
+      injectedLoopOps ??
+      makeLoopOps({
+        loadBoard: () => readBoard(join(config.repoRoot, '.lattice', 'tasks')),
+        loadSentinel: readSentinel,
+        loadHighwater: () => readJson(paths.highwater),
+        loadLock: () => readJson(paths.lock),
+        loadState: () => readJson(paths.loopState),
+        saveState: (body) => defaultWriteState(paths.loopState, body),
+        log,
+        now,
+        resumeGraceMs: config.tickTimeoutMin * 60 * 1000,
+      });
+
+    // AS-75 deploy poll. Everything it does lives in makeDeployOps (exported,
+    // unit-tested); these six lines are the entire unguarded wiring, and they are
+    // enumerated in the implementation report so a reviewer can check the claim
+    // against the diff rather than re-derive it. `void` because evaluate() is
+    // async and a rejected promise here must not become an unhandled rejection —
+    // every branch inside it already handles its own failure.
+    deployOps =
+      injectedDeployOps ??
+      makeDeployOps({
+        repoRoot: config.repoRoot,
+        appDir: join(config.repoRoot, 'apps', 'chat'),
+        watchDir,
+        logsDir,
+        statePath: paths.deployState,
+        lockPath: paths.lock,
+        lockStaleMs: config.lockStaleMin * 60 * 1000,
+        cooldownMs: config.deployCooldownMin * 60 * 1000,
+        deployTimeoutMs: config.deployTimeoutMin * 60 * 1000,
+        retentionMs: config.tickLogRetentionDays * 24 * 60 * 60 * 1000,
+        chatUrl: config.chatUrl,
+        log,
+        now,
+        pid,
+        isPidAlive,
+      });
+    log(`DEPLOY-POLL every ${config.deployPollS}s (docker ${deployOps.dockerBin ?? `unresolved: ${deployOps.dockerReason}`}, git ${deployOps.gitBin}, watcher source ${deployOps.baselineDigest})`);
+    deployInterval = setInterval(() => void deployOps.evaluate({ busy: Boolean(child) }), config.deployPollS * 1000);
+    deployInterval.unref();
+
+    // AS-99 lanes poll. Everything it does lives in makeLanesOps (exported,
+    // unit-tested); these six lines are the entire unguarded wiring. NOT gated on
+    // `child`: a tick running is exactly when lanes move, and every call it makes
+    // is read-only (the status call carries --no-optional-locks so it cannot even
+    // take an index lock in a worktree an employee is committing in).
+    lanesOps =
+      injectedLanesOps ??
+      makeLanesOps({
+        repoRoot: config.repoRoot,
+        statePath: paths.worktrees,
+        gitBin: deployOps.gitBin,
+        log,
+        now,
+      });
+    log(`LANES-POLL every ${config.lanesPollS}s (git ${lanesOps.gitBin}) -> ${paths.worktrees}`);
+    lanesInterval = setInterval(() => void lanesOps.evaluate(), config.lanesPollS * 1000);
+    lanesInterval.unref();
+    void lanesOps.evaluate(); // first snapshot now, not 15s from now
+
+    // AS-100 company events. Everything it does lives in makeEventsOps
+    // (exported, unit-tested); these lines are the entire unguarded wiring.
+    // lockIsBusy comes from deployOps so "a tick is running" has one definition.
+    eventsOps =
+      injectedEventsOps ??
+      makeEventsOps({
+        streamPath: paths.events,
+        tickTimeoutMs: config.tickTimeoutMin * 60 * 1000,
+        lockBusy: deployOps.lockIsBusy,
+        isBusy: () => Boolean(child),
+        log,
+        now,
+      });
+    log(`EVENTS-SWEEP every ${config.eventsSweepS}s (tick box ${config.tickTimeoutMin}min) -> ${paths.events}`);
+    eventsInterval = setInterval(() => eventsOps.sweep(), config.eventsSweepS * 1000);
+    eventsInterval.unref();
+
+    log(
+      `START watcher pid ${pid} repo ${config.repoRoot} ` +
+        `(poll ${config.pollS}s, debounce ${config.debounceS}s, timeout ${config.tickTimeoutMin}min, ` +
+        `stale ${config.lockStaleMin}min, mode ${config.permissionMode})`
+    );
+    loopOps.resume(); // AS-95: re-enter a loop the previous process was running
+    interval = setInterval(poll, config.pollS * 1000);
+    poll(); // immediate startup pass: missed-while-down recovery (plan §4)
+  }
+
+  return {
+    start,
+    poll,
+    fire,
+    shutdown,
+    readSentinel,
+    hasChild: () => child !== null,
+    /** The ops start() built, for assertions. Null before start(). */
+    ops: () => ({ lock: lockOps, loop: loopOps, deploy: deployOps, lanes: lanesOps, events: eventsOps }),
+  };
+}
+
+function main() {
+  const config = loadConfig();
+  const dataDir = join(config.repoRoot, 'apps', 'chat', 'data');
+  const logsDir = join(dataDir, 'logs');
+  const paths = {
+    sentinel: join(dataDir, 'last-human-message.json'),
+    highwater: join(dataDir, 'advance-watcher.highwater.json'),
+    lock: join(dataDir, 'advance.lock'),
+    pid: join(dataDir, 'advance-watcher.pid'),
+    log: join(logsDir, 'advance-watcher.log'),
+    settings: join(config.repoRoot, '.claude', 'settings.json'),
+    deployState: join(dataDir, 'deploy-state.json'), // AS-75
+    loopState: join(dataDir, 'advance-loop.json'), // AS-95
+    worktrees: join(dataDir, 'worktrees.json'), // AS-99
+    events: join(dataDir, 'events', 'company.jsonl'), // AS-100
+  };
+  mkdirSync(logsDir, { recursive: true });
+
+  // Startup size cap: rotate a >5 MiB watcher log aside rather than grow forever.
+  try {
+    if (existsSync(paths.log) && statSync(paths.log).size > 5 * 1024 * 1024) {
+      renameSync(paths.log, paths.log + '.old');
+    }
+  } catch {
+    /* log rotation is best-effort */
+  }
+
+  function log(line) {
+    const entry = `${new Date().toISOString()} ${line}\n`;
+    try {
+      appendFileSync(paths.log, entry);
+    } catch {
+      /* keep running even if the log is unwritable */
+    }
+    process.stdout.write(entry);
+  }
+
+  const watcher = makeWatcher({
+    config,
+    paths,
+    logsDir,
+    watchDir: dirname(fileURLToPath(import.meta.url)),
+    log,
+  });
+  watcher.start();
+  process.on('SIGTERM', () => watcher.shutdown('SIGTERM'));
+  process.on('SIGINT', () => watcher.shutdown('SIGINT'));
 }
 
 // Execute only when run directly (never on `import { decide } ...` in tests).
