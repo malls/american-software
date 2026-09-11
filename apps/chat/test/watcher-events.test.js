@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { makeEventsOps } from '../watch/advance-watcher.mjs';
-import { makeEvent, serialiseEvent, tickOutcome, EVENT_SHAPES } from '../lib/events.js';
+import { makeEvent, serialiseEvent, EVENT_SHAPES } from '../lib/events.js';
 
 const T0 = Date.parse('2026-09-11T05:00:00.000Z');
 const MIN = 60 * 1000;
@@ -73,18 +73,10 @@ function harness({ file = null, nowMs = T0 + 5 * MIN, lockBusy = () => false, is
   };
 }
 
-// --- AC-6: how a tick ended -------------------------------------------------
-
-test('watcher-events-outcome-timeout', () => {
-  // Cardinality first: six mappings, each an exact word.
-  assert.equal(tickOutcome({ timedOut: true }), 'timeout');
-  assert.equal(tickOutcome({ timedOut: true, code: 0 }), 'timeout', 'a timeout that also exited 0 is still a timeout');
-  assert.equal(tickOutcome({ code: 1 }), 'error');
-  assert.equal(tickOutcome({ signal: 'SIGTERM' }), 'error');
-  assert.equal(tickOutcome({ code: 0, stagesStarted: 0, headMoved: false }), 'noop');
-  assert.equal(tickOutcome({ code: 0, stagesStarted: 1, headMoved: false }), 'ok');
-  assert.equal(tickOutcome({ code: 0, stagesStarted: 0, headMoved: true }), 'ok');
-});
+// AC-6 (the tickOutcome / stageCloseOutcome mapping) is owned by
+// test/events.test.js's `watcher-events-outcome-timeout` — the functions are
+// pure core, and one id must name exactly one test or a red set stops saying
+// which guard fired. What lives here is the reconciler that CALLS them.
 
 test('watcher-events-tick-started-shape', () => {
   const h = harness();

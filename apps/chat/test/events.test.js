@@ -193,6 +193,7 @@ test('events-make-validates', () => {
 
 test('watcher-events-outcome-timeout', () => {
   assert.equal(tickOutcome({ timedOut: true, code: null, signal: 'SIGTERM' }), 'timeout');
+  assert.equal(tickOutcome({ timedOut: true, code: 0 }), 'timeout', 'a timeout that also exited 0 is still a timeout');
   assert.equal(tickOutcome({ code: 1 }), 'error');
   assert.equal(tickOutcome({ code: null, signal: 'SIGTERM' }), 'error');
   assert.equal(tickOutcome({ code: 0, stagesStarted: 0, headMoved: false }), 'noop');
