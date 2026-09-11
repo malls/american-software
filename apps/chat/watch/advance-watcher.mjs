@@ -1508,13 +1508,28 @@ export function classifyMerged({ ahead, isAncestor, onFirstParent }) {
   return ahead === 0 && isAncestor === true && onFirstParent === false;
 }
 
-/** Repo-relative path for the snapshot. '.' for the main checkout itself. */
+/** The marker a worktree outside the repo root gets instead of its host path.
+ *  It cannot collide with a real repo-relative path (those never start with a
+ *  '<'), which is what lets the composer keep using relPath as a lane key. */
+export const OUTSIDE_REPO = '<outside repo>';
+
+/** Repo-relative path for the snapshot. '.' for the main checkout itself.
+ *
+ *  A linked worktree can legitimately live anywhere on the host (`git worktree
+ *  add /tmp/throwaway`), and the absolute host path must NEVER reach the
+ *  snapshot — the plan's T4 says so outright, and the payload flows straight to
+ *  a browser through lane.worktree.relPath and lane.key. Such a row is marked
+ *  instead, keeping only the basename so two outside worktrees stay distinct
+ *  lanes (the key falls back to relPath when no task joins). */
 export function relPathOf(repoRoot, path) {
   const root = String(repoRoot ?? '').replace(/\/+$/, '');
   const p = String(path ?? '');
   if (p === root) return '.';
   if (root && p.startsWith(root + '/')) return p.slice(root.length + 1);
-  return p;
+  // Already relative (or empty): nothing to leak, leave it alone.
+  if (!p.startsWith('/')) return p;
+  const base = p.replace(/\/+$/, '').split('/').pop();
+  return base ? `${OUTSIDE_REPO}/${base}` : OUTSIDE_REPO;
 }
 
 /** Porcelain v1 status lines -> { dirtyCount, dirtyLattice }. `dirtyLattice`

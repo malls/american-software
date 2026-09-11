@@ -10,6 +10,7 @@ import {
   parseWorktreeList,
   classifyMerged,
   relPathOf,
+  OUTSIDE_REPO,
   summarizeStatus,
 } from '../watch/advance-watcher.mjs';
 import { composeLanes, LANES_STALE_MS, LANES_REASON_CODES, LANE_WORKTREE_KEYS } from '../lib/lanes.js';
@@ -77,7 +78,30 @@ test('lanes-relpath: the absolute host path is stripped to a repo-relative one',
   assert.equal(relPathOf('/repo', '/repo'), '.');
   assert.equal(relPathOf('/repo', '/repo/.worktrees/AS-99'), '.worktrees/AS-99');
   assert.equal(relPathOf('/repo/', '/repo/.worktrees/AS-99'), '.worktrees/AS-99');
-  assert.equal(relPathOf('/repo', '/elsewhere/x'), '/elsewhere/x', 'an outside path is left alone, not faked');
+  // A sibling whose name merely PREFIXES the root is outside it, not inside.
+  assert.ok(!relPathOf('/repo', '/repo2/wt').startsWith('/'), 'a sibling-prefix path is not treated as a descendant');
+});
+
+test('lanes-relpath-outside-repo: a worktree outside the root is marked, never carried as a host path', () => {
+  // `git worktree add /tmp/throwaway` is legal and the M6 probe does exactly
+  // that. T4: the absolute host path is not written into the snapshot — and
+  // relPath flows to the browser through lane.worktree.relPath and lane.key.
+  const cases = [
+    ['/Users/x/repo', '/tmp/throwaway-wt', `${OUTSIDE_REPO}/throwaway-wt`],
+    ['/Users/x/repo', '/tmp/throwaway-wt/', `${OUTSIDE_REPO}/throwaway-wt`],
+    ['/Users/x/repo', '/Users/x/repo2/wt', `${OUTSIDE_REPO}/wt`],
+    ['/Users/x/repo', '/Users/x/other/.worktrees/AS-1', `${OUTSIDE_REPO}/AS-1`],
+    ['/Users/x/repo', '/', OUTSIDE_REPO],
+  ];
+  assert.equal(cases.length, 5); // cardinality before quantification
+  for (const [root, path, want] of cases) {
+    const got = relPathOf(root, path);
+    assert.equal(got, want, `${path} under ${root}`);
+    assert.ok(!got.startsWith('/'), `${path} must not survive as an absolute path`);
+    assert.ok(!got.includes('/Users/'), `${path} must not leak a host directory`);
+  }
+  // The basename is kept precisely so two outside worktrees stay distinct lanes.
+  assert.notEqual(relPathOf('/repo', '/tmp/a'), relPathOf('/repo', '/tmp/b'));
 });
 
 test('lanes-status-summary: dirty count, and .lattice dirt called out by name', () => {
