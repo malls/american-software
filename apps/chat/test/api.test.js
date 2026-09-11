@@ -1204,16 +1204,38 @@ test('api: AS-28 — the favicon uses only palette hex values', async (t) => {
 
   // BRANDING.md §3.1: --color-accent-500 and --color-ink-white. Raw hex is
   // unavoidable in a standalone SVG, so the token discipline is enforced here.
+  //
+  // Cycle-1 F1: the first cut matched /#[0-9a-fA-F]{6}/g over the whole file,
+  // which (a) counted the two hex strings in the SVG's XML *comment* toward the
+  // cardinality floor — so artwork repainted `red`/`lime` passed with zero
+  // palette colours, the exact vacuous shape the floor exists to prevent — and
+  // (b) matched any 6-hex prefix, so `#1C41E3FF` passed. Both are closed by
+  // dropping comments and comparing WHOLE paint-attribute values.
   const allowed = new Set(['#1c41e3', '#ffffff']);
-  const found = svg.match(/#[0-9a-fA-F]{6}/g) || [];
-  // Cardinality before quantification: an SVG stripped of every color must
-  // fail this, not pass it vacuously.
-  assert.ok(found.length >= 2, `${found.length} hex values examined, expected at least 2`);
-  for (const hex of found) {
+  const artwork = svg.replace(/<!--[\s\S]*?-->/g, '');
+
+  // Paint can only arrive through the attributes examined below, so the two
+  // doors that would smuggle a colour past them must stay shut. If this icon
+  // ever needs CSS, this guard learns to parse it in the same change.
+  assert.ok(!/<style[\s>]/i.test(artwork), 'the artwork declares no <style> element');
+  assert.ok(!/\sstyle\s*=/i.test(artwork), 'the artwork declares no style="" attribute');
+
+  const paints = [...artwork.matchAll(
+    /\b(fill|stroke|stop-color|flood-color|lighting-color)\s*=\s*"([^"]*)"/g
+  )];
+
+  // Cardinality before quantification: this artwork paints one path and three
+  // circles, so anything under four paint attributes means the guard is looking
+  // at the wrong set (or the artwork lost its colour) — red, never a pass.
+  assert.ok(paints.length >= 4,
+    `${paints.length} paint attributes examined, expected at least 4`);
+  for (const [, attr, value] of paints) {
+    // Whole value, not a substring: `#1C41E3FF`, `#F00`, `red`, `rgb(...)` are
+    // all non-tokens and all fail here.
     assert.ok(
-      allowed.has(hex.toLowerCase()),
-      `${found.length} hex values examined: ${hex} is not a palette token ` +
-        '(#1C41E3 --color-accent-500, #FFFFFF --color-ink-white)'
+      allowed.has(value.trim().toLowerCase()),
+      `${paints.length} paint attributes examined: ${attr}="${value}" is not a ` +
+        'palette token (#1C41E3 --color-accent-500, #FFFFFF --color-ink-white)'
     );
   }
 });
