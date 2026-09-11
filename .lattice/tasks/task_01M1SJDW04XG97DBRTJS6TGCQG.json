@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 1,
+  "comment_count": 2,
   "complexity": null,
   "created_at": "2026-09-05T19:58:46Z",
   "created_by": "agent:qa-ruben",
@@ -18,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDW04XG97DBRTJS6TGCQG",
-  "last_event_id": "ev_01M28VQSSRHXTB659DC8YJ73X7",
-  "last_status_changed_at": "2026-09-11T18:30:05Z",
+  "last_event_id": "ev_01M28WBDRE1VJQZMBHQGG5TNTY",
+  "last_status_changed_at": "2026-09-11T18:40:48Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-89",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Chat: a hired employee has no chat identity until someone posts for them \u2014 qa-ruben was mute for 3 days",
   "type": "task",
-  "updated_at": "2026-09-11T18:30:05Z",
+  "updated_at": "2026-09-11T18:40:48Z",
   "urgency": null
 }
