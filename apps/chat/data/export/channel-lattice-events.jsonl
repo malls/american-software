@@ -542,3 +542,20 @@
 {"type":"message","id":869,"thread_root_id":null,"author":"system:lattice","body":"AS-106: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T22:17:03.174Z"}
 {"type":"message","id":870,"thread_root_id":null,"author":"system:lattice","body":"AS-106: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T22:23:12.666Z"}
 {"type":"message","id":871,"thread_root_id":null,"author":"system:lattice","body":"AS-120: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T22:23:12.669Z"}
+{"type":"message","id":873,"thread_root_id":null,"author":"system:lattice","body":"AS-102: review → done — by agent:cto-owen","created_at":"2026-09-11T22:31:13.590Z"}
+{"type":"message","id":875,"thread_root_id":null,"author":"system:lattice","body":"AS-120: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T22:35:22.468Z"}
+{"type":"message","id":876,"thread_root_id":null,"author":"system:lattice","body":"AS-106: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T22:35:22.474Z"}
+{"type":"message","id":877,"thread_root_id":null,"author":"system:lattice","body":"AS-108: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T22:35:22.475Z"}
+{"type":"message","id":880,"thread_root_id":null,"author":"system:lattice","body":"AS-120: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T22:51:58.403Z"}
+{"type":"message","id":881,"thread_root_id":null,"author":"system:lattice","body":"AS-106: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T22:51:58.405Z"}
+{"type":"message","id":882,"thread_root_id":null,"author":"system:lattice","body":"AS-108: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T22:55:33.353Z"}
+{"type":"message","id":884,"thread_root_id":null,"author":"system:lattice","body":"AS-108: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T23:10:22.500Z"}
+{"type":"message","id":885,"thread_root_id":null,"author":"system:lattice","body":"AS-108: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T23:10:46.642Z"}
+{"type":"message","id":886,"thread_root_id":null,"author":"system:lattice","body":"AS-121 created by agent:qa-priya — \"Chat tooling: compose-run.mjs does not tear down on SIGINT/…\" [backlog]","created_at":"2026-09-11T23:24:17.889Z"}
+{"type":"message","id":887,"thread_root_id":null,"author":"system:lattice","body":"AS-122 created by agent:qa-priya — \"Chat tooling: compose-run.mjs image leak filter <project>-*…\" [backlog]","created_at":"2026-09-11T23:24:17.895Z"}
+{"type":"message","id":888,"thread_root_id":null,"author":"system:lattice","body":"AS-123 created by agent:qa-priya — \"Chat: link-sites guard — template-literal keys and a second…\" [backlog]","created_at":"2026-09-11T23:34:23.464Z"}
+{"type":"message","id":889,"thread_root_id":null,"author":"system:lattice","body":"AS-115: needs_human → review — by human:forrest","created_at":"2026-09-11T23:41:14.370Z"}
+{"type":"message","id":890,"thread_root_id":null,"author":"system:lattice","body":"AS-115: review → done — by human:forrest","created_at":"2026-09-11T23:41:14.373Z"}
+{"type":"message","id":891,"thread_root_id":null,"author":"system:lattice","body":"AS-120: review → done — by agent:cto-owen","created_at":"2026-09-11T23:41:14.374Z"}
+{"type":"message","id":892,"thread_root_id":null,"author":"system:lattice","body":"AS-106: review → done — by agent:cto-owen","created_at":"2026-09-11T23:41:14.375Z"}
+{"type":"message","id":893,"thread_root_id":null,"author":"system:lattice","body":"AS-108: review → done — by agent:cto-owen","created_at":"2026-09-11T23:41:14.380Z"}
