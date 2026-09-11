@@ -12,13 +12,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, cpSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
-import { createServer as createTcpServer } from 'node:net';
+import { createServer as createTcpServer, connect as tcpConnect } from 'node:net';
 import { createServer as createHttpServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createChatServer } from '../server.js';
 import { openStore } from '../lib/store.js';
+import { DEFAULT_PROBE_TIMEOUT_MS } from '../lib/client.js';
 
 const BIN = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'chat.js');
 const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
@@ -30,7 +31,7 @@ const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures'
  *  the blocked parent can never send). */
 function run(args, env = {}) {
   const base = { ...process.env, CHAT_REPO_ROOT: FIXTURE_ROOT, NODE_OPTIONS: '--no-warnings' };
-  for (const k of ['CHAT_MODE', 'CHAT_API', 'CHAT_DB', 'CHAT_ME']) delete base[k];
+  for (const k of ['CHAT_MODE', 'CHAT_API', 'CHAT_DB', 'CHAT_ME', 'CHAT_PROBE_TIMEOUT_MS']) delete base[k];
   const startedAt = performance.now();
   return new Promise((done, reject) => {
     const child = spawn(process.execPath, [BIN, ...args], { env: { ...base, ...env } });
@@ -48,10 +49,12 @@ function run(args, env = {}) {
 /** AS-83: one legible string for a child that exited when it should not have —
  *  status, signal, elapsed ms, stderr AND stdout. The AS-24 case above was seen
  *  red four times by four people, and not one sighting could name the exit path
- *  from the failure message (`assert.equal(x.status, 0, x.stderr)` loses the
- *  elapsed time that distinguishes a probe timeout from a crash, and prints
- *  nothing at all when the child died by signal). Every status-0 assertion in
- *  this file goes through here so the NEXT sighting names its own cause. */
+ *  from the failure message: asserting the exit status with only `x.stderr` as
+ *  the message loses the elapsed time that distinguishes a probe timeout from a
+ *  crash, and prints nothing at all when the child died by signal. Every
+ *  exit-status assertion in this file goes through here (the two greps in the
+ *  plan's AC-1 count the same number), so the NEXT sighting names its own
+ *  cause without a re-run. */
 function describeExit(r, label) {
   return (
     `${label}: exit ${r.status} signal ${r.signal} after ${r.elapsedMs} ms\n` +
@@ -107,6 +110,53 @@ function assertNoDbTouched(phantom) {
   assert.ok(!existsSync(dirname(phantom)), 'CLI never opened a DB file (parent dir absent)');
 }
 
+/** Environment for the cases that need the in-process server to be UP.
+ *  The probe budget is pinned high on purpose (AS-83): these cases assert MODE
+ *  behaviour — a write lands in the server's view, no DB file is opened — and
+ *  the wall clock is not part of what they prove. Before this, they depended on
+ *  the in-process server answering one GET inside the production default while
+ *  31 test processes and (in CI) a concurrent docker build fought for the same
+ *  emulated cores; four people watched that race be lost. A live server that
+ *  cannot answer in 20 s is a hang, not load, and it still ends as a legible
+ *  exit 1 naming the budget rather than a wedged runner.
+ *  Single occurrence of the budget literal on purpose — it is the M4 anchor. */
+function apiEnv(base, phantom, extra = {}) {
+  return { CHAT_API: base, CHAT_DB: phantom, CHAT_PROBE_TIMEOUT_MS: '20000', ...extra };
+}
+
+/** A TCP proxy that waits `delayMs` after accepting before it connects to the
+ *  real server, then pipes both ways: a server that is genuinely LIVE but
+ *  slower than the probe budget. That is the flake, written down — and unlike a
+ *  1 ms budget against a fast loopback server (which the fast server can win),
+ *  it is deterministic in both directions.
+ *  The client socket is paused until the pipe is attached, so the request bytes
+ *  sit buffered for the delay and the answer arrives late rather than never.
+ *  Sockets and pending timers are tracked and torn down: an accepted socket
+ *  wedges close() forever (the AS-81 lesson, and the trap case's own pattern). */
+async function slowProxy(t, targetPort, delayMs) {
+  const sockets = new Set();
+  const timers = new Set();
+  const proxy = createTcpServer((client) => {
+    sockets.add(client);
+    client.on('error', () => {});
+    const timer = setTimeout(() => {
+      timers.delete(timer);
+      const upstream = tcpConnect({ port: Number(targetPort), host: '127.0.0.1' });
+      sockets.add(upstream);
+      upstream.on('error', () => client.destroy());
+      client.pipe(upstream).pipe(client);
+    }, delayMs);
+    timers.add(timer);
+  });
+  await new Promise((ok) => proxy.listen(0, '127.0.0.1', ok));
+  t.after(() => new Promise((ok) => {
+    for (const timer of timers) clearTimeout(timer);
+    for (const s of sockets) s.destroy();
+    proxy.close(ok);
+  }));
+  return `http://127.0.0.1:${proxy.address().port}`;
+}
+
 /** An ephemeral port with provably nothing listening (bind, read, close). */
 async function closedPort() {
   const srv = createTcpServer();
@@ -121,7 +171,7 @@ async function closedPort() {
 test('mode: AS-24 — API-mode writes land in the server view; no DB file is ever created', async (t) => {
   const { base, get, dataDir } = await bootServer(t);
   const phantom = phantomDb(t);
-  const env = { CHAT_API: base, CHAT_DB: phantom };
+  const env = apiEnv(base, phantom);
 
   // dm (the command that produced orphan message 161).
   const dm = await run(['dm', 'agent:ceo-carla', 'routed through the API', '--me', 'human:forrest', '--json'], env);
@@ -179,16 +229,91 @@ test('mode: AS-24 — probe timeout (something listening, not answering) refuses
   }));
   const phantom = phantomDb(t);
 
+  // No CHAT_PROBE_TIMEOUT_MS on purpose (this case does NOT use apiEnv): it is
+  // the one place that proves the production default applies when the knob is
+  // unset, and that the refusal names the budget it actually spent.
   const r = await run(['post', 'engineering', 'must not land', '--me', 'human:forrest'], {
     CHAT_API: `http://127.0.0.1:${trap.address().port}`,
     CHAT_DB: phantom,
   });
-  assert.equal(r.status, 1);
+  assert.equal(r.status, 1, describeExit(r, 'post (trap listener)'));
   assert.equal(r.stdout, '');
   assert.match(r.stderr, /AS-24/);
   assert.match(r.stderr, /refusing to touch the shared DB/);
   assert.match(r.stderr, /CHAT_MODE=direct/);
+  assert.match(r.stderr, new RegExp(`timed out after ${DEFAULT_PROBE_TIMEOUT_MS} ms`));
+  assert.ok(
+    r.elapsedMs >= DEFAULT_PROBE_TIMEOUT_MS,
+    describeExit(r, `post (trap listener) should have spent the full ${DEFAULT_PROBE_TIMEOUT_MS} ms budget`)
+  );
   assertNoDbTouched(phantom);
+});
+
+// --- 2b. AS-83: slow-but-live is the flake, and the budget is the difference --
+
+test('mode: AS-83 — a live server that answers slower than the probe budget is refused as ambiguous (the flake signature)', async (t) => {
+  const { base } = await bootServer(t);
+  const proxy = await slowProxy(t, new URL(base).port, 150);
+  const phantom = phantomDb(t);
+
+  const r = await run(
+    ['dm', 'agent:ceo-carla', 'must not land', '--me', 'human:forrest', '--json'],
+    apiEnv(proxy, phantom, { CHAT_PROBE_TIMEOUT_MS: '50' })
+  );
+  assert.equal(r.status, 1, describeExit(r, 'dm (150 ms server, 50 ms budget)'));
+  assert.equal(r.stdout, '');
+  assert.match(r.stderr, /AS-24/);
+  assert.match(r.stderr, /refusing to touch the shared DB/);
+  assert.match(r.stderr, /timed out after 50 ms/);
+  // It exited early on its own budget — the observed shape, not a hang.
+  assert.ok(r.elapsedMs < 2000, describeExit(r, 'dm (150 ms server, 50 ms budget) took too long'));
+  assertNoDbTouched(phantom);
+});
+
+test('mode: AS-83 — the same slow server inside the budget is up: the write lands in the server view, no DB touched', async (t) => {
+  const { base, get } = await bootServer(t);
+  const proxy = await slowProxy(t, new URL(base).port, 150);
+  const phantom = phantomDb(t);
+
+  const r = await run(
+    ['dm', 'agent:ceo-carla', 'through the slow proxy', '--me', 'human:forrest', '--json'],
+    apiEnv(proxy, phantom)
+  );
+  assert.equal(r.status, 0, describeExit(r, 'dm (150 ms server, 20 s budget)'));
+  const msg = JSON.parse(r.stdout);
+  // Same server, same proxy, same delay as the case above — only the budget
+  // differs. Read back through the REAL server, not the proxy: the write has
+  // to be in the server's own view.
+  const view = await get(`/api/messages?conversation=${msg.conversationId}&me=human:forrest`);
+  assert.equal(view.status, 200);
+  assert.ok(view.data.messages.some((m) => m.id === msg.id && m.body === 'through the slow proxy'));
+  assertNoDbTouched(phantom);
+});
+
+test('mode: AS-83 — CHAT_PROBE_TIMEOUT_MS must be a positive integer of milliseconds; anything else is a usage error on every path', async (t) => {
+  // Rule 4 (CHAT_DB alone): no probe would ever run on these invocations, and
+  // the budget is still validated — a typo'd knob is an error on the run where
+  // it is harmless, not only on the run where it matters.
+  for (const bad of ['abc', '0', '-5']) {
+    const phantom = phantomDb(t);
+    const r = await run(['channels', '--me', 'human:forrest'], {
+      CHAT_DB: phantom,
+      CHAT_PROBE_TIMEOUT_MS: bad,
+    });
+    assert.equal(r.status, 1, describeExit(r, `channels (CHAT_PROBE_TIMEOUT_MS=${bad})`));
+    assert.match(r.stderr, /invalid CHAT_PROBE_TIMEOUT_MS/);
+    assert.match(r.stderr, new RegExp(`'${bad}'`));
+    assertNoDbTouched(phantom);
+  }
+  // Control: empty string counts as unset (compose passthrough convention).
+  const dir = mkdtempSync(join(tmpdir(), 'chat-mode-knob-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const ok = await run(['channels', '--me', 'human:forrest'], {
+    CHAT_DB: join(dir, 'chat.db'),
+    CHAT_PROBE_TIMEOUT_MS: '',
+  });
+  assert.equal(ok.status, 0, describeExit(ok, "channels (CHAT_PROBE_TIMEOUT_MS='')"));
+  assert.match(ok.stdout, /#engineering/);
 });
 
 test('mode: AS-24 — squatted port (wrong-shaped JSON) refuses loudly, zero side effects', async (t) => {
@@ -297,7 +422,7 @@ test('mode: AS-24 — full command sweep in API mode (no DB file, direct-mode sh
   cpSync(FIXTURE_ROOT, root, { recursive: true });
   const { base, get, store } = await bootServer(t, root);
   const phantom = phantomDb(t);
-  const env = { CHAT_API: base, CHAT_DB: phantom, CHAT_REPO_ROOT: root };
+  const env = apiEnv(base, phantom, { CHAT_REPO_ROOT: root });
   const M = 'human:forrest';
   const N = 'agent:developer-marcus';
 
