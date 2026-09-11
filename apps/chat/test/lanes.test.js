@@ -5,6 +5,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 
 import {
   parseWorktreeList,
@@ -82,26 +83,64 @@ test('lanes-relpath: the absolute host path is stripped to a repo-relative one',
   assert.ok(!relPathOf('/repo', '/repo2/wt').startsWith('/'), 'a sibling-prefix path is not treated as a descendant');
 });
 
+const OUTSIDE_SHAPE = /^<outside repo>\/[^/#]+#[0-9a-f]{8}$/;
+const sha8 = (s) => createHash('sha256').update(s).digest('hex').slice(0, 8);
+
 test('lanes-relpath-outside-repo: a worktree outside the root is marked, never carried as a host path', () => {
   // `git worktree add /tmp/throwaway` is legal and the M6 probe does exactly
   // that. T4: the absolute host path is not written into the snapshot — and
   // relPath flows to the browser through lane.worktree.relPath and lane.key.
+  // AS-108: the marker is `<outside repo>/<basename>#<8 hex>`; `want` is a
+  // shape for the four basename cases and the bare marker for the root.
   const cases = [
-    ['/Users/x/repo', '/tmp/throwaway-wt', `${OUTSIDE_REPO}/throwaway-wt`],
-    ['/Users/x/repo', '/tmp/throwaway-wt/', `${OUTSIDE_REPO}/throwaway-wt`],
-    ['/Users/x/repo', '/Users/x/repo2/wt', `${OUTSIDE_REPO}/wt`],
-    ['/Users/x/repo', '/Users/x/other/.worktrees/AS-1', `${OUTSIDE_REPO}/AS-1`],
+    ['/Users/x/repo', '/tmp/throwaway-wt', OUTSIDE_SHAPE],
+    ['/Users/x/repo', '/tmp/throwaway-wt/', OUTSIDE_SHAPE],
+    ['/Users/x/repo', '/Users/x/repo2/wt', OUTSIDE_SHAPE],
+    ['/Users/x/repo', '/Users/x/other/.worktrees/AS-1', OUTSIDE_SHAPE],
     ['/Users/x/repo', '/', OUTSIDE_REPO],
   ];
   assert.equal(cases.length, 5); // cardinality before quantification
   for (const [root, path, want] of cases) {
     const got = relPathOf(root, path);
-    assert.equal(got, want, `${path} under ${root}`);
+    if (want instanceof RegExp) assert.match(got, want, `${path} under ${root}`);
+    else assert.equal(got, want, `${path} under ${root}`);
+    assert.ok(got.startsWith('<'), `${path}: the marker must still start with '<' so it cannot collide with a real relative path`);
     assert.ok(!got.startsWith('/'), `${path} must not survive as an absolute path`);
     assert.ok(!got.includes('/Users/'), `${path} must not leak a host directory`);
   }
+  // One literal pin so the digest INPUT is fixed, not just its length: the
+  // trailing-slash-stripped path alone, no root mixed in.
+  assert.equal(relPathOf('/Users/x/repo', '/tmp/throwaway-wt'), `${OUTSIDE_REPO}/throwaway-wt#${sha8('/tmp/throwaway-wt')}`);
   // The basename is kept precisely so two outside worktrees stay distinct lanes.
   assert.notEqual(relPathOf('/repo', '/tmp/a'), relPathOf('/repo', '/tmp/b'));
+});
+
+// --- AS-108 N2: outside rows carry a stable, non-leaking disambiguator ------
+
+test('lanes-relpath-outside-distinct-basenames: two outside worktrees sharing a basename are two relPaths', () => {
+  // Ruben's N2 observation: /tmp/a/scratch and /tmp/b/scratch both became
+  // `<outside repo>/scratch`, and the composer keyed two lanes as one.
+  const a = relPathOf('/repo', '/tmp/a/scratch');
+  const b = relPathOf('/repo', '/tmp/b/scratch');
+  assert.notEqual(a, b);
+  for (const got of [a, b]) {
+    assert.ok(got.startsWith(`${OUTSIDE_REPO}/scratch#`), got);
+    assert.equal(got.split('#')[0], `${OUTSIDE_REPO}/scratch`, 'basename survives, nothing else');
+    assert.ok(!got.includes('/tmp'), `${got} must not leak the parent directory`);
+    assert.ok(!got.includes('/a') && !got.includes('/b'), `${got} must not leak a directory component`);
+  }
+});
+
+test('lanes-relpath-outside-suffix-stable: the suffix is a hash of the normalised path, not an ordinal', () => {
+  // A hash, so the key is identical across polls — AS-100's liveness join is
+  // keyed on it, and an ordinal would re-key every sibling when one goes away.
+  const first = relPathOf('/repo', '/tmp/x');
+  const second = relPathOf('/repo', '/tmp/x');
+  assert.equal(first, second, 'same input, same string, every call');
+  assert.equal(relPathOf('/repo', '/tmp/x/'), first, 'trailing slash is stripped BEFORE hashing');
+  const suffix = first.split('#')[1];
+  assert.match(suffix, /^[0-9a-f]{8}$/, 'exactly 8 lowercase hex');
+  assert.equal(first.split('#').length, 2, 'exactly one # in the marker');
 });
 
 test('lanes-status-summary: dirty count, and .lattice dirt called out by name', () => {
@@ -222,6 +261,24 @@ test('lanes-compose-unknown-task-kept: N worktree rows in, N worktree lanes out'
   assert.equal(unknown.joinedBy, null);
   assert.equal(unknown.key, '.worktrees/scratch', 'the path is the key when there is no short id');
   assert.equal(unknown.worktree.detached, true);
+});
+
+test('lanes-compose-outside-lanes-distinct-keys: cardinality of keys equals cardinality of lanes', () => {
+  // AS-108 N2 as the composer's contract: two unjoined outside rows sharing a
+  // basename but carrying different suffixes are two lanes with two keys.
+  const rows = [
+    wt({ relPath: '.', main: true, branch: 'master' }),
+    wt({ relPath: `${OUTSIDE_REPO}/scratch#aaaaaaaa`, branch: null, detached: true, head: 'aaaa' }),
+    wt({ relPath: `${OUTSIDE_REPO}/scratch#bbbbbbbb`, branch: null, detached: true, head: 'bbbb' }),
+  ];
+  const out = compose({ snapshot: snap(rows), tasks: [], ids: {} });
+  assert.equal(out.count, 2, 'two non-main rows in, two lanes out');
+  assert.equal(new Set(out.lanes.map((l) => l.key)).size, 2, 'two lanes, two keys');
+  assert.deepEqual(
+    out.lanes.map((l) => l.key).sort(),
+    [`${OUTSIDE_REPO}/scratch#aaaaaaaa`, `${OUTSIDE_REPO}/scratch#bbbbbbbb`],
+    'the key is the full marker, suffix included'
+  );
 });
 
 test('lanes-compose-link-beats-name: an explicit branch-link wins over a parsed short code', () => {

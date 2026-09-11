@@ -7,6 +7,9 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, symlinkSync, realpathSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { makeLanesOps } from '../watch/advance-watcher.mjs';
 
@@ -65,19 +68,25 @@ function fakeGit(overrides = {}) {
   return { run, calls };
 }
 
-function harness({ overrides, clock } = {}) {
+/** `realpath` defaults to the identity so the '/repo' fiction above survives
+ *  (AS-108 realpaths the root once per poll; '/repo' does not exist on disk).
+ *  `harness({ realpath: null })` injects nothing, so makeLanesOps's OWN default
+ *  is what runs — T6 is the only caller, and the only proof the default is
+ *  wired to the real filesystem. */
+function harness({ overrides, clock, repoRoot = REPO, realpath = (p) => p } = {}) {
   const writes = [];
   const logs = [];
   const git = fakeGit(overrides);
   let t = NOW;
   const ops = makeLanesOps({
-    repoRoot: REPO,
+    repoRoot,
     statePath: '/repo/apps/chat/data/worktrees.json',
     gitBin: '/usr/bin/git',
     run: git.run,
     now: clock ?? (() => t),
     writeState: (path, body) => writes.push({ path, body }),
     log: (line) => logs.push(line),
+    ...(realpath === null ? {} : { realpath }),
   });
   return { ops, writes, logs, calls: git.calls, advance: (ms) => (t += ms) };
 }
@@ -297,6 +306,9 @@ test('watcher-lanes-unwritable: an unwritable snapshot warns once and never thro
       throw new Error('EACCES');
     },
     log: (line) => h.logs.push(line),
+    // AS-108: this test counts WARN lines, and '/repo' does not exist, so the
+    // real default realpath would add its own (correct) WARN to the count.
+    realpath: (p) => p,
   });
   await assert.doesNotReject(ops.evaluate());
   await ops.evaluate();
@@ -322,4 +334,102 @@ test('watcher-lanes-detached: a worktree with no branch is still measured, off i
   assert.equal(row.ahead, 4, 'the range is computed against HEAD when there is no branch name');
   const range = h.calls.find((c) => c.args.includes('--left-right'));
   assert.deepEqual(range.args, ['rev-list', '--left-right', '--count', 'master...ab12']);
+});
+
+// --- AS-108 N1: the root is realpath'd once per poll ------------------------
+
+const porcelainFor = (root, ...linked) =>
+  [
+    `worktree ${root}`,
+    'HEAD f6717b8',
+    'branch refs/heads/master',
+    '',
+    ...linked.flatMap((p, i) => [`worktree ${p}`, `HEAD 3c1a00${i}`, `branch refs/heads/feat/AS-${i + 1}-x`, '']),
+  ].join('\n');
+
+test('watcher-lanes-symlinked-root: a root reached through a symlink still yields repo-relative rows', async () => {
+  // git prints canonical paths; the watcher was handed the link. Before
+  // AS-108 every row here — main included — became `<outside repo>/…`.
+  const seen = [];
+  const h = harness({
+    repoRoot: '/link/repo',
+    realpath: (p) => {
+      seen.push(p);
+      return p === '/link/repo' ? '/real/repo' : p;
+    },
+    overrides: { 'worktree-list': ok(porcelainFor('/real/repo', '/real/repo/.worktrees/AS-99')) },
+  });
+  await h.ops.evaluate();
+
+  const body = h.writes[0].body;
+  assert.equal(body.error, null);
+  assert.equal(body.worktrees.length, 2, 'cardinality: two records in, two rows out');
+  assert.deepEqual(
+    body.worktrees.map((r) => r.relPath),
+    ['.', '.worktrees/AS-99'],
+    'compared against the canonical root, not the link'
+  );
+  const payload = JSON.stringify(body);
+  assert.ok(!payload.includes('<outside repo>'), 'nothing is outside a root it is inside of');
+  assert.ok(!payload.includes('/real/'), 'the canonical host path never reaches the snapshot either');
+  assert.deepEqual(seen, ['/link/repo'], 'realpath is asked about the root, once');
+
+  // Per poll, not per construction: a root re-linked mid-run must not strand
+  // the view on the old target.
+  await h.ops.evaluate();
+  assert.equal(seen.length, 2, 'one realpath call per evaluate()');
+  assert.deepEqual(seen, ['/link/repo', '/link/repo']);
+});
+
+test('watcher-lanes-realpath-fallback: an unresolvable root is used as given, with one WARN', async () => {
+  // The harness's '/repo' does not exist on disk; a watcher whose root
+  // vanished is the live analogue. Either way the poll still answers, against
+  // the path it was given.
+  const h = harness({
+    realpath: () => {
+      throw Object.assign(new Error('ENOENT: no such file or directory'), { code: 'ENOENT' });
+    },
+  });
+  await h.ops.evaluate();
+  await h.ops.evaluate();
+
+  assert.equal(h.writes.length, 2);
+  for (const w of h.writes) {
+    assert.equal(w.body.error, null, 'a realpath failure is not a poll failure');
+    assert.deepEqual(
+      w.body.worktrees.map((r) => r.relPath),
+      ['.', '.worktrees/AS-99']
+    );
+  }
+  const warns = h.logs.filter((l) => /^WARN cannot realpath \/repo/.test(l));
+  assert.equal(warns.length, 1, 'one WARN per distinct reason across two polls, not one per poll');
+  assert.equal(h.logs.length, 1, 'and no other log line');
+});
+
+test('watcher-lanes-realpath-default-wiring: with nothing injected, the real filesystem resolves the link', async () => {
+  // T1 proves the injection point exists. This is the only test that proves
+  // the DEFAULT reaches realpathSync: a default of `(p) => p` passes T1 and T2
+  // and would leave N1 exactly as it was.
+  const real = realpathSync(mkdtempSync(join(tmpdir(), 'as108-')));
+  try {
+    const link = join(real, 'link');
+    symlinkSync(real, link);
+    const h = harness({
+      repoRoot: link,
+      realpath: null,
+      overrides: { 'worktree-list': ok(porcelainFor(real, `${real}/.worktrees/AS-1`)) },
+    });
+    await h.ops.evaluate();
+
+    const body = h.writes[0].body;
+    assert.equal(body.error, null);
+    assert.deepEqual(
+      body.worktrees.map((r) => r.relPath),
+      ['.', '.worktrees/AS-1']
+    );
+    assert.deepEqual(h.logs, [], 'no WARN: the link resolved');
+    assert.ok(!JSON.stringify(body).includes(real), 'the canonical tmp path never reaches the snapshot');
+  } finally {
+    rmSync(real, { recursive: true, force: true });
+  }
 });
