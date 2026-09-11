@@ -725,6 +725,12 @@ export async function fetchJsonOrNull(url, timeoutMs) {
 export function runDockerCompose({ dockerBin, cwd, env, logPath, timeoutMs, log, spawnFn = spawn, createLog = createWriteStream, onSpawn = () => {} }) {
   return new Promise((resolve_) => {
     const out = createLog(logPath, { flags: 'a' });
+    // AS-84 rework 1 (Ruben F2): a stream error (EACCES/ENOENT on logsDir) is
+    // an EventEmitter 'error' event, not a rejection — without a listener it is
+    // an uncaught exception that neither evaluate()'s try/catch nor deployPoll's
+    // .catch can see, and the watcher process dies. Log it; the build itself
+    // still runs and still resolves through 'exit'.
+    out.on('error', (err) => log(`WARN deploy log stream error: ${err.message}`));
     const proc = spawnFn(dockerBin, ['compose', '--progress', 'quiet', 'up', '-d', '--build'], {
       cwd,
       env,
@@ -1045,6 +1051,12 @@ export function makeDeployOps({
         /* already gone; the settle below still runs */
       }
     }
+    // AS-84 rework 1 (Ruben F1): SIGKILL is the grace-expiry path, fired
+    // un-awaited by finish() a moment before exit(0), so performDeploy's
+    // `finally` never gets to run. Release the deploy's own lock here, now,
+    // synchronously — source-checked, so it is a no-op if the lock is not ours,
+    // and idempotent with the `finally` should it run after all.
+    if (signal === 'SIGKILL') lock.releaseLock();
     await pending;
   }
 
@@ -2497,6 +2509,17 @@ export function makeWatcher({
     if (dying && child === dying) {
       log('STOP grace expired');
       dying.kill('SIGKILL');
+    }
+    // AS-84 rework 1 (Ruben F1): the deploy child gets the same bound. A compose
+    // child that ignored abort()'s SIGTERM would otherwise keep building against
+    // the live project after we exit 0, with its `source:'deploy'` lock left on
+    // disk under a dead pid. abort('SIGKILL') sets abortSignal and kills
+    // deployChild; it is NOT awaited — the process exits before performDeploy's
+    // finally, so the `started` record stays on disk and hydrates as a bounded
+    // failure at relaunch (AC-4).
+    if (deployOps && deployOps.isDeploying()) {
+      log('STOP grace expired: killing deploy child');
+      void deployOps.abort('SIGKILL');
     }
     // AS-84: source-checked since this task, so this is a no-op unless the file
     // is our own `source:'watcher'` lock. A deploy's lock is released by the

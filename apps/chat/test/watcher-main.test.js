@@ -574,6 +574,31 @@ test('AS-84 makeWatcher: the shutdown grace is a bound — a child that ignores 
   assert.equal(existsSync(h.paths.pid), false);
 });
 
+test('AS-84 makeWatcher: the shutdown grace bounds the deploy child too — a build that ignores SIGTERM is SIGKILLed and we still exit 0', { timeout: 5000 }, async (t) => {
+  // Ruben's cycle-1 F1: finish() SIGKILLed only the tick child, so a compose
+  // child that trapped TERM kept building against the live project after the
+  // watcher exited 0. The deploy gets the same bound: abort('SIGKILL'), fired
+  // un-awaited at grace expiry, then exit.
+  const aborted = [];
+  const h = watcherHarness(t, {
+    config: { shutdownGraceS: 0.01 },
+    deployOps: {
+      isDeploying: () => true,
+      abort: (signal) => {
+        aborted.push(signal);
+        return new Promise(() => {}); // never settles: the build ignores SIGTERM
+      },
+    },
+  });
+  h.start();
+  await assert.rejects(h.stop(), ExitSignal);
+
+  assert.deepEqual(aborted, ['SIGTERM', 'SIGKILL'], 'TERM first, KILL only after the grace');
+  assert.equal(h.logged(/^STOP grace expired: killing deploy child$/).length, 1);
+  assert.deepEqual(h.calls.exit, [0]);
+  assert.equal(existsSync(h.paths.pid), false);
+});
+
 test('AS-84 makeWatcher: deployPoll() survives a rejecting evaluate — no unhandled rejection, one ERROR line', async (t) => {
   // F6, the suspenders. The deploy poll runs inside setInterval; an unhandled
   // rejection there ends the watcher process, and the watcher is the thing that

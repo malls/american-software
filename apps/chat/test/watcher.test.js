@@ -14,7 +14,7 @@ import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, t
 import {
   IMAGE_INPUTS, NOT_IMAGE_INPUTS, classifyImagePaths,
   DOCKER_CANDIDATES, resolveDockerBin, resolveGitBin, parseLsTree,
-  watchSourceDigest, isPrunableLog, pruneLogs, decideDeploy, makeDeployOps,
+  watchSourceDigest, isPrunableLog, pruneLogs, decideDeploy, makeDeployOps, runDockerCompose,
 } from '../watch/advance-watcher.mjs';
 
 // AS-16: fixed per-fire nonce for the pin tests — production nonces come from
@@ -1347,4 +1347,33 @@ test('AS-84 makeDeployOps: evaluate() never rejects — a throwing collaborator 
   await h.ops.evaluate({});
   assert.equal(h.logs.filter((l) => /^WARN deploy poll failed: git exploded$/.test(l)).length, 1);
   assert.equal(h.calls.deploy.length, 0);
+});
+
+test('AS-84 runDockerCompose: a compose log stream error is logged, not thrown — the build still resolves', async () => {
+  // Ruben's cycle-1 F2. `createLog(logPath)` is a WriteStream; an EACCES/ENOENT
+  // on logsDir arrives as an EventEmitter 'error' event, which is an uncaught
+  // exception (not a rejection) when nothing listens — outside evaluate()'s
+  // try/catch and deployPoll's .catch, so it took the whole watcher down.
+  const { EventEmitter, once } = await import('node:events');
+  const { PassThrough } = await import('node:stream');
+  const logs = [];
+  const out = new PassThrough();
+  const proc = new EventEmitter();
+  proc.stdout = new PassThrough();
+  proc.stderr = new PassThrough();
+  proc.kill = () => true;
+  const pending = runDockerCompose({
+    dockerBin: '/nonexistent/docker', cwd: '/', env: {}, logPath: '/nonexistent/deploy.log', timeoutMs: 60_000,
+    log: (l) => logs.push(l),
+    spawnFn: () => proc,
+    createLog: () => out,
+  });
+  // The stream fails the way fs does: asynchronously, while the build is running.
+  const seen = once(out, 'error').catch(() => {});
+  out.emit('error', new Error('EACCES: permission denied, open deploy.log'));
+  await seen;
+  proc.emit('exit', 0, null);
+  const result = await pending;
+  assert.deepEqual(result, { code: 0, signal: null, timedOut: false });
+  assert.deepEqual(logs, ['WARN deploy log stream error: EACCES: permission denied, open deploy.log']);
 });
