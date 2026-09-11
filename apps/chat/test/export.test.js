@@ -12,6 +12,10 @@ import { fileURLToPath } from 'node:url';
 import { openStore } from '../lib/store.js';
 
 const BIN = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'chat.js');
+// AS-89: direct-mode opens reconcile identities from <repo root>/personnel.
+// Pin the root to a directory with no personnel/ so the identity counts below
+// stay the seeded four and never depend on the host repo's live roster.
+const BARE_ROOT = tmpdir();
 
 function tempStore(t) {
   const dir = mkdtempSync(join(tmpdir(), 'chat-export-'));
@@ -146,7 +150,7 @@ test('cli: chat export writes files, prints summary, and re-runs byte-identicall
 
   const run = () =>
     spawnSync(process.execPath, [BIN, 'export', '--out', outDir], {
-      env: { ...process.env, CHAT_DB: dbPath },
+      env: { ...process.env, CHAT_DB: dbPath, CHAT_REPO_ROOT: BARE_ROOT },
       encoding: 'utf8',
     });
   const hashes = () =>
@@ -179,7 +183,7 @@ test('cli: chat export writes files, prints summary, and re-runs byte-identicall
 
   // --json variant carries the counts and file list.
   const jsonRun = spawnSync(process.execPath, [BIN, 'export', '--out', outDir, '--json'], {
-    env: { ...process.env, CHAT_DB: dbPath },
+    env: { ...process.env, CHAT_DB: dbPath, CHAT_REPO_ROOT: BARE_ROOT },
     encoding: 'utf8',
   });
   assert.equal(jsonRun.status, 0, jsonRun.stderr);
@@ -259,7 +263,7 @@ test('cli: AS-6 — chat export skips #board: no file, no counts, still byte-ide
 
   const run = () =>
     spawnSync(process.execPath, [BIN, 'export', '--out', outDir, '--json'], {
-      env: { ...process.env, CHAT_DB: dbPath },
+      env: { ...process.env, CHAT_DB: dbPath, CHAT_REPO_ROOT: BARE_ROOT },
       encoding: 'utf8',
     });
   const first = run();
@@ -364,7 +368,7 @@ test('cli: AS-91 — chat export skips human DMs: no file, no counts, still byte
 
   const run = () =>
     spawnSync(process.execPath, [BIN, 'export', '--out', outDir, '--json'], {
-      env: { ...process.env, CHAT_DB: dbPath },
+      env: { ...process.env, CHAT_DB: dbPath, CHAT_REPO_ROOT: BARE_ROOT },
       encoding: 'utf8',
     });
   const first = run();

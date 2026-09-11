@@ -119,7 +119,7 @@ test('cli: roster prints the active company roster with work status (AS-8)', (t)
   const asJson = JSON.parse(run(dbPath, ['roster', '--json']).stdout);
   assert.deepEqual(asJson.map((r) => r.actorId), ['agent:eng-ada', 'agent:qa-bob']);
   assert.equal(asJson[0].work.shortId, 'AS-22');
-  assert.equal(asJson[0].registered, false);
+  assert.equal(asJson[0].registered, true); // AS-89: reconciled at direct-mode open
   assert.ok(!('dmConversationId' in asJson[0]), 'viewer-relative fields absent without --me');
   // --me adds viewer-relative fields (no DM yet: null/0).
   const withMe = JSON.parse(run(dbPath, ['roster', '--json', '--me', M]).stdout);
@@ -133,6 +133,21 @@ test('cli: roster prints the active company roster with work status (AS-8)', (t)
   });
   assert.equal(bare.status, 0, bare.stderr);
   assert.match(bare.stdout, /No personnel records found/);
+});
+
+test('cli: direct mode reconciles identities — a dossier-only hire can post with no prior register (AS-89 AC-7)', (t) => {
+  const dbPath = setupDb(t);
+  const direct = (args) =>
+    spawnSync(process.execPath, [BIN, ...args], {
+      env: { ...process.env, CHAT_MODE: 'direct', CHAT_DB: dbPath, CHAT_REPO_ROOT: FIXTURE_ROOT },
+      encoding: 'utf8',
+    });
+  // Neither fixture actor was ever `chat register`ed (setupDb seeds only N).
+  const made = direct(['create-channel', 'bob-lane', '--purpose', 'AS-89', '--me', 'agent:eng-ada']);
+  assert.equal(made.status, 0, made.stderr);
+  const posted = direct(['post', 'bob-lane', 'first day, not mute', '--me', 'agent:qa-bob']);
+  assert.equal(posted.status, 0, posted.stderr);
+  assert.doesNotMatch(posted.stderr, /Unknown identity/);
 });
 
 test('cli: members use #board normally (post, history, reply, read)', (t) => {

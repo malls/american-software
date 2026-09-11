@@ -47,7 +47,8 @@ test('api: identities, CSP header, static page', async (t) => {
   const { base, get, post } = await bootServer(t);
   const ids = await get('/api/identities');
   assert.equal(ids.status, 200);
-  assert.equal(ids.data.identities.length, 4);
+  // 4 seeded + the fixture's 2 active dossiers, reconciled at boot (AS-89).
+  assert.equal(ids.data.identities.length, 6);
   assert.equal(ids.headers.get('content-security-policy'), "default-src 'self'");
 
   const page = await fetch(base + '/');
@@ -407,7 +408,7 @@ test('api: AS-8 — roster joins personnel, lattice work status, and DM state', 
     class: 'ic',
     team: 'engineering',
     reportsTo: 'agent:cto-owen', // AS-33: the reporting edge rides the roster row
-    registered: false, // not in the identities table yet
+    registered: true, // AS-89: reconciled from the dossier at boot, nobody registered her
     dmConversationId: null,
     unread: 0,
     self: false,
@@ -424,9 +425,8 @@ test('api: AS-8 — roster joins personnel, lattice work status, and DM state', 
   assert.equal(first.data.roster[1].work, null);
   assert.equal(first.data.roster[1].moreTasks, 0);
 
-  // Register + open a DM + one message from ada: registered flips, the DM id
-  // appears with the correct viewer-relative unread.
-  await post('/api/identities', { id: 'agent:eng-ada', displayName: 'Ada Fixture', kind: 'agent' });
+  // Open a DM + one message from ada (already registered by AS-89's boot
+  // reconciliation): the DM id appears with the correct viewer-relative unread.
   const dm = await post('/api/dms', { me: 'human:forrest', other: 'agent:eng-ada' });
   await post('/api/messages', {
     conversation: dm.data.conversation.id, author: 'agent:eng-ada', body: 'hello from ada',
