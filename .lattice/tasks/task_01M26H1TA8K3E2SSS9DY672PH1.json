@@ -9,16 +9,27 @@
       "repo": null
     }
   ],
-  "comment_count": 23,
+  "comment_count": 25,
   "complexity": "high",
   "created_at": "2026-09-10T20:44:50Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "SOURCE: board DM msg 658 (human:forrest, 2026-09-10T20:36Z): the long-term goal is a 'foreman of the factory' view of work in progress -- possibly anthropomorphic, 'full visualization, like a simulator video game' -- and the standing instruction is to put as much observability in place as possible. Filed by the CTO on the board member's behalf; the CTO's full reply is in the cto-owen/forrest DM (msgs 661 onward) and the AS-99 north-star comment.\n\nWHAT IS MISSING (the gap this task closes): everything the company emits today is either STATE (advance.lock, deploy-state.json, git worktree list, .lattice task status, the roster) or COARSE EVENTS (Lattice status_changed / assignment_changed / branch_linked / comment_added at stage granularity). Nothing records the lifecycle of a LANE while it runs: when a tick started and ended and with what outcome; when a stage's sub-agent was spawned, for which task, as which employee, in which worktree; when it exited and whether it finished, errored, or was cut by the 30-minute tick timeout (AS-95's implementation stage was cut this way on 2026-09-10 and the only record is a board-commit message). Stage timers, per-lane liveness, and any future employee 'figure' state machine all need these events; none can be derived from the existing signals.\n\nWHAT (v1, the plan refines): an append-only, typed, attributed JSONL stream of company events, written on the host by the tick and the watcher, read by the chat server, exposed as an API and pushed over the existing /api/stream. Event types, minimum set: tick_started {source, pid, nonce, startedAt}; tick_ended {outcome: ok|timeout|error|noop, lanesTouched[]}; stage_started {task, stage, actor, worktree, branch, ts}; stage_ended {task, stage, actor, outcome: completed|cut_by_timeout|error, ts}; subagent_spawned / subagent_exited {task, actor, stage, ts, exit}. Same envelope discipline as .lattice/events (schema_version, id, ts, actor, data) so a consumer that already parses Lattice events parses these. Producer: a tiny CLI in the mould of apps/chat/bin/chat.js (e.g. node apps/chat/bin/events.js emit stage_started --task AS-n --actor agent:x ...) that the orchestrator calls at stage boundaries -- the tick procedure already narrates every one of these in prose, so the change to .claude/commands/advance.md is one line per boundary (proposed wording goes in the plan for the metawork layer to apply; employees do not edit it). The watcher emits tick_started/tick_ended itself in fire()/settle(). Location: apps/chat/data/events/ (host-side, bind-mounted like deploy-state.json), gitignored like the rest of data/ unless the plan argues otherwise.\n\nCONSUMER CONTRACT: the AS-99 lane projection (lanes[] with task, stage, employee, worktree, branch, ahead, dirty, lastCommit, stale) gains liveness fields (subagentAlive, stageStartedAt, stageElapsedS, lastEvent) from this stream with NO change to the lane card's shape. That is the acceptance test for 'extensible, not a one-off': AS-99's view consumes this feed by adding fields, not by rewriting.\n\nDOCTRINE: one event stream, many projections -- the same rule as the derived org chart (AS-33) and the Lattice deep links (AS-93). Views never own state. Guards are proven by breaking them (M4): the plan names the falsifier for 'a stage cut by the tick timeout is recorded as cut_by_timeout, never as completed'.\n\nEXPLICITLY NOT IN v1: tool-level activity of a running employee (reading a file, running tests) -- we do not own the harness and will not fake it; token/cost per stage (no source yet; note the slot in the schema); any spatial/animated rendering (that is the foreman floor, a later task over this stream); retention/compaction of the stream (append-only until it is a measured problem).\n\nORDERING: Chat set (tag chat, priority critical). Fourth, directly behind AS-99 -- CTO call under the board's delegation (DM msg 614); the metawork layer records the sentence in CLAUDE.md section Scheduling priority. Does not start before AS-95 lands: the lanes are only worth watching when they run unattended.",
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "art_01M27M48D9N6WRPNX34CBP03D1",
+      "role": "review",
+      "source_type": "artifact"
+    },
+    {
+      "id": "ev_01M27M9DJ2CMB20TVQ4JQ91ZRH",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M26H1TA8K3E2SSS9DY672PH1",
-  "last_event_id": "ev_01M27KTKMKWD1TQJCW0X76THK5",
+  "last_event_id": "ev_01M27M9DJ2CMB20TVQ4JQ91ZRH",
   "last_status_changed_at": "2026-09-11T06:52:21Z",
   "linked_files": [],
   "priority": "critical",
@@ -32,6 +43,6 @@
   ],
   "title": "Chat: structured company-events feed \u2014 tick, stage, and sub-agent lifecycle events the UI can project (foreman-view substrate)",
   "type": "task",
-  "updated_at": "2026-09-11T06:52:34Z",
+  "updated_at": "2026-09-11T07:00:40Z",
   "urgency": null
 }
