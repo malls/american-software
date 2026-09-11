@@ -18,7 +18,21 @@
 import { StoreError } from './store.js';
 
 export const DEFAULT_API = 'http://127.0.0.1:8347';
-const PROBE_TIMEOUT_MS = 500;
+
+/**
+ * Wall-clock budget for the mode probe (AS-83). This is the ONLY bounded step
+ * in a CLI invocation, and blowing it is not "the server is down" — it is
+ * ambiguity, which refuses loudly. The original half-second budget was tight
+ * enough (the value below is the only budget literal in this file) that a
+ * merely *slow but live* server got refused: an emulated linux/amd64 test
+ * container under a concurrent `docker compose build`, and equally a host
+ * `chat.js` call racing the watcher's rebuild, could not answer one GET inside
+ * it. Raising the budget cannot mask a mode regression — no budget turns
+ * 'ambiguous' into 'down' (that needs a positive ECONNREFUSED/ENOTFOUND) — it
+ * only costs a pathological accept-and-never-answer listener more wall clock
+ * before the same refusal. Override per invocation with CHAT_PROBE_TIMEOUT_MS.
+ */
+export const DEFAULT_PROBE_TIMEOUT_MS = 3000;
 
 const DOWN_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND']);
 
@@ -33,30 +47,59 @@ function isConnDown(err) {
   return false;
 }
 
+/** First error code in the cause chain (same walk as isConnDown), or null. */
+function errCode(err) {
+  for (let e = err; e; e = e.cause) {
+    if (typeof e.code === 'string') return e.code;
+    if (Array.isArray(e.errors)) {
+      const hit = e.errors.find((x) => typeof x?.code === 'string');
+      if (hit) return hit.code;
+    }
+  }
+  return null;
+}
+
 /**
- * Probe a chat server at `base`. Returns exactly one of:
+ * Probe a chat server at `base`. Returns `{ state, reason }` where state is
+ * exactly one of:
  *   'up'        — GET /api/identities answered 2xx with an {identities: […]}
  *                 JSON body (shape-checked so a squatted port can't pass);
  *   'down'      — hard ECONNREFUSED/ENOTFOUND: provably nothing listening;
  *   'ambiguous' — anything else (timeout, 5xx, wrong shape, other errors).
  * Ambiguity must fail loud at the caller, never fall back to direct DB access:
  * silent divergence was the AS-24 failure mode.
+ * `reason` is null for 'up' and otherwise a short phrase the caller appends to
+ * its refusal, so a refusal in a log names its own exit path (AS-83): four
+ * sightings of the timeout case could not be told apart from a 5xx or a
+ * squatted port without re-running it.
  */
-export async function probe(base) {
+export async function probe(base, { timeoutMs = DEFAULT_PROBE_TIMEOUT_MS } = {}) {
   let res;
   try {
-    res = await fetch(base + '/api/identities', { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
+    res = await fetch(base + '/api/identities', { signal: AbortSignal.timeout(timeoutMs) });
   } catch (e) {
-    return isConnDown(e) ? 'down' : 'ambiguous';
+    // A timeout is never 'down': only a positive connection-refused/not-found
+    // proves nothing is listening. Slow and absent are different facts.
+    return isConnDown(e)
+      ? { state: 'down', reason: errCode(e) }
+      : {
+          state: 'ambiguous',
+          reason:
+            e?.name === 'TimeoutError'
+              ? `timed out after ${timeoutMs} ms`
+              : errCode(e) ?? e?.message ?? String(e),
+        };
   }
-  if (!res.ok) return 'ambiguous';
+  if (!res.ok) return { state: 'ambiguous', reason: `HTTP ${res.status}` };
   let data;
   try {
     data = await res.json();
   } catch {
-    return 'ambiguous';
+    return { state: 'ambiguous', reason: 'unparseable body' };
   }
-  return data && Array.isArray(data.identities) ? 'up' : 'ambiguous';
+  return data && Array.isArray(data.identities)
+    ? { state: 'up', reason: null }
+    : { state: 'ambiguous', reason: 'wrong shape' };
 }
 
 const CONV_KEYS = ['id', 'type', 'name', 'purpose', 'dmKey', 'visibility', 'createdBy', 'createdAt'];
