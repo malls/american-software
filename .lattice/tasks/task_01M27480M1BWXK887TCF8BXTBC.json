@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": null,
   "created_at": "2026-09-11T02:20:16Z",
   "created_by": "agent:developer-marcus",
@@ -18,7 +18,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M27480M1BWXK887TCF8BXTBC",
-  "last_event_id": "ev_01M297ND4SWR0T394DACHQ6VER",
+  "last_event_id": "ev_01M298Q1N3RF622B4Q9632KCZ4",
   "last_status_changed_at": "2026-09-11T21:58:30Z",
   "linked_files": [],
   "priority": "medium",
@@ -38,6 +38,6 @@
   "tags": null,
   "title": "Chat watcher: a loop tick should not wait a full deploy-poll interval for a 'busy' deploy decision",
   "type": "task",
-  "updated_at": "2026-09-11T21:58:30Z",
+  "updated_at": "2026-09-11T22:16:52Z",
   "urgency": null
 }
