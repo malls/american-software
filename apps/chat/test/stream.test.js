@@ -446,14 +446,45 @@ test('stream: AS-27 — loop frames reach every viewer identically (no visibilit
   assert.equal(frames[0], frames[1], 'byte-identical for both viewers — nothing here is viewer-relative');
 });
 
-test('stream: AS-27 — close() clears the loop poll timer as well as the heartbeat', async (t) => {
+test('stream: AS-27/AS-80 — close() clears every interval the server armed, the loop poll included', async (t) => {
   // Same shape as the AS-25 close/reap test: this one owns its close() call.
+  //
+  // AS-80: the observable is the timer handles themselves. The version of this
+  // case that shipped with AS-27 asserted that a closed server pushes no
+  // frames — which close() guarantees by emptying `streams` before anything
+  // else, so a leaked poll fans out to nobody and deleting
+  // `clearInterval(loopPoll)` left the case green (AS-27 review, finding F1).
+  // `process.getActiveResourcesInfo()` cannot stand in: loopPoll is unref'd,
+  // and an unref'd interval is invisible to it. So record what the server arms
+  // and what close() releases, and compare BY IDENTITY. A bare-identifier
+  // `setInterval` inside server.js resolves through globalThis at call time,
+  // so these mocks see it; mock.method calls through to the original, so the
+  // server gets real Timeouts and .unref() still applies. Same technique as
+  // watcher-main.test.js (AS-82).
+  const armed = t.mock.method(globalThis, 'setInterval');
+  const released = t.mock.method(globalThis, 'clearInterval');
+
   const dir = mkdtempSync(join(tmpdir(), 'chat-stream-loopclose-'));
   const dataDir = loopDataDir(t);
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const { server, close } = createChatServer({
     dbPath: join(dir, 'chat.db'), repoRoot: FIXTURE_ROOT, dataDir, loopPollMs: FAST_POLL_MS,
   });
+  // Synchronously, before any await: nothing can have interleaved, so this is
+  // precisely what the constructor armed.
+  const ids = armed.mock.calls.map((c) => c.result);
+  // A red must never wedge the runner: the heartbeat is ref'd, so an interval
+  // this case proves was leaked would keep the whole file's process alive.
+  t.after(() => { for (const id of ids) clearInterval(id); });
+
+  // Cardinality before quantification.
+  assert.equal(ids.length, 4,
+    'heartbeat, loopPoll, lanesPoll, eventsPoll — update this number AND close() together');
+  assert.equal(new Set(ids).size, 4, 'four distinct handles');
+  for (const id of ids) {
+    assert.equal(typeof id?.unref, 'function', 'every recorded id is a real Timeout');
+  }
+
   await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${server.address().port}`;
   // AS-81: same guard as the AS-25 close/reap test above, for the same reason.
@@ -470,14 +501,11 @@ test('stream: AS-27 — close() clears the loop poll timer as well as the heartb
   await Promise.race([close(), timeout]);
   await stream.waitEnd();
 
-  // The real proof that the timer is gone is that the suite process can exit;
-  // a leaked interval on a closed server would keep writing to reaped
-  // connections. Assert it does not throw and the stream stays ended.
-  writeFileSync(join(dataDir, 'advance.lock'), JSON.stringify({
-    pid: 1, startedAt: new Date().toISOString(), source: 'manual',
-  }));
-  await afterPolls(4);
-  assert.equal(stream.pending(), 0, 'a closed server pushes nothing');
+  // Set inclusion, not a count: a close() that cleared one handle twice and
+  // skipped another would pass a count of four.
+  const cleared = released.mock.calls.map((c) => c.arguments[0]);
+  const leaked = ids.filter((id) => !cleared.includes(id));
+  assert.deepEqual(leaked, [], `close() left ${leaked.length} interval(s) armed`);
   stream.close();
 });
 
