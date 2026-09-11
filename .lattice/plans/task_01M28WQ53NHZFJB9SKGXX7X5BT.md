@@ -438,3 +438,5 @@ contain no banned literal.
 | Q3 | Should the branch inside `origin/feat/…` really chip without `origin/`? | Yes: the thing you paste into `git checkout` / `git diff master...` is the bare branch name. | Closed at planning |
 | Q4 | Adopting `tokens.css` app-wide. | Out of scope; this task proves the parity mechanism. A follow-up task, if anyone wants it, is a Chat-set task of its own. | Closed at planning |
 | Q5 | Should `<button>` be used instead of `role="button"` span? | Span, for the selection and inline-flow reasons in §5. If C5 fails with the span (selection excludes it), the implementer switches to `<button>` with `user-select: text` and says so — that is an implementation-level finding, not a plan change. | Implementer decides during C5 |
+
+## Reset 2026-09-11 by human:forrest
