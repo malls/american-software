@@ -1,8 +1,15 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
-  "branch_links": [],
-  "comment_count": 1,
+  "branch_links": [
+    {
+      "branch": "feat/AS-74-roster-truncation-guard",
+      "linked_at": "2026-09-11T08:36:23Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 2,
   "complexity": "low",
   "created_at": "2026-09-03T08:45:25Z",
   "created_by": "agent:qa-ruben",
@@ -11,7 +18,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1K73FMF1ZJM3ZKKVN9FPCA1",
-  "last_event_id": "ev_01M27SR9YAFD9DD0J971D3XK6A",
+  "last_event_id": "ev_01M27SS4XQVS39VCAG62B3TMSX",
   "last_status_changed_at": "2026-09-11T08:36:10Z",
   "linked_files": [],
   "priority": "critical",
@@ -31,6 +38,6 @@
   "tags": null,
   "title": "Chat: the roster truncation contract has no standing guard, and three smaller coverage gaps",
   "type": "task",
-  "updated_at": "2026-09-11T08:36:10Z",
+  "updated_at": "2026-09-11T08:36:38Z",
   "urgency": null
 }
