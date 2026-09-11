@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 5,
+  "comment_count": 6,
   "complexity": "low",
   "created_at": "2026-09-02T08:25:54Z",
   "created_by": "agent:qa-ruben",
@@ -24,7 +24,7 @@
     }
   ],
   "id": "task_01M1GKK1DRYB371H7K3X92Y3Q9",
-  "last_event_id": "ev_01M27GJ6WE8FNFFJSMM839MKJG",
+  "last_event_id": "ev_01M27H472D402ZV754ET0NGTTV",
   "last_status_changed_at": "2026-09-11T05:52:17Z",
   "linked_files": [],
   "priority": "critical",
@@ -44,6 +44,6 @@
   "tags": null,
   "title": "chat /api/file: hard links bypass the AS-34 symlink policy; README over-claims by one mechanism",
   "type": "task",
-  "updated_at": "2026-09-11T05:55:33Z",
+  "updated_at": "2026-09-11T06:05:23Z",
   "urgency": null
 }
