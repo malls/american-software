@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import {
   mkdtempSync, rmSync, cpSync, writeFileSync, unlinkSync, mkdirSync, appendFileSync, truncateSync,
 } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +15,15 @@ import { createChatServer } from '../server.js';
 import { makeEvent, serialiseEvent } from '../lib/events.js';
 
 const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
+
+// AS-81: the one bound every frame wait in this file runs under. It is only
+// ever REACHED on a red path — the on-connect frames are written synchronously
+// in the handler turn that flushes the headers — so it costs a green run
+// nothing, and a tighter value would only buy seconds on an already-failing
+// file while risking a spurious red on a loaded host running ~32 test files in
+// parallel.
+const FRAME_MS = 5000;
+const CONNECT_MS = FRAME_MS;
 
 async function bootServer(t, repoRoot = FIXTURE_ROOT, opts = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'chat-stream-'));
@@ -57,8 +67,15 @@ async function bootServer(t, repoRoot = FIXTURE_ROOT, opts = {}) {
  * so nextFrame() still means "the next MESSAGE frame" for the AS-25 ordering
  * proofs below — and so the on-connect contract is asserted by every stream
  * test in the file rather than by one of them.
+ *
+ * AS-81: because the contract is asserted HERE, a stream regression makes this
+ * helper throw before it has returned the `api` whose close() aborts the fetch
+ * — so every caller used to leak a live connection on the red path, and a
+ * caller that owned its server wedged the runner outright. It now aborts its
+ * own controller before rethrowing, and the messages name the contract so the
+ * red reads as a defect report rather than a harness error.
  */
-async function openStream(base, me) {
+async function openStream(base, me, { connectMs = CONNECT_MS } = {}) {
   const ctrl = new AbortController();
   const res = await fetch(`${base}/api/stream?me=${encodeURIComponent(me)}`, {
     signal: ctrl.signal,
@@ -105,7 +122,7 @@ async function openStream(base, me) {
     initialLoop: null,
     initialLanes: null, // AS-99: the second on-connect frame, consumed below
     pending: () => frames.length,
-    nextFrame: (ms = 5000) =>
+    nextFrame: (ms = FRAME_MS) =>
       new Promise((resolveP, rejectP) => {
         if (frames.length > 0) return resolveP(frames.shift());
         const timer = setTimeout(
@@ -119,7 +136,7 @@ async function openStream(base, me) {
           },
         });
       }),
-    waitEnd: (ms = 5000) =>
+    waitEnd: (ms = FRAME_MS) =>
       new Promise((resolveP, rejectP) => {
         if (ended) return resolveP();
         const timer = setTimeout(() => rejectP(new Error(`stream not ended within ${ms}ms`)), ms);
@@ -131,21 +148,40 @@ async function openStream(base, me) {
     close: () => ctrl.abort(),
   };
   if (res.ok && res.body) {
-    const first = await api.nextFrame();
-    if (first.event !== 'loop') {
-      throw new Error(`expected a loop frame on connect, got ${first.event}`);
+    try {
+      let first;
+      try {
+        first = await api.nextFrame(connectMs);
+      } catch (e) {
+        throw new Error(`AS-27 on-connect contract: no loop frame within ${connectMs}ms`, { cause: e });
+      }
+      if (first.event !== 'loop') {
+        throw new Error(`AS-27/AS-99 on-connect contract: expected loop then lanes, got ${first.event}`);
+      }
+      api.initialLoop = first;
+      // AS-99: the server sends one `lanes` frame immediately after the `loop`
+      // frame, so a reconnecting client renders the pane without a fetch. This
+      // helper consumes it for the same reason it consumes the loop frame: every
+      // ordering assertion below counts frames from the first CHANGE, and an
+      // unconsumed on-connect frame would shift all of them by one.
+      let second;
+      try {
+        second = await api.nextFrame(connectMs);
+      } catch (e) {
+        throw new Error(`AS-99 on-connect contract: no lanes frame within ${connectMs}ms`, { cause: e });
+      }
+      if (second.event !== 'lanes') {
+        throw new Error(`AS-27/AS-99 on-connect contract: expected loop then lanes, got ${second.event}`);
+      }
+      api.initialLanes = second;
+    } catch (e) {
+      // AS-81: the contract is broken and no caller holds `api`, so nothing
+      // else can ever abort this fetch. Hang up here — otherwise the socket
+      // (and, for a caller that owns its server, the server's ref'd heartbeat
+      // interval) outlives the failed test and the runner never exits.
+      ctrl.abort();
+      throw e;
     }
-    api.initialLoop = first;
-    // AS-99: the server sends one `lanes` frame immediately after the `loop`
-    // frame, so a reconnecting client renders the pane without a fetch. This
-    // helper consumes it for the same reason it consumes the loop frame: every
-    // ordering assertion below counts frames from the first CHANGE, and an
-    // unconsumed on-connect frame would shift all of them by one.
-    const second = await api.nextFrame();
-    if (second.event !== 'lanes') {
-      throw new Error(`expected a lanes frame after the loop frame on connect, got ${second.event}`);
-    }
-    api.initialLanes = second;
   }
   return api;
 }
@@ -291,6 +327,14 @@ test('stream: AS-25 — close() reaps live streams and the heartbeat; shutdown n
   const { server, close } = createChatServer({ dbPath: join(dir, 'chat.db'), repoRoot: FIXTURE_ROOT });
   await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${server.address().port}`;
+  // AS-81: the inline close() below is this test's subject and stays. This hook
+  // only fires on the path where the test never reaches it — a throw anywhere
+  // above would otherwise leave a listening server and its ref'd heartbeat
+  // interval alive, and the whole file's runner would never exit. close() is
+  // not idempotent (it calls store.close() unconditionally), so it must not run
+  // twice.
+  let closedByTest = false;
+  t.after(async () => { if (!closedByTest) await close(); });
 
   const a = await openStream(base, 'human:forrest');
   const b = await openStream(base, 'agent:cto-owen');
@@ -302,6 +346,7 @@ test('stream: AS-25 — close() reaps live streams and the heartbeat; shutdown n
   const timeout = new Promise((_, reject) =>
     setTimeout(() => reject(new Error('close() wedged with open streams')), 5000)
   );
+  closedByTest = true;
   await Promise.race([close(), timeout]);
 
   // Both client-side readers observe end-of-stream.
@@ -411,6 +456,9 @@ test('stream: AS-27 — close() clears the loop poll timer as well as the heartb
   });
   await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
   const base = `http://127.0.0.1:${server.address().port}`;
+  // AS-81: same guard as the AS-25 close/reap test above, for the same reason.
+  let closedByTest = false;
+  t.after(async () => { if (!closedByTest) await close(); });
 
   const stream = await openStream(base, 'human:forrest');
   assert.equal(stream.initialLoop.event, 'loop');
@@ -418,6 +466,7 @@ test('stream: AS-27 — close() clears the loop poll timer as well as the heartb
   const timeout = new Promise((_, reject) =>
     setTimeout(() => reject(new Error('close() wedged')), 5000)
   );
+  closedByTest = true;
   await Promise.race([close(), timeout]);
   await stream.waitEnd();
 
@@ -727,4 +776,79 @@ test('stream: AS-99 — lanes frames reach every viewer identically (no visibili
   assert.equal(fb.event, 'lanes');
   assert.deepEqual(seen(fa), seen(fb));
   assert.equal(fa.data.lanes.snapshot.reason, 'ok');
+});
+
+// --- AS-81: openStream's own failure path ------------------------------------
+// These two are the only tests in the file that do NOT talk to the real server:
+// they need an upstream that breaks the on-connect contract, and the point is
+// that openStream copes, not that server.js misbehaves. A bare node:http
+// upstream that answers the SSE headers and then goes quiet is exactly that,
+// and it has one property no chat server has — the response is never ended
+// server-side, so the ONLY thing that can close the request is the client
+// hanging up. That is what makes the abort assertions below non-vacuous.
+
+/** Spin up that upstream. `onConnect(res)` writes whatever the case needs after
+ *  `:connected`; nothing else is ever written and the response is never ended. */
+async function fakeStreamUpstream(t, onConnect) {
+  let markClosed;
+  const clientHungUp = new Promise((ok) => { markClosed = ok; });
+  const server = createServer((req, res) => {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-store',
+      Connection: 'keep-alive',
+    });
+    res.write(':connected\n\n');
+    req.on('close', markClosed);
+    onConnect(res);
+  });
+  await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
+  t.after(async () => {
+    // closeAllConnections first: a held-open response would make close() wait
+    // forever, and a guard against wedging must not be able to wedge.
+    server.closeAllConnections();
+    await new Promise((ok) => server.close(ok));
+  });
+  return {
+    base: `http://127.0.0.1:${server.address().port}`,
+    /** true iff the upstream saw the client hang up inside the window. */
+    hungUpWithin: (ms = 1000) => new Promise((ok) => {
+      const timer = setTimeout(() => ok(false), ms);
+      clientHungUp.then(() => {
+        clearTimeout(timer);
+        ok(true);
+      });
+    }),
+  };
+}
+
+test('stream: AS-81 — no on-connect frame at all: openStream rejects naming the contract AND hangs up', async (t) => {
+  // Headers, :connected, then silence — the shape of a server that stopped
+  // sending the AS-27 loop frame.
+  const upstream = await fakeStreamUpstream(t, () => {});
+
+  await assert.rejects(
+    openStream(upstream.base, 'human:forrest', { connectMs: 200 }),
+    /AS-27 on-connect contract: no loop frame within 200ms/
+  );
+
+  assert.equal(await upstream.hungUpWithin(1000), true,
+    'openStream aborted its own fetch — without that abort this socket stays open, '
+    + 'and in a test that owns its server the runner never exits');
+});
+
+test('stream: AS-81 — on-connect frames out of order: openStream rejects naming the order AND hangs up', async (t) => {
+  // The AS-99 lanes frame arrives where the AS-27 loop frame belongs.
+  const upstream = await fakeStreamUpstream(t, (res) => {
+    res.write('event: lanes\ndata: {}\n\n');
+  });
+
+  await assert.rejects(
+    openStream(upstream.base, 'human:forrest', { connectMs: 200 }),
+    /AS-27\/AS-99 on-connect contract: expected loop then lanes, got lanes/
+  );
+
+  assert.equal(await upstream.hungUpWithin(1000), true,
+    'the wrong-event path aborts too — it is the faster of the two red paths, '
+    + 'and it leaked exactly the same socket before AS-81');
 });
