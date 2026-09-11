@@ -1891,6 +1891,25 @@ test('api: AS-75 — composeBuild is pure and tri-state at the unit level', () =
   assert.deepEqual(call({ deployState: frozen }), call({ deployState: frozen }));
 });
 
+test("api: AS-87 — composeBuild passes 'deploying' through when fresh, and still overrides to stale-state when not", () => {
+  // The watcher's heartbeat writes a reason the server has never seen. The
+  // server must neither rename it nor let it bypass the freshness check.
+  const now = Date.parse('2026-09-11T19:00:00.000Z');
+  const state = (over = {}) => ({
+    desiredId: 'bbbbbbbbbbbbbbbb', dirty: false, reason: 'deploying', desiredReason: 'ok',
+    runningId: 'aaaaaaaaaaaaaaaa', computedAt: new Date(now - 30_000).toISOString(), ...over,
+  });
+  const call = (over = {}) =>
+    composeBuild({ buildId: 'aaaaaaaaaaaaaaaa', deployState: state(), watcherListening: true, nowMs: now, ...over });
+
+  const fresh = call();
+  assert.equal(fresh.reason, 'deploying', 'an unknown-to-the-server reason passes through untouched');
+  assert.equal(fresh.current, false, 'ids differ during the build, so it is honestly behind');
+  const stale = call({ deployState: state({ computedAt: new Date(now - 11 * 60_000).toISOString() }) });
+  assert.equal(stale.reason, 'stale-state', 'eleven minutes without a heartbeat is still a stale report');
+  assert.equal(stale.current, null);
+});
+
 test('api: AS-93 — /api/config exposes exactly the dashboard override; dashboard-link.js is served, imported, and pure', async (t) => {
   const { base, get } = await bootServer(t);
 

@@ -232,6 +232,7 @@ watcher update, and a briefly stale heartbeat is the quieter, honest signal.
 | `no-git` / short input set | the digest could not be computed. A digest over 9 of 10 inputs would be stable, wrong, and would stop triggering rebuilds forever, so a short `ls-tree` is a refusal, not a shorter digest |
 | `no-docker` | the binary did not resolve; set `ADVANCE_DOCKER_BIN` in the plist |
 | `cooldown` | the last attempt at *this same id* failed less than `ADVANCE_DEPLOY_COOLDOWN_MIN` (30) ago. A new merge changes the id and retries immediately. AS-84: the attempt is read back from `deploy-state.json` at startup, so a relaunched watcher keeps the cooldown the process before it earned |
+| `deploying` | AS-87: a rebuild is in flight. Every deploy poll during the build re-writes the file with a fresh `computedAt` (a heartbeat), so a build longer than the server's 10-minute stale threshold no longer reads as a crashed watcher; `lastAttempt.outcome` stays `started` until the build settles. The build's output is in `logs/deploy-<ts>.log` |
 | `error` | AS-84: the poll itself threw and was caught rather than taking the watcher down with it (an unhandled rejection in a `setInterval` callback ends the process). The watcher is alive and polls again in `ADVANCE_DEPLOY_POLL_S`; `advance-watcher.log` carries the one `WARN deploy poll failed` line |
 
 `lastAttempt.outcome` is one of `ok`, `fail`, `aborted` (AS-84: the watcher

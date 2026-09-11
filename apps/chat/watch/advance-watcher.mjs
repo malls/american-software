@@ -409,7 +409,7 @@ export function resolveGitBin(env, exists) {
  *
  * CARDINALITY FIRST, and it is the whole point: ls-tree prints one line per
  * path that exists, and says nothing at all about one that does not. A digest
- * over 8 of 9 inputs would be perfectly stable, entirely wrong, and would stop
+ * over 9 of 10 inputs would be perfectly stable, entirely wrong, and would stop
  * triggering rebuilds forever — a vacuous pass with no test to fail. So a line
  * count that does not equal the expected path count is a refusal, not a digest.
  *
@@ -731,7 +731,7 @@ export function runDockerCompose({ dockerBin, cwd, env, logPath, timeoutMs, log,
     // .catch can see, and the watcher process dies. Log it; the build itself
     // still runs and still resolves through 'exit'.
     out.on('error', (err) => log(`WARN deploy log stream error: ${err.message}`));
-    const proc = spawnFn(dockerBin, ['compose', '--progress', 'quiet', 'up', '-d', '--build'], {
+    const proc = spawnFn(dockerBin, ['compose', '--progress', 'plain', 'up', '-d', '--build'], {
       cwd,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -849,6 +849,11 @@ export function makeDeployOps({
   }
 
   let deploying = false;
+  // AS-87 (Ruben's AS-75 F3): the state fields of the deploy in flight, so the
+  // heartbeat below re-persists the same desired/running ids the pre-build write
+  // carried — not persist()'s `no-git` defaults. Set by performDeploy, cleared in
+  // its finally.
+  let inflight = null;
   // AS-84: hydrated, not blank. `lastAttempt` used to be memory-only — persist()
   // wrote it and nothing ever read it back — so a watcher that launchd relaunched
   // mid-crash-loop retried the same failing build at once.
@@ -956,6 +961,7 @@ export function makeDeployOps({
       return;
     }
     deploying = true;
+    inflight = stateFields;
     abortSignal = null;
     let settleDeploy;
     deployDone = new Promise((ok) => {
@@ -1026,6 +1032,7 @@ export function makeDeployOps({
     } finally {
       lock.releaseLock();
       deploying = false;
+      inflight = null;
       deployChild = null;
       abortSignal = null;
     }
@@ -1078,7 +1085,17 @@ export function makeDeployOps({
    * foreign-lock half is checked here. At most one action per call.
    */
   async function evaluateInner({ busy = false } = {}) {
-    if (deploying) return { action: 'noop', reason: 'busy' };
+    if (deploying) {
+      // AS-87 (Ruben's AS-75 F3): heartbeat. Before this, nothing rewrote
+      // deploy-state.json for the length of a build, so computedAt froze at
+      // the last pre-build poll and a build longer than DEPLOY_STATE_STALE_MS
+      // (10 min, under the 15 min deploy timeout) flipped the sidebar to "the
+      // watcher crashed" while it was alive and mid-build. Only the PERSISTED
+      // reason is new: the returned decision stays 'busy', which is what
+      // pendingDeploy() and the loop's yield logic read.
+      persist({ ...inflight, reason: 'deploying' });
+      return { action: 'noop', reason: 'busy' };
+    }
     const nowMs = now();
     const { desired, reason: desiredReason } = computeDesired();
     const running = await probeRunning();

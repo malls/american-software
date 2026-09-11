@@ -49,6 +49,9 @@ const BUILD_REASONS = {
   'stale-build': 'the watcher is about to rebuild it',
   cooldown: 'the last rebuild of this version failed and the watcher is waiting before retrying — see apps/chat/data/logs/deploy-*.log',
   busy: 'a tick is running, so the watcher is holding the rebuild until it finishes',
+  // AS-87: persisted on every deploy poll while a build is in flight, so a
+  // long build never reads as a crashed watcher.
+  deploying: 'the watcher is rebuilding it now — see apps/chat/data/logs/deploy-*.log',
   'inputs-dirty': 'master has uncommitted changes under apps/chat, and the watcher only ever deploys committed code',
   'no-git': 'the watcher cannot read the git tree to work out what master contains',
   'no-docker': 'the watcher cannot find the docker binary — set ADVANCE_DOCKER_BIN in the launchd plist (apps/chat/watch/README.md)',
