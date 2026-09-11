@@ -141,13 +141,31 @@ const alive = (pid) => {
   }
 };
 
+/** True when `git` can be spawned here. False inside the test container
+ *  (node:24-slim ships no git), true on a developer host. The fixture below is
+ *  a real git repo — computeDesired() runs `git ls-tree` over it — so without
+ *  git the tests SKIP as a counted outcome (visible in the summary), the same
+ *  guard the AS-86 git-backed tests carry. Never a silent pass: the host run
+ *  is where these two are proven. (Ruben's cycle-2 F1: on the image both
+ *  reached `git init failed` at the fixture step and counted as failures.) */
+function gitRunnable() {
+  const probe = spawnSync('git', ['--version'], { encoding: 'utf8' });
+  return !probe.error && probe.status === 0;
+}
+
 /**
  * Boot a real watcher over a temp repo with a fake docker, wait until a build
  * is genuinely in flight (fake docker pid recorded, advance.lock held under
  * source:'deploy'), SIGTERM the watcher and wait for it to exit 0. Returns the
  * handles the assertions need; the caller decides what the exit must mean.
+ * Returns null after marking the test skipped when git is not runnable — the
+ * one guard site for both callers; a caller returns on null.
  */
 async function sigtermMidBuild(t, { trapLine = TRAP_HANDLES_TERM, extraEnv = {} } = {}) {
+  if (!gitRunnable()) {
+    t.skip('git not runnable here — host-only guard');
+    return null;
+  }
   const root = mkdtempSync(join(tmpdir(), 'chat-watcher-abort-'));
   const dataDir = join(root, 'apps', 'chat', 'data');
   const marker = join(root, 'docker.pid');
@@ -249,7 +267,9 @@ async function sigtermMidBuild(t, { trapLine = TRAP_HANDLES_TERM, extraEnv = {} 
 }
 
 test('AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0', async (t) => {
-  const { dockerPid, lockPath, dataDir } = await sigtermMidBuild(t);
+  const run = await sigtermMidBuild(t);
+  if (!run) return; // skipped: no git here
+  const { dockerPid, lockPath, dataDir } = run;
 
   // THE assertion: no orphan. Before AS-84 this build survived its watcher.
   for (let i = 0; i < 40 && alive(dockerPid); i++) await delay(50);
@@ -270,10 +290,12 @@ test('AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves 
 test('AS-84 entry point: a build that ignores SIGTERM is SIGKILLed at grace expiry — no orphan, no deploy lock, exit 0', async (t) => {
   // Ruben's cycle-1 F1, observed: before the fix the watcher exited 0 with the
   // fake docker still alive and a source:'deploy' lock on disk under a dead pid.
-  const { dockerPid, lockPath, dataDir } = await sigtermMidBuild(t, {
+  const run = await sigtermMidBuild(t, {
     trapLine: TRAP_IGNORES_TERM,
     extraEnv: { ADVANCE_SHUTDOWN_GRACE_S: '0.5' },
   });
+  if (!run) return; // skipped: no git here
+  const { dockerPid, lockPath, dataDir } = run;
 
   for (let i = 0; i < 40 && alive(dockerPid); i++) await delay(50);
   assert.equal(alive(dockerPid), false, `the compose child (pid ${dockerPid}) outlived its watcher's grace`);
