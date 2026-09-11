@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-lena",
   "branch_links": [
     {
       "branch": "feat/AS-80-close-clears-every-interval",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1MRHSPD9CKWX1QXPR8HBX98",
-  "last_event_id": "ev_01M27RKFHBEH0ZKC26BMBE8S48",
-  "last_status_changed_at": "2026-09-11T08:15:56Z",
+  "last_event_id": "ev_01M27S557TQBVXKQSB0Q7M4YJX",
+  "last_status_changed_at": "2026-09-11T08:25:40Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-80",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat: the AS-27 close()-clears-timer guard is vacuous \u2014 deleting clearInterval leaves the suite green",
   "type": "task",
-  "updated_at": "2026-09-11T08:16:04Z",
+  "updated_at": "2026-09-11T08:25:43Z",
   "urgency": null
 }

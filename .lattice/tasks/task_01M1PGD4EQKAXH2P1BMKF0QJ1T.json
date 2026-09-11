@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [
     {
       "branch": "feat/AS-83-probe-budget",
@@ -18,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1PGD4EQKAXH2P1BMKF0QJ1T",
-  "last_event_id": "ev_01M27RSFXCYWXHR12FJTHN85MM",
-  "last_status_changed_at": "2026-09-11T08:19:19Z",
+  "last_event_id": "ev_01M27S5610QKZ0TJFQ47WE7GAW",
+  "last_status_changed_at": "2026-09-11T08:25:41Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-83",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat: mode.test.js AS-24 case is flaky under concurrent docker build \u2014 two independent observations",
   "type": "task",
-  "updated_at": "2026-09-11T08:19:21Z",
+  "updated_at": "2026-09-11T08:25:44Z",
   "urgency": null
 }
