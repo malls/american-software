@@ -82,10 +82,15 @@ test('AS-82 entry point: the real process heartbeats on its own interval against
   assert.equal(beat.pid, child.pid, 'the pid file names the process we started');
 
   child.kill('SIGTERM');
-  const { code, signal } = await Promise.race([
-    exited,
-    delay(DEADLINE_MS).then(() => ({ code: 'timeout', signal: 'timeout' })),
-  ]);
+  // A plain timers/promises delay would keep the event loop open for the full
+  // DEADLINE_MS after the race is already won (review, qa-ruben: the test
+  // passed in ~110 ms but the file took 20.7 s); clear it once exit wins.
+  let deadlineTimer = null;
+  const deadline = new Promise((resolve) => {
+    deadlineTimer = setTimeout(() => resolve({ code: 'timeout', signal: 'timeout' }), DEADLINE_MS);
+  });
+  const { code, signal } = await Promise.race([exited, deadline]);
+  clearTimeout(deadlineTimer);
   assert.equal(code, 0, `expected a clean exit; watcher output:\n${out}`);
   assert.equal(signal, null);
   assert.equal(existsSync(pidPath), false, 'shutdown removed its own marker');
