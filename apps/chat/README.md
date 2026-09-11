@@ -446,6 +446,19 @@ the lane still renders, with the branch or path in the task slot. Tasks in
 `in_planning`/`planned`/`in_progress`/`review` with no worktree are lanes too
 (`'task-only'`, git fields read "not cut yet", never `0`/`clean`).
 
+**Paths.** `relPath` is relative to the repo root; the absolute host path is
+never written into the snapshot. A worktree that lives *outside* the root
+(`git worktree add /tmp/throwaway` is legal) is reported as
+`<outside repo>/<basename>` — a marker no real repo-relative path can collide
+with, keeping the basename so two such worktrees remain distinct lanes.
+
+**Two ways to read an empty pane, and they never look alike.** `Lanes · 0` with
+"No lanes in flight." is a measurement: git answered and nothing was in flight.
+`Lanes · –` with "Lane data unavailable — …" means nobody measured — no
+snapshot, an unreadable one, or `git-error`, where the watcher reached git and
+git refused. A *stale* snapshot is a third thing: a real measurement that has
+stopped refreshing, so it keeps its count and ages in the caption.
+
 **Known limit:** a *squash* merge leaves a branch tip that is not an ancestor of
 master, so the `merged` classification cannot see it from git alone. The STALE
 flag still catches that case through the task's status once it is `done`.
