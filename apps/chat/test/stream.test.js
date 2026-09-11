@@ -428,3 +428,96 @@ test('stream: AS-27 — close() clears the loop poll timer as well as the heartb
   assert.equal(stream.pending(), 0, 'a closed server pushes nothing');
   stream.close();
 });
+
+// --- AS-99: lanes frames ----------------------------------------------------
+
+const laneSnapshot = (generatedAt, over = {}) => JSON.stringify({
+  schema: 1,
+  source: 'watcher:git',
+  generatedAt,
+  master: { head: 'f6717b8' },
+  error: null,
+  worktrees: [
+    { relPath: '.', main: true, head: 'f6717b8', branch: 'master', detached: false, ahead: null, behind: null,
+      dirtyCount: null, dirtyLattice: null, merged: null, lastCommit: null, errors: [] },
+  ],
+  ...over,
+});
+
+test('stream-lanes-change-only: a rewritten snapshot pushes exactly one lanes frame; an untouched one pushes none over ten polls', async (t) => {
+  const dataDir = loopDataDir(t);
+  const { base } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS,
+  });
+  const snapPath = join(dataDir, 'worktrees.json');
+
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  // AC-12, first half: exactly one lanes frame on connect, AFTER the loop
+  // frame. openStream consumed both and would have thrown on either the wrong
+  // event name or the wrong order.
+  assert.equal(stream.initialLoop.event, 'loop');
+  assert.equal(stream.initialLanes.event, 'lanes', 'the SECOND frame on a new connection is the lane projection');
+  assert.equal(stream.initialLanes.data.lanes.snapshot.reason, 'no-snapshot',
+    'an empty data dir says so out loud rather than drawing an empty lane list as fact');
+  assert.equal(stream.initialLanes.data.lanes.lanes, null);
+
+  // The watcher writes its first snapshot.
+  writeFileSync(snapPath, laneSnapshot(new Date().toISOString()));
+  const first = await stream.nextFrame();
+  assert.equal(first.event, 'lanes');
+  assert.equal(first.data.lanes.snapshot.reason, 'ok');
+  assert.equal(first.data.lanes.snapshot.stale, false);
+
+  // Ten polls with the file untouched. `ageS` and `checkedAt` move on every one
+  // of them, so a whole-payload comparison would emit ten frames here.
+  await afterPolls(10);
+  assert.equal(stream.pending(), 0, 'zero frames while the snapshot is unchanged');
+
+  // The watcher's next poll: same git facts, new generatedAt. That IS a change
+  // worth a frame — it is the only evidence the client has that the feed is
+  // still alive, and it is what keeps the age caption honest.
+  writeFileSync(snapPath, laneSnapshot(new Date(Date.now() + 1_000).toISOString()));
+  const second = await stream.nextFrame();
+  assert.equal(second.event, 'lanes');
+  assert.notEqual(second.data.lanes.snapshot.generatedAt, first.data.lanes.snapshot.generatedAt);
+  await afterPolls(10);
+  assert.equal(stream.pending(), 0, 'and exactly one frame for that write, not one per poll');
+
+  // The watcher stops and its file is removed: the pane must learn that the
+  // list it is holding is no longer an answer.
+  unlinkSync(snapPath);
+  const gone = await stream.nextFrame();
+  assert.equal(gone.event, 'lanes');
+  assert.equal(gone.data.lanes.snapshot.reason, 'no-snapshot');
+  assert.equal(gone.data.lanes.lanes, null);
+});
+
+test('stream: AS-99 — lanes frames reach every viewer identically (no visibility gate)', async (t) => {
+  const dataDir = loopDataDir(t);
+  const { base } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS,
+  });
+  const a = await openStream(base, 'human:forrest');
+  const b = await openStream(base, 'agent:ceo-carla');
+  t.after(() => {
+    a.close();
+    b.close();
+  });
+  // `checkedAt` is the server clock at compose time and differs by a
+  // millisecond between two connections; everything a viewer READS must not.
+  const seen = (frame) => {
+    const { checkedAt, ...rest } = frame.data.lanes;
+    return rest;
+  };
+  assert.deepEqual(seen(a.initialLanes), seen(b.initialLanes), 'the board and an employee see the same lanes');
+
+  writeFileSync(join(dataDir, 'worktrees.json'), laneSnapshot(new Date().toISOString(), { worktrees: [] }));
+  const fa = await a.nextFrame();
+  const fb = await b.nextFrame();
+  assert.equal(fa.event, 'lanes');
+  assert.equal(fb.event, 'lanes');
+  assert.deepEqual(seen(fa), seen(fb));
+  assert.equal(fa.data.lanes.snapshot.reason, 'ok');
+});
