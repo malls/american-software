@@ -142,6 +142,14 @@ export const IMAGE_INPUTS = Object.freeze([
 // here or in the Dockerfile, not something that can happen silently.
 export const NOT_IMAGE_INPUTS = Object.freeze(['README.md', 'chat', 'data']);
 
+// AS-88: the compose project the production deploy targets — compose.yaml's
+// `name:` (test/deploy-shape.test.js pins the two equal). It is passed to
+// compose as `-p` on every deploy rather than left to the file, so the target
+// is explicit in argv and in the DEPLOY log line, and so a harness that builds
+// makeDeployOps for a scratch stack has a real argument to pass instead of an
+// environment variable the deploy would scrub (AS-75 review F8).
+export const PRODUCTION_COMPOSE_PROJECT = 'asc-chat';
+
 /**
  * Split tracked apps/chat-relative paths into { inputs, declared, unclassified },
  * each in input order. A path belongs to a root when it IS that root or lies
@@ -782,8 +790,19 @@ export async function fetchJsonOrNull(url, timeoutMs) {
  * nothing outside could reach it, so shutdown() SIGTERMed the tick child and
  * left the build running unguarded (AS-75 F5). Default no-op: every existing
  * call site is unchanged by construction.
+ *
+ * AS-88: `composeProject` is required and always passed as `-p`. Compose
+ * resolves the project as `-p` > COMPOSE_PROJECT_NAME > `name:` > directory,
+ * and the deploy's env scrubs COMPOSE_PROJECT_NAME, so before this the file's
+ * `name: asc-chat` decided the target from ANY directory — which is how a
+ * harness run against a scratch copy of the tree rebuilt the live server
+ * (AS-75 review F8). The guard runs before createLog so a refused call opens
+ * no log file and spawns nothing.
  */
-export function runDockerCompose({ dockerBin, cwd, env, logPath, timeoutMs, log, spawnFn = spawn, createLog = createWriteStream, onSpawn = () => {} }) {
+export function runDockerCompose({ dockerBin, cwd, env, logPath, timeoutMs, log, composeProject, spawnFn = spawn, createLog = createWriteStream, onSpawn = () => {} }) {
+  if (typeof composeProject !== 'string' || composeProject.trim() === '') {
+    throw new Error('runDockerCompose: composeProject is required — the deploy names its compose project explicitly (AS-88)');
+  }
   return new Promise((resolve_) => {
     const out = createLog(logPath, { flags: 'a' });
     // AS-84 rework 1 (Ruben F2): a stream error (EACCES/ENOENT on logsDir) is
@@ -792,7 +811,8 @@ export function runDockerCompose({ dockerBin, cwd, env, logPath, timeoutMs, log,
     // .catch can see, and the watcher process dies. Log it; the build itself
     // still runs and still resolves through 'exit'.
     out.on('error', (err) => log(`WARN deploy log stream error: ${err.message}`));
-    const proc = spawnFn(dockerBin, ['compose', '--progress', 'plain', 'up', '-d', '--build'], {
+    // `-p` precedes the subcommand: it is a compose global flag.
+    const proc = spawnFn(dockerBin, ['compose', '-p', composeProject, '--progress', 'plain', 'up', '-d', '--build'], {
       cwd,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -859,7 +879,13 @@ export function hydrateAttempt(record) {
  * network.
  *
  * Returns { evaluate, isDeploying, dockerBin, dockerReason, baselineDigest,
- *           computeDesired, probeRunning, lastAttempt }.
+ *           computeDesired, probeRunning, lastAttempt, composeProject }.
+ *
+ * AS-88: `composeProject` has no default. Production passes
+ * PRODUCTION_COMPOSE_PROJECT; a harness that reaches a real compose passes its
+ * own scratch project. Construction also refuses a COMPOSE_PROJECT_NAME in
+ * `env` that disagrees with it — the deploy scrubs that variable, so honouring
+ * it silently is impossible and dropping it silently is the F8 trap.
  */
 export function makeDeployOps({
   repoRoot,
@@ -892,9 +918,24 @@ export function makeDeployOps({
   pid = process.pid,
   isPidAlive = pidAlive,
   lockOps,
+  composeProject,
 }) {
   const docker = resolveDockerBin(env, exists);
   const gitBin = resolveGitBin(env, exists);
+  // AS-88: explicit, or refuse. An omitted project is the "forgot to think
+  // about it" path; a COMPOSE_PROJECT_NAME that disagrees is the "expressed it
+  // where the scrub discards it" path (Ruben's). Empty/whitespace counts as
+  // unset, as compose itself treats it; an equal value is not a disagreement.
+  if (typeof composeProject !== 'string' || composeProject.trim() === '') {
+    throw new Error('makeDeployOps: composeProject is required (production passes PRODUCTION_COMPOSE_PROJECT; a test harness passes its own scratch project) — AS-88');
+  }
+  const envIntent = (env.COMPOSE_PROJECT_NAME ?? '').trim();
+  if (envIntent !== '' && envIntent !== composeProject) {
+    throw new Error(
+      `makeDeployOps: COMPOSE_PROJECT_NAME=${envIntent} is set but the deploy scrubs its environment and would target '${composeProject}'; ` +
+        `pass composeProject: '${envIntent}' explicitly or unset the variable (AS-88, AS-75 review F8)`,
+    );
+  }
   const paths = IMAGE_INPUTS.map((p) => `apps/chat/${p}`);
   // A SECOND lock ops instance, over the same file, differing only in the
   // `source` it writes. Mutual exclusion against loop/manual/watcher ticks uses
@@ -1031,7 +1072,7 @@ export function makeDeployOps({
     prune(logsDir, now() - retentionMs);
     const logPath = join(logsDir, `deploy-${new Date(now()).toISOString().replaceAll(':', '-')}.log`);
     const startedAt = now();
-    log(`DEPLOY building ${desiredId} -> ${logPath}`);
+    log(`DEPLOY building ${desiredId} (project ${composeProject}) -> ${logPath}`);
 
     let outcome = 'fail';
     let detail = '';
@@ -1048,6 +1089,7 @@ export function makeDeployOps({
         logPath,
         timeoutMs: deployTimeoutMs,
         log,
+        composeProject,
         onSpawn: (proc) => {
           deployChild = proc;
         },
@@ -1241,6 +1283,7 @@ export function makeDeployOps({
     dockerBin: docker.bin,
     dockerReason: docker.reason,
     gitBin,
+    composeProject, // AS-88: for assertions — the project every deploy targets
     baselineDigest,
     lastAttempt: () => lastAttempt,
     // AS-100 borrows this rather than restating the staleness rule: one rule
@@ -2734,12 +2777,17 @@ export function makeWatcher({
       });
 
     // AS-75 deploy poll. Everything it does lives in makeDeployOps (exported,
-    // unit-tested); these six lines are the entire unguarded wiring, and they are
-    // enumerated in the implementation report so a reviewer can check the claim
-    // against the diff rather than re-derive it. AS-84 replaced the `void` at
-    // the call site — and the argument beside it that every branch inside
+    // unit-tested); these seven lines are the entire unguarded wiring, and they
+    // are enumerated in the implementation report so a reviewer can check the
+    // claim against the diff rather than re-derive it. AS-84 replaced the `void`
+    // at the call site — and the argument beside it that every branch inside
     // evaluate() handled its own failure — with two real guards: evaluate()
     // catches (the belt) and deployPoll() catches (the suspenders, below).
+    // AS-88: the seventh line is composeProject. makeDeployOps refuses without
+    // it, and refuses a disagreeing COMPOSE_PROJECT_NAME in process.env; that
+    // throw is not caught here or in main(), so under launchd it is a crash-loop
+    // with the reason in launchd.err.log (test/watcher-main.test.js pins the
+    // wiring, watch/README.md § AS-88 states the consequence).
     deployOps =
       injectedDeployOps ??
       makeDeployOps({
@@ -2758,6 +2806,7 @@ export function makeWatcher({
         now,
         pid,
         isPidAlive,
+        composeProject: PRODUCTION_COMPOSE_PROJECT,
       });
     log(`DEPLOY-POLL every ${config.deployPollS}s (docker ${deployOps.dockerBin ?? `unresolved: ${deployOps.dockerReason}`}, git ${deployOps.gitBin}, watcher source ${deployOps.baselineDigest})`);
     deployInterval = setInterval(deployPoll, config.deployPollS * 1000);

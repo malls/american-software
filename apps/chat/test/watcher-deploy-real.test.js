@@ -21,14 +21,19 @@ const docker = resolveDockerBin(process.env, existsSync);
 const skip = !enabled ? 'opt-in: set AS87_REAL_BUILD=1' : (docker.bin ? false : `docker not runnable: ${docker.reason}`);
 
 test('AS-87 real build: the state file heartbeats through the build and deploy-*.log carries the BuildKit output', { skip, timeout: 10 * 60_000 }, async (t) => {
-  // Project isolation is by directory name. compose.yaml has no `name:` and the
-  // deploy's env allowlist scrubs COMPOSE_PROJECT_NAME (AS-88 pins that), so
-  // compose derives the project from the basename of the directory it is RUN
-  // IN — which is `appDir`, the cwd performDeploy hands runDockerCompose — not
-  // from the temp dir above it. The app directory is therefore named after
-  // `project`, so the `-p project` teardown below addresses the project the
-  // build actually created (Priya's cycle-1 F1: a subdir called `app` left an
-  // `app` project running on the host after every run).
+  // Project isolation: since AS-88 the deploy passes `-p <composeProject>` on
+  // every compose call, so the project this build creates is the one the ops
+  // are constructed with below — and the `-p project` teardown addresses that
+  // same name by construction. (Before AS-88 isolation was by directory name:
+  // compose.yaml has no `name:` and the deploy's env allowlist scrubs
+  // COMPOSE_PROJECT_NAME, so compose derived the project from the basename of
+  // `appDir`, the cwd performDeploy hands runDockerCompose — Priya's cycle-1
+  // F1: a subdir called `app` left an `app` project running on the host after
+  // every run.) The app directory is still named after `project` so the two
+  // agree whichever one compose reads. AS-88's guard is doing its job on this
+  // very test: without `composeProject` makeDeployOps now throws, and a
+  // harness that passed 'asc-chat' would run `compose -p asc-chat up` on this
+  // foreign compose file INSIDE the live project.
   const dir = mkdtempSync(join(tmpdir(), `asc-as87-${process.pid}-`));
   const project = basename(dir).toLowerCase();
   const app = join(dir, project);
@@ -99,6 +104,7 @@ test('AS-87 real build: the state file heartbeats through the build and deploy-*
     reprobeDelayMs: 0,
     pid: process.pid,
     isPidAlive: () => true,
+    composeProject: project, // AS-88: the scratch project, never the production name
   });
   const first = ops.evaluate();
   // Fail fast if the first evaluate() refuses (no docker, dirty inputs, no git,

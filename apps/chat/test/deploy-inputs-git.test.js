@@ -108,6 +108,7 @@ function scratchRepo(t) {
         readSources: () => [],
         exit: () => {},
         sleep: async () => {},
+        composeProject: 'asc-test', // AS-88: required; `deploy` is faked, so never reaches compose
       });
     },
   };
