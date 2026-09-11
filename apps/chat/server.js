@@ -3,7 +3,7 @@
 // plumbing; all domain behavior lives in lib/store.js (and lib/lattice.js).
 
 import { createServer } from 'node:http';
-import { readFileSync, realpathSync, statSync } from 'node:fs';
+import { readFileSync, realpathSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openStore, StoreError } from './lib/store.js';
@@ -19,6 +19,18 @@ import {
 // AS-99: the lane projection. The composer is pure and lives in lib/; the
 // server supplies the three inputs (snapshot file, task list, clock).
 import { composeLanes } from './lib/lanes.js';
+// AS-100: the company event stream. The core is pure and stateless; the only
+// state on this side is the byte-offset tail below, which is stateful by
+// nature and therefore does not belong in lib/.
+import {
+  emptyFold,
+  foldEvent,
+  openItems,
+  parseJsonl,
+  projectEvent,
+  readStream,
+  reduceLiveness,
+} from './lib/events.js';
 import { readRoster, readPersonnel } from './lib/personnel.js';
 // AS-33: the org rule set + tree builder. The server importing UP into
 // public/ is deliberate: that module is also what the BROWSER imports, and a
@@ -187,12 +199,20 @@ function storeErrorStatus(e) {
     : 400;
 }
 
+// AS-100: how often the server tails events/company.jsonl, by byte offset.
+// Same cadence and the same reason as LOOP_POLL_MS: the file is written on the
+// host and reaches the container over a bind mount, where FSEvents is
+// unreliable. Exported so the suite can pin the production value while
+// injecting a small one, exactly as LOOP_POLL_MS/LANES_POLL_MS are.
+export const EVENTS_POLL_MS = 2_000;
+
 export function createChatServer({
   dbPath,
   repoRoot,
   dataDir,
   loopPollMs = LOOP_POLL_MS,
   lanesPollMs = LANES_POLL_MS,
+  eventsPollMs = EVENTS_POLL_MS,
   // AS-75: the id baked into this image by the Dockerfile's ARG BUILD_ID.
   // Taken RAW, `unknown` included — normalising happens once, below, so both
   // /api/build and /api/loop-status answer from the same judgement.
@@ -220,6 +240,16 @@ export function createChatServer({
   // means "no watcher has written one here", which the pane says out loud
   // rather than rendering an empty lane list as "nothing is running".
   const WORKTREES_PATH = join(loopDir, 'worktrees.json');
+  // AS-100: the company event stream the watcher appends to. Sixth file under
+  // the same directory, same degradation contract as the four above — absent
+  // means "no AS-100 watcher has ever written here" (`no-stream`), a fact and
+  // not a fault. CHAT_EVENTS_PATH is the same override bin/events.js honours,
+  // so producer and reader are one variable apart, never two.
+  const EVENTS_PATH = process.env.CHAT_EVENTS_PATH || join(loopDir, 'events', 'company.jsonl');
+  // The tick box, from the watcher's own default rather than restated here —
+  // the same reason LOCK_STALE_MS is imported: server and watcher can never
+  // disagree about how long an open stage may go unheard.
+  const TICK_TIMEOUT_MS = DEFAULTS.tickTimeoutMin * 60 * 1000;
   // `unknown` is what an image built by hand (no CHAT_BUILD_ID in the env)
   // carries. It is not an id — treating it as one would let a hand-built image
   // claim currency it cannot have — so it normalises to null, exactly like an
@@ -309,12 +339,179 @@ export function createChatServer({
   // fresh as the watcher, which is why composeLanes reports its age); the
   // Lattice half is read live here, so stage, assignee and title are never
   // snapshot-aged, and a task with no worktree yet still gets a lane.
+  // AS-100: the event tail. A byte offset, a partial line and the fold — the
+  // three things a stateful reader of an append-only file needs and nothing
+  // else. `reason` is the same enum /api/events reports, so the pane says the
+  // same word whichever door it came through.
+  const eventsTail = {
+    offset: 0,
+    partial: Buffer.alloc(0),
+    fold: emptyFold(),
+    reason: 'no-stream',
+    lastId: null,
+    lastTs: null,
+    malformed: 0,
+  };
+  function resetTail(reason) {
+    eventsTail.offset = 0;
+    eventsTail.partial = Buffer.alloc(0);
+    eventsTail.fold = emptyFold();
+    eventsTail.reason = reason;
+    eventsTail.lastId = null;
+    eventsTail.lastTs = null;
+  }
+
+  /** Read whatever has been appended since the last call and fold it in.
+   *  Returns the PROJECTED envelopes of the new events, in file order — the
+   *  poll below turns each into one `company` frame. A file shorter than the
+   *  offset is a truncation: the reader starts over and SAYS so (AC-14); it
+   *  never throws, because a rotated or hand-edited log is a fact about the
+   *  host, not a reason to take the chat server down. */
+  function tailEvents() {
+    let size;
+    try {
+      size = statSync(EVENTS_PATH).size;
+    } catch (err) {
+      if (err && err.code === 'ENOENT') {
+        resetTail('no-stream');
+        return [];
+      }
+      eventsTail.reason = 'unreadable-stream';
+      return [];
+    }
+    let truncated = false;
+    if (size < eventsTail.offset) {
+      resetTail('truncated');
+      truncated = true;
+    }
+    if (size === eventsTail.offset) {
+      if (!truncated && eventsTail.reason !== 'truncated') eventsTail.reason = 'ok';
+      return [];
+    }
+    let chunk;
+    try {
+      const fd = openSync(EVENTS_PATH, 'r');
+      try {
+        const buf = Buffer.alloc(size - eventsTail.offset);
+        const read = readSync(fd, buf, 0, buf.length, eventsTail.offset);
+        chunk = buf.subarray(0, read);
+        eventsTail.offset += read;
+      } finally {
+        closeSync(fd);
+      }
+    } catch {
+      eventsTail.reason = 'unreadable-stream';
+      return [];
+    }
+    // The partial tail is kept as BYTES, not text: a multi-byte character split
+    // across two reads would otherwise decode to two replacement characters and
+    // corrupt a line that was never malformed.
+    const buf = Buffer.concat([eventsTail.partial, chunk]);
+    const nl = buf.lastIndexOf(0x0a);
+    if (nl === -1) {
+      eventsTail.partial = buf;
+      return [];
+    }
+    eventsTail.partial = buf.subarray(nl + 1);
+    const { events, malformed } = parseJsonl(buf.subarray(0, nl + 1).toString('utf8'));
+    eventsTail.malformed += malformed;
+    const out = [];
+    // File order, not (ts, id) order: the tail reports arrivals, and a frame
+    // that reordered them would disagree with the file every consumer can read.
+    for (const ev of events) {
+      eventsTail.fold = foldEvent(eventsTail.fold, ev);
+      eventsTail.lastId = ev.id;
+      eventsTail.lastTs = typeof ev.ts === 'string' ? ev.ts : eventsTail.lastTs;
+      const projected = projectEvent(ev);
+      if (projected) out.push(projected);
+    }
+    if (truncated) {
+      // stays 'truncated' until the NEXT append: one poll cannot both report
+      // the loss and pretend it is over.
+    } else if (eventsTail.reason === 'truncated') {
+      if (events.length) eventsTail.reason = 'ok';
+    } else {
+      eventsTail.reason = 'ok';
+    }
+    return out;
+  }
+
+  /** The `stream` half of both /api/events and the lanes projection. `path` is
+   *  deliberately null — the host path is no more a browser's business than the
+   *  lock's nonce is (AS-16's rule, by analogy). */
+  function eventsStreamInfo(fold = eventsTail.fold, reason = eventsTail.reason) {
+    const open = openItems(fold);
+    return {
+      reason,
+      path: null,
+      lastId: eventsTail.lastId,
+      lastTs: eventsTail.lastTs,
+      malformed: eventsTail.malformed,
+      open: { stages: open.stages.length, subagents: open.subagents.length },
+    };
+  }
+
+  /** GET /api/events — the catch-up read, straight from the file through the
+   *  tolerant parser. Deliberately NOT served from the tail: the tail is a push
+   *  cursor, and a reader asking "what happened before I connected" must see
+   *  the file, not this process's memory of it. */
+  function readEvents({ since = null, task = null, limit = 200 } = {}) {
+    const s = readStream(EVENTS_PATH);
+    let events = s.events;
+    if (since) {
+      // Resolve the cursor on the FULL stream, before any task filter: a client
+      // that tails one task with the last id it saw on the unfiltered `company`
+      // frames must not get an empty catch-up because that id belongs to another
+      // lane (qa-ruben review, AS-100: `task=AS-7&since=<AS-8 id>` returned []).
+      const at = events.findIndex((ev) => ev.id === since);
+      // An unknown `since` (a Lattice `ev_` id, a typo) returns nothing rather
+      // than everything: a catch-up that silently replays the whole log is how
+      // a client ends up rendering the same hour twice.
+      events = at === -1 ? [] : events.slice(at + 1);
+    }
+    if (task) events = events.filter((ev) => ev && ev.data && ev.data.task === task);
+    const n = Number(limit);
+    const capped = Math.min(Math.max(1, Number.isFinite(n) ? Math.trunc(n) : 200), 1000);
+    const last = s.events.length ? s.events[s.events.length - 1] : null;
+    return {
+      stream: {
+        reason: s.reason,
+        path: null,
+        lastId: last ? last.id : null,
+        lastTs: last && typeof last.ts === 'string' ? last.ts : null,
+        malformed: s.malformed,
+        open: (() => {
+          const open = openItems(s.events);
+          return { stages: open.stages.length, subagents: open.subagents.length };
+        })(),
+      },
+      events: events.slice(0, capped).map(projectEvent).filter(Boolean),
+    };
+  }
+
   function readLanes() {
+    const nowMs = Date.now();
+    // `tickLive` is the ONE existing rule for "a tick is running" (a fresh
+    // lock), imported through readLoopStatus rather than restated: while the
+    // watcher holds its lock every open stage is alive, because settle() will
+    // close it the moment the tick ends.
+    let tickLive = false;
+    try {
+      tickLive = readLoopStatus().tick !== null;
+    } catch {
+      tickLive = false;
+    }
     return composeLanes({
       snapshot: readLoopFile(WORKTREES_PATH),
       tasks: listTasks(root),
       ids: idsByShortId(root),
-      nowMs: Date.now(),
+      nowMs,
+      liveness: reduceLiveness(eventsTail.fold, {
+        nowMs,
+        tickLive,
+        tickTimeoutMs: TICK_TIMEOUT_MS,
+      }),
+      events: eventsStreamInfo(),
     });
   }
 
@@ -332,7 +529,34 @@ export function createChatServer({
       stale: p.snapshot.stale,
       error: p.snapshot.error,
       count: p.count,
-      lanes: p.lanes,
+      // AS-100: the lanes are reduced field by field rather than serialised
+      // whole, because the liveness slots carry `subAgent.elapsedS`, which
+      // moves on EVERY poll — keying on `p.lanes` wholesale would emit a frame
+      // per second per connection forever (AC-17). The three liveness fields
+      // that should earn a frame are in; elapsed is deliberately out, and the
+      // client recomputes it from `startedAt` on its own timer, exactly as it
+      // already does for every age field in the loop frame.
+      lanes:
+        p.lanes &&
+        p.lanes.map((lane) => ({
+          key: lane.key,
+          task: lane.task,
+          worktree: lane.worktree,
+          stageStartedAt: lane.stageStartedAt,
+          subAgent: lane.subAgent && {
+            actor: lane.subAgent.actor,
+            stage: lane.subAgent.stage,
+            alive: lane.subAgent.alive,
+            startedAt: lane.subAgent.startedAt,
+            lastEventId: lane.subAgent.lastEvent && lane.subAgent.lastEvent.id,
+          },
+        })),
+      events: p.events && {
+        reason: p.events.reason,
+        lastId: p.events.lastId,
+        malformed: p.events.malformed,
+        open: p.events.open,
+      },
     });
 
   // What counts as a CHANGE worth a push frame. Deliberately excludes every
@@ -425,6 +649,14 @@ export function createChatServer({
   }, loopPollMs);
   loopPoll.unref();
 
+  // AS-100: prime the tail BEFORE the lanes key below, not after. `lanesKey`
+  // includes `events.reason`, and an unprimed tail still reads its constructed
+  // default `no-stream`; priming the lanes key from that state made the first
+  // tail poll (which sets `ok`) change the key and push one lanes frame whose
+  // visible content was identical — an empty frame to every client that
+  // connected near boot (AC-17). The two primings must see the same tail.
+  tailEvents();
+
   // AS-99: lanes push, change-only. Primed at construction for the same reason
   // the loop poll is: the first poll after boot must not emit a frame for a
   // state nothing has changed since.
@@ -451,6 +683,37 @@ export function createChatServer({
     }
   }, lanesPollMs);
   lanesPoll.unref();
+
+  // AS-100: the company stream tail. Change-only by construction rather than by
+  // key comparison — an append-only file HAS no "current", so there is nothing
+  // to diff: whatever the tail read since the last poll is new by definition,
+  // and a poll that read nothing pushes nothing. Primed here for the same
+  // reason the two polls above are primed: the events already in the file when
+  // this process booted are history, not news, and /api/events is how a client
+  // catches up on them. (The priming call itself is made above, before the
+  // lanes key is primed — see the AS-100 note there.)
+  const eventsPoll = setInterval(() => {
+    let fresh;
+    try {
+      fresh = tailEvents();
+    } catch {
+      return; // C7 again: a bad line never takes the server down
+    }
+    if (!fresh.length) return;
+    // No visibleTo gate: the company stream is identical for every viewer,
+    // same contract as the loop and lanes frames.
+    for (const ev of fresh) {
+      const frame = `event: company\ndata: ${JSON.stringify(ev)}\n\n`;
+      for (const conn of streams) {
+        try {
+          conn.res.write(frame);
+        } catch {
+          streams.delete(conn);
+        }
+      }
+    }
+  }, eventsPollMs);
+  eventsPoll.unref();
 
   // Sentinel key for handleApi results that are raw text (currently only
   // /api/dump's JSONL), sent as text/plain instead of a JSON envelope.
@@ -486,6 +749,14 @@ export function createChatServer({
       // whitelist (lib/lanes.js), so a snapshot field added on the host cannot
       // reach a browser without a decision here.
       return { lanes: readLanes() };
+    }
+    if (req.method === 'GET' && pathname === '/api/events') {
+      // AS-100: the company event log, read-only and identical for every
+      // viewer — no 'me', no store, no visibility filter, same contract as
+      // /api/lanes. Every event goes through projectEvent(), so a line that
+      // grew a field on the host cannot reach a browser without a decision
+      // here (AC-12). `since` is exclusive by id; unknown ids return nothing.
+      return readEvents({ since: q('since'), task: q('task'), limit: q('limit') ?? 200 });
     }
     if (req.method === 'GET' && pathname === '/api/build') {
       // AS-75: what code is actually serving, first-hand. The watcher reads
@@ -802,6 +1073,7 @@ export function createChatServer({
         clearInterval(heartbeat);
         clearInterval(loopPoll); // AS-27: same reason as the heartbeat above
         clearInterval(lanesPoll); // AS-99: and the same reason again
+        clearInterval(eventsPoll); // AS-100: and once more, for the tail
         for (const conn of streams) {
           try {
             conn.res.end();

@@ -474,6 +474,101 @@ stopped refreshing, so it keeps its count and ages in the caption.
 master, so the `merged` classification cannot see it from git alone. The STALE
 flag still catches that case through the task's status once it is `done`.
 
+## Company events (AS-100)
+
+One append-only stream of lifecycle events — ticks, stages, sub-agents — that
+the Lanes pane's two live slots are projected from. **One stream, many
+projections; a view never owns state.**
+
+**The file.** `apps/chat/data/events/company.jsonl`, one JSON object per line,
+append-only. `CHAT_EVENTS_PATH` overrides it (the server and the CLI read the
+same variable). Nothing edits or deletes a line: a stage the orchestrator never
+closed is closed by a *later event*, not by a rewrite. The directory (rather
+than a bare `data/events.jsonl`) exists so a future rotation task has somewhere
+to put a second file.
+
+**The envelope** is seven keys, serialised in this sorted order —
+`actor`, `data`, `id`, `schema_version`, `task_id`, `ts`, `type`. `id` is a
+ULID with a `cev_` prefix; `ts` is ISO-8601 UTC; `actor` matches
+`^(agent|human|system):[a-z0-9-]+$`. A line over **8192 bytes** is refused at
+emit time (`MAX_LINE_BYTES`); a malformed line is *counted*, never thrown on —
+readers report `malformed` and keep going.
+
+**Six types**, each with an exact `data` key list (`EVENT_SHAPES` in
+`lib/events.js` is simultaneously the validator, the projection whitelist, and
+the documentation):
+
+| type | `data` keys |
+|---|---|
+| `tick_started` | `source`, `pid`, `startedAt`, `messageId`, `loopTick` |
+| `tick_ended` | `tickId`, `outcome`, `code`, `signal`, `timedOut`, `headMoved`, `lanesTouched`, `stagesClosed`, `reason` |
+| `stage_started` | `task`, `stage`, `actor`, `worktree`, `branch`, `cycle` |
+| `stage_ended` | `task`, `stage`, `actor`, `outcome`, `reason`, `closedBy`, `startedId`, `durationS` |
+| `subagent_spawned` | `task`, `stage`, `actor`, `model` |
+| `subagent_exited` | `task`, `stage`, `actor`, `exit`, `closedBy`, `spawnedId`, `durationS`, `tokens`, `costUsd` |
+
+`tokens` and `costUsd` are slots with no source yet and stay `null`.
+
+**The CLI** (`node apps/chat/bin/events.js`; run it as a plain top-level command
+— the headless permission layer denies it inside `$(…)` or a pipeline):
+
+```sh
+events emit stage_started    --task AS-<n> --stage plan|implement|review --employee <id> --actor <id> [--worktree <rel>] [--branch <name>] [--cycle <k>]
+events emit stage_ended      --task AS-<n> --stage <stage> --employee <id> --actor <id> --outcome completed|error [--reason "…"]
+events emit subagent_spawned --task AS-<n> --stage <stage> --employee <id> --actor <id> [--model <name>]
+events emit subagent_exited  --task AS-<n> --stage <stage> --employee <id> --actor <id> --exit ok|error
+events tail [--since <id>] [--limit <n>] [--task AS-<n>]
+events open
+```
+
+`--actor` is who ran the command; `--employee` is who the stage belongs to.
+**The CLI's enums are deliberately narrower than the schema's:** it can only
+write `completed`/`error` and `ok`/`error`. `cut_by_timeout` and `unclosed` are
+reconciler-only — an orchestrator must not be able to narrate a timeout that did
+not happen. `events open` lists what an earlier tick left open, which is why the
+tick procedure reads it in step 1 next to `git worktree list`.
+
+**Producers.** The **watcher** owns the tick boundary: `tick_started` when it
+fires a tick, `tick_ended` when it settles, and a sweep every
+`ADVANCE_EVENTS_SWEEP_S` seconds (default **60**) that closes anything a dead
+tick left open. The **orchestrator** owns the stage boundaries, through the CLI
+above. An emit that fails degrades the feed, never the tick.
+
+**`/api/events`** returns `{ events, stream }`. `?since=<id>` is **exclusive**,
+and an id that is not in the file returns **zero** events rather than replaying
+the log; `?task=AS-<n>` and `?limit=<n>` filter. Every event is projected
+through the whitelist, so a line that grew a field never reaches a browser.
+`stream.path` is deliberately `null` — a host path is no more a browser's
+business than the lock nonce is. `stream.reason` is one of `ok`, `no-stream`,
+`unreadable-stream`, `truncated`, and every one of those has a sentence in
+`public/lanes.js` (key-set asserted, so a new code cannot ship as a bare word).
+
+**SSE: two names, one channel.** `event: company` frames carry the persisted
+AS-100 events as they are appended (the server tails the file by byte offset
+every `EVENTS_POLL_MS` = 2 s and pushes one frame per new event, in file order);
+it has a read-back door at `/api/events`. `event: activity` is reserved for
+AS-103's tool-level frames, which are strictly ephemeral, are written to no file
+or store, and have no read-back. If the file **shrinks** under the server the
+tail resets and reports `truncated` until a new line arrives.
+
+**Liveness** is decided from events alone and bounded by the tick clock:
+`alive = open ∧ (tickLive ∨ ageMs < tickTimeoutMs)`. While a tick holds its lock
+every open stage is alive. Once no lock is held, an open stage stays alive for
+at most one tick box, after which the lane reads **"no signal since HH:MMZ (tick
+box expired)"** — never "running". The sweep then closes it as
+`cut_by_timeout` within one sweep interval.
+
+**`unclosed` is a measurement of the tick procedure, not a bug.** A stage the
+orchestrator started and never ended is closed by the watcher at a *clean* tick
+exit as `unclosed` (a timeout gives `cut_by_timeout` instead). The count of
+`unclosed` stages is how the board sees whether stage boundaries are being
+emitted.
+
+**Retention: none, on purpose.** The stream is append-only until it is a
+measured problem. The trigger for filing a rotation/compaction task is the file
+passing **8 MiB** or `/api/events` p50 passing **50 ms** — measured, not
+guessed.
+
 ## CLI (for agents; works with the server container stopped)
 
 ```sh
