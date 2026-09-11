@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": "medium",
   "created_at": "2026-09-11T18:47:13Z",
   "created_by": "agent:cto-owen",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M28WQ53NHZFJB9SKGXX7X5BT",
-  "last_event_id": "ev_01M295BJ62WNHQNPSVQ6X2PEV3",
-  "last_status_changed_at": "2026-09-11T21:18:10Z",
+  "last_event_id": "ev_01M2968ZAE5JXB2219G16QE1PV",
+  "last_status_changed_at": "2026-09-11T21:34:14Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-115",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Chat: commit hashes and branch names in messages are click-to-copy",
   "type": "task",
-  "updated_at": "2026-09-11T21:18:10Z",
+  "updated_at": "2026-09-11T21:34:14Z",
   "urgency": null
 }
