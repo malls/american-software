@@ -1,0 +1,45 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 1,
+  "complexity": null,
+  "created_at": "2026-09-11T02:29:50Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": "SOURCE: board DM msg 668 (human:forrest, 2026-09-11T01:56Z), answering the CTO's time-boxed question (DM msg 663) on whether foreman-view employee figures reflect stage-level state or tool-level activity: \"I think we'd want both. tool level activity can just be live as it happens, it does not need persistence\". Filed by the CTO on the board member's behalf. Companion to AS-100 (the persisted stage-level stream); the two-signal rule that binds both is recorded as a comment on AS-100.\n\nWHAT: while an employee (a stage sub-agent inside a tick) is working, the chat app shows, per lane, what that employee is doing right now at tool granularity -- reading <file>, editing <file>, running <first token of a command>, waiting on docker -- as a transient status that arrives over the chat server's existing SSE fan-out (/api/stream, AS-25, the in-memory `streams` Set in server.js) on a distinct event name (proposed `event: activity`) and decays when frames stop.\n\nTHE CONSTRAINT, VERBATIM FROM THE BOARD: \"tool level activity can just be live as it happens, it does not need persistence\". CTO tightening so it cannot be misread: tool-level activity is LIVE-ONLY. It is delivered in memory to the SSE connections open at that moment and is NOT written to the AS-100 JSONL stream, NOT written to the chat sqlite store (no store.post, no ingestion path), NOT written to any file under apps/chat/data/, .lattice/ or logs/, and NOT replayed to a later-connecting client. A client that connects after a frame learns nothing about it. FALSIFIER (M4, a numbered acceptance criterion in the plan): drive a burst of N activity frames through the producer; assert the sqlite row count, the AS-100 stream length (or its absence), and the file set plus sizes under apps/chat/data/ are byte-identical before and after; then open a fresh /api/stream connection and assert zero activity frames arrive. The criterion is met by an observed red against a deliberately leaking mutant, never by argument.\n\nWHY LIVE-ONLY IS THE RIGHT RULE (so a later planner does not \"improve\" it into a log): volume is on the order of 100x the stage-level stream; the payloads (commands, paths, file contents) were never decided as company records; and a persisted tool log would be a second source of truth competing with AS-100 under the one-stream-many-projections doctrine. The frame carries verb + coarse object only -- tool name, path relative to the worktree, first token of a shell command -- never tool inputs or outputs.\n\nCANDIDATE SOURCE AND ITS OPEN QUESTION: the harness (Claude Code) exposes tool-use hooks -- PreToolUse / PostToolUse, plus sub-agent start/stop -- configured under `hooks` in settings, which run a shell command per tool call with a JSON payload on stdin (session id, cwd, tool name, tool input). A hook command that POSTs a small frame to a new chat-server endpoint (proposed POST /api/activity: loopback only, fan-out only, no store call) is the whole producer. Attribution is DERIVED, not asserted: the sub-agent's cwd is .worktrees/AS-<n>, which is the task; the employee is that task's assigned actor for its current stage, read from .lattice/ read-only -- the frame never trusts a self-reported identity. THE OPEN QUESTION, in the AS-21 mould: do project-scope hooks in .claude/settings.json reach the headless `claude -p` tick children at all? AS-21 established that project-scope permission allowlists do NOT (untrusted workspace), and the watcher now hands them over on argv (tickArgv() in apps/chat/watch/advance-watcher.mjs). Hooks may fail the same way; the candidate fix is the same shape -- hand the hooks config to the child explicitly from tickArgv(), pinned by an argv test, if the CLI's additional-settings flag carries hooks -- but that is an unverified assumption until a hook is observed firing inside a watcher-fired tick. .claude/settings.json is metawork-layer plumbing employees do not edit: the plan writes the exact hook block and the metawork layer applies it. Two hard requirements on the hook regardless of source: fire-and-forget with a sub-second timeout and ALWAYS exit 0 (a non-zero hook exit can block the tool call -- the observability layer must never be able to slow or fail a tick), and silent degradation when the chat server is down.\n\nPRE-PLANNING SPIKE (before in_planning; one tick; metawork-assisted because it touches settings): a PostToolUse hook that appends one line per tool call to a scratch file under scratchpad/agent-cto-owen/, applied by the metawork layer; observe whether it fires (a) in a live session, (b) in a watcher-fired tick, (c) inside a stage sub-agent of that tick. Three observations, not an argument. If (b) is red, the argv-handoff path is the plan's first section; if (c) is red, the design changes (the orchestrator would have to relay, which is a different task).\n\nCONSUMER: the AS-99 lane card gains a transient \"now:\" line with a decay state and a blank-after-reload state (recorded for Jonah on AS-99). No change to the card's shape.\n\nNOT IN SCOPE: persistence of any kind; token/cost per stage; the spatial/animated foreman floor (a later task over AS-100 plus this); any change to which tools employees may use.\n\nORDERING: Chat set (tag chat, priority critical), fifth -- directly behind AS-100. Rationale in the ordering comment.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M274SH80197990P0RWJV5MM7",
+  "last_event_id": "ev_01M274TT518S4S1H3Q3HTSWDMS",
+  "last_status_changed_at": "2026-09-11T02:29:50Z",
+  "linked_files": [],
+  "priority": "critical",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-11T02:30:32Z",
+      "created_by": "agent:cto-owen",
+      "note": null,
+      "target_task_id": "task_01M26H1TA8K3E2SSS9DY672PH1",
+      "type": "related_to"
+    },
+    {
+      "created_at": "2026-09-11T02:30:32Z",
+      "created_by": "agent:cto-owen",
+      "note": null,
+      "target_task_id": "task_01M26GB1CS2FK0JY4PCMJYTM3K",
+      "type": "related_to"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-103",
+  "status": "backlog",
+  "tags": [
+    "chat"
+  ],
+  "title": "Chat: live tool-level activity of running employees \u2014 ephemeral push over /api/stream, never persisted (foreman-view animation layer)",
+  "type": "task",
+  "updated_at": "2026-09-11T02:30:32Z",
+  "urgency": null
+}

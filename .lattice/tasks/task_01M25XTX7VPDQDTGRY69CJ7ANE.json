@@ -21,10 +21,15 @@
       "id": "ev_01M26JPSZVQ1MFKNYHGE53Y13V",
       "role": "review",
       "source_type": "comment"
+    },
+    {
+      "id": "art_01M274PKK5WKNQ4TDQ8BJNK6KT",
+      "role": "review",
+      "source_type": "artifact"
     }
   ],
   "id": "task_01M25XTX7VPDQDTGRY69CJ7ANE",
-  "last_event_id": "ev_01M2747HBQQ0KV7DF9D8ZRHWYJ",
+  "last_event_id": "ev_01M274PKK9FTCN39B8V34FWVBZ",
   "last_status_changed_at": "2026-09-11T02:20:01Z",
   "linked_files": [],
   "needs_human": {
@@ -41,6 +46,6 @@
   "tags": null,
   "title": "Chat watcher: a board message starts a loop of ticks that runs until the company is dry, not a single tick",
   "type": "task",
-  "updated_at": "2026-09-11T02:20:01Z",
+  "updated_at": "2026-09-11T02:28:15Z",
   "urgency": null
 }
