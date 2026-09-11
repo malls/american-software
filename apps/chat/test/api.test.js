@@ -1167,6 +1167,57 @@ test('api: AS-32 — style.css truncates the roster title to one line', async (t
   }
 });
 
+// --- AS-28: the favicon ------------------------------------------------------
+
+test('api: AS-28 — /favicon.svg is served with the SVG content type', async (t) => {
+  const { base } = await bootServer(t);
+  const res = await fetch(base + '/favicon.svg');
+
+  // The STATIC_FILES allowlist is the only route to a static file (the server
+  // 404s everything else), so this is a load-bearing-entry test, not a file
+  // test: drop the entry and this goes red even with the file on disk.
+  assert.equal(res.status, 200);
+  assert.ok(
+    (res.headers.get('content-type') || '').startsWith('image/svg+xml'),
+    `content-type is image/svg+xml, got ${res.headers.get('content-type')}`
+  );
+  const body = await res.text();
+  assert.ok(body.startsWith('<svg'), 'the body is an SVG document');
+  assert.ok(body.includes('viewBox="0 0 32 32"'), 'the documented 32-unit viewBox');
+});
+
+test('api: AS-28 — index.html links the favicon', async (t) => {
+  const { base } = await bootServer(t);
+  const page = await (await fetch(base + '/')).text();
+
+  // Exact substring: the wiring is what is under test, not the file's
+  // existence. A served favicon nothing points at is an unfindable tab.
+  assert.ok(
+    page.includes('<link rel="icon" type="image/svg+xml" href="/favicon.svg">'),
+    'the served page carries the rel="icon" link'
+  );
+});
+
+test('api: AS-28 — the favicon uses only palette hex values', async (t) => {
+  const { base } = await bootServer(t);
+  const svg = await (await fetch(base + '/favicon.svg')).text();
+
+  // BRANDING.md §3.1: --color-accent-500 and --color-ink-white. Raw hex is
+  // unavoidable in a standalone SVG, so the token discipline is enforced here.
+  const allowed = new Set(['#1c41e3', '#ffffff']);
+  const found = svg.match(/#[0-9a-fA-F]{6}/g) || [];
+  // Cardinality before quantification: an SVG stripped of every color must
+  // fail this, not pass it vacuously.
+  assert.ok(found.length >= 2, `${found.length} hex values examined, expected at least 2`);
+  for (const hex of found) {
+    assert.ok(
+      allowed.has(hex.toLowerCase()),
+      `${found.length} hex values examined: ${hex} is not a palette token ` +
+        '(#1C41E3 --color-accent-500, #FFFFFF --color-ink-white)'
+    );
+  }
+});
+
 // --- AS-27: the advance-loop status endpoint --------------------------------
 
 /** A scratch data dir standing in for apps/chat/data — the two files the host
