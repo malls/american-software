@@ -431,6 +431,21 @@ whole feature exists to remove. Behind the sidebar, `data/deploy-state.json`
 carries the same reason plus `dockerBin`, `lastAttempt` and `computedAt`, and
 `data/logs/deploy-*.log` has the build output of each attempt.
 
+**Exercising the deploy path yourself.** The watcher's rebuild is built to be
+immune to its environment: it scrubs everything but seven variables before
+spawning `docker compose`, and `COMPOSE_PROJECT_NAME` is among the scrubbed —
+so exporting it does not point a test run at a different stack; `compose.yaml`'s
+`name: asc-chat` does, and that is the live server. Since AS-88 the project is
+a required argument (`makeDeployOps({ composeProject })`, always passed to
+compose as `-p`), and a `COMPOSE_PROJECT_NAME` that disagrees with it is
+refused at construction rather than silently dropped. A hand
+`docker compose up` in a *copied* tree has the same property and no guard:
+unless you pass `-p` or edit the copy's `name:`, you are rebuilding
+`asc-chat-server-1` from the copy. The rule for bootstrapping the mechanism
+itself (it cannot deploy its own first version; the one-time bootstrap after
+AS-75 happened 2026-09-07) and the current list of changes that still need a
+hand are in `watch/README.md` § "the watcher also deploys".
+
 ## Lanes pane (AS-99)
 
 **What it answers:** what is in flight right now — one card per lane, where a
@@ -840,3 +855,12 @@ that class by parsing `compose.yaml` and the `Dockerfile` — both COPY'd into
 the image as data for exactly this reason — and asserting the mount
 projection reaches every path the app links. Change a mount or
 `CHAT_REPO_ROOT` and that test is the thing that will tell you.
+
+Nothing in the suite spawns a real `docker`: every test that drives
+`makeDeployOps` injects `deploy`, and the one opt-in real-build test (AS-87,
+`AS87_REAL_BUILD=1`) builds a scratch project whose `compose.yaml` has no
+`name:` and passes its own `composeProject`. If you write a test that reaches
+the real `runDockerCompose`, you must pass `composeProject` (both it and
+`makeDeployOps` throw without one) — the deploy scrubs `COMPOSE_PROJECT_NAME`,
+so the variable is not isolation, and this directory's compose file names the
+live stack (AS-88; `watch/README.md`).

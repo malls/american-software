@@ -276,9 +276,64 @@ continuously delays the deploy. A loop releases the lock between ticks
 the first gap. While it runs, the sidebar reads `Tick in flight · deploy`
 (~1 s when the layer cache is warm; minutes for a cold emulated build).
 
+**The deploy names its target and scrubs its environment (AS-88).**
+`performDeploy` hands `docker compose` a seven-variable environment — `PATH`,
+`HOME`, `USER`, `LOGNAME`, `DOCKER_BUILDKIT`, `COMPOSE_DOCKER_CLI_BUILD`,
+`CHAT_BUILD_ID` — and nothing else (`test/watcher.test.js` pins the set), so the
+rebuild cannot be steered by whatever the watcher's own environment contains.
+One consequence is a trap: `COMPOSE_PROJECT_NAME` is scrubbed with the rest, so
+exporting it does **not** isolate a run of this code — compose never sees it,
+and `compose.yaml`'s `name: asc-chat` decides the project. Compose itself
+honours `-p`, then `COMPOSE_PROJECT_NAME`, then `name:` (measured against this
+file, Compose v5.3.0); the variable loses *here* only because the deploy drops
+it. That is how a harness run of the real `makeDeployOps` against a scratch copy
+of this tree recreated the **live** `asc-chat-server-1` from the copy — without
+the port map or the `/repo` mount — and took 8347 down until someone rebuilt
+from master (AS-75 review, F8). Two things now make that loud instead of
+silent. The project is an explicit argument: `runDockerCompose` always passes
+`-p <composeProject>`, `makeDeployOps({ composeProject })` **requires** it (the
+watcher passes `PRODUCTION_COMPOSE_PROJECT`, `'asc-chat'`, pinned to
+`compose.yaml`'s `name:` by `test/deploy-shape.test.js`), and the `DEPLOY
+building …` log line names it. And an intent the scrub would discard is
+refused: if `COMPOSE_PROJECT_NAME` is set to anything other than
+`composeProject` when `makeDeployOps` is constructed, construction throws — in
+a test, before any `docker` is spawned; under launchd, the throw is uncaught
+(`start()` and `main()` catch nothing around it), so the process exits and
+launchd crash-loops it with the reason in `logs/launchd.err.log` — the accepted
+honest signal for bad watcher config (the "known failure mode" above). There is
+deliberately no env knob for the project: an environment variable is exactly
+the steering the scrub exists to exclude. **To exercise the deploy against a
+scratch stack, pass `composeProject: '<scratch-name>'` and a scratch
+`compose.yaml` that publishes no host port.** What no guard covers, because
+nothing observable distinguishes it: a copied tree run by hand with
+`docker compose up` and `name: asc-chat` intact is the live stack, wherever the
+copy lives — pass `-p` or edit the copy's `name:`.
+
+**Bootstrapping, once — and the rule behind it.** A deploy mechanism cannot
+deploy the first version of itself. When AS-75 merged (2026-09-07) the running
+watcher had no deploy poll and the running container answered 404 at
+`/api/build`, so a human ran `DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1
+docker compose up -d --build` in `apps/chat` and `launchctl kickstart -k
+gui/$(id -u)/com.american-software.advance-watcher`, one time. The first
+unattended deploy was observed that evening and the first unattended
+self-restart on 2026-09-11 (AS-75 and AS-82 records). That is history; the rule
+recurs: **a change that alters what this mechanism *is* — rather than what it
+deploys — is installed by the old copy of the mechanism, and needs a hand once
+if the old copy cannot do it.** The self-restart covers `watch/*.mjs` only
+(`readWatchSources`), so the hand list today is: the plist template and its
+rendered copy under `~/Library/LaunchAgents/` (every `ADVANCE_*` knob lives
+there — re-render, `bootout`, `bootstrap`, § "Uninstall / restart" below);
+`compose.yaml`'s `name:` or port map (a renamed project is a *second* stack
+beside the old one, not a replacement — `down` the old one first, and change
+`PRODUCTION_COMPOSE_PROJECT` with it or `test/deploy-shape.test.js` fails); and
+a watcher that crash-loops on its own new code (launchd keeps trying; fix master
+and it heals). The self-restart also assumes launchd: a watcher started by hand
+exits 70 when its source changes and **nothing relaunches it**.
+
 Env knobs: `ADVANCE_DEPLOY_POLL_S` (60), `ADVANCE_DEPLOY_TIMEOUT_MIN` (15),
 `ADVANCE_DEPLOY_COOLDOWN_MIN` (30), `ADVANCE_DOCKER_BIN`, `ADVANCE_GIT_BIN`,
 `ADVANCE_CHAT_URL` (`http://127.0.0.1:8347`), `ADVANCE_SHUTDOWN_GRACE_S` (10).
+There is no knob for the compose project (see AS-88 above).
 
 ## Prerequisites
 
@@ -346,21 +401,25 @@ rm ~/Library/LaunchAgents/com.american-software.advance-watcher.plist  # uninsta
 # restart = bootout, then bootstrap again
 ```
 
-### After any change to this watcher: restart it
+### After any change to this watcher
 
-The watcher is a long-lived host process; editing this file changes nothing
-until it is restarted. **AS-27 in particular:** `advance-watcher.pid` now
-carries a `heartbeatAt` timestamp, rewritten at the top of every poll, and the
-chat app's loop-status indicator uses its age to decide whether a watcher is
-listening (the container cannot check a host pid for liveness). A watcher still
-running pre-AS-27 code writes no `heartbeatAt`, so the indicator reads
-`Off · no watcher` even while that watcher is happily firing ticks. Restarting
-it on the new code is the fix, and it is a **host action for the board or a
-live session** — a headless tick has no `docker`/`launchctl` reach and cannot
-do it for you. The indicator corrects itself within 60s of the restart.
+Since AS-75 the watcher restarts itself: a change to any `watch/*.mjs` on
+master is noticed by the running process within `ADVANCE_DEPLOY_POLL_S` and it
+exits 70 for launchd to relaunch on the new code (§ "AS-75", *the self-restart
+contract*). Restart it by hand only for what the source digest does not cover —
+the plist and its env knobs — with `bootout` then `bootstrap` (§ "Uninstall /
+restart"), or `launchctl kickstart -k gui/$(id -u)/com.american-software.advance-watcher`
+when the rendered plist is unchanged. That is a host action for the board or a
+live session; a headless tick has no `launchctl` reach.
 
-`pid` and `startedAt` keep their meaning; the single-instance check reads `pid`
-only and is unaffected by the added key.
+History, kept because the symptom recurs: before AS-75 every watcher change
+needed that hand restart, and AS-27's indicator made the omission visible — a
+watcher on pre-AS-27 code writes no `heartbeatAt` into `advance-watcher.pid`,
+so the sidebar read `Off · no watcher` while ticks were firing. The same shape
+today means the running watcher is on old code: check
+`launchctl print gui/$(id -u)/com.american-software.advance-watcher | grep LastExitStatus`
+and `logs/launchd.err.log` before assuming the indicator is wrong. `pid` and
+`startedAt` keep their meaning; the single-instance check reads `pid` only.
 
 ## Lattice dashboard (AS-94) — the second launchd job in this directory
 
