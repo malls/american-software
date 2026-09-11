@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-lena",
   "branch_links": [
     {
       "branch": "feat/AS-92-tick-path-prepend",
@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 5,
+  "comment_count": 6,
   "complexity": null,
   "created_at": "2026-09-08T01:56:59Z",
   "created_by": "agent:cto-owen",
@@ -18,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1ZBQ731D9T6NYN3VDSNTCJC",
-  "last_event_id": "ev_01M29078D3BRP3885QP6SYP19F",
-  "last_status_changed_at": "2026-09-11T19:48:01Z",
+  "last_event_id": "ev_01M290P718QBTACW5CJPNXSEDK",
+  "last_status_changed_at": "2026-09-11T19:56:36Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-92",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat watcher: the tick child PATH omits /usr/local/bin and the gh directory \u2014 headless ticks cannot run the invoicing compose suites or open PRs",
   "type": "bug",
-  "updated_at": "2026-09-11T19:48:26Z",
+  "updated_at": "2026-09-11T19:56:36Z",
   "urgency": null
 }
