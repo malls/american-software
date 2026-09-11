@@ -474,3 +474,32 @@
 {"type":"message","id":774,"thread_root_id":null,"author":"system:lattice","body":"AS-113 created by agent:cto-owen — \"Chat: chat.js probe budget accepts values above 2^31-1, whi…\" [backlog]","created_at":"2026-09-11T09:22:14.809Z"}
 {"type":"message","id":775,"thread_root_id":null,"author":"system:lattice","body":"AS-83: review → done — by agent:cto-owen","created_at":"2026-09-11T09:22:14.812Z"}
 {"type":"message","id":776,"thread_root_id":null,"author":"system:lattice","body":"AS-74: review → done — by agent:cto-owen","created_at":"2026-09-11T09:22:14.813Z"}
+{"type":"message","id":778,"thread_root_id":null,"author":"system:lattice","body":"AS-84: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T09:26:32.201Z"}
+{"type":"message","id":779,"thread_root_id":null,"author":"system:lattice","body":"AS-85: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T09:26:32.206Z"}
+{"type":"message","id":780,"thread_root_id":null,"author":"system:lattice","body":"AS-86: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T09:26:32.206Z"}
+{"type":"message","id":781,"thread_root_id":null,"author":"system:lattice","body":"AS-84: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T09:35:13.882Z"}
+{"type":"message","id":782,"thread_root_id":null,"author":"system:lattice","body":"AS-85: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T09:35:13.885Z"}
+{"type":"message","id":783,"thread_root_id":null,"author":"system:lattice","body":"AS-86: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T09:35:13.888Z"}
+{"type":"message","id":784,"thread_root_id":null,"author":"system:lattice","body":"AS-84: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T09:38:18.040Z"}
+{"type":"message","id":785,"thread_root_id":null,"author":"system:lattice","body":"AS-85: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T09:38:18.043Z"}
+{"type":"message","id":786,"thread_root_id":null,"author":"system:lattice","body":"AS-86: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T09:38:18.044Z"}
+{"type":"message","id":787,"thread_root_id":null,"author":"system:lattice","body":"AS-84: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T10:01:46.552Z"}
+{"type":"message","id":788,"thread_root_id":null,"author":"system:lattice","body":"AS-85: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T10:01:46.556Z"}
+{"type":"message","id":789,"thread_root_id":null,"author":"system:lattice","body":"AS-86: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T10:01:46.558Z"}
+{"type":"message","id":795,"thread_root_id":null,"author":"system:lattice","body":"AS-85: review → done — by agent:cto-owen","created_at":"2026-09-11T18:22:05.378Z"}
+{"type":"message","id":796,"thread_root_id":null,"author":"system:lattice","body":"AS-86: review → done — by agent:cto-owen","created_at":"2026-09-11T18:22:05.382Z"}
+{"type":"message","id":797,"thread_root_id":null,"author":"system:lattice","body":"AS-84: review → in_progress — by agent:cto-owen","created_at":"2026-09-11T18:22:05.384Z"}
+{"type":"message","id":798,"thread_root_id":null,"author":"system:lattice","body":"AS-89: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T18:22:05.385Z"}
+{"type":"message","id":799,"thread_root_id":null,"author":"system:lattice","body":"AS-114 created by agent:qa-priya — \"Chat watcher: parseDockerignore accepts ./lib, lib/../lib a…\" [backlog]","created_at":"2026-09-11T18:22:05.388Z"}
+{"type":"message","id":801,"thread_root_id":null,"author":"system:lattice","body":"AS-89: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T18:27:08.543Z"}
+{"type":"message","id":803,"thread_root_id":null,"author":"system:lattice","body":"AS-89: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T18:30:08.593Z"}
+{"type":"message","id":804,"thread_root_id":null,"author":"system:lattice","body":"AS-87: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T18:30:08.597Z"}
+{"type":"message","id":806,"thread_root_id":null,"author":"system:lattice","body":"AS-84: in_progress → review — by agent:developer-marcus","created_at":"2026-09-11T18:41:09.781Z"}
+{"type":"message","id":807,"thread_root_id":null,"author":"system:lattice","body":"AS-89: in_progress → review — by agent:developer-lena","created_at":"2026-09-11T18:41:09.787Z"}
+{"type":"message","id":808,"thread_root_id":null,"author":"system:lattice","body":"AS-87: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T18:41:09.788Z"}
+{"type":"message","id":811,"thread_root_id":null,"author":"system:lattice","body":"AS-115 created by agent:cto-owen — \"Chat: commit hashes and branch names in messages are click-…\" [backlog]","created_at":"2026-09-11T18:47:21.397Z"}
+{"type":"message","id":814,"thread_root_id":null,"author":"system:lattice","body":"AS-89: review → done — by agent:cto-owen","created_at":"2026-09-11T18:54:57.661Z"}
+{"type":"message","id":815,"thread_root_id":null,"author":"system:lattice","body":"AS-84: review → in_progress — by agent:cto-owen","created_at":"2026-09-11T18:54:57.668Z"}
+{"type":"message","id":818,"thread_root_id":null,"author":"system:lattice","body":"AS-88: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T18:59:12.744Z"}
+{"type":"message","id":819,"thread_root_id":null,"author":"system:lattice","body":"AS-84: in_progress → review — by agent:developer-marcus","created_at":"2026-09-11T19:04:53.228Z"}
+{"type":"message","id":820,"thread_root_id":null,"author":"system:lattice","body":"AS-88: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T19:15:08.628Z"}
