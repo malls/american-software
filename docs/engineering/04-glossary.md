@@ -79,10 +79,20 @@ a survivor cannot be explained by a misplaced edit.
 **Vacuous pass** — a check that passed without examining anything: an empty set,
 the wrong file, a metric moving with its own baseline. The reason mutants exist.
 
-**Compose receipt** — a full test run on a freshly built container image
-(`docker compose run --rm --build test`), quoted with the image-built line and
-the test count. A run without `--build` can silently reuse a stale image, so a
-number without a receipt is not a number.
+**Compose receipt** — a full test run on a freshly built container image,
+quoted with the image-built line, the test count, the teardown exit, and the
+leak check. Taken with `node apps/chat/bin/compose-run.mjs --project
+asc-<stage>-as<n> --cwd <worktree>/apps/chat`, which runs `docker compose run
+--rm --build test`, always tears the project down (`down -v --rmi local
+--remove-orphans`), and asserts nothing of the project survived. A run without
+`--build` can silently reuse a stale image, and a run without the teardown
+leaves a docker network behind that eventually exhausts the daemon's address
+pool (AS-106), so a number without the full receipt is not a number.
+
+**Leftover network** — an `asc-*` docker network with no running compose
+project, left by a counted run that was never torn down. `compose-run.mjs
+--check` lists them with a guessed owner and removes nothing; only the owner
+or the orchestrator (naming each one) removes them.
 
 **HOST suite** — the same tests run directly on the host rather than in the
 container. Faster, and not a substitute for a receipt.
