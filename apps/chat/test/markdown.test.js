@@ -316,6 +316,31 @@ test('urls: AS-72 — a trailing en dash / em dash / ellipsis is prose; mid-URL 
   }
 });
 
+test('urls: AS-72 — no invisible format (Cf) code point enters an href (D4)', () => {
+  // Cardinality before quantification: enumerate the BMP, then assert how many
+  // cases this test actually drives.
+  const cf = [];
+  for (let cp = 0; cp <= 0xffff; cp += 1) {
+    const ch = String.fromCodePoint(cp);
+    if (/\p{Cf}/u.test(ch)) cf.push([cp, ch]);
+  }
+  // 43, not the 71 the finding quoted: Node 24's ICU reports 43 Cf code points
+  // in the BMP (170 across all planes). The number is pinned so an engine or
+  // Unicode-version change shows up as a failure rather than as silent shrinkage.
+  assert.equal(cf.length, 43, `BMP Cf code points examined: ${cf.length}`);
+
+  for (const [cp, ch] of cf) {
+    const label = `U+${cp.toString(16).toUpperCase().padStart(4, '0')}`;
+    const src = `https://x.dev/a${ch}b`;
+    const tokens = tokenizeUrls(src);
+    const url = tokens.find((t) => t.type === 'url');
+    assert.ok(url, `${label}: a url token still exists`);
+    assert.equal(url.href, 'https://x.dev/a', `${label}: the href stops at the format character`);
+    assert.equal(url.text, url.href, `${label}: href is the verbatim token text`);
+    assert.equal(tokens.map((t) => t.text).join(''), src, `${label}: round-trip holds`);
+  }
+});
+
 test('urls: pass order — refs inside a URL are never linkified; refs outside still are', () => {
   // The appendRefLeaf order, minus the AS pass (tokenizeAsRefs lives in app.js
   // and is not importable): URL first, then msg-refs, then file-refs, with url

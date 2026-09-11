@@ -117,7 +117,12 @@ export function parseBlocks(text) {
 // a quote here), backtick (this pass runs on code-span inners), and `\`
 // (browsers fold it to `/` in the authority, so stopping there yields the
 // honest host).
-const URL_RE = /https?:\/\/[A-Za-z0-9][^\s<>"'`\\]*/g;
+// AS-72 D4: `\p{Cf}` (ZWSP, ZWJ, the bidi controls, U+FEFF, …) also ends the
+// body. `\s` already excludes Unicode *spaces*; the residual was 71 invisible
+// format characters that could sit inside an href while the visible text read
+// as something else. A candidate stops at one: the href stays a verbatim
+// source slice, and the character becomes text.
+const URL_RE = /https?:\/\/[A-Za-z0-9][^\s<>"'`\\\p{Cf}]*/gu;
 
 // AS-72 D3: typographic tail punctuation is prose, on the same rule as `.`
 // and `,` — trimmed only at the TAIL, never mid-URL, so a Wikipedia title
