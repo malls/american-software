@@ -31,6 +31,7 @@ const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures'
 function run(args, env = {}) {
   const base = { ...process.env, CHAT_REPO_ROOT: FIXTURE_ROOT, NODE_OPTIONS: '--no-warnings' };
   for (const k of ['CHAT_MODE', 'CHAT_API', 'CHAT_DB', 'CHAT_ME']) delete base[k];
+  const startedAt = performance.now();
   return new Promise((done, reject) => {
     const child = spawn(process.execPath, [BIN, ...args], { env: { ...base, ...env } });
     let stdout = '';
@@ -38,9 +39,43 @@ function run(args, env = {}) {
     child.stdout.setEncoding('utf8').on('data', (d) => (stdout += d));
     child.stderr.setEncoding('utf8').on('data', (d) => (stderr += d));
     child.on('error', reject);
-    child.on('close', (status) => done({ status, stdout, stderr }));
+    child.on('close', (status, signal) =>
+      done({ status, signal, stdout, stderr, elapsedMs: Math.round(performance.now() - startedAt) })
+    );
   });
 }
+
+/** AS-83: one legible string for a child that exited when it should not have —
+ *  status, signal, elapsed ms, stderr AND stdout. The AS-24 case above was seen
+ *  red four times by four people, and not one sighting could name the exit path
+ *  from the failure message (`assert.equal(x.status, 0, x.stderr)` loses the
+ *  elapsed time that distinguishes a probe timeout from a crash, and prints
+ *  nothing at all when the child died by signal). Every status-0 assertion in
+ *  this file goes through here so the NEXT sighting names its own cause. */
+function describeExit(r, label) {
+  return (
+    `${label}: exit ${r.status} signal ${r.signal} after ${r.elapsedMs} ms\n` +
+    `--- stderr ---\n${r.stderr}\n--- stdout ---\n${r.stdout}`
+  );
+}
+
+test('mode: AS-83 — a failed CLI exit is reported with status, signal, elapsed ms, stderr and stdout', () => {
+  const text = describeExit(
+    { status: 1, signal: null, elapsedMs: 1350, stderr: 'chat: x', stdout: '' },
+    'dm'
+  );
+  assert.match(text, /^dm: /);
+  assert.match(text, /exit 1/);
+  assert.match(text, /signal null/);
+  assert.match(text, /1350 ms/);
+  assert.match(text, /chat: x/);
+  // A signal kill (status null) is the shape nobody could see before.
+  const killed = describeExit(
+    { status: null, signal: 'SIGKILL', elapsedMs: 42, stderr: '', stdout: '' },
+    'post'
+  );
+  assert.match(killed, /exit null signal SIGKILL after 42 ms/);
+});
 
 /** Real chat server on an ephemeral port, temp DB, fixture (or given) repo. */
 async function bootServer(t, repoRoot = FIXTURE_ROOT) {
@@ -90,7 +125,7 @@ test('mode: AS-24 — API-mode writes land in the server view; no DB file is eve
 
   // dm (the command that produced orphan message 161).
   const dm = await run(['dm', 'agent:ceo-carla', 'routed through the API', '--me', 'human:forrest', '--json'], env);
-  assert.equal(dm.status, 0, dm.stderr);
+  assert.equal(dm.status, 0, describeExit(dm, "dm"));
   const dmMsg = JSON.parse(dm.stdout);
   // --json shape parity with direct mode: exact keys, no server-side extras.
   assert.deepEqual(Object.keys(dmMsg), ['id', 'conversationId', 'threadRootId', 'authorId', 'body', 'createdAt']);
@@ -108,14 +143,14 @@ test('mode: AS-24 — API-mode writes land in the server view; no DB file is eve
 
   // post + read, same regression check + --json parity.
   const post = await run(['post', 'engineering', 'api-mode post', '--me', 'human:forrest', '--json'], env);
-  assert.equal(post.status, 0, post.stderr);
+  assert.equal(post.status, 0, describeExit(post, "post"));
   const postMsg = JSON.parse(post.stdout);
   assert.deepEqual(Object.keys(postMsg), ['id', 'conversationId', 'threadRootId', 'authorId', 'body', 'createdAt']);
   const chanView = await get(`/api/messages?conversation=${postMsg.conversationId}&me=human:forrest`);
   assert.ok(chanView.data.messages.some((m) => m.id === postMsg.id));
 
   const read = await run(['read', 'engineering', '--me', 'agent:cto-owen', '--json'], env);
-  assert.equal(read.status, 0, read.stderr);
+  assert.equal(read.status, 0, describeExit(read, "read"));
   const readRes = JSON.parse(read.stdout);
   assert.deepEqual(Object.keys(readRes), ['conversation', 'lastReadId']);
   assert.equal(readRes.conversation, postMsg.conversationId);
@@ -191,7 +226,7 @@ test('mode: AS-24 — hard connection-refused falls back to direct mode against 
     CHAT_API: `http://127.0.0.1:${port}`,
     CHAT_DB: dbPath,
   });
-  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.status, 0, describeExit(r, "dm (connection-refused fallback)"));
   const msg = JSON.parse(r.stdout);
   assert.ok(existsSync(dbPath), 'direct mode created and wrote the DB file');
   const store = openStore(dbPath);
@@ -224,7 +259,7 @@ test('mode: AS-24 — CHAT_MODE=direct skips the probe entirely (poisoned CHAT_A
     CHAT_API: `http://127.0.0.1:${poison.address().port}`, // would refuse if probed
     CHAT_DB: join(dir, 'chat.db'),
   });
-  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.status, 0, describeExit(r, "channels (CHAT_MODE=direct)"));
   assert.match(r.stdout, /#engineering/);
   assert.equal(connections, 0, 'CHAT_MODE=direct never contacted CHAT_API');
 });
@@ -268,7 +303,7 @@ test('mode: AS-24 — full command sweep in API mode (no DB file, direct-mode sh
 
   // register
   const reg = await run(['register', N, 'Marcus Webb (Engineer)', '--kind', 'agent', '--json'], env);
-  assert.equal(reg.status, 0, reg.stderr);
+  assert.equal(reg.status, 0, describeExit(reg, "register"));
   assert.deepEqual(Object.keys(JSON.parse(reg.stdout)), ['id', 'displayName', 'kind', 'createdAt']);
   const dup = await run(['register', N, 'again', '--kind', 'agent'], env);
   assert.equal(dup.status, 1);
@@ -279,7 +314,7 @@ test('mode: AS-24 — full command sweep in API mode (no DB file, direct-mode sh
     ['create-channel', 'warroom', '--visibility', 'private', '--members', `${M},agent:ceo-carla,${M}`, '--me', M],
     env
   );
-  assert.equal(cc.status, 0, cc.stderr);
+  assert.equal(cc.status, 0, describeExit(cc, "create-channel"));
   assert.equal(cc.stdout.trim(), 'Created #warroom (private, 2 members)'); // dupes collapse
   const ccJson = await run(['create-channel', 'notes', '--me', M, '--json'], env);
   assert.deepEqual(Object.keys(JSON.parse(ccJson.stdout)).sort(), [
@@ -293,7 +328,7 @@ test('mode: AS-24 — full command sweep in API mode (no DB file, direct-mode sh
   const chansM = JSON.parse((await run(['channels', '--me', M, '--json'], env)).stdout);
   assert.ok(chansM.some((c) => c.name === 'warroom' && c.visibility === 'private'));
   const chansN = await run(['channels', '--me', N], env);
-  assert.equal(chansN.status, 0, chansN.stderr);
+  assert.equal(chansN.status, 0, describeExit(chansN, "channels --me N"));
   assert.ok(!chansN.stdout.includes('warroom'), `warroom leaked: ${chansN.stdout}`);
   assert.ok(!chansN.stdout.includes('board'), `board leaked: ${chansN.stdout}`);
 
@@ -316,7 +351,7 @@ test('mode: AS-24 — full command sweep in API mode (no DB file, direct-mode sh
   const p1 = JSON.parse((await run(['post', 'warroom', 'root message', '--me', M, '--json'], env)).stdout);
   await run(['post', 'warroom', 'second root', '--me', M], env);
   const rep = await run(['reply', `warroom#${p1.id}`, 'threaded answer', '--me', 'agent:ceo-carla', '--json'], env);
-  assert.equal(rep.status, 0, rep.stderr);
+  assert.equal(rep.status, 0, describeExit(rep, "reply"));
   assert.equal(JSON.parse(rep.stdout).threadRootId, p1.id);
   const hist = await run(['history', 'warroom', '--threads', '--me', M], env);
   assert.match(hist.stdout, /root message/);
@@ -331,7 +366,7 @@ test('mode: AS-24 — full command sweep in API mode (no DB file, direct-mode sh
   // without creating the row — verified in the SERVER's view.
   const dm1 = JSON.parse((await run(['dm', 'agent:ceo-carla', 'dm root', '--me', N, '--json'], env)).stdout);
   const dmRep = await run(['reply', '@agent:ceo-carla#' + dm1.id, 'dm thread', '--me', N], env);
-  assert.equal(dmRep.status, 0, dmRep.stderr);
+  assert.equal(dmRep.status, 0, describeExit(dmRep, "reply (dm)"));
   const noDm = await run(['reply', '@agent:cto-owen#1', 'into the void', '--me', N], env);
   assert.equal(noDm.status, 1);
   assert.match(noDm.stderr, /No DM with @agent:cto-owen yet — message @agent:cto-owen#1 does not exist\./);
@@ -351,7 +386,7 @@ test('mode: AS-24 — full command sweep in API mode (no DB file, direct-mode sh
     }) + '\n'
   );
   const inbox = await run(['inbox', '--me', N], env);
-  assert.equal(inbox.status, 0, inbox.stderr);
+  assert.equal(inbox.status, 0, describeExit(inbox, "inbox"));
   assert.match(inbox.stdout, /AS-7: in_progress → review/, 'inbox forced the ingest via POST /api/sync');
   // Threaded unread carries thread context (backend.getMessage over the API).
   const inboxCarla = await run(['inbox', '--me', 'agent:ceo-carla', '--json'], env);
@@ -362,10 +397,10 @@ test('mode: AS-24 — full command sweep in API mode (no DB file, direct-mode sh
 
   // read + catchup.
   const rd = await run(['read', '@agent:ceo-carla', '--me', N, '--json'], env);
-  assert.equal(rd.status, 0, rd.stderr);
+  assert.equal(rd.status, 0, describeExit(rd, "read"));
   assert.deepEqual(Object.keys(JSON.parse(rd.stdout)), ['conversation', 'lastReadId']);
   const cu = await run(['catchup', '--me', N, '--json'], env);
-  assert.equal(cu.status, 0, cu.stderr);
+  assert.equal(cu.status, 0, describeExit(cu, "catchup"));
   assert.ok(JSON.parse(cu.stdout).conversations >= 3);
 
   // roster: rows come from the server, CLI shape (no self; viewer fields only with --me).
@@ -377,7 +412,7 @@ test('mode: AS-24 — full command sweep in API mode (no DB file, direct-mode sh
 
   // dump: byte-identical to the server store's own dump.
   const dump = await run(['dump'], env);
-  assert.equal(dump.status, 0, dump.stderr);
+  assert.equal(dump.status, 0, describeExit(dump, "dump"));
   assert.equal(dump.stdout, store.dumpLines().join('\n') + '\n');
 
   // export: files written host-side, byte-identical to the server store's
@@ -385,7 +420,7 @@ test('mode: AS-24 — full command sweep in API mode (no DB file, direct-mode sh
   const outDir = join(mkdtempSync(join(tmpdir(), 'chat-mode-export-')), 'export');
   t.after(() => rmSync(dirname(outDir), { recursive: true, force: true }));
   const exp = await run(['export', '--out', outDir, '--json'], env);
-  assert.equal(exp.status, 0, exp.stderr);
+  assert.equal(exp.status, 0, describeExit(exp, "export"));
   const expected = store.exportFiles();
   assert.deepEqual(readdirSync(outDir).sort(), expected.map((f) => f.filename).sort());
   for (const f of expected) {
@@ -407,6 +442,6 @@ test('mode: AS-24 — CHAT_DB alone (rule 4) stays direct with no probe: the sui
   const dir = mkdtempSync(join(tmpdir(), 'chat-mode-hermetic-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const r = await run(['channels', '--me', 'human:forrest'], { CHAT_DB: join(dir, 'chat.db') });
-  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.status, 0, describeExit(r, "channels (CHAT_DB alone, rule 4)"));
   assert.match(r.stdout, /#engineering/);
 });
