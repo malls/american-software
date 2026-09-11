@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 10,
+  "comment_count": 11,
   "complexity": null,
   "created_at": "2026-09-05T19:58:46Z",
   "created_by": "agent:qa-ruben",
@@ -29,8 +29,8 @@
     }
   ],
   "id": "task_01M1SJDVCQ2DFSZR8TB8QZCJKK",
-  "last_event_id": "ev_01M28X5A7F8ZPHBRFGQM07GGHJ",
-  "last_status_changed_at": "2026-09-11T18:54:57Z",
+  "last_event_id": "ev_01M28XPRN4XH6P4N8DMA7KJCEF",
+  "last_status_changed_at": "2026-09-11T19:04:29Z",
   "linked_files": [],
   "needs_human": null,
   "priority": "critical",
@@ -46,10 +46,10 @@
   "reopened_count": 2,
   "schema_version": 1,
   "short_id": "AS-84",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "AS-75 F5/F6: shutdown() orphans the deploy child and releases its lock \u2014 a SIGTERM mid-build leaves docker running unguarded",
   "type": "task",
-  "updated_at": "2026-09-11T18:54:57Z",
+  "updated_at": "2026-09-11T19:04:29Z",
   "urgency": null
 }
