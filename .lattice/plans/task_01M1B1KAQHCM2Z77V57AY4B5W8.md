@@ -52,9 +52,13 @@ the "STATIC_FILES entry is load-bearing" cases):**
    observed as a red, proving the entry is load-bearing).
 2. **AC-2 wired.** `/` contains the exact `<link rel="icon" …>` line. Mutant: remove the line
    from `index.html` → red `api: AS-28 — index.html links the favicon`.
-3. **AC-3 palette-only.** Mutant: change the fill to `#FF0000` in the SVG → red
-   `api: AS-28 — the favicon uses only palette hex values`. Mutant: strip every hex from the
-   SVG → still red (the cardinality floor), not green.
+3. **AC-3 palette-only** (reworded after cycle 1, per Lena's proposal 2026-09-11). Every whole
+   paint-attribute value in the served SVG, XML comments excluded, is a palette token, and ≥ 4
+   paint attributes are examined. Falsifiers, each an observed red on
+   `api: AS-28 — the favicon uses only palette hex values`: M3a fill → `#FF0000`; M3b every
+   6-hex stripped file-wide; M3c fills → `red`/`lime` with the comment intact; M3d fill →
+   `#1C41E3FF`; M3e every paint attribute removed (floor); M3f `style="fill:red"` added with
+   palette fills intact.
 4. **AC-4 suite unchanged otherwise.** Host `node --test` count = baseline + 3, 0 failing,
    labelled as the host run; the counted `docker compose run --rm --build test` receipt (Image
    Built line) is supplied before `done` from a session with docker (AS-92: headless ticks
