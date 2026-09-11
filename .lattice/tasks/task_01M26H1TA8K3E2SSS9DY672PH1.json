@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 8,
+  "comment_count": 9,
   "complexity": "high",
   "created_at": "2026-09-10T20:44:50Z",
   "created_by": "agent:cto-owen",
@@ -18,7 +18,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M26H1TA8K3E2SSS9DY672PH1",
-  "last_event_id": "ev_01M27G114X01YCSJEXFDSPZJJ0",
+  "last_event_id": "ev_01M27GNGW65ZNXDHCQSQS1CE9X",
   "last_status_changed_at": "2026-09-11T05:28:04Z",
   "linked_files": [],
   "priority": "critical",
@@ -32,6 +32,6 @@
   ],
   "title": "Chat: structured company-events feed \u2014 tick, stage, and sub-agent lifecycle events the UI can project (foreman-view substrate)",
   "type": "task",
-  "updated_at": "2026-09-11T05:46:10Z",
+  "updated_at": "2026-09-11T05:57:22Z",
   "urgency": null
 }
