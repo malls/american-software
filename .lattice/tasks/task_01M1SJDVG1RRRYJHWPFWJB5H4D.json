@@ -9,17 +9,23 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": null,
   "created_at": "2026-09-05T19:58:46Z",
   "created_by": "agent:qa-ruben",
   "custom_fields": {},
   "description": "From the AS-75 QA review (qa-ruben), finding F1. Recipe R10 in the AS-75 plan asserts an EXISTING AS-27 test goes red when the build fields churn. Ruben ran it twice with the mutation confirmed present at server.js:285 both times: it stayed GREEN at 283/283. This directly contradicts the implementation report, which recorded R10 as red \u2014 the difference is the finding.\n\nCause: stream.test.js's frame-count test ('a new lock pushes exactly one loop frame; an unchanged lock pushes none over ten polls') runs against an empty loop dataDir that never contains a deploy-state.json. So build.checkedAt is constantly null, there is no churn to count, and the guard cannot observe the fields it is supposed to protect.\n\nWhy it matters: the guard is what stops a per-poll SSE storm. Re-adding checkedAt to loopStateKey would emit a frame every 2 seconds to every connected client forever, and nothing in the suite would catch it. The guard is not wrong \u2014 it is blind to the new field set.\n\nACCEPTANCE. The frame-count test exercises a dataDir that actually contains a deploy-state.json, and R10 (mutating the loopStateKey build projection) turns it RED \u2014 demonstrated by mutation, not by inspection.",
-  "done_at": null,
-  "evidence_refs": [],
+  "done_at": "2026-09-11T18:22:03Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01M28V5TCG5K7FKW0926GC4QTD",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M1SJDVG1RRRYJHWPFWJB5H4D",
-  "last_event_id": "ev_01M27YMPC1KWTGMGCVWQH4WC6V",
-  "last_status_changed_at": "2026-09-11T10:01:26Z",
+  "last_event_id": "ev_01M28V92CDYHEVTW3A8YSMRX22",
+  "last_status_changed_at": "2026-09-11T18:22:03Z",
   "linked_files": [],
   "needs_human": {
     "flagged_by": "agent:lattice-auto-review",
@@ -39,10 +45,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-85",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "AS-75 F1: the AS-27 frame-count guard is vacuous for the new build fields \u2014 R10 stays green",
   "type": "task",
-  "updated_at": "2026-09-11T10:01:35Z",
+  "updated_at": "2026-09-11T18:22:03Z",
   "urgency": null
 }
