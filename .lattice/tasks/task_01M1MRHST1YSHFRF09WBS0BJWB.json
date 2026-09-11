@@ -24,14 +24,10 @@
     }
   ],
   "id": "task_01M1MRHST1YSHFRF09WBS0BJWB",
-  "last_event_id": "ev_01M27QWHJRTBFM1KHF6QJA4A2N",
+  "last_event_id": "ev_01M28VR2H2WW23TEZPKN893E1G",
   "last_status_changed_at": "2026-09-11T08:03:32Z",
   "linked_files": [],
-  "needs_human": {
-    "flagged_by": "agent:lattice-auto-review",
-    "reason": "Auto-fired code-review failed (Agent 'claude' timed out after 600s) \u2014 task is unreviewed.",
-    "since": "2026-09-11T07:55:59Z"
-  },
+  "needs_human": null,
   "priority": "critical",
   "relationships_out": [
     {
@@ -49,6 +45,6 @@
   "tags": null,
   "title": "Chat test harness: openStream() hangs the runner instead of failing \u2014 a stream regression wedges CI",
   "type": "task",
-  "updated_at": "2026-09-11T08:03:32Z",
+  "updated_at": "2026-09-11T18:30:14Z",
   "urgency": null
 }

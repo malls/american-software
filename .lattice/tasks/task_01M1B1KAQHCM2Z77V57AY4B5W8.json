@@ -34,14 +34,10 @@
     }
   ],
   "id": "task_01M1B1KAQHCM2Z77V57AY4B5W8",
-  "last_event_id": "ev_01M27EFGZ4ZABHGYNZ9TNW0629",
+  "last_event_id": "ev_01M28VR2CBHHBVBT2JM94S8TK8",
   "last_status_changed_at": "2026-09-11T05:19:08Z",
   "linked_files": [],
-  "needs_human": {
-    "flagged_by": "agent:lattice-auto-review",
-    "reason": "Auto-fired code-review failed (Agent 'claude' timed out after 600s) \u2014 task is unreviewed.",
-    "since": "2026-09-11T05:10:32Z"
-  },
+  "needs_human": null,
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 1,
@@ -51,6 +47,6 @@
   "tags": null,
   "title": "Chat: favicon for the chat app",
   "type": "chore",
-  "updated_at": "2026-09-11T05:19:08Z",
+  "updated_at": "2026-09-11T18:30:14Z",
   "urgency": null
 }

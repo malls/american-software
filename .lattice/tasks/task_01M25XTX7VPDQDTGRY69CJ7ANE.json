@@ -34,14 +34,10 @@
     }
   ],
   "id": "task_01M25XTX7VPDQDTGRY69CJ7ANE",
-  "last_event_id": "ev_01M27751ZENPJVV08Y0QY4VY6B",
+  "last_event_id": "ev_01M28VR33FB0T36740N1Z4CM48",
   "last_status_changed_at": "2026-09-11T03:10:43Z",
   "linked_files": [],
-  "needs_human": {
-    "flagged_by": "agent:lattice-auto-review",
-    "reason": "Auto-fired code-review failed (Agent 'claude' timed out after 600s) \u2014 task is unreviewed.",
-    "since": "2026-09-10T21:02:31Z"
-  },
+  "needs_human": null,
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 1,
@@ -51,6 +47,6 @@
   "tags": null,
   "title": "Chat watcher: a board message starts a loop of ticks that runs until the company is dry, not a single tick",
   "type": "task",
-  "updated_at": "2026-09-11T03:11:05Z",
+  "updated_at": "2026-09-11T18:30:15Z",
   "urgency": null
 }

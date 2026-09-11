@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-lena",
   "branch_links": [
     {
       "branch": "feat/AS-89-reconcile-identities",
@@ -18,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDW04XG97DBRTJS6TGCQG",
-  "last_event_id": "ev_01M28VJ4EZGSK44DKF7P9S4X8E",
-  "last_status_changed_at": "2026-09-11T18:27:00Z",
+  "last_event_id": "ev_01M28VQSSRHXTB659DC8YJ73X7",
+  "last_status_changed_at": "2026-09-11T18:30:05Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-89",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat: a hired employee has no chat identity until someone posts for them \u2014 qa-ruben was mute for 3 days",
   "type": "task",
-  "updated_at": "2026-09-11T18:27:00Z",
+  "updated_at": "2026-09-11T18:30:05Z",
   "urgency": null
 }

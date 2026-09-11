@@ -24,14 +24,10 @@
     }
   ],
   "id": "task_01M1SJDVG1RRRYJHWPFWJB5H4D",
-  "last_event_id": "ev_01M28V92CDYHEVTW3A8YSMRX22",
+  "last_event_id": "ev_01M28VR2TAEHSV450DS6NE0RZK",
   "last_status_changed_at": "2026-09-11T18:22:03Z",
   "linked_files": [],
-  "needs_human": {
-    "flagged_by": "agent:lattice-auto-review",
-    "reason": "Auto-fired code-review failed (Agent 'claude': exited with code 1. ) \u2014 task is unreviewed.",
-    "since": "2026-09-11T10:01:35Z"
-  },
+  "needs_human": null,
   "priority": "critical",
   "relationships_out": [
     {
@@ -49,6 +45,6 @@
   "tags": null,
   "title": "AS-75 F1: the AS-27 frame-count guard is vacuous for the new build fields \u2014 R10 stays green",
   "type": "task",
-  "updated_at": "2026-09-11T18:22:03Z",
+  "updated_at": "2026-09-11T18:30:15Z",
   "urgency": null
 }
