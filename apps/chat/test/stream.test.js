@@ -561,7 +561,12 @@ test('stream: AS-85 — each build field earns exactly one loop frame when it al
    *  exactly one by watching ten further polls go by in silence. */
   const step = async (over, label) => {
     writeDeployState(over);
-    const frame = await stream.nextFrame();
+    // Name the step in the rejection: the bare `nextFrame` timeout carries only
+    // a timer stack, so a red would otherwise not say WHICH field stopped
+    // earning a frame — the one fact a reader of this failure needs.
+    const frame = await stream.nextFrame().catch((e) => {
+      throw new Error(`${label}: expected exactly one loop frame, got none`, { cause: e });
+    });
     assert.equal(frame.event, 'loop', `${label}: pushed a loop frame`);
     await afterPolls(10);
     assert.equal(stream.pending(), 0, `${label}: exactly one frame, not a stream of them`);
@@ -600,6 +605,32 @@ test('stream: AS-85 — each build field earns exactly one loop frame when it al
   assert.equal(b4.data.build.current, null, 'tri-state: unknown, not false');
   assert.equal(b4.data.build.reason, 'stale-state');
   assert.equal(b4.data.build.desiredId, 'cccccccccccccccc', 'the id it last computed is still reported');
+
+  // B5/B6 — `current` ALONE. It takes this shape and no other, which is the
+  // point of the pair. `composeBuild` derives `current` from (id, desiredId,
+  // watcherListening, staleness), and every condition that forces `current` to
+  // null also OVERRIDES `reason` — so for every reason the watcher actually
+  // writes, `current` is a function of fields already in the key and cannot
+  // move on its own. The exception is the one the two enums create between
+  // them: `reason` is copied verbatim out of deploy-state.json, and
+  // 'stale-state' is also the name composeBuild gives its own override. A file
+  // that spells that reason keeps it across the staleness edge, so `current`
+  // crosses true -> null with `id`, `desiredId`, `reason`, `listening` and
+  // `state` all unmoved. Delete `current` from the key and B6 pushes nothing.
+  const b5 = await step({
+    desiredId: BUILD_ID, reason: 'stale-state',
+  }, 'B5 back to current, reason held');
+  assert.equal(b5.data.build.current, true);
+  assert.equal(b5.data.build.reason, 'stale-state', 'the file spells the override name; nothing overrode it');
+
+  const b6 = await step({
+    desiredId: BUILD_ID, reason: 'stale-state',
+    computedAt: new Date(Date.now() - 11 * 60_000).toISOString(),
+  }, 'B6 current alone');
+  assert.equal(b6.data.build.current, null, '`current` alone moved: true -> null');
+  assert.equal(b6.data.build.reason, b5.data.build.reason, 'and `reason` did not move with it');
+  assert.equal(b6.data.build.desiredId, b5.data.build.desiredId, 'nor did `desiredId`');
+  assert.equal(b6.data.build.id, b5.data.build.id, 'nor `id`');
 });
 
 test('stream: AS-27 — loop frames reach every viewer identically (no visibility gate)', async (t) => {
