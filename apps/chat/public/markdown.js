@@ -117,9 +117,20 @@ export function parseBlocks(text) {
 // a quote here), backtick (this pass runs on code-span inners), and `\`
 // (browsers fold it to `/` in the authority, so stopping there yields the
 // honest host).
-const URL_RE = /https?:\/\/[A-Za-z0-9][^\s<>"'`\\]*/g;
+// AS-72 D4: `\p{Cf}` (ZWSP, ZWJ, the bidi controls, U+FEFF, …) also ends the
+// body. `\s` already excludes Unicode *spaces*; the residual was 71 invisible
+// format characters that could sit inside an href while the visible text read
+// as something else. A candidate stops at one: the href stays a verbatim
+// source slice, and the character becomes text.
+const URL_RE = /https?:\/\/[A-Za-z0-9][^\s<>"'`\\\p{Cf}]*/gu;
 
-const SENTENCE_TAIL = '.,;:!?';
+// AS-72 D3: typographic tail punctuation is prose, on the same rule as `.`
+// and `,` — trimmed only at the TAIL, never mid-URL, so a Wikipedia title
+// carrying an en dash stays whole. Basis: in the corpus an en dash after a
+// URL is glued-left 62/62 times; a URL that genuinely ends in a raw en dash,
+// em dash or ellipsis does not occur and would be percent-encoded by anything
+// that emits it.
+const SENTENCE_TAIL = '.,;:!?–—…';
 const BRACKETS = [['(', ')'], ['[', ']'], ['{', '}']];
 const count = (s, ch) => {
   let n = 0;
@@ -165,10 +176,12 @@ export function tokenizeUrls(text) {
     last = m.index + url.length;
     // Defensive, not required: keep the regex cursor in lockstep with `last` so
     // the two never disagree about where scanning resumes. It has no observable
-    // effect today — trimUrlTail only ever removes characters in `.,;:!?)]}`,
-    // and no URL can begin inside a run of those, so rescanning the trimmed
-    // tail cannot surface a match. It costs one assignment and stops that
-    // argument from being load-bearing if the trim set ever widens.
+    // effect today — trimUrlTail only ever removes characters in
+    // `.,;:!?–—…)]}` (AS-72 D3 widened that set, which is exactly the case
+    // this line was written for), and no URL can begin inside a run of those,
+    // so rescanning the trimmed tail cannot surface a match. It costs one
+    // assignment and stops that argument from being load-bearing the next
+    // time the trim set widens.
     URL_RE.lastIndex = last;
   }
   if (last < src.length) tokens.push({ type: 'text', text: src.slice(last) });
