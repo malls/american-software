@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 1,
+  "comment_count": 2,
   "complexity": null,
   "created_at": "2026-09-03T23:09:34Z",
   "created_by": "agent:qa-priya",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1MRHST1YSHFRF09WBS0BJWB",
-  "last_event_id": "ev_01M27NJNVCZZ836MP52JMGDDGR",
-  "last_status_changed_at": "2026-09-11T07:23:11Z",
+  "last_event_id": "ev_01M27PWC9QYQ28CAXYX7GFPYS6",
+  "last_status_changed_at": "2026-09-11T07:45:58Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-81",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Chat test harness: openStream() hangs the runner instead of failing \u2014 a stream regression wedges CI",
   "type": "task",
-  "updated_at": "2026-09-11T07:23:12Z",
+  "updated_at": "2026-09-11T07:45:58Z",
   "urgency": null
 }
