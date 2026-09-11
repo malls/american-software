@@ -31,6 +31,7 @@ import { resolve, dirname, join } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { openStore, StoreError, EVENTS_CHANNEL } from '../lib/store.js';
+import { reconcileIdentities } from '../lib/identities.js';
 import { probe, createApiBackend, DEFAULT_API, DEFAULT_PROBE_TIMEOUT_MS } from '../lib/client.js';
 import { ingestNewEvents, resolveRefs, resolveShortId, latticeRoot, assignmentsByActor } from '../lib/lattice.js';
 import { readRoster } from '../lib/personnel.js';
@@ -180,6 +181,9 @@ async function resolveBackend() {
 function createDirectBackend(dbPath) {
   const store = openStore(dbPath);
   const root = latticeRoot();
+  // AS-89: same startup reconciliation the server does, so an offline tick
+  // can post as a fresh hire too. API mode needs nothing — the server did it.
+  reconcileIdentities({ store, root });
   return {
     mode: 'direct',
     dbPath,

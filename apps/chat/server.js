@@ -32,6 +32,7 @@ import {
   reduceLiveness,
 } from './lib/events.js';
 import { readRoster, readPersonnel } from './lib/personnel.js';
+import { reconcileIdentities } from './lib/identities.js';
 // AS-33: the org rule set + tree builder. The server importing UP into
 // public/ is deliberate: that module is also what the BROWSER imports, and a
 // second copy of the rules for the client is the drift hazard the whole org
@@ -220,6 +221,17 @@ export function createChatServer({
 } = {}) {
   const store = openStore(dbPath || process.env.CHAT_DB || join(APP_DIR, 'data', 'chat.db'));
   const root = repoRoot || latticeRoot();
+  // AS-89: every active dossier under `root` has a chat identity before the
+  // server accepts a request — no more hires who are mute until someone runs
+  // `chat register` for them. Idempotent; a bad dossier is skipped and named
+  // in the log rather than taking the server down.
+  const reconciled = reconcileIdentities({ store, root });
+  if (reconciled.skipped.length > 0) {
+    console.error(
+      `chat: identity reconciliation skipped ${reconciled.skipped.length} dossier(s): ` +
+        reconciled.skipped.map((s) => `${s.actorId} (${s.reason})`).join('; ')
+    );
+  }
   // AS-27: where the watcher and the tick lock write. Defaults to the real
   // data dir (compose mounts ./data:/app/data rw, pinned by
   // deploy-shape.test.js); tests pass a scratch dir so they can plant each of
@@ -1068,6 +1080,7 @@ export function createChatServer({
   return {
     server,
     store,
+    reconciled, // AS-89: what startup reconciliation did; tests read it
     close: () =>
       new Promise((done) => {
         // AS-25: reap push state FIRST — the heartbeat timer and held-open
