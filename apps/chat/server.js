@@ -574,7 +574,12 @@ export function createChatServer({
       // observed at is not. `build.checkedAt` moves on every deploy-poll, so
       // including it would emit a frame per poll to every connection forever —
       // the same reason every age field is excluded above.
-      build: { id: s.build.id, desiredId: s.build.desiredId, current: s.build.current },
+      // AS-85: `reason` is in for the mirror-image reason — it is the half of
+      // the sidebar's build sentence that `current` cannot carry, and none of
+      // its values move per poll in a steady state, so a `stale-build → busy`
+      // transition (the watcher started rebuilding) reaches a connected client
+      // when it happens instead of waiting for `current` to flip at the end.
+      build: { id: s.build.id, desiredId: s.build.desiredId, current: s.build.current, reason: s.build.reason },
       // AS-95: the tick COUNT is the thing that moves in the loop label, so a
       // new loop tick must earn a frame; `startedAt` of the loop is already
       // covered by `active` flipping. `lastLoop.stoppedAt` is included because

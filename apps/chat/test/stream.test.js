@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   mkdtempSync, rmSync, cpSync, writeFileSync, unlinkSync, mkdirSync, appendFileSync, truncateSync,
+  renameSync,
 } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -417,6 +418,188 @@ test('stream: AS-27 — a new lock pushes exactly one loop frame; an unchanged l
   // And nothing further once it has settled.
   await afterPolls(10);
   assert.equal(stream.pending(), 0, 'zero frames after the state settles');
+});
+
+// --- AS-85: the AS-75 build fields inside the AS-27 frame-count guard --------
+// The ten-poll window above boots against an EMPTY data dir, so `build` is the
+// constant `{id:null, desiredId:null, current:null, checkedAt:null,
+// reason:'no-state'}` for its whole run: no build field can move the key there,
+// and the window is green by construction rather than by the guard working
+// (AS-75 review, finding F1). These two tests plant a real deploy-state.json —
+// the watcher's own shape, written the way the watcher writes it — and drive it.
+// A: churn every field the watcher rewrites per deploy-poll, require zero
+// frames. B: move one KEY field at a time, require exactly one frame each.
+const BUILD_ID = 'aaaaaaaaaaaaaaaa';
+
+/** deploy-state.json as the host watcher writes it. Mirrors
+ *  api.test.js's `loopFixture().deployState()` by hand: test files in this
+ *  suite do not import each other. */
+const deployState = (over = {}) => ({
+  desiredId: BUILD_ID,
+  dirty: false,
+  reason: 'current',
+  desiredReason: 'ok',
+  dockerBin: '/usr/local/bin/docker',
+  dockerReason: 'candidate',
+  computedAt: new Date().toISOString(),
+  lastAttempt: null,
+  runningId: BUILD_ID,
+  ...over,
+});
+
+const livePid = () => ({
+  pid: 96123,
+  startedAt: new Date(Date.now() - 3_600_000).toISOString(),
+  heartbeatAt: new Date().toISOString(),
+});
+
+/**
+ * A data dir carrying a live watcher and a current build, both planted BEFORE
+ * the server boots so its primed key already reflects them (and the on-connect
+ * frame can be asserted against them). Returns the rewriter the tests use
+ * between polls.
+ *
+ * The rewrite is `.tmp` + rename because that is precisely how the watcher
+ * writes this file (`watch/advance-watcher.mjs`). A plain writeFileSync read
+ * mid-write parses as garbage, which `composeBuild` reports as
+ * `reason: 'unreadable-state'` — a real key change, and a frame this test would
+ * blame on the guard. Mirroring the producer removes that race.
+ *
+ * WATCHER_STALE_MS is 60 s, so one pid write covers a test measured in seconds.
+ */
+function buildDataDir(t) {
+  const dataDir = loopDataDir(t);
+  writeFileSync(join(dataDir, 'advance-watcher.pid'), JSON.stringify(livePid()));
+  const path = join(dataDir, 'deploy-state.json');
+  const writeDeployState = (over = {}) => {
+    const body = deployState(over);
+    writeFileSync(`${path}.tmp`, JSON.stringify(body));
+    renameSync(`${path}.tmp`, path);
+    return body;
+  };
+  writeDeployState();
+  return { dataDir, writeDeployState };
+}
+
+/** Both AS-85 tests boot identically: fast loop poll, and the AS-99 lanes poll
+ *  and AS-100 events poll pushed out past the end of the test so nothing but a
+ *  `loop` frame can ever land in `pending()` during a zero-frame window. */
+const buildBootOpts = (dataDir) => ({
+  dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: 60_000, eventsPollMs: 60_000, buildId: BUILD_ID,
+});
+
+test('stream: AS-85 — deploy-state churn (computedAt, lastAttempt, runningId) pushes no loop frame over ten polls; a real build change pushes exactly one', async (t) => {
+  const { dataDir, writeDeployState } = buildDataDir(t);
+  const { base, get } = await bootServer(t, FIXTURE_ROOT, buildBootOpts(dataDir));
+
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  // Cardinality before count: the fixture is OBSERVED on the wire before any
+  // zero-frame assertion is made. Against an empty data dir both of these read
+  // null, which is exactly the vacuity this test exists to close.
+  const hello = stream.initialLoop;
+  assert.equal(hello.event, 'loop');
+  assert.equal(hello.data.build.current, true, 'the planted deploy-state makes this container current');
+  assert.equal(hello.data.build.desiredId, BUILD_ID);
+  const firstCheckedAt = hello.data.build.checkedAt;
+  assert.ok(firstCheckedAt, 'the on-connect frame carries the planted computedAt');
+
+  // Ten polls of exactly the churn a host watcher produces: a fresh
+  // `computedAt` every deploy-poll, a rotating `lastAttempt`, a re-resolved
+  // docker binary, a re-read `runningId`. Nothing the key names moves.
+  let lastWritten = null;
+  for (let i = 0; i < 10; i++) {
+    lastWritten = writeDeployState({
+      computedAt: new Date(Date.now() + i + 1).toISOString(),
+      lastAttempt: i % 2 === 0
+        ? { id: BUILD_ID, at: new Date().toISOString(), outcome: 'ok', detail: `serving ${i}` }
+        : null,
+      dockerReason: i % 2 === 0 ? 'candidate' : 'override',
+      runningId: i % 2 === 0 ? BUILD_ID : BUILD_ID.toUpperCase(),
+    });
+    await afterPolls(1);
+  }
+  await afterPolls(2);
+  assert.equal(stream.pending(), 0, 'zero frames across ten polls of deploy-state churn');
+
+  // The test's own "assert the mutation applied": prove the churn REACHED the
+  // server. Without this, a rewrite that silently failed would pass step 3 for
+  // the same reason the AS-27 window passes today — no build field moving.
+  const status = await get('/api/loop-status');
+  assert.equal(status.status, 200);
+  assert.equal(status.data.status.build.checkedAt, lastWritten.computedAt,
+    'the server is reading the churned file, not a cached copy');
+  assert.notEqual(status.data.status.build.checkedAt, firstCheckedAt,
+    'and checkedAt really moved across the ten polls');
+
+  // Sanity positive: a zero-frame assertion with no live push after it is
+  // indistinguishable from a dead socket.
+  writeDeployState({ desiredId: 'bbbbbbbbbbbbbbbb', reason: 'stale-build' });
+  const changed = await stream.nextFrame();
+  assert.equal(changed.event, 'loop');
+  assert.equal(changed.data.build.current, false);
+  assert.equal(changed.data.build.desiredId, 'bbbbbbbbbbbbbbbb');
+
+  await afterPolls(10);
+  assert.equal(stream.pending(), 0, 'and exactly one frame — the new state settles to zero too');
+});
+
+test('stream: AS-85 — each build field earns exactly one loop frame when it alone changes: desiredId, current, reason', async (t) => {
+  const { dataDir, writeDeployState } = buildDataDir(t);
+  const { base } = await bootServer(t, FIXTURE_ROOT, buildBootOpts(dataDir));
+
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  const hello = stream.initialLoop;
+  assert.equal(hello.event, 'loop');
+  assert.equal(hello.data.build.current, true, 'the planted deploy-state makes this container current');
+  assert.equal(hello.data.build.desiredId, BUILD_ID);
+
+  /** One step: write, take the single frame it must earn, then prove it earned
+   *  exactly one by watching ten further polls go by in silence. */
+  const step = async (over, label) => {
+    writeDeployState(over);
+    const frame = await stream.nextFrame();
+    assert.equal(frame.event, 'loop', `${label}: pushed a loop frame`);
+    await afterPolls(10);
+    assert.equal(stream.pending(), 0, `${label}: exactly one frame, not a stream of them`);
+    return frame;
+  };
+
+  // B1 — master moved past this container. The entry point, and the one step
+  // where two key fields move together (`desiredId` and `current`).
+  const b1 = await step({ desiredId: 'bbbbbbbbbbbbbbbb', reason: 'stale-build' }, 'B1 desiredId+current');
+  assert.equal(b1.data.build.current, false);
+  assert.equal(b1.data.build.desiredId, 'bbbbbbbbbbbbbbbb');
+
+  // B2 — the watcher started the rebuild. `reason` alone moves; `current` is
+  // still false and `desiredId` is unchanged. Before AS-85 put `reason` in the
+  // key this transition reached no connected client at all, even though the
+  // sidebar renders it (public/loop-status.js buildSentence).
+  const b2 = await step({ desiredId: 'bbbbbbbbbbbbbbbb', reason: 'busy' }, 'B2 reason');
+  assert.equal(b2.data.build.reason, 'busy');
+  assert.equal(b2.data.build.current, false, 'only `reason` moved at B2');
+
+  // B3 — master moved again mid-build. `desiredId` alone moves: `reason` stays
+  // 'busy' and `current` stays false, so this step is killed by nothing except
+  // `desiredId` being in the key.
+  const b3 = await step({ desiredId: 'cccccccccccccccc', reason: 'busy' }, 'B3 desiredId');
+  assert.equal(b3.data.build.desiredId, 'cccccccccccccccc');
+  assert.equal(b3.data.build.reason, 'busy', 'only `desiredId` moved at B3');
+  assert.equal(b3.data.build.current, false);
+
+  // B4 — the watcher stopped writing. DEPLOY_STATE_STALE_MS is 10 minutes, so
+  // an 11-minute-old file is one the server refuses to trust: `current` drops to
+  // the tri-state null and `reason` is overridden to 'stale-state'.
+  const b4 = await step({
+    desiredId: 'cccccccccccccccc', reason: 'busy',
+    computedAt: new Date(Date.now() - 11 * 60_000).toISOString(),
+  }, 'B4 current+reason');
+  assert.equal(b4.data.build.current, null, 'tri-state: unknown, not false');
+  assert.equal(b4.data.build.reason, 'stale-state');
+  assert.equal(b4.data.build.desiredId, 'cccccccccccccccc', 'the id it last computed is still reported');
 });
 
 test('stream: AS-27 — loop frames reach every viewer identically (no visibility gate)', async (t) => {
