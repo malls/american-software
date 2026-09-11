@@ -258,13 +258,19 @@ test('urls: href is a verbatim source slice; round-trip holds over a fuzz corpus
 
   let inputs = 0;
   let urlTokens = 0;
+  // AS-72 finding 2: every CHUNK begins [A-Za-z0-9], so SALT+CHUNK could never
+  // produce a scheme followed by a non-alnum — which made the `scheme + alnum
+  // host` assertion below unreachable (a URL_RE that drops its alnum
+  // first-host-char left this test green). This branch generates that shape.
+  let saltPunct = 0;
   for (let i = 0; i < 50000; i++) {
     let src = '';
     const pieces = 1 + Math.floor(rnd() * 8);
     for (let p = 0; p < pieces; p++) {
       const r = rnd();
-      if (r < 0.34) src += pick(SALT) + pick(CHUNK);
-      else if (r < 0.62) src += pick(CHUNK);
+      if (r < 0.08) { src += pick(SALT) + pick(PUNCT); saltPunct++; }
+      else if (r < 0.42) src += pick(SALT) + pick(CHUNK);
+      else if (r < 0.70) src += pick(CHUNK);
       else src += pick(PUNCT);
     }
     inputs++;
@@ -283,7 +289,8 @@ test('urls: href is a verbatim source slice; round-trip holds over a fuzz corpus
     assert.equal(off, src.length);
   }
   assert.equal(inputs, 50000, 'the corpus was actually generated');
-  assert.ok(urlTokens >= 10000, `corpus must be non-trivial; saw ${urlTokens} url tokens`);
+  assert.ok(urlTokens >= 25_000, `corpus must be non-trivial; saw ${urlTokens} url tokens`);
+  assert.ok(saltPunct >= 15_000, `the scheme-then-non-alnum branch must fire; saw ${saltPunct}`);
 });
 
 test('urls: pass order — refs inside a URL are never linkified; refs outside still are', () => {
