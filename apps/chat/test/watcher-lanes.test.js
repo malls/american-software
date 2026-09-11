@@ -169,6 +169,54 @@ test('watcher-lanes-git-down: a failed worktree list is a timestamped fact, not 
   assert.equal(noGit.writes[0].body.error, 'no-git');
 });
 
+// AC-3's second half, which the test above does NOT cover: the plan asks for
+// "the assertion that evaluate never rejects", and a nonzero EXIT CODE is not
+// the only way a git call fails. A runner that THROWS — spawn raising on EMFILE
+// or a cwd that vanished when another lane's worktree was removed mid-poll —
+// unwinds past every per-call handler into evaluate()'s outer catch, a path
+// nothing exercised: a mutant replacing that catch body with `throw err`
+// survived the entire 414-test suite. Both tests below kill that mutant.
+test('watcher-lanes-never-rejects: a git runner that THROWS is still a timestamped fact', async () => {
+  const h = harness({
+    overrides: {
+      'worktree-list': () => {
+        throw new Error('spawn EMFILE');
+      },
+    },
+  });
+
+  await assert.doesNotReject(h.ops.evaluate(), 'a thrown git call never takes the watcher down with it');
+
+  assert.equal(h.writes.length, 1, 'a poll that DIED still owes the reader an answer');
+  const body = h.writes[0].body;
+  assert.equal(body.error, 'worktree-list-failed: spawn EMFILE');
+  assert.deepEqual(body.worktrees, []);
+  assert.deepEqual(body.master, { head: null });
+  assert.equal(body.generatedAt, new Date(NOW).toISOString(), 'a failed poll is a fact WITH a timestamp');
+});
+
+test('watcher-lanes-never-rejects-midway: a throw inside the row loop degrades to the error shape, never a partial list', async () => {
+  // The main row and the first per-row call have already succeeded here, so a
+  // half-built `worktrees` array exists in scope when the throw unwinds. The
+  // snapshot must still come out as the error shape: a truncated lane set
+  // presented as complete is the one failure the reader cannot detect.
+  const h = harness({
+    overrides: {
+      status: () => {
+        throw new Error('spawn EMFILE');
+      },
+    },
+  });
+
+  await assert.doesNotReject(h.ops.evaluate());
+
+  assert.equal(h.writes.length, 1);
+  const body = h.writes[0].body;
+  assert.equal(body.error, 'worktree-list-failed: spawn EMFILE');
+  assert.deepEqual(body.worktrees, [], 'a partial list must not masquerade as the list');
+  assert.equal(body.generatedAt, new Date(NOW).toISOString());
+});
+
 test('watcher-lanes-row-isolation: one broken worktree never blanks its neighbours', async () => {
   const three = [
     'worktree /repo',
