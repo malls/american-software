@@ -1788,28 +1788,21 @@ export function makeEventsOps({
   }
 
   /**
-   * The current tick's scope: the last tick_started with no tick_ended after
-   * it, plus the stage_started events that followed it. Single-flight is what
-   * makes this correct — exactly one tick runs at a time, so stage events after
-   * an open tick_started belong to that tick (derived, never declared: T1 §1).
+   * The open tick and what happened inside it, straight off the shared fold —
+   * `openItems().tick` is non-null exactly while a tick_started has no
+   * tick_ended after it, and it carries the stage_started events that followed.
+   * Single-flight is what makes that correct: exactly one tick runs at a time,
+   * so a stage event after an open tick_started belongs to that tick (derived,
+   * never declared — T1 §1). Not recomputed here, so it cannot drift from the
+   * projection the server serves.
    */
-  function tickScope(events) {
-    let startIdx = -1;
-    for (let i = 0; i < events.length; i += 1) {
-      if (events[i].type === 'tick_started') startIdx = i;
-      else if (events[i].type === 'tick_ended') startIdx = -1;
-    }
-    const tickEv = startIdx >= 0 ? events[startIdx] : null;
-    const scoped = startIdx >= 0 ? events.slice(startIdx + 1) : [];
-    const lanesTouched = [];
-    let stagesStarted = 0;
-    for (const ev of scoped) {
-      if (ev.type !== 'stage_started') continue;
-      stagesStarted += 1;
-      const task = ev.data?.task;
-      if (task && !lanesTouched.includes(task)) lanesTouched.push(task);
-    }
-    return { tickEv, stagesStarted, lanesTouched };
+  function tickScope(open) {
+    const tick = open.tick;
+    return {
+      tickId: tick ? tick.id : null,
+      stagesStarted: tick ? tick.stagesStarted : 0,
+      lanesTouched: tick ? [...tick.lanesTouched] : [],
+    };
   }
 
   /** Close every open sub-agent then every open stage, with one outcome.
@@ -1863,11 +1856,12 @@ export function makeEventsOps({
 
   function tickEnded({ code = null, signal = null, timedOut = false, headBefore = null, headAfter = null, nowMs = now() } = {}) {
     const { events } = read();
-    const { tickEv, stagesStarted, lanesTouched } = tickScope(events);
+    const open = openItems(events);
+    const { tickId, stagesStarted, lanesTouched } = tickScope(open);
     const outcome = stageCloseOutcome({ code, signal, timedOut });
     // (b) BEFORE (c) — a stated property (T2): a consumer must never observe a
     // closed tick with a stage still open.
-    const stagesClosed = closeOpen(openItems(events), {
+    const stagesClosed = closeOpen(open, {
       outcome,
       exit: outcome,
       closedBy: 'watcher-settle',
@@ -1878,7 +1872,7 @@ export function makeEventsOps({
     return emit(
       'tick_ended',
       {
-        tickId: tickEv ? tickEv.id : null,
+        tickId,
         outcome: tickOutcome({ code, signal, timedOut, stagesStarted, headMoved }),
         code,
         signal,
@@ -1917,15 +1911,15 @@ export function makeEventsOps({
       nowMs,
     });
     let tickClosed = false;
-    if (open.tick && open.tick.open) {
+    if (open.tick) {
       // No fresh lock (checked above) and a tick still open: the watcher died
       // mid-tick and was relaunched. A resumed loop must not leave the previous
       // process's tick open forever.
-      const { tickEv, stagesStarted, lanesTouched } = tickScope(events);
+      const { tickId, lanesTouched } = tickScope(open);
       emit(
         'tick_ended',
         {
-          tickId: tickEv ? tickEv.id : null,
+          tickId,
           outcome: 'error',
           code: null,
           signal: null,
@@ -1938,7 +1932,6 @@ export function makeEventsOps({
         nowMs
       );
       tickClosed = true;
-      void stagesStarted;
     }
     if (closed || stale.subagents.length || tickClosed) {
       log(`EVENTS-SWEEP closed ${closed} stage(s), ${stale.subagents.length} sub-agent(s)${tickClosed ? ', 1 open tick' : ''}`);
