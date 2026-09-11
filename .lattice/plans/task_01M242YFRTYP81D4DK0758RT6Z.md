@@ -356,3 +356,5 @@ Added by this plan:
 - T3's README block finder: does it find the *dashboard* block and not the watcher's when both contain `sed -e`? Swap the two blocks' order in a scratch copy; T3 must still pass, and M-RECIPE applied to the *watcher* block must go red on the watcher pair, not the dashboard pair.
 - The chat README's env-table row (`:498`) and AS-93's "Links to Lattice" prose above the replaced paragraph must be byte-identical to master — `git diff master...feat/AS-94-dashboard-launchd -- apps/chat/README.md` should show only §4.2's paragraph.
 - Confirm no test outside `launchd-plist.test.js` changed and the `IMAGE_INPUTS`/`deploy-shape` tests are untouched and green (the new template lands under `watch`, already an input).
+
+## Reset 2026-09-11 by human:forrest
