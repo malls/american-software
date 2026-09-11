@@ -622,3 +622,70 @@ that is documentation, not a guarantee, and a reviewer should read it that way.
 the import line at the top, `loopFixture` (~line 1250), and three new tests appended at the
 end of the file. AS-72's AS-25 timer-regex region (~line 657) is untouched, and the remaining
 work belongs in `test/stream.test.js` and `public/`, so it stays untouched.
+
+## Implementation notes — cycle 5 (developer-lena, 2026-09-11T06:50Z; tree clean)
+
+**Done (commits befe3d9, 16da626): the last two rows of T6.**
+
+1. **AC-18 — the words (`public/lanes.js`, `public/app.js`).** Three sentence tables, each
+   key-set asserted against `lib/events.js`: `EVENTS_REASONS` over `EVENTS_REASON_CODES`,
+   `STAGE_OUTCOME_WORDS` over `STAGE_OUTCOMES`, `SUBAGENT_EXIT_WORDS` over `SUBAGENT_EXITS`
+   (the browser file still may not import the node-only module, so the assertion *is* the
+   link — the `SNAPSHOT_REASONS` trade, one input over). A new private `describeLive(lane,
+   eventsReason, nowMs)` fills AS-99's two placeholder slots and returns a third field,
+   `liveTone` (`none` | `live` | `alert` | `done`), which `app.js` turns into one class —
+   no new pane, no new element id. `describeLanes` gained `eventsReason` + `eventsCaption`
+   (a second caption line, separate from the snapshot's, because either input can be
+   degraded while the other is healthy); `describeLane` gained an optional third argument.
+   Elapsed while alive is recomputed from `startedAt` against the client clock on the
+   existing 15 s timer; the payload's `elapsedS` is used only once the stage has ended.
+
+2. **`apps/chat/README.md` § "Company events (AS-100)"** — the file, the seven-key envelope
+   and the 8 KiB cap, the six types with their exact `data` keys, the CLI and why its enums
+   are narrower than the schema's, `/api/events` (exclusive `since`, unknown id → zero),
+   `event: company` vs the reserved `event: activity`, the liveness rule, what `unclosed`
+   measures, and the retention trigger (8 MiB or 50 ms p50). Every claim was read back out
+   of `lib/events.js`, `bin/events.js`, `server.js` and `watch/advance-watcher.mjs` on this
+   branch rather than from the plan — two would have been over-claims otherwise (the CLI
+   accepts `--reason` on `stage_ended`, and `/api/events` caps `limit` at 1000 with a
+   default of 200; neither is in T3).
+
+**Host run: 459 → 464, 0 failing** (host `node --test` from `apps/chat`; +5 = the five new
+AC-18 tests). **1 mutant, 1 red, 0 survivors.** Driver:
+`scratchpad/developer-lena/mutant-ac18.mjs` — in place with `copyFileSync` backup and a
+`finally` restore, site anchored to the whole `if (openTypes) { … }` block (the only match
+in the file; the driver refuses to run if the match count is not exactly 1) and the applied
+site printed with line numbers before the run.
+
+| # | Mutation | Applied site (asserted, printed) | Red set |
+|---|---|---|---|
+| M-D | the stale-open branch returns the live wording (`running for …` / `working` / tone `live`) | `public/lanes.js:403`, `describeLive`'s `if (openTypes)` block | exactly `{lanes-label-stale-open-not-running}` |
+
+Tree proven afterwards with `git diff --exit-code` → clean.
+
+**One finding from writing the table (fixed in befe3d9, worth the reviewer's attention).**
+The `no enum leaks into the UI` assertion caught my first `truncated` sentence, which used
+the English word "truncated" — a true sentence that the guard correctly refused, because the
+rule is lexical and cannot tell a bare enum from a word that happens to spell one. The
+sentence was reworded ("the company event stream shrank underneath the server"). Recording
+it because the *next* reason code whose enum is an ordinary English word will hit the same
+wall, and the right answer is to reword the sentence, not to loosen the guard.
+
+**A slot rename AS-99 did not anticipate.** AS-99 shipped both placeholder slots reading
+`'no live signal yet'`. AC-18 needs three distinct absences, not one: no stream at all
+(`'no event stream'`), a readable stream with nothing from this lane (`'no stage events
+yet'`), and an open stage past its tick box (`'no signal since HH:MMZ'`). So AS-99's
+`lanes-label-task-only-not-cut-yet` has two expectation lines edited — the only AS-99 test
+this cycle touches, and deliberately NOT `api-lanes-key-whitelist`, which AC-16 protects and
+which stays unmodified.
+
+**Merge seam check vs master (AS-61 dab685a, AS-72 fa9c69d, both touching `test/api.test.js`):**
+`git merge-tree --write-tree master HEAD` → `0b2a896d60bbd01e50903dfcc05406f6be03312d`, no
+conflict block, exit 0. No merge of master into the branch was needed.
+
+**Still owed, and it is the only thing between this branch and review:** the counted compose
+`--build` receipt. `docker compose … run --rm --build test` was **denied by the tick's
+permission layer before it executed** (the AS-92 shape — not a docker failure, no output),
+so no compose count exists for this branch at any cycle. Per the corollary in CLAUDE.md the
+host numbers above are host numbers and cannot stand in for it; the receipt has to come from
+a session that can reach docker, with the `Image … Built` line quoted.
