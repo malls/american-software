@@ -121,6 +121,7 @@ function watcherHarness(t, over = {}) {
 
   const deployOps = {
     evaluate: async () => ({ action: 'noop', reason: 'test' }),
+    abort: async () => {}, // AS-84: shutdown() calls this whenever a deploy is in flight
     isDeploying: () => false,
     pendingDeploy: () => false,
     lockIsBusy: () => false,
@@ -209,12 +210,23 @@ function watcherHarness(t, over = {}) {
 
   let started = false;
   let stopped = false;
+  // AS-84: shutdown() returns a promise and finishes asynchronously whenever a
+  // child is in flight, so the injected exit()'s ExitSignal arrives as a
+  // REJECTION rather than a throw. Teardown has to await both shapes.
+  const swallowExit = (err) => {
+    if (!(err instanceof ExitSignal)) throw err;
+  };
   t.after(async () => {
     if (started && !stopped) {
       try {
-        watcher.shutdown('SIGTERM');
+        const done = watcher.shutdown('SIGTERM');
+        // A fake child never exits on its own, and AS-84's shutdown now waits
+        // for the one it SIGTERMed. Emit the exit a real tick would, so teardown
+        // settles on the tick's own path rather than on the grace timer.
+        if (watcher.hasChild()) calls.children[calls.children.length - 1].emit('exit', null, 'SIGTERM');
+        await done;
       } catch (err) {
-        if (!(err instanceof ExitSignal)) throw err;
+        swallowExit(err);
       }
     }
     await Promise.all(opened);
@@ -233,9 +245,12 @@ function watcherHarness(t, over = {}) {
       watcher.start();
       started = true; // only a watcher that got past the single-instance gate owns anything to clean up
     },
+    // AS-84: returns shutdown()'s promise. With nothing in flight it still
+    // throws ExitSignal synchronously (today's fast path); with a child or a
+    // deploy running the ExitSignal comes back as a rejection of this promise.
     stop: () => {
       stopped = true;
-      watcher.shutdown('SIGTERM');
+      return watcher.shutdown('SIGTERM');
     },
     writeSentinel: (body) => writeFileSync(paths.sentinel, JSON.stringify(body)),
     pidFile: () => readJson(paths.pid),
@@ -441,15 +456,20 @@ test('AS-82 makeWatcher: a fire that loses the lock spawns nothing and leaves th
   assert.equal(existsSync(raced.paths.highwater), false);
 });
 
-test('AS-82 makeWatcher: shutdown clears the intervals, terminates the child, releases the lock, removes the pid file, exits 0', (t) => {
+test('AS-84 makeWatcher: shutdown clears the intervals, SIGTERMs the child and WAITS for its settle — tick_ended before exit 0', async (t) => {
+  // Was the AS-82 shutdown test; AS-84 changes what it asserts. Before this,
+  // shutdown() killed the child and called exit(0) synchronously, so the
+  // child's own 'exit' handler never ran: no tick_ended, no loop fold, and
+  // AS-100's sweep later closed the tick as `unclosed` from another process
+  // (AS-82 F3). The fix is to let settle() run, not to duplicate it here.
   const h = watcherHarness(t);
   h.start();
   const child = driveFire(h, 51);
   assert.equal(existsSync(h.paths.lock), true);
 
   const cleared = t.mock.method(globalThis, 'clearInterval');
-  assert.throws(() => h.stop(), ExitSignal);
-  assert.deepEqual(h.calls.exit, [0]);
+  const done = h.stop();
+
   // Four intervals are armed by start(): poll, deploy, lanes, events. A
   // shutdown that leaves one behind keeps the process alive after SIGTERM.
   assert.equal(cleared.mock.callCount(), 4);
@@ -457,11 +477,121 @@ test('AS-82 makeWatcher: shutdown clears the intervals, terminates the child, re
   assert.equal(new Set(handles).size, 4, 'four distinct handles');
   assert.equal(handles.filter((x) => x === null || x === undefined).length, 0);
 
+  // The headline: SIGTERM is sent, and we have NOT exited — the tick is still
+  // settling, and everything it owns is still in place.
   assert.deepEqual(child.signals, ['SIGTERM']);
+  assert.deepEqual(h.calls.exit, [], 'exit deferred until the tick settles');
+  assert.equal(h.events().filter((e) => e.type === 'tick_ended').length, 0);
+  assert.equal(existsSync(h.paths.lock), true, 'the tick still holds its lock');
+  assert.equal(existsSync(h.paths.pid), true);
+
+  child.emit('exit', null, 'SIGTERM');
+  await assert.rejects(done, ExitSignal); // the injected exit() throws; the real one does not return
+
+  const ended = h.events().filter((e) => e.type === 'tick_ended');
+  assert.equal(ended.length, 1, 'exactly one tick_ended, written by the tick that fired');
+  assert.equal(ended[0].data.signal, 'SIGTERM');
+  assert.equal(openItems(h.events()).tick, null, 'nothing left open for the sweep to guess at');
+  assert.equal(h.loopState().lastTick.signal, 'SIGTERM', 'and the loop folded it in');
+  assert.deepEqual(h.calls.exit, [0]);
   assert.equal(existsSync(h.paths.lock), false);
   assert.equal(existsSync(h.paths.pid), false);
   assert.equal(h.logged(/^STOP SIGTERM$/).length, 1);
   assert.equal(h.logged(/^STOP terminating in-flight tick$/).length, 1);
+  assert.equal(h.logged(/^STOP grace expired$/).length, 0, 'the tick settled well inside the grace');
+});
+
+test('AS-84 makeWatcher: shutdown with a deploy in flight aborts it and waits for it before exiting', async (t) => {
+  // AS-75 F5, first half: the compose child lived inside runDockerCompose's
+  // closure, so shutdown() could not signal it. It can now, through abort() —
+  // and it must not exit until the deploy has recorded its abort and released
+  // its own lock, which is what abort()'s promise means.
+  let releaseAbort;
+  const aborted = [];
+  const h = watcherHarness(t, {
+    deployOps: {
+      isDeploying: () => true,
+      abort: (signal) => {
+        aborted.push(signal);
+        return new Promise((ok) => {
+          releaseAbort = ok;
+        });
+      },
+    },
+  });
+  h.start();
+  const done = h.stop();
+
+  assert.deepEqual(aborted, ['SIGTERM'], 'abort() called exactly once, with SIGTERM');
+  assert.equal(h.logged(/^STOP aborting in-flight deploy$/).length, 1);
+  await null; // microtasks only: a macrotask turn here would let the grace timer in
+  await null;
+  assert.deepEqual(h.calls.exit, [], 'still waiting on the deploy');
+  assert.equal(existsSync(h.paths.pid), true);
+
+  releaseAbort();
+  await assert.rejects(done, ExitSignal);
+  assert.deepEqual(h.calls.exit, [0]);
+  assert.equal(existsSync(h.paths.pid), false);
+});
+
+test('AS-84 makeWatcher: shutdown never releases a lock it does not own — a deploy-source lock survives', async (t) => {
+  // AS-75 F5, second half. Same pid, different `source`: the lock on disk
+  // belongs to the deploy ops instance, and releaseLock() used to test pid
+  // alone, so shutdown unlinked the lock guarding a build that was still
+  // running. Here the lock is the ONLY evidence of the deploy — isDeploying()
+  // is false — because that is the case where a pid-only test looks correct.
+  const h = watcherHarness(t);
+  h.start();
+  const body = JSON.stringify({
+    pid: WATCHER_PID,
+    startedAt: new Date(h.now()).toISOString(),
+    source: 'deploy',
+    nonce: 'abcdef0123456789',
+  });
+  writeFileSync(h.paths.lock, body);
+
+  await assert.rejects(async () => h.stop(), ExitSignal); // no child, no deploy: the synchronous path
+  assert.deepEqual(h.calls.exit, [0]);
+  assert.equal(existsSync(h.paths.lock), true, "the deploy's lock is not ours to unlink");
+  assert.equal(readFileSync(h.paths.lock, 'utf8'), body, 'byte-identical');
+  assert.equal(existsSync(h.paths.pid), false, 'our own marker is still removed');
+});
+
+test('AS-84 makeWatcher: the shutdown grace is a bound — a child that ignores SIGTERM is SIGKILLed and we still exit 0', { timeout: 5000 }, async (t) => {
+  // launchd SIGKILLs the watcher 20s after SIGTERM, so the wait above can never
+  // be open-ended: a tick that ignores SIGTERM must not cost us our own clean
+  // exit (the pid file would be left behind, and the sidebar would read a live
+  // watcher that no longer exists).
+  const h = watcherHarness(t, { config: { shutdownGraceS: 0.01 } });
+  h.start();
+  const child = driveFire(h, 71); // never emits 'exit'
+  await assert.rejects(h.stop(), ExitSignal);
+
+  assert.deepEqual(child.signals, ['SIGTERM', 'SIGKILL'], 'TERM first, KILL only after the grace');
+  assert.equal(h.logged(/^STOP grace expired$/).length, 1);
+  assert.deepEqual(h.calls.exit, [0]);
+  assert.equal(existsSync(h.paths.pid), false);
+});
+
+test('AS-84 makeWatcher: deployPoll() survives a rejecting evaluate — no unhandled rejection, one ERROR line', async (t) => {
+  // F6, the suspenders. The deploy poll runs inside setInterval; an unhandled
+  // rejection there ends the watcher process, and the watcher is the thing that
+  // fires ticks.
+  const h = watcherHarness(t, {
+    deployOps: { evaluate: async () => { throw new Error('boom'); } },
+  });
+  h.start();
+
+  const unhandled = [];
+  const sentinel = (err) => unhandled.push(err);
+  process.once('unhandledRejection', sentinel);
+  t.after(() => process.removeListener('unhandledRejection', sentinel));
+
+  await h.watcher.deployPoll();
+  await new Promise((ok) => setImmediate(ok)); // an unhandled rejection is reported a turn later
+  assert.deepEqual(unhandled, [], 'the rejection was handled');
+  assert.equal(h.logged(/^ERROR deploy poll rejected: boom$/).length, 1);
 });
 
 test('AS-82 makeWatcher: a spawn error settles the tick and frees the lock', (t) => {
