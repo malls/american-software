@@ -25,6 +25,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
 import { IMAGE_INPUTS } from '../watch/advance-watcher.mjs';
+// AS-92: the tick child's PATH, proven at process level.
+import { resolveDockerBin, resolveGhBin, tickPathPrepend, tickChildEnv } from '../watch/advance-watcher.mjs';
 
 const WATCHER = fileURLToPath(new URL('../watch/advance-watcher.mjs', import.meta.url));
 const APP_DIR = dirname(dirname(WATCHER)); // apps/chat
@@ -310,4 +312,47 @@ test('AS-84 entry point: a build that ignores SIGTERM is SIGKILLed at grace expi
   const log = readFileSync(join(dataDir, 'logs', 'advance-watcher.log'), 'utf8');
   assert.match(log, /STOP aborting in-flight deploy/);
   assert.match(log, /STOP grace expired: killing deploy child/);
+});
+
+// --- AS-92: the tick child's PATH, at process level --------------------------
+
+test('AS-92 real process: a child given the thin PATH plus the watcher\'s prepend can run docker and gh; without the prepend it cannot', (t) => {
+  // Host-only, counted skip: the compose container has neither binary, and a
+  // resolver that finds nothing would make both halves below vacuous.
+  const docker = resolveDockerBin(process.env, existsSync);
+  const gh = resolveGhBin(process.env, existsSync);
+  if (docker.bin === null || gh.bin === null) {
+    t.skip(`docker (${docker.reason}) or gh (${gh.reason}) not resolvable here — host-only proof`);
+    return;
+  }
+
+  // The 2026-09-07 shape: a PATH that holds neither docker nor gh. HOME/USER/
+  // LOGNAME ride along as the real spawn site passes them; nothing else does.
+  const thinEnv = { PATH: '/usr/bin:/bin', HOME: process.env.HOME, USER: process.env.USER, LOGNAME: process.env.LOGNAME };
+  // The child resolves both by BARE NAME — the form the tick allowlist
+  // matches — client-only flags, no daemon: exit 0 iff both ran and exited 0.
+  const script = `
+    const { spawnSync } = require('node:child_process');
+    const d = spawnSync('docker', ['--version'], { stdio: 'ignore' });
+    const g = spawnSync('gh', ['--version'], { stdio: 'ignore' });
+    process.exit(d.status === 0 && g.status === 0 ? 0 : 1);
+  `;
+  const runChild = (pathPrepend) =>
+    spawnSync(process.execPath, ['-e', script], {
+      env: tickChildEnv(thinEnv, 1, 'deadbeefcafef00d', pathPrepend),
+      stdio: 'ignore',
+      timeout: DEADLINE_MS,
+    });
+
+  // Negative control FIRST: with no prepend the child must fail — otherwise
+  // the positive half below would pass without the prepend doing anything.
+  const without = runChild([]);
+  assert.notEqual(without.status, 0, 'thin PATH alone: docker/gh must be ENOENT in the child');
+
+  // Positive: the watcher's own computation over the same thin env.
+  const prepend = tickPathPrepend(thinEnv, existsSync);
+  assert.ok(prepend.add.length >= 1, `the resolvers found something to add: ${JSON.stringify(prepend)}`);
+  assert.deepEqual(prepend.unresolved, []);
+  const withPrepend = runChild(prepend.add);
+  assert.equal(withPrepend.status, 0, `with prepend ${prepend.add.join(':')} the child runs docker --version and gh --version`);
 });

@@ -205,6 +205,11 @@ function watcherHarness(t, over = {}) {
     lanesOps,
     loopOps: loopOpsArg,
     eventsOps: eventsOpsArg,
+    // AS-92: `exists` finds nothing by default, so the prepend is empty and
+    // the spawn-site pin below (4-arg call with [] === 3-arg call) holds
+    // unchanged; the TICK-PATH test injects its own env and probe.
+    env: process.env,
+    exists: () => false,
     ...over.watcher,
   });
 
@@ -631,4 +636,46 @@ test('AS-82 makeWatcher: a spawn error settles the tick and frees the lock', (t)
   const ended = h.events().filter((e) => e.type === 'tick_ended');
   assert.equal(ended.length, 1);
   assert.equal(ended[0].data.code, null);
+});
+
+test('AS-92 makeWatcher: fire() spawns the tick with the prepended PATH and logs TICK-PATH', (t) => {
+  // The 2026-09-07 plist PATH — nothing on it holds docker or gh — and a
+  // probe that finds both binaries where this host keeps them. The AS-82 pin
+  // above cannot see this (its default probe finds nothing, so the prepend
+  // is empty and the 4-arg call equals the 3-arg one); this test is the one
+  // place the production spawn site is shown to pass the computed prepend.
+  const thin = {
+    PATH: '/Users/x/.nvm/versions/node/v24.13.1/bin:/Users/x/.local/bin:/usr/bin:/bin',
+    HOME: '/Users/x',
+    USER: 'x',
+    LOGNAME: 'x',
+    SHELL: '/bin/zsh', // must not leak
+  };
+  const h = watcherHarness(t, {
+    watcher: {
+      env: thin,
+      exists: (p) => p === '/usr/local/bin/docker' || p === '/opt/homebrew/bin/gh',
+    },
+  });
+  h.start();
+  driveFire(h, 31);
+  const nonce = h.lockFile().nonce;
+  const env = h.calls.spawn[0].opts.env;
+
+  assert.ok(env.PATH.startsWith('/usr/local/bin:/opt/homebrew/bin:'), `docker's dir, then gh's, first: ${env.PATH}`);
+  assert.ok(env.PATH.endsWith(thin.PATH), 'the thin PATH is the untouched suffix');
+  assert.equal(env.PATH, `/usr/local/bin:/opt/homebrew/bin:${thin.PATH}`);
+  assert.equal(env.HOME, thin.HOME);
+  assert.equal(env.USER, thin.USER);
+  assert.equal(env.LOGNAME, thin.LOGNAME);
+  assert.equal(env.ADVANCE_TICK_PARENT, `watcher:${WATCHER_PID}:${nonce}`);
+  assert.deepEqual(Object.keys(env).sort(), ['ADVANCE_TICK_PARENT', 'HOME', 'LOGNAME', 'PATH', 'USER'], 'still exactly five keys');
+
+  const lines = h.logged(/^TICK-PATH /);
+  assert.equal(lines.length, 1, 'one TICK-PATH line per fire');
+  assert.match(lines[0], /^TICK-PATH add \/usr\/local\/bin,\/opt\/homebrew\/bin present - unresolved -$/);
+  // Logged after FIRE and before the spawn — a spawn error still leaves the
+  // line, which is the diagnostic for exactly that failure.
+  const fireAt = h.logs.findIndex((l) => l.startsWith('FIRE '));
+  assert.ok(fireAt >= 0 && h.logs.indexOf(lines[0]) > fireAt, 'TICK-PATH follows FIRE');
 });
