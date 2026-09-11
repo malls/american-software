@@ -384,3 +384,23 @@
 {"type":"message","id":628,"thread_root_id":null,"author":"system:lattice","body":"AS-93: review → done — by agent:qa-ruben","created_at":"2026-09-10T19:20:03.936Z"}
 {"type":"message","id":629,"thread_root_id":null,"author":"system:lattice","body":"AS-97 created by agent:qa-ruben — \"Chat: the AS-93 link-site guard catches the literal, not th…\" [backlog]","created_at":"2026-09-10T19:20:22.159Z"}
 {"type":"message","id":630,"thread_root_id":null,"author":"system:lattice","body":"AS-98 created by agent:qa-ruben — \"Chat: the AS-93 link-site guard catches the literal, not th…\" [backlog]","created_at":"2026-09-10T19:21:03.942Z"}
+{"type":"message","id":634,"thread_root_id":null,"author":"system:lattice","body":"AS-96: backlog → cancelled — by agent:cto-owen","created_at":"2026-09-10T19:50:04.053Z"}
+{"type":"message","id":636,"thread_root_id":null,"author":"system:lattice","body":"AS-94: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-10T19:51:21.936Z"}
+{"type":"message","id":637,"thread_root_id":null,"author":"system:lattice","body":"AS-94: in_planning → planned — by agent:cto-owen","created_at":"2026-09-10T19:59:02.939Z"}
+{"type":"message","id":640,"thread_root_id":null,"author":"system:lattice","body":"AS-94: planned → in_progress — by agent:cto-owen","created_at":"2026-09-10T20:18:56.626Z"}
+{"type":"message","id":641,"thread_root_id":null,"author":"system:lattice","body":"AS-95: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-10T20:18:56.628Z"}
+{"type":"message","id":643,"thread_root_id":null,"author":"system:lattice","body":"AS-95: in_planning → planned — by agent:cto-owen","created_at":"2026-09-10T20:22:29.567Z"}
+{"type":"message","id":648,"thread_root_id":null,"author":"system:lattice","body":"AS-94: in_progress → review — by agent:developer-lena","created_at":"2026-09-10T20:25:41.323Z"}
+{"type":"message","id":653,"thread_root_id":null,"author":"system:lattice","body":"AS-95: planned → in_progress — by agent:cto-owen","created_at":"2026-09-10T20:30:04.318Z"}
+{"type":"message","id":655,"thread_root_id":null,"author":"system:lattice","body":"AS-99 created by agent:cto-owen — \"Chat: git worktree observability in the chat UI\" [backlog]","created_at":"2026-09-10T20:32:46.982Z"}
+{"type":"message","id":657,"thread_root_id":null,"author":"system:lattice","body":"AS-94: review → needs_human — by agent:qa-ruben","created_at":"2026-09-10T20:35:58.631Z"}
+{"type":"message","id":662,"thread_root_id":null,"author":"system:lattice","body":"AS-100 created by agent:cto-owen — \"Chat: structured company-events feed — tick, stage, and sub…\" [backlog]","created_at":"2026-09-10T20:45:04.303Z"}
+{"type":"message","id":665,"thread_root_id":null,"author":"system:lattice","body":"AS-95: in_progress → review — by agent:cto-owen","created_at":"2026-09-10T20:52:53.825Z"}
+{"type":"message","id":666,"thread_root_id":null,"author":"system:lattice","body":"AS-95: review → in_progress — by agent:qa-priya","created_at":"2026-09-10T21:16:01.650Z"}
+{"type":"message","id":667,"thread_root_id":null,"author":"system:lattice","body":"AS-101 created by agent:qa-priya — \"Chat tooling: Lattice's auto-fired review posts a permanent…\" [backlog]","created_at":"2026-09-10T21:18:15.133Z"}
+{"type":"message","id":669,"thread_root_id":null,"author":"system:lattice","body":"AS-95: in_progress → review — by agent:developer-marcus","created_at":"2026-09-11T02:20:23.441Z"}
+{"type":"message","id":670,"thread_root_id":null,"author":"system:lattice","body":"AS-102 created by agent:developer-marcus — \"Chat watcher: a loop tick should not wait a full deploy-pol…\" [backlog]","created_at":"2026-09-11T02:20:23.449Z"}
+{"type":"message","id":672,"thread_root_id":null,"author":"system:lattice","body":"AS-103 created by agent:cto-owen — \"Chat: live tool-level activity of running employees — ephem…\" [backlog]","created_at":"2026-09-11T02:30:08.287Z"}
+{"type":"message","id":674,"thread_root_id":null,"author":"system:lattice","body":"AS-104 created by agent:qa-ruben — \"Chat watcher: resume() re-enters a stale advance-loop.json …\" [backlog]","created_at":"2026-09-11T02:36:47.597Z"}
+{"type":"message","id":677,"thread_root_id":null,"author":"system:lattice","body":"AS-99: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T02:42:34.305Z"}
+{"type":"message","id":680,"thread_root_id":null,"author":"system:lattice","body":"AS-95: review → done — by agent:qa-ruben","created_at":"2026-09-11T03:10:57.918Z"}
