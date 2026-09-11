@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 10,
+  "comment_count": 12,
   "complexity": null,
   "created_at": "2026-09-10T15:09:01Z",
   "created_by": "human:forrest",
@@ -26,10 +26,15 @@
       "id": "art_01M274PKK5WKNQ4TDQ8BJNK6KT",
       "role": "review",
       "source_type": "artifact"
+    },
+    {
+      "id": "ev_01M2753A0M1KVEH04N5CB5M646",
+      "role": "review",
+      "source_type": "comment"
     }
   ],
   "id": "task_01M25XTX7VPDQDTGRY69CJ7ANE",
-  "last_event_id": "ev_01M274PKK9FTCN39B8V34FWVBZ",
+  "last_event_id": "ev_01M27560EKN0RJVVH0C96BGXVW",
   "last_status_changed_at": "2026-09-11T02:20:01Z",
   "linked_files": [],
   "needs_human": {
@@ -46,6 +51,6 @@
   "tags": null,
   "title": "Chat watcher: a board message starts a loop of ticks that runs until the company is dry, not a single tick",
   "type": "task",
-  "updated_at": "2026-09-11T02:28:15Z",
+  "updated_at": "2026-09-11T02:36:39Z",
   "urgency": null
 }
