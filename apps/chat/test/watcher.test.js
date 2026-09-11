@@ -1284,6 +1284,21 @@ test('AS-84 makeDeployOps: abort() signals the running build, records an abort r
   assert.equal(builds, 2);
   assert.equal(h.ops.lastAttempt().outcome, 'ok');
 
+  // A child that TRAPS SIGTERM and exits with a code reports signal null, so
+  // "aborted" has to follow the request we made, not the manner of the death —
+  // reading result.signal here would record 143 as a plain failure and put the
+  // merge in a cooldown. (Both real compose and the process test's fake docker
+  // exit this way.)
+  const trapped = deployHarness(t, {
+    deploy: async (opts) => {
+      opts.onSpawn(fake);
+      queueMicrotask(() => void trapped.ops.abort());
+      return new Promise((ok) => setImmediate(() => ok({ code: 143, signal: null, timedOut: false })));
+    },
+  });
+  await trapped.ops.evaluate({});
+  assert.equal(trapped.ops.lastAttempt().outcome, 'aborted');
+
   // A TIMEOUT is still a failure: nobody asked for that one, and the cooldown
   // is what stops the watcher from re-running a 15-minute build on every poll.
   const g = deployHarness(t, {

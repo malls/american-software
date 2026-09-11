@@ -40,7 +40,7 @@ into something load-bearing.
 | `logs/advance-watcher.log` | watcher | lifecycle: fires, skips (with reason), steals, exit codes |
 | `logs/tick-<timestamp>.log` | watcher | full stdout+stderr of each fired tick; pruned after 14 days |
 | `logs/deploy-<timestamp>.log` | watcher | full output of each unattended rebuild (AS-75); same 14-day pruning |
-| `deploy-state.json` | watcher | AS-75: what the last deploy-poll decided — `{desiredId, dirty, reason, desiredReason, runningId, dockerBin, dockerReason, computedAt, lastAttempt}`. The chat server reads it for the sidebar's build line. |
+| `deploy-state.json` | watcher | AS-75: what the last deploy-poll decided — `{desiredId, dirty, reason, desiredReason, runningId, dockerBin, dockerReason, computedAt, lastAttempt}`. The chat server reads it for the sidebar's build line. AS-84: the watcher reads it back too — `lastAttempt` (`outcome` ∈ `ok` \| `fail` \| `aborted` \| `started`) is hydrated at startup so the cooldown survives a relaunch. |
 | `advance-loop.json` | watcher | AS-95: where the loop is — `{active, startedAt, ticks, armedBy, lastTick, lastLoop}`. The chat server reads it for the sidebar's loop label and its stop reason. |
 | `worktrees.json` | watcher | AS-99: what `git worktree list` says, plus ahead/behind, dirty count, last commit and a merged classification per row — `{schema, source, generatedAt, master, error, worktrees[]}`. Written every lanes poll (`ADVANCE_LANES_POLL_S`, default 15 s) whether or not anything changed, so `generatedAt` is the freshness signal; the chat server joins it to `.lattice` and serves the result at `/api/lanes`. Git runs on the host only — the container has no git binary and linked worktrees carry absolute host gitdir paths, so it could not run them anyway. |
 | `events/company.jsonl` | watcher + the emit CLI | AS-100: the append-only company-events stream — one JSON line per lifecycle event, same seven-key envelope as `.lattice/events` (`{actor, data, id, schema_version, task_id, ts, type}`), six types (`tick_started`, `tick_ended`, `stage_started`, `stage_ended`, `subagent_spawned`, `subagent_exited`). **Two producers, and only two:** the watcher writes `tick_*` itself in `fire()`/`settle()` as `system:watcher`, and the orchestrator emits the stage/sub-agent boundaries through `node apps/chat/bin/events.js emit …`. Nothing edits or deletes a line, ever. The **reconciler** closes what a dead tick left open: `settle()` closes every open stage and sub-agent *before* it writes `tick_ended` (`cut_by_timeout` on a timeout, `error` on a non-zero exit, `unclosed` on a clean exit the orchestrator never closed), and a level-triggered sweep every `ADVANCE_EVENTS_SWEEP_S` (default 60 s) closes anything older than the tick box left by a tick this watcher did not fire — skipped while our own child runs or any *fresh* `advance.lock` is held, so it never races a live session. "Open" is derived from the stream on every pass; there is no open-set file. The chat server only ever reads it (`/api/events`, the `company` SSE frames, and the lane view's liveness slots). Gitignored with the rest of `data/`, append-only until retention is a measured problem. |
@@ -231,7 +231,30 @@ watcher update, and a briefly stale heartbeat is the quieter, honest signal.
 | `inputs-dirty` | uncommitted changes under the ten paths. "Merged code is live" means *committed* code; baking uncommitted bytes under a label claiming to be `HEAD` is worse than being stale |
 | `no-git` / short input set | the digest could not be computed. A digest over 9 of 10 inputs would be stable, wrong, and would stop triggering rebuilds forever, so a short `ls-tree` is a refusal, not a shorter digest |
 | `no-docker` | the binary did not resolve; set `ADVANCE_DOCKER_BIN` in the plist |
-| `cooldown` | the last attempt at *this same id* failed less than `ADVANCE_DEPLOY_COOLDOWN_MIN` (30) ago. A new merge changes the id and retries immediately |
+| `cooldown` | the last attempt at *this same id* failed less than `ADVANCE_DEPLOY_COOLDOWN_MIN` (30) ago. A new merge changes the id and retries immediately. AS-84: the attempt is read back from `deploy-state.json` at startup, so a relaunched watcher keeps the cooldown the process before it earned |
+| `error` | AS-84: the poll itself threw and was caught rather than taking the watcher down with it (an unhandled rejection in a `setInterval` callback ends the process). The watcher is alive and polls again in `ADVANCE_DEPLOY_POLL_S`; `advance-watcher.log` carries the one `WARN deploy poll failed` line |
+
+`lastAttempt.outcome` is one of `ok`, `fail`, `aborted` (AS-84: the watcher
+SIGTERMed this build on its way out — **not** a failure, so the relaunched
+watcher retries at once instead of waiting out a cooldown) or, transiently while
+a build runs, `started`. A `started` record still on disk means the process died
+under its own build; it is read back as a failure with detail `interrupted:
+watcher exited mid-build`, which is exactly the crash loop the cooldown bounds.
+
+**Shutdown owns both children (AS-84).** On SIGTERM/SIGINT the watcher clears
+its four intervals, SIGTERMs the tick child *and* the in-flight compose child,
+and then **waits** — up to `ADVANCE_SHUTDOWN_GRACE_S` (default 10 s, comfortably
+inside launchd's 20 s SIGKILL) — for each to settle itself: the tick through its
+own `settle()` (lock released, `tick_ended` written, the AS-95 loop folded), the
+deploy through its own `finally` (attempt recorded `aborted`, its own lock
+released). Only then does it remove `advance-watcher.pid` and exit 0. Anything
+still alive when the grace expires is SIGKILLed and the exit happens anyway. Two
+consequences worth knowing: `launchctl kickstart -k` mid-build no longer orphans
+a `docker compose` run, and a tick interrupted by a watcher restart is closed by
+the process that fired it rather than labelled `unclosed` by a later sweep.
+`advance.lock` is released by **source** as well as pid — the watcher's lock ops
+and the deploy's are two instances over one file in one process, so pid alone
+could not tell them apart.
 
 **A deploy is "ok" only when the thing that is RUNNING changed.** After the
 build exits the watcher re-probes `/api/build`; exit code 0 with a mismatched id
@@ -251,7 +274,7 @@ the first gap. While it runs, the sidebar reads `Tick in flight · deploy`
 
 Env knobs: `ADVANCE_DEPLOY_POLL_S` (60), `ADVANCE_DEPLOY_TIMEOUT_MIN` (15),
 `ADVANCE_DEPLOY_COOLDOWN_MIN` (30), `ADVANCE_DOCKER_BIN`, `ADVANCE_GIT_BIN`,
-`ADVANCE_CHAT_URL` (`http://127.0.0.1:8347`).
+`ADVANCE_CHAT_URL` (`http://127.0.0.1:8347`), `ADVANCE_SHUTDOWN_GRACE_S` (10).
 
 ## Prerequisites
 

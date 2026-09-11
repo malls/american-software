@@ -994,7 +994,13 @@ export function makeDeployOps({
         // 7 matches 'fail' only), so an operator `kickstart -k` mid-build would
         // delay the very deploy it was meant to hurry. A timeout stays a
         // failure: nobody asked for that one.
-        if (abortSignal !== null && result.signal !== null && !result.timedOut) {
+        //
+        // The test is "did WE ask for this", not "did it die by signal": a
+        // child that traps SIGTERM and exits with a code (143, by convention)
+        // reports signal null, and reading the death instead of the request
+        // would misclassify exactly that case — which is what a real compose
+        // child, and the fake docker in the AS-84 process test, both do.
+        if (abortSignal !== null && !result.timedOut) {
           outcome = 'aborted';
           detail = `aborted by shutdown (${abortSignal})`;
         } else {
