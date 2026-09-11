@@ -15,6 +15,8 @@ import {
   describeActivity,
   SNAPSHOT_REASONS,
   SNAPSHOT_REASON_CODES,
+  EMPTY_STATES,
+  EMPTY_STATE_CODES,
   ACTIVITY_DECAY_MS,
 } from '../public/lanes.js';
 
@@ -80,6 +82,49 @@ test('lanes-label-reason-table: every snapshot reason has a sentence, and no sen
     if (code !== 'ok') {
       assert.ok(sentence.length > 20, `${code}'s sentence explains rather than restates`);
       assert.ok(!sentence.includes(code), `${code} does not leak its own enum into the UI`);
+    }
+  }
+});
+
+test('lanes-label-git-error-is-not-a-measured-zero: git refusing is not "nothing in flight"', () => {
+  // The watcher reached git and git refused: a real generatedAt, a real error,
+  // and an empty list that NOBODY MEASURED. A task is mid-lifecycle the whole
+  // time, so "0" would be wrong as well as unmeasured (F1, cycle 1).
+  const p = composeLanes({
+    snapshot: snapshot({ error: 'worktree-list-failed: exit 128', worktrees: [] }),
+    tasks: [{ id: 'task_a', short_id: 'AS-99', title: 'Chat: lanes', status: 'in_progress', assigned_to: 'agent:developer-marcus', branch_links: [] }],
+    ids: { 'AS-99': 'task_a' },
+    nowMs: NOW,
+  });
+  assert.equal(p.snapshot.reason, 'git-error');
+  assert.deepEqual(p.lanes, [], 'the projection reports the refusal as an empty list, per T4');
+
+  const out = describeLanes(p, NOW);
+  assert.equal(out.badge, 'Lanes · –', 'a refused enumeration is a dash, never a count');
+  assert.ok(!out.badge.includes('0'));
+  assert.match(out.caption, /^Lane data unavailable — /);
+  assert.match(out.caption, /git refused/, 'the caption names what happened');
+  assert.match(out.caption, /Snapshot 8 s old\./, 'a failed poll is still a fact with a timestamp');
+  assert.equal(out.stale, true);
+  assert.equal(out.emptyText, EMPTY_STATES['git-error']);
+  assert.notEqual(out.emptyText, EMPTY_STATES.ok, 'the pane does not claim nothing is in flight');
+
+  // ...while a snapshot git DID answer keeps its measured zero, badge and all.
+  const measured = describeLanes(composeLanes({ snapshot: snapshot(), tasks: [], ids: {}, nowMs: NOW }), NOW);
+  assert.equal(measured.badge, 'Lanes · 0');
+  assert.equal(measured.emptyText, 'No lanes in flight.');
+  assert.equal(measured.reason, 'ok');
+});
+
+test('lanes-label-empty-state-table: every reason has its own empty-state sentence, and only `ok` claims a measurement', () => {
+  assert.deepEqual([...EMPTY_STATE_CODES].sort(), [...LANES_REASON_CODES].sort());
+  for (const code of LANES_REASON_CODES) {
+    const sentence = EMPTY_STATES[code];
+    assert.equal(typeof sentence, 'string', `${code} has an empty-state sentence`);
+    assert.ok(!sentence.includes(code), `${code} does not leak its own enum into the UI`);
+    if (code !== 'ok') {
+      assert.notEqual(sentence, EMPTY_STATES.ok, `${code} must not read as a measured zero`);
+      assert.ok(!/^No lanes in flight/.test(sentence), `${code} must not assert what is in flight`);
     }
   }
 });

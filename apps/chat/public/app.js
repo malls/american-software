@@ -1016,7 +1016,11 @@ function renderLanes() {
   nodes.push(el('div', `lanes-caption${view.stale ? ' lanes-caption--stale' : ''}`, view.caption));
 
   if (view.lanes.length === 0) {
-    nodes.push(el('div', 'lanes-empty', view.badge === 'Lanes · 0' ? 'No lanes in flight.' : 'No lane data to show.'));
+    // The sentence comes from the label module, keyed off the snapshot REASON.
+    // It is never re-derived here by comparing the badge string: a badge is a
+    // rendering, and "0 lanes" and "git refused" render the same way the moment
+    // anyone touches the badge (F1, cycle 1).
+    nodes.push(el('div', 'lanes-empty', view.emptyText));
   } else {
     const list = el('div', 'lane-list');
     for (const lane of view.lanes) list.appendChild(laneCard(lane, nowMs));

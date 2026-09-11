@@ -52,6 +52,33 @@ export const SNAPSHOT_REASONS = Object.freeze({
  *  reason the server may emit has a sentence, and no sentence is orphaned. */
 export const SNAPSHOT_REASON_CODES = Object.freeze(Object.keys(SNAPSHOT_REASONS));
 
+/** The reasons under which the lane list was NEVER MEASURED, as opposed to
+ *  measured and short. `git-error` belongs here: the watcher reached git, git
+ *  refused, and zero worktrees were enumerated — a refusal, not a count. A
+ *  stale snapshot is NOT here: it is a real measurement, just an old one, which
+ *  is why the badge keeps its count and only the caption ages (plan T6 M6
+ *  probe). Flow 1a / AC-14: "nothing is running" and "we cannot see what is
+ *  running" must never render the same. */
+const UNMEASURED_REASONS = new Set(['no-snapshot', 'unreadable-snapshot', 'git-error']);
+
+/** The sentence the pane shows when it has no cards to draw. Keyed off the
+ *  REASON — never off the badge string, which is a rendering and cannot carry
+ *  the distinction above. Only `ok` licenses a claim about what is in flight. */
+export const EMPTY_STATES = Object.freeze({
+  ok: 'No lanes in flight.',
+  'stale-snapshot':
+    'No lanes in the last snapshot — and that snapshot has stopped refreshing, so this is not necessarily what is running now.',
+  'no-snapshot': 'No lane data to show.',
+  'unreadable-snapshot': 'No lane data to show.',
+  'git-error': 'No lane data to show.',
+});
+
+/** Same sanity check as SNAPSHOT_REASON_CODES, one table over. */
+export const EMPTY_STATE_CODES = Object.freeze(Object.keys(EMPTY_STATES));
+
+/** What the pane says when it has no reason code at all (the fetch failed). */
+const NO_LANE_DATA = 'No lane data to show.';
+
 /** The stale-lane badge reasons, same rule: a sentence each, never the enum. */
 export const STALE_REASONS = Object.freeze({
   'task-done': 'its task is done',
@@ -65,7 +92,8 @@ export const STALE_REASONS = Object.freeze({
  * @param {object|null} projection  the /api/lanes payload's `lanes`, or null
  *                                  when the fetch failed
  * @param {number} nowMs            client clock, so the age refreshes locally
- * @returns {{ badge: string, title: string, caption: string, stale: boolean, lanes: Array }}
+ * @returns {{ badge: string, title: string, caption: string, stale: boolean,
+ *             lanes: Array, reason: string|null, emptyText: string }}
  */
 export function describeLanes(projection, nowMs = Date.now()) {
   // A dash, never a zero (AC-14): "0 lanes" is a measurement, and we have not
@@ -78,6 +106,8 @@ export function describeLanes(projection, nowMs = Date.now()) {
       caption: 'Lane data unavailable — the server did not answer.',
       stale: true,
       lanes: [],
+      reason: null,
+      emptyText: NO_LANE_DATA,
     };
   }
 
@@ -87,14 +117,24 @@ export function describeLanes(projection, nowMs = Date.now()) {
   const lanes = Array.isArray(projection.lanes) ? projection.lanes : null;
 
   // lanes === null is the server saying "a partial list must not masquerade as
-  // the list" — so the badge says the same thing the caption does.
-  if (lanes === null) {
+  // the list" — so the badge says the same thing the caption does. An empty
+  // list under an UNMEASURED reason is the same situation wearing a `[]`:
+  // git-error carries a real generatedAt and an empty array, and rendering that
+  // as `Lanes · 0` / "No lanes in flight." asserts a measurement nobody took.
+  if (lanes === null || UNMEASURED_REASONS.has(reason)) {
+    const ageS = ageSince(snap.generatedAt, nowMs);
+    // A failed poll is still a fact with a timestamp: when the watcher wrote
+    // one, say how old it is, because that tells the board the watcher is alive
+    // and git is what failed.
+    const when = Number.isFinite(ageS) ? ` Snapshot ${fmtAge(ageS)} old.` : '';
     return {
       badge: 'Lanes · –',
       title: why || 'Lane data unavailable.',
-      caption: `Lane data unavailable — ${why || `reason: ${reason}`}.`,
+      caption: `Lane data unavailable — ${why || `reason: ${reason}`}.${when}`,
       stale: true,
       lanes: [],
+      reason,
+      emptyText: EMPTY_STATES[reason] ?? NO_LANE_DATA,
     };
   }
 
@@ -111,6 +151,8 @@ export function describeLanes(projection, nowMs = Date.now()) {
     caption,
     stale: snap.stale === true || reason !== 'ok',
     lanes,
+    reason,
+    emptyText: EMPTY_STATES[reason] ?? NO_LANE_DATA,
   };
 }
 

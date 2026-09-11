@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { createChatServer, LOOP_POLL_MS, LANES_POLL_MS, composeBuild } from '../server.js';
 import { LANES_STALE_MS, LANE_WORKTREE_KEYS } from '../lib/lanes.js';
+import { describeLanes, EMPTY_STATES } from '../public/lanes.js';
 import { DEFAULTS } from '../watch/advance-watcher.mjs';
 
 const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
@@ -1723,6 +1724,29 @@ test('api: AS-99 — every degraded feed is a named reason, never a short list',
   assert.equal(gitDown.snapshot.reason, 'git-error');
   assert.equal(gitDown.snapshot.error, 'worktree-list-failed: exit 128');
   assert.deepEqual(gitDown.lanes, []);
+});
+
+test('api: AS-99 — api-lanes-git-error-badge: a refused git enumeration reaches the board as a dash, not a zero', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+  // End to end on the real payload: the server's own bytes, through the module
+  // that decides the words. The unit test proves the words; this proves the
+  // server actually produces the shape those words are decided from (F1).
+  fx.plant({ worktreesBody: fx.worktreesFile({ error: 'worktree-list-failed: exit 128', worktrees: [] }) });
+  const p = (await get('/api/lanes')).data.lanes;
+  assert.equal(p.snapshot.reason, 'git-error');
+
+  const view = describeLanes(p, Date.now());
+  assert.equal(view.badge, 'Lanes · –', 'the sidebar badge does not report a count git never gave us');
+  assert.match(view.caption, /^Lane data unavailable — /);
+  assert.notEqual(view.emptyText, EMPTY_STATES.ok, 'and the pane does not say nothing is in flight');
+
+  // The pane's empty state is keyed off the reason, not off the badge string:
+  // that string comparison is exactly how the two states collapsed into one.
+  const here = dirname(fileURLToPath(import.meta.url));
+  const app = readFileSync(join(here, '..', 'public', 'app.js'), 'utf8');
+  assert.match(app, /view\.emptyText/, 'renderLanes takes its empty-state sentence from the label module');
+  assert.doesNotMatch(app, /view\.badge ===/, 'and never re-derives it by comparing the rendered badge');
 });
 
 test('api: AS-99 — api-lanes-key-whitelist: the payload carries no field the contract does not name', async (t) => {
