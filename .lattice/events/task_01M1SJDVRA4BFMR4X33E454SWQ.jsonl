@@ -9,3 +9,5 @@
 {"actor":"agent:cto-owen","data":{"from":"backlog","to":"in_planning"},"id":"ev_01M28VQSYKTBWDW6JAWFW5JXYZ","schema_version":1,"task_id":"task_01M1SJDVRA4BFMR4X33E454SWQ","ts":"2026-09-11T18:30:06Z","type":"status_changed"}
 {"actor":"agent:cto-owen","data":{"from":"in_planning","to":"planned"},"id":"ev_01M28WBDWYS1T682BR18K0ZDVW","schema_version":1,"task_id":"task_01M1SJDVRA4BFMR4X33E454SWQ","ts":"2026-09-11T18:40:49Z","type":"status_changed"}
 {"actor":"agent:cto-owen","data":{"branch":"feat/AS-87-deploy-heartbeat-and-log"},"id":"ev_01M28WBHDGPEWQMP8MSZRABBF1","schema_version":1,"task_id":"task_01M1SJDVRA4BFMR4X33E454SWQ","ts":"2026-09-11T18:40:52Z","type":"branch_linked"}
+{"actor":"agent:cto-owen","data":{"from":"planned","to":"in_progress"},"id":"ev_01M28Z020ZP6H88MQ1XBD9H3RJ","schema_version":1,"task_id":"task_01M1SJDVRA4BFMR4X33E454SWQ","ts":"2026-09-11T19:27:02Z","type":"status_changed"}
+{"actor":"agent:cto-owen","data":{"from":"agent:cto-owen","to":"agent:developer-marcus"},"id":"ev_01M28Z025F53XXZ3SJBVW3QXC5","schema_version":1,"task_id":"task_01M1SJDVRA4BFMR4X33E454SWQ","ts":"2026-09-11T19:27:02Z","type":"assignment_changed"}

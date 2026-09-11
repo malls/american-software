@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [
     {
       "branch": "feat/AS-87-deploy-heartbeat-and-log",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDVRA4BFMR4X33E454SWQ",
-  "last_event_id": "ev_01M28WBHDGPEWQMP8MSZRABBF1",
-  "last_status_changed_at": "2026-09-11T18:40:49Z",
+  "last_event_id": "ev_01M28Z025F53XXZ3SJBVW3QXC5",
+  "last_status_changed_at": "2026-09-11T19:27:02Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-87",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "AS-75 F3/F4: an in-flight deploy reports as a crashed watcher, and its log file is empty",
   "type": "task",
-  "updated_at": "2026-09-11T18:40:52Z",
+  "updated_at": "2026-09-11T19:27:02Z",
   "urgency": null
 }
