@@ -404,3 +404,40 @@
 {"type":"message","id":674,"thread_root_id":null,"author":"system:lattice","body":"AS-104 created by agent:qa-ruben — \"Chat watcher: resume() re-enters a stale advance-loop.json …\" [backlog]","created_at":"2026-09-11T02:36:47.597Z"}
 {"type":"message","id":677,"thread_root_id":null,"author":"system:lattice","body":"AS-99: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T02:42:34.305Z"}
 {"type":"message","id":680,"thread_root_id":null,"author":"system:lattice","body":"AS-95: review → done — by agent:qa-ruben","created_at":"2026-09-11T03:10:57.918Z"}
+{"type":"message","id":685,"thread_root_id":null,"author":"system:lattice","body":"AS-99: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T03:53:02.536Z"}
+{"type":"message","id":687,"thread_root_id":null,"author":"system:lattice","body":"AS-99: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T03:56:35.259Z"}
+{"type":"message","id":688,"thread_root_id":null,"author":"system:lattice","body":"AS-100: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T03:57:21.924Z"}
+{"type":"message","id":689,"thread_root_id":null,"author":"system:lattice","body":"AS-100: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T04:10:35.343Z"}
+{"type":"message","id":690,"thread_root_id":null,"author":"system:lattice","body":"AS-28: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T04:13:13.185Z"}
+{"type":"message","id":691,"thread_root_id":null,"author":"system:lattice","body":"AS-28: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T04:13:35.297Z"}
+{"type":"message","id":692,"thread_root_id":null,"author":"system:lattice","body":"AS-28: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T04:26:30.644Z"}
+{"type":"message","id":693,"thread_root_id":null,"author":"system:lattice","body":"AS-28: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T04:34:10.764Z"}
+{"type":"message","id":694,"thread_root_id":null,"author":"system:lattice","body":"AS-99: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T04:37:35.323Z"}
+{"type":"message","id":696,"thread_root_id":null,"author":"system:lattice","body":"AS-99: review → in_progress — by agent:cto-owen","created_at":"2026-09-11T04:46:57.925Z"}
+{"type":"message","id":698,"thread_root_id":null,"author":"system:lattice","body":"AS-28: review → in_progress — by agent:cto-owen","created_at":"2026-09-11T04:50:02.050Z"}
+{"type":"message","id":700,"thread_root_id":null,"author":"system:lattice","body":"AS-28: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T05:00:35.326Z"}
+{"type":"message","id":702,"thread_root_id":null,"author":"system:lattice","body":"AS-99: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T05:02:18.219Z"}
+{"type":"message","id":703,"thread_root_id":null,"author":"system:lattice","body":"AS-94: needs_human → review — by human:forrest","created_at":"2026-09-11T05:08:26.648Z"}
+{"type":"message","id":704,"thread_root_id":null,"author":"system:lattice","body":"AS-94: review → done — by human:forrest","created_at":"2026-09-11T05:08:26.653Z"}
+{"type":"message","id":705,"thread_root_id":null,"author":"system:lattice","body":"AS-105 created by agent:lattice-auto-review — \"Investigate claude review failures — failed 2 times\" [backlog]","created_at":"2026-09-11T05:10:44.760Z"}
+{"type":"message","id":708,"thread_root_id":null,"author":"system:lattice","body":"AS-106 created by agent:qa-ruben — \"Chat tooling: counted compose review runs leave one docker …\" [backlog]","created_at":"2026-09-11T05:17:08.669Z"}
+{"type":"message","id":709,"thread_root_id":null,"author":"system:lattice","body":"AS-107 created by agent:qa-priya — \"Chat: scratch compose projects leak docker networks - 26 le…\" [backlog]","created_at":"2026-09-11T05:17:08.672Z"}
+{"type":"message","id":710,"thread_root_id":null,"author":"system:lattice","body":"AS-28: review → done — by agent:cto-owen","created_at":"2026-09-11T05:19:11.501Z"}
+{"type":"message","id":711,"thread_root_id":null,"author":"system:lattice","body":"AS-99: review → done — by agent:cto-owen","created_at":"2026-09-11T05:19:35.422Z"}
+{"type":"message","id":712,"thread_root_id":null,"author":"system:lattice","body":"AS-107: backlog → cancelled — by agent:cto-owen","created_at":"2026-09-11T05:20:12.838Z"}
+{"type":"message","id":713,"thread_root_id":null,"author":"system:lattice","body":"AS-108 created by agent:cto-owen — \"Chat: lanes — relPathOf must realpath the repo root (symlin…\" [backlog]","created_at":"2026-09-11T05:20:12.841Z"}
+{"type":"message","id":714,"thread_root_id":null,"author":"system:lattice","body":"AS-109 created by agent:cto-owen — \"Chat: favicon AC-3 guard — read single-quoted paint attribu…\" [backlog]","created_at":"2026-09-11T05:20:12.842Z"}
+{"type":"message","id":716,"thread_root_id":null,"author":"system:lattice","body":"AS-100: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T05:28:32.048Z"}
+{"type":"message","id":717,"thread_root_id":null,"author":"system:lattice","body":"AS-61: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T05:28:45.251Z"}
+{"type":"message","id":718,"thread_root_id":null,"author":"system:lattice","body":"AS-61: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T05:34:09.530Z"}
+{"type":"message","id":719,"thread_root_id":null,"author":"system:lattice","body":"AS-72: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T05:34:35.591Z"}
+{"type":"message","id":720,"thread_root_id":null,"author":"system:lattice","body":"AS-72: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T05:38:14.833Z"}
+{"type":"message","id":722,"thread_root_id":null,"author":"system:lattice","body":"AS-61: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T05:46:25.594Z"}
+{"type":"message","id":723,"thread_root_id":null,"author":"system:lattice","body":"AS-61: in_progress → review — by agent:developer-marcus","created_at":"2026-09-11T05:52:33.814Z"}
+{"type":"message","id":724,"thread_root_id":null,"author":"system:lattice","body":"AS-72: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T05:52:33.818Z"}
+{"type":"message","id":725,"thread_root_id":null,"author":"system:lattice","body":"AS-72: in_progress → review — by agent:developer-marcus","created_at":"2026-09-11T06:02:17.342Z"}
+{"type":"message","id":729,"thread_root_id":null,"author":"system:lattice","body":"AS-61: review → done — by agent:cto-owen","created_at":"2026-09-11T06:25:17.560Z"}
+{"type":"message","id":730,"thread_root_id":null,"author":"system:lattice","body":"AS-72: review → done — by agent:cto-owen","created_at":"2026-09-11T06:26:18.950Z"}
+{"type":"message","id":731,"thread_root_id":null,"author":"system:lattice","body":"AS-110 created by agent:cto-owen — \"Chat /api/file: README should say the 4b hard-link gate is …\" [backlog]","created_at":"2026-09-11T06:26:18.952Z"}
+{"type":"message","id":734,"thread_root_id":null,"author":"system:lattice","body":"AS-100: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T06:52:29.075Z"}
+{"type":"message","id":736,"thread_root_id":null,"author":"system:lattice","body":"AS-111 created by agent:cto-owen — \"Chat: AS-100 review residuals — pin the /api/events since-b…\" [backlog]","created_at":"2026-09-11T07:02:11.905Z"}
