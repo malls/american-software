@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 1,
+  "comment_count": 2,
   "complexity": null,
   "created_at": "2026-09-05T19:58:46Z",
   "created_by": "agent:qa-ruben",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDVG1RRRYJHWPFWJB5H4D",
-  "last_event_id": "ev_01M27X9EDN49NPFTYAWHCH89B3",
-  "last_status_changed_at": "2026-09-11T09:37:57Z",
+  "last_event_id": "ev_01M27YMDTQ2XDBXFXFH2CSN2ZD",
+  "last_status_changed_at": "2026-09-11T10:01:26Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-85",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "AS-75 F1: the AS-27 frame-count guard is vacuous for the new build fields \u2014 R10 stays green",
   "type": "task",
-  "updated_at": "2026-09-11T09:37:58Z",
+  "updated_at": "2026-09-11T10:01:26Z",
   "urgency": null
 }
