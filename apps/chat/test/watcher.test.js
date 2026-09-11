@@ -1377,3 +1377,93 @@ test('AS-84 runDockerCompose: a compose log stream error is logged, not thrown �
   assert.deepEqual(result, { code: 0, signal: null, timedOut: false });
   assert.deepEqual(logs, ['WARN deploy log stream error: EACCES: permission denied, open deploy.log']);
 });
+
+test('AS-87 evaluate heartbeats while deploying: every poll during a build rewrites deploy-state.json with a fresh computedAt and reason "deploying"', async (t) => {
+  // Ruben's AS-75 F3. evaluate() used to return before persist() for the whole
+  // length of performDeploy(), so computedAt froze at the last pre-build poll
+  // and a 10–15 min build read as a crashed watcher (server.js stale-state).
+  let releaseDeploy;
+  const gate = new Promise((ok) => { releaseDeploy = ok; });
+  let deployStarted;
+  const started = new Promise((ok) => { deployStarted = ok; });
+  const h = deployHarness(t, {
+    deploy: async (opts) => {
+      h.calls.deploy.push(opts);
+      deployStarted();
+      await gate;
+      h.state.runningId = opts.env.CHAT_BUILD_ID;
+      return { code: 0, signal: null, timedOut: false };
+    },
+  });
+  const wanted = h.ops.computeDesired().desired.id;
+  const first = h.ops.evaluate(); // decides 'deploy' and awaits the gated build
+  await started;
+  assert.equal(h.ops.isDeploying(), true, 'the build is in flight');
+  const pre = h.readState();
+  assert.equal(pre.lastAttempt.outcome, 'started', "AS-84's pre-build write is the baseline");
+
+  // AC-1: three deploy polls, 60 s apart, each a heartbeat.
+  const seen = [];
+  for (let i = 0; i < 3; i++) {
+    h.advance(60_000);
+    const decision = await h.ops.evaluate();
+    // AC-3: the returned decision is still busy — pendingDeploy() and the loop's
+    // yield read this, and neither changes here.
+    assert.deepEqual(decision, { action: 'noop', reason: 'busy' });
+    seen.push(h.readState());
+  }
+  assert.equal(seen.length, 3, 'three heartbeats examined');
+  const stamps = [pre.computedAt, ...seen.map((s) => s.computedAt)].map((s) => Date.parse(s));
+  for (let i = 1; i < stamps.length; i++) {
+    assert.ok(stamps[i] > stamps[i - 1], `computedAt advances on poll ${i}: ${stamps[i - 1]} -> ${stamps[i]}`);
+  }
+  for (const s of seen) {
+    assert.equal(s.reason, 'deploying');
+    // AC-2: the in-flight fields, not persist()'s no-git defaults.
+    assert.equal(s.desiredId, wanted);
+    assert.equal(s.desiredReason, 'ok');
+    assert.equal(s.runningId, 'oldoldoldoldoldo');
+    assert.equal(s.lastAttempt.outcome, 'started');
+  }
+  // AC-9: a value was added, never a key.
+  assert.deepEqual(Object.keys(seen[0]).sort(), Object.keys(pre).sort());
+
+  releaseDeploy();
+  const decision = await first;
+  assert.equal(decision.action, 'deploy');
+  const after = h.readState();
+  assert.equal(after.lastAttempt.outcome, 'ok');
+  assert.notEqual(after.reason, 'deploying', 'the final post-deploy persist is not overwritten by a heartbeat');
+  assert.equal(h.ops.isDeploying(), false);
+  // And once the build has settled, a poll is a normal poll again.
+  h.advance(60_000);
+  const next = await h.ops.evaluate();
+  assert.equal(next.reason, 'current');
+  assert.equal(h.readState().reason, 'current');
+});
+
+test('AS-87 runDockerCompose argv: compose is spawned with --progress plain, never quiet', async () => {
+  // Ruben's AS-75 F4: --progress quiet was copied from the chat wrapper, where it
+  // protects --json stdout. Into a file sink it meant a 0-byte deploy-*.log on
+  // every successful build, while three README sentences promised the output.
+  const { EventEmitter } = await import('node:events');
+  const { PassThrough } = await import('node:stream');
+  const spawns = [];
+  const proc = new EventEmitter();
+  proc.stdout = new PassThrough();
+  proc.stderr = new PassThrough();
+  proc.kill = () => true;
+  const pending = runDockerCompose({
+    dockerBin: '/fake/docker', cwd: '/repo/apps/chat', env: { PATH: '/bin' }, logPath: '/nonexistent/deploy.log', timeoutMs: 60_000,
+    log: () => {},
+    spawnFn: (bin, args, opts) => { spawns.push({ bin, args, opts }); return proc; },
+    createLog: () => new PassThrough(),
+  });
+  proc.emit('exit', 0, null);
+  await pending;
+  assert.equal(spawns.length, 1, 'one spawn examined');
+  assert.equal(spawns[0].bin, '/fake/docker');
+  // Exact pin on purpose: a flag reorder or a new flag is a deliberate edit here.
+  assert.deepEqual(spawns[0].args, ['compose', '--progress', 'plain', 'up', '-d', '--build']);
+  assert.ok(!spawns[0].args.includes('quiet'));
+});

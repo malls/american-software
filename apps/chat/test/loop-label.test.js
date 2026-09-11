@@ -176,8 +176,9 @@ test('AS-75 label: every build reason has prose, and null is never rendered as b
   const reasons = [
     'current', 'stale-build', 'cooldown', 'busy', 'inputs-dirty', 'no-git', 'no-docker',
     'no-state', 'unreadable-state', 'stale-state', 'no-watcher', 'unknown-build',
+    'deploying', // AS-87: the heartbeat's reason
   ];
-  assert.equal(reasons.length, 12, 'twelve reasons examined');
+  assert.equal(reasons.length, 13, 'thirteen reasons examined');
   for (const reason of reasons) {
     const d = describeLoopStatus(status({ state: 'idle', build: build({ current: null, reason }) }), NOW).detail;
     assert.match(d, /Deploy freshness unknown: [a-z]/, `${reason}: prose, not an enum`);
@@ -188,6 +189,16 @@ test('AS-75 label: every build reason has prose, and null is never rendered as b
   // An unrecognised reason degrades to naming itself rather than vanishing.
   const odd = describeLoopStatus(status({ state: 'idle', build: build({ current: null, reason: 'martian' }) }), NOW).detail;
   assert.match(odd, /reason: martian/);
+});
+
+test('AS-87 label: "deploying" says a rebuild is running now and points at the build log', () => {
+  // The heartbeat's whole purpose is that a long build stops reading as a
+  // crashed watcher; the sentence must say what is happening and where to look.
+  const d = describeLoopStatus(
+    status({ state: 'idle', build: build({ current: false, id: 'aaaaaaaaaaaaaaaa', desiredId: 'bbbbbbbbbbbbbbbb', reason: 'deploying' }) }), NOW).detail;
+  assert.match(d, /the watcher is rebuilding it now/);
+  assert.match(d, /deploy-\*\.log/, 'names the log file the build writes');
+  assert.doesNotMatch(d, /crashed|asleep/, 'a build in flight is not a dead watcher');
 });
 
 test('AS-75 label: a deploy holds the lock and says so — "Tick in flight · deploy"', () => {
