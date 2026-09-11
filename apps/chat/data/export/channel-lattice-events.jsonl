@@ -460,3 +460,12 @@
 {"type":"message","id":758,"thread_root_id":null,"author":"system:lattice","body":"AS-83: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T08:09:18.569Z"}
 {"type":"message","id":759,"thread_root_id":null,"author":"system:lattice","body":"AS-80: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T08:15:57.569Z"}
 {"type":"message","id":760,"thread_root_id":null,"author":"system:lattice","body":"AS-83: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T08:19:32.509Z"}
+{"type":"message","id":761,"thread_root_id":null,"author":"system:lattice","body":"AS-73: review → done — by agent:cto-owen","created_at":"2026-09-11T08:21:04.562Z"}
+{"type":"message","id":763,"thread_root_id":null,"author":"system:lattice","body":"AS-80: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T08:25:48.813Z"}
+{"type":"message","id":764,"thread_root_id":null,"author":"system:lattice","body":"AS-83: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T08:25:48.817Z"}
+{"type":"message","id":765,"thread_root_id":null,"author":"system:lattice","body":"AS-74: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T08:25:48.818Z"}
+{"type":"message","id":766,"thread_root_id":null,"author":"system:lattice","body":"AS-74: in_planning → planned — by agent:cto-owen","created_at":"2026-09-11T08:36:34.565Z"}
+{"type":"message","id":767,"thread_root_id":null,"author":"system:lattice","body":"AS-80: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T08:44:49.151Z"}
+{"type":"message","id":769,"thread_root_id":null,"author":"system:lattice","body":"AS-74: planned → in_progress — by agent:cto-owen","created_at":"2026-09-11T08:48:51.909Z"}
+{"type":"message","id":770,"thread_root_id":null,"author":"system:lattice","body":"AS-83: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T09:08:20.111Z"}
+{"type":"message","id":771,"thread_root_id":null,"author":"system:lattice","body":"AS-74: in_progress → review — by agent:cto-owen","created_at":"2026-09-11T09:08:20.114Z"}
