@@ -2,7 +2,7 @@
 // repoRoot points at the fixture .lattice/ so lattice behavior is deterministic.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, cpSync, writeFileSync, mkdirSync, symlinkSync, unlinkSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, cpSync, writeFileSync, mkdirSync, symlinkSync, linkSync, unlinkSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -863,6 +863,65 @@ test('api: AS-26 — GET /api/file serves allowlisted repo markdown; every probe
   const big = await get('/api/file?path=big.md');
   assert.equal(big.status, 400);
   assert.deepEqual(big.data, { error: 'File too large.' });
+});
+
+test('api: AS-61 — GET /api/file refuses hard links (nlink > 1) byte-identically, and .claude/ stays unreachable by name', async (t) => {
+  // A hard link is the same inode under a second name: realpath resolution
+  // (3b, AS-34) cannot see it, because there is no link to resolve. Check 4b
+  // refuses any served file whose link count is not exactly 1.
+  const root = mkdtempSync(join(tmpdir(), 'chat-hardlink-root-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  cpSync(FIXTURE_ROOT, root, { recursive: true });
+  writeFileSync(join(root, 'README.md'), '# Hello\n'); // nlink 1 — positive control
+  // A dot-directory file aliased under a servable name at the root.
+  mkdirSync(join(root, '.lattice', 'plans'), { recursive: true });
+  writeFileSync(join(root, '.lattice', 'plans', 'task_HL.md'), 'private plan body\n');
+  linkSync(join(root, '.lattice', 'plans', 'task_HL.md'), join(root, 'hardlink.md'));
+  // A hard link whose target is itself servable — 4b is "one name only",
+  // not "dot-dir only", so both names must 404.
+  mkdirSync(join(root, 'docs'), { recursive: true });
+  writeFileSync(join(root, 'docs', 'ok2.md'), 'docs ok2\n');
+  linkSync(join(root, 'docs', 'ok2.md'), join(root, 'hl-servable.md'));
+  // A real file under .claude/ — no probe in the AS-26 battery spells it.
+  mkdirSync(join(root, '.claude', 'agents'), { recursive: true });
+  writeFileSync(join(root, '.claude', 'agents', 'x.md'), 'agent definition\n');
+  const { get } = await bootServer(t, root);
+
+  // The reference 404: every rejection below must match this byte-for-byte.
+  const missing = await get('/api/file?path=no-such-file.md');
+  assert.equal(missing.status, 404);
+  assert.deepEqual(missing.data, { error: 'No such file.' });
+
+  // AC-2: nlink 1 still serves — the guard rejects link counts, not files.
+  const ok = await get('/api/file?path=README.md');
+  assert.equal(ok.status, 200);
+  assert.deepEqual(ok.data, { path: 'README.md', content: '# Hello\n' });
+
+  // AC-1/AC-4/AC-5: hard links (both names, both directions) and .claude/.
+  const refused = [
+    'hardlink.md', // AC-1: hard link laundering a .lattice plan to the root
+    '.lattice/plans/task_HL.md', // AC-3: symmetric — the target 404s too
+    'hl-servable.md', // AC-4: hard link to a servable target
+    'docs/ok2.md', // AC-4: ...and its target, by the same symmetry
+    '.claude/agents/x.md', // AC-5: dot segment, real file, no alias involved
+  ];
+  for (const p of refused) {
+    const res = await get(`/api/file?path=${encodeURIComponent(p)}`);
+    assert.equal(res.status, 404, p);
+    // AC-6: byte-identical to "absent" — a probe learns nothing.
+    assert.equal(JSON.stringify(res.data), JSON.stringify(missing.data), p);
+  }
+
+  // AC-3 positive control: drop the extra name and the target serves again,
+  // which proves the 404 above was the link count and nothing else.
+  unlinkSync(join(root, 'hardlink.md'));
+  const restored = await get('/api/file?path=.lattice/plans/task_HL.md');
+  assert.equal(restored.status, 200);
+  assert.equal(restored.data.content, 'private plan body\n');
+  unlinkSync(join(root, 'hl-servable.md'));
+  const restored2 = await get('/api/file?path=docs/ok2.md');
+  assert.equal(restored2.status, 200);
+  assert.equal(restored2.data.content, 'docs ok2\n');
 });
 
 test('api: AS-54 — served app.js autolinks through markdown.js and never inside a markdown link', async (t) => {
