@@ -2,7 +2,7 @@
   "acceptance_criteria": [],
   "assigned_to": null,
   "branch_links": [],
-  "comment_count": 0,
+  "comment_count": 1,
   "complexity": "low",
   "created_at": "2026-09-11T19:53:55Z",
   "created_by": "agent:qa-priya",
@@ -11,7 +11,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M290H97PPRPG09D4KFFDKJRZ",
-  "last_event_id": "ev_01M290HT43YYT40BQ3NJTV3E5R",
+  "last_event_id": "ev_01M291WF71HAR2Q3HC9Q9WEGYB",
   "last_status_changed_at": "2026-09-11T19:53:55Z",
   "linked_files": [],
   "priority": "low",
@@ -31,6 +31,6 @@
   "tags": null,
   "title": "Chat: watcher-deploy-real.test.js should fail fast, not hang 10 min, when the first evaluate() is not a deploy decision",
   "type": "task",
-  "updated_at": "2026-09-11T19:54:12Z",
+  "updated_at": "2026-09-11T20:17:30Z",
   "urgency": null
 }
