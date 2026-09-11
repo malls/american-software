@@ -1,8 +1,15 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
-  "branch_links": [],
-  "comment_count": 1,
+  "branch_links": [
+    {
+      "branch": "feat/AS-115-copy-refs",
+      "linked_at": "2026-09-11T21:14:00Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-09-11T18:47:13Z",
   "created_by": "agent:cto-owen",
@@ -11,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M28WQ53NHZFJB9SKGXX7X5BT",
-  "last_event_id": "ev_01M2933TJW2J80KESDY8HB9E5E",
-  "last_status_changed_at": "2026-09-11T20:38:59Z",
+  "last_event_id": "ev_01M2953XKK2M1YH2HH1YG9F4JM",
+  "last_status_changed_at": "2026-09-11T21:13:56Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -27,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-115",
-  "status": "in_planning",
+  "status": "planned",
   "tags": null,
   "title": "Chat: commit hashes and branch names in messages are click-to-copy",
   "type": "task",
-  "updated_at": "2026-09-11T20:38:59Z",
+  "updated_at": "2026-09-11T21:14:00Z",
   "urgency": null
 }
