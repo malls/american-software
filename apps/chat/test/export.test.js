@@ -415,7 +415,9 @@ test('cli: AS-3 — history on a nonexistent DM adds no export file', (t) => {
   store.registerIdentity({ id: 'agent:developer-marcus', displayName: 'Marcus Webb', kind: 'agent' });
   store.close();
 
-  const env = { ...process.env, CHAT_DB: dbPath };
+  // AS-89 (review): pin the root like the runs above, so this direct-mode
+  // open never reconciles the host repo's live roster into the temp DB.
+  const env = { ...process.env, CHAT_DB: dbPath, CHAT_REPO_ROOT: BARE_ROOT };
   const exportRun = () =>
     spawnSync(process.execPath, [BIN, 'export', '--out', outDir], { env, encoding: 'utf8' });
   const hashes = () =>
