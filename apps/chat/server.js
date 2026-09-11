@@ -134,10 +134,16 @@ const FILE_PATH_RE = /^[A-Za-z0-9._/-]+$/; // rejects %-escapes surviving decode
  * root joined with the requested path, byte-for-byte, which refuses every
  * symlink below the root: an alias can neither launder a dot directory nor
  * serve a servable file under a second name (the dot rule thus holds for
- * real locations, not just requested spellings); (4) regular file. Checks
- * 1–4 throw ONE byte-identical not_found — a probe cannot distinguish
- * "outside the gate" from "doesn't exist". Check (5), size cap, alone is a
- * 400: the file already passed the gate, nothing leaks.
+ * real locations, not just requested spellings); (4) regular file;
+ * (4b, AS-61) exactly one link — a hard link is the same inode under a
+ * second name, which 3b cannot see because there is no link to resolve, so
+ * the gate refuses any file whose link count is not 1. That check is
+ * symmetric by nature: both names of a hard-linked file report nlink 2, so
+ * planting a link also 404s the target under its own legitimate name until
+ * the extra name is removed — fail-closed, and accepted (AS-61 plan §1).
+ * Checks 1–4b throw ONE byte-identical not_found — a probe cannot
+ * distinguish "outside the gate" from "doesn't exist". Check (5), size cap,
+ * alone is a 400: the file already passed the gate, nothing leaks.
  */
 function readRepoMarkdown(root, path) {
   const fail = () => new StoreError('No such file.', 'not_found');
@@ -166,6 +172,7 @@ function readRepoMarkdown(root, path) {
   if (!real.startsWith(rootReal + sep)) throw fail();
   if (real !== join(rootReal, path)) throw fail();
   if (!st.isFile()) throw fail();
+  if (st.nlink !== 1) throw fail(); // 4b (AS-61): a served file has exactly one name
   // 5. Size cap — distinct error by design (the gate already passed).
   if (st.size > FILE_MAX_BYTES) throw new StoreError('File too large.');
   return { path, content: readFileSync(real, 'utf8') };
