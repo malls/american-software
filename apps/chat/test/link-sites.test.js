@@ -1,15 +1,19 @@
 // AS-98: the link-site guard, inverted from a denylist of one spelling into an
-// allowlist of every href source in public/*.js.
+// allowlist of every href source in public/*.js. AS-120: the assignment
+// operator set is enumerated (all 16 of ECMAScript's), not two of them.
 //
-// The English this file enforces, verbatim from the plan (§1) — the algorithm
-// is no wider and no narrower than this sentence:
+// The English this file enforces, verbatim from the AS-120 plan (§1) — the
+// algorithm is no wider and no narrower than this sentence:
 //
-//   Every `.href =` assignment in public/*.js has a right-hand side that
-//   begins with `dashHref(`, `tok.href`, `` `?m= `` or `serializeChatUrl(`,
-//   and there are exactly 9 of them. No file in public/*.js uses
-//   `setAttribute('href'`, `Object.assign(`, `['href']`, or `.href +=`. No
-//   file in public/*.js reads a `url` property by member (`.url`, other than
-//   `import.meta.url`) or bracket (`['url']`) access.
+//   Every `.href` assignment in public/*.js — by any of the 16 ECMAScript
+//   assignment operators — uses plain `=` with a right-hand side that begins
+//   with `dashHref(`, `tok.href`, `` `?m= `` or `serializeChatUrl(`, and
+//   there are exactly 9 of them. No file in public/*.js uses
+//   `setAttribute('href'`, `Object.assign(`, `['href']`, `Reflect.set(`,
+//   `Object.defineProperty(`/`defineProperties(`, or `.href` followed by a
+//   compound assignment operator. No file in public/*.js reads a `url`
+//   property by member (`.url`, other than `import.meta.url`) or bracket
+//   (`['url']`) access.
 //
 // (The literal host/port ban that completes the sentence lives in
 // api.test.js T7 — AS-93 AC-9, widened by AS-98 T7b.)
@@ -26,9 +30,17 @@ function jsFiles() {
   return readdirSync(PUBLIC).filter((f) => f.endsWith('.js'));
 }
 
-// `(?!=)` skips `===` comparisons; `[^;\n]*` takes the RHS head, so a
+// Every ECMAScript assignment operator (ECMA-262 §13.15 + the logical forms):
+// 16, enumerated. Longer operators first inside the alternation, so `>>>=`
+// is not read as `>>=` and `||=` is not read as `|=`.
+const ASSIGN_OP = String.raw`\*\*=|<<=|>>>=|>>=|\|\|=|\?\?=|&&=|[-+*/%&|^]=|=`;
+// `(?!=)` skips `==`/`===` comparisons; `[^;\n]*` takes the RHS head, so a
 // multi-line RHS (the AS-26 permalink) still yields its first line.
-const HREF_ASSIGN = /\.href\s*(\+?=)(?!=)\s*([^;\n]*)/g;
+const HREF_ASSIGN = new RegExp(String.raw`\.href\s*(${ASSIGN_OP})(?!=)\s*([^;\n]*)`, 'g');
+// The 15 compound forms (everything above except bare `=`), for the
+// MECHANISMS ban — deliberately a second, independent regex (AS-120 §8 Q1):
+// the flat spelling ban must keep firing even if the classifier is loosened.
+const HREF_COMPOUND = new RegExp(String.raw`\.href\s*(?:\*\*=|<<=|>>>=|>>=|\|\|=|\?\?=|&&=|[-+*/%&|^]=)`);
 
 // The app's actual link inventory (plan §0): the ONLY legitimate href sources.
 // A fifth entry is a deliberate edit here, with a comment saying why.
@@ -55,7 +67,12 @@ const MECHANISMS = [
   ["setAttribute('href'", /setAttribute\(\s*['"]href['"]/],
   ['Object.assign(', /Object\.assign\(/],
   ["['href']", /\[\s*['"]href['"]\s*\]/],
-  ['.href +=', /\.href\s*\+=/],
+  ['.href <compound>=', HREF_COMPOUND],
+  // Whole bans, not key-scoped to 'href' — same reasoning as Object.assign(
+  // (zero uses; house style is el() + explicit property sets). A legitimate
+  // future use is a one-line edit here, with a comment saying why.
+  ['Reflect.set(', /Reflect\.set\(/],
+  ['Object.defineProperty(', /Object\.definePropert(?:y|ies)\(/],
 ];
 
 test('link-sites: AS-98 — every href in public/*.js comes from an allowlisted source (12 files, 9 assignments examined)', () => {
@@ -66,14 +83,16 @@ test('link-sites: AS-98 — every href in public/*.js comes from an allowlisted 
   for (const file of files) {
     const { count, violations: v } = classifyHrefAssignments(readFileSync(new URL(file, PUBLIC), 'utf8'));
     total += count;
-    for (const { rhs } of v) violations.push(`${file}: ${rhs}`);
+    for (const { op, rhs } of v) violations.push(`${file}: .href ${op} ${rhs}`);
   }
+  // The count assertion fires first, so it names any violations too — a tenth
+  // assignment that is also a violation is reported as one message (AS-120).
   assert.equal(
     total,
     9,
     `${files.length} files examined: 9 href assignments across public/*.js — a tenth is a deliberate edit here, ` +
       'with its RHS added to ALLOWED_RHS only if it is a new legitimate link source ' +
-      `(found ${total})`
+      `(found ${total}${violations.length ? `; violations: ${violations.join('; ')}` : ''})`
   );
   assert.deepEqual(
     violations,
@@ -83,7 +102,7 @@ test('link-sites: AS-98 — every href in public/*.js comes from an allowlisted 
   );
 });
 
-test('link-sites: AS-98 — no file in public/*.js sets href by any mechanism other than a .href = assignment', () => {
+test('link-sites: AS-98/AS-120 — no file in public/*.js sets href by any mechanism other than a plain .href = assignment', () => {
   const files = jsFiles();
   assert.ok(files.length >= 10, `${files.length} public/*.js files examined`);
   for (const file of files) {
@@ -118,12 +137,18 @@ test('link-sites: AS-98 — the classifier itself rejects every known evasion sp
     "shadow.href = 'http://' + '127.0.0' + '.1:8799/';",
     "shadow.href += '/x';",
     "c.href = '#';",
+    // AS-120: compound assignment on a fresh anchor (Priya's P8, verbatim, and
+    // two siblings). The third has an allowlisted RHS and a forbidden operator
+    // — it proves the classifier's `op === '='` test is load-bearing.
+    'p1.href ||= task.taskId;',
+    'p1.href ??= task.url;',
+    'p1.href &&= dashHref(task.taskId);',
   ];
-  assert.equal(rejected.length, 9, '9 rejected inputs examined');
+  assert.equal(rejected.length, 12, '12 rejected inputs examined');
   for (const input of rejected) {
     const { count, violations } = classifyHrefAssignments(input);
-    assert.equal(count, 1, `9 rejected inputs examined: ${JSON.stringify(input)} is one assignment`);
-    assert.equal(violations.length, 1, `9 rejected inputs examined: ${JSON.stringify(input)} must be one violation`);
+    assert.equal(count, 1, `12 rejected inputs examined: ${JSON.stringify(input)} is one assignment`);
+    assert.equal(violations.length, 1, `12 rejected inputs examined: ${JSON.stringify(input)} must be one violation`);
   }
 
   // The four allowed shapes as they appear in app.js, incl. the multi-line
@@ -142,4 +167,39 @@ test('link-sites: AS-98 — the classifier itself rejects every known evasion sp
   // A comparison is not an assignment — the fifth accepted input.
   const cmp = classifyHrefAssignments('if (a.href === b.href) {}');
   assert.equal(cmp.count, 0, '5 accepted inputs examined: a.href === b.href is a comparison, not an assignment');
+});
+
+test('link-sites: AS-120 — the classifier and the mechanism ban see all 16 ECMAScript assignment operators and no comparison operator', () => {
+  // A literal list (ECMA-262 §13.15 AssignmentOperator + the three logical
+  // forms) — NOT derived from ASSIGN_OP, or this would check the regex
+  // against itself.
+  const operators = [
+    '=', '*=', '/=', '%=', '+=', '-=', '<<=', '>>=', '>>>=',
+    '&=', '^=', '|=', '**=', '&&=', '||=', '??=',
+  ];
+  assert.equal(operators.length, 16, '16 operators examined');
+  for (const op of operators) {
+    const input = `x.href ${op} y;`;
+    const { count, violations } = classifyHrefAssignments(input);
+    assert.equal(count, 1, `16 operators examined: ${JSON.stringify(input)} is one assignment`);
+    // `y` is not an allowlisted RHS, so bare `=` is a violation too; the
+    // captured operator must be the whole operator, not a suffix of it.
+    assert.equal(violations.length, 1, `16 operators examined: ${JSON.stringify(input)} is one violation`);
+    assert.equal(violations[0].op, op, `16 operators examined: ${JSON.stringify(input)} captures op ${JSON.stringify(op)}`);
+    assert.equal(violations[0].rhs, 'y', `16 operators examined: ${JSON.stringify(input)} captures rhs "y"`);
+    if (op === '=') {
+      assert.doesNotMatch(input, HREF_COMPOUND, `16 operators examined: plain = is not a compound assignment`);
+    } else {
+      assert.match(input, HREF_COMPOUND, `16 operators examined: ${JSON.stringify(input)} is banned as a compound assignment`);
+    }
+  }
+
+  const comparisons = ['==', '===', '!=', '<=', '>='];
+  assert.equal(comparisons.length, 5, '5 comparisons examined');
+  for (const op of comparisons) {
+    const input = `if (x.href ${op} y) {}`;
+    const { count } = classifyHrefAssignments(input);
+    assert.equal(count, 0, `5 comparisons examined: ${JSON.stringify(input)} is not an assignment`);
+    assert.doesNotMatch(input, HREF_COMPOUND, `5 comparisons examined: ${JSON.stringify(input)} is not a compound assignment`);
+  }
 });

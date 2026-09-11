@@ -237,7 +237,9 @@ The browser never reads that field, and a test pins it
 (`test/link-sites.test.js`, AS-98): every href assignment in `public/` must
 come from one of four allowlisted sources (`dashHref()`, a tokenizer's verbatim
 `tok.href`, the `?m=` message placeholder, or `serializeChatUrl()`), no file
-may set an href by `setAttribute`/`Object.assign`/bracket access, and no file
+may set an href by `setAttribute`, `Object.assign`, bracket access,
+`Reflect.set`, `defineProperty`, or a compound assignment operator (`||=`,
+`??=`, `+=` and the rest — AS-120), and no file
 outside `dashboard-link.js` may name a dashboard host or port. Adding a
 legitimate fifth source is a deliberate one-line edit to that test's allowlist,
 with a comment saying why.
