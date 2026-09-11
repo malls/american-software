@@ -10,6 +10,8 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, readdirSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, tickArgv, loadPermissionRules, fireNonce, writeWatcherPid } from '../watch/advance-watcher.mjs';
+// AS-92: the tick child's PATH.
+import { GH_CANDIDATES, resolveGhBin, tickPathPrepend } from '../watch/advance-watcher.mjs';
 // AS-75: the deploy half.
 import {
   IMAGE_INPUTS, NOT_IMAGE_INPUTS, classifyImagePaths,
@@ -380,6 +382,98 @@ test('tickChildEnv: pins exactly {PATH, HOME, USER, LOGNAME, ADVANCE_TICK_PARENT
     'PATH',
     'USER',
   ]);
+  // AS-92: a non-empty prepend goes in front of the untouched original PATH;
+  // the key set is still exactly five.
+  assert.deepEqual(tickChildEnv(fat, 4242, NONCE, ['/usr/local/bin', '/opt/homebrew/bin']), {
+    PATH: '/usr/local/bin:/opt/homebrew/bin:/opt/bin:/usr/bin',
+    HOME: '/Users/forrest',
+    USER: 'forrest',
+    LOGNAME: 'forrest',
+    ADVANCE_TICK_PARENT: `watcher:4242:${NONCE}`,
+  });
+});
+
+// --- AS-92: the tick child's PATH — docker and gh directories ----------------
+
+// The 2026-09-07 plist PATH, before it was hand-edited: node, ~/.local/bin
+// (claude), /usr/bin, /bin — and nothing that holds docker or gh.
+const THIN_PATH = '/Users/x/.nvm/versions/node/v24.13.1/bin:/Users/x/.local/bin:/usr/bin:/bin';
+// The 2026-09-08 hand-edited plist PATH (AS-92 comment 1).
+const FAT_PATH = '/Users/x/.nvm/versions/node/v24.13.1/bin:/Users/x/.local/bin:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin';
+// This host today: docker in /usr/local/bin, gh in /opt/homebrew/bin, and
+// neither in the other's directory (plan §0.3).
+const hostExists = (p) => p === '/usr/local/bin/docker' || p === '/opt/homebrew/bin/gh';
+
+test('AS-92 tickPathPrepend: a thin PATH gains the docker and gh directories, docker first', () => {
+  assert.deepEqual(tickPathPrepend({ PATH: THIN_PATH }, hostExists), {
+    add: ['/usr/local/bin', '/opt/homebrew/bin'],
+    present: [],
+    unresolved: [],
+  });
+});
+
+test('AS-92 tickPathPrepend: directories already on PATH are reported present, never repeated, and PATH is not reordered', () => {
+  const env = { PATH: FAT_PATH };
+  const result = tickPathPrepend(env, hostExists);
+  assert.deepEqual(result, {
+    add: [],
+    present: ['/usr/local/bin', '/opt/homebrew/bin'],
+    unresolved: [],
+  });
+  // The plist's own order is the plist's business: nothing prepended, the
+  // child's PATH is the operator's PATH byte-for-byte.
+  assert.equal(tickChildEnv(env, 1, NONCE, result.add).PATH, FAT_PATH);
+});
+
+test('AS-92 tickPathPrepend: ADVANCE_TICK_PATH_EXTRA goes first, splits on \':\', drops empties, de-duplicates', () => {
+  const env = { PATH: THIN_PATH, ADVANCE_TICK_PATH_EXTRA: ':/opt/tools::/usr/local/bin:' };
+  const result = tickPathPrepend(env, hostExists);
+  // docker's directory appears once — in the extra's position, not again
+  // from the resolver — and the empties around the separators are gone.
+  assert.deepEqual(result.add, ['/opt/tools', '/usr/local/bin', '/opt/homebrew/bin']);
+  assert.equal(result.add.filter((d) => d === '/usr/local/bin').length, 1, 'de-duplicated');
+  assert.deepEqual(result.present, []);
+  assert.deepEqual(result.unresolved, []);
+  // Extras are never existence-checked and never land in `unresolved`:
+  // /opt/tools does not exist per hostExists and is still added.
+  assert.equal(hostExists('/opt/tools'), false);
+});
+
+test('AS-92 tickPathPrepend / tickChildEnv: nothing resolvable passes PATH through verbatim', () => {
+  const none = tickPathPrepend({ PATH: THIN_PATH }, () => false);
+  assert.deepEqual(none, { add: [], present: [], unresolved: ['docker:not-found', 'gh:not-found'] });
+  // The launchd thin-env case: an absent PATH stays absent — not '', and not
+  // the string 'undefined' — because the join must never run on an empty prepend.
+  const thin = tickChildEnv({}, 1, NONCE, []);
+  assert.equal(thin.PATH, undefined);
+  assert.equal(Object.hasOwn(thin, 'PATH'), true, 'the key is still pinned');
+  assert.equal(tickChildEnv({}, 1, NONCE).PATH, undefined, 'the defaulted fourth argument is the same as []');
+  // A typo'd docker override is loud in `unresolved` and contributes no directory.
+  const typo = tickPathPrepend({ PATH: THIN_PATH, ADVANCE_DOCKER_BIN: '/nope' }, hostExists);
+  assert.deepEqual(typo.unresolved, ['docker:override-missing']);
+  assert.deepEqual(typo.add, ['/opt/homebrew/bin'], 'gh still resolves; no docker directory');
+});
+
+test('AS-92 resolveGhBin: override, override-missing (no fall-through), candidates in order, not-found; GH_CANDIDATES pinned', () => {
+  const exists = (p) => p === '/opt/homebrew/bin/gh' || p === '/usr/local/bin/gh' || p === '/real/gh';
+  // Cardinality first: five branches, five cases.
+  const cases = [
+    ['override present', { ADVANCE_GH_BIN: '/real/gh' }, exists, { bin: '/real/gh', reason: 'override' }],
+    ['override missing', { ADVANCE_GH_BIN: '/typo/gh' }, exists, { bin: null, reason: 'override-missing' }],
+    ['first candidate', {}, exists, { bin: '/opt/homebrew/bin/gh', reason: 'candidate' }],
+    ['second candidate', {}, (p) => p === '/usr/local/bin/gh', { bin: '/usr/local/bin/gh', reason: 'candidate' }],
+    ['none found', {}, () => false, { bin: null, reason: 'not-found' }],
+  ];
+  assert.equal(cases.length, 5, 'five branches examined');
+  for (const [name, env, probe, expected] of cases) {
+    assert.deepEqual(resolveGhBin(env, probe), expected, name);
+  }
+  // Stated twice, like docker's: a typo'd override must NOT quietly resolve to
+  // a candidate that happens to exist.
+  assert.equal(resolveGhBin({ ADVANCE_GH_BIN: '/typo/gh' }, exists).bin, null);
+  // Pinned exactly: Homebrew first, /usr/local/bin second, nothing else.
+  assert.deepEqual([...GH_CANDIDATES], ['/opt/homebrew/bin/gh', '/usr/local/bin/gh']);
+  assert.ok(Object.isFrozen(GH_CANDIDATES));
 });
 
 // --- AS-20: tick spawn argv pin ----------------------------------------------

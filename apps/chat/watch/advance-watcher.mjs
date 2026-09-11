@@ -276,9 +276,12 @@ export function fireNonce() {
 // `nonce` has NO default: a defaulted random would make the pin tests
 // nondeterministic, and the sole production caller (fire()) always supplies
 // the fire's own nonce.
-export function tickChildEnv(env = process.env, watcherPid = process.pid, nonce) {
+// AS-92: `pathPrepend` is the list of directories tickPathPrepend() found
+// missing from PATH (docker's, gh's, ADVANCE_TICK_PATH_EXTRA); empty means
+// PATH passes through byte-for-byte — `undefined` stays `undefined`.
+export function tickChildEnv(env = process.env, watcherPid = process.pid, nonce, pathPrepend = []) {
   return {
-    PATH: env.PATH,
+    PATH: pathPrepend.length === 0 ? env.PATH : [...pathPrepend, ...(env.PATH ? [env.PATH] : [])].join(':'),
     HOME: env.HOME,
     USER: env.USER, // AS-14: macOS Keychain auth needs the user identity
     LOGNAME: env.LOGNAME,
@@ -395,6 +398,64 @@ export function resolveDockerBin(env, exists) {
     if (exists(candidate)) return { bin: candidate, reason: 'candidate' };
   }
   return { bin: null, reason: 'not-found' };
+}
+
+/** AS-92: where `gh` lives on a Mac. Homebrew first — that is where gh lands
+ *  on Apple silicon; /usr/local/bin is docker's home, not gh's. */
+export const GH_CANDIDATES = Object.freeze(['/opt/homebrew/bin/gh', '/usr/local/bin/gh']);
+
+/**
+ * AS-92: same shape and same rules as resolveDockerBin —
+ * -> { bin: string|null, reason: 'override'|'candidate'|'override-missing'|'not-found' }
+ * An ADVANCE_GH_BIN that does not exist is `override-missing` and never falls
+ * through to the candidates.
+ */
+export function resolveGhBin(env, exists) {
+  const override = env.ADVANCE_GH_BIN;
+  if (override) {
+    return exists(override) ? { bin: override, reason: 'override' } : { bin: null, reason: 'override-missing' };
+  }
+  for (const candidate of GH_CANDIDATES) {
+    if (exists(candidate)) return { bin: candidate, reason: 'candidate' };
+  }
+  return { bin: null, reason: 'not-found' };
+}
+
+/**
+ * AS-92: the directories the tick child's PATH needs that the plist PATH may
+ * not carry. Pure over (env, exists).
+ * -> { add: string[], present: string[], unresolved: string[] }
+ *
+ * Candidates, in order: ADVANCE_TICK_PATH_EXTRA (split on ':', trimmed,
+ * empties dropped — the operator's explicit list goes first, never
+ * existence-checked: these are directories the operator named, not binaries),
+ * then the directory of the resolved docker binary, then of the resolved gh
+ * binary. A resolver that finds nothing contributes no directory and reports
+ * `<name>:<reason>` in `unresolved`. De-duplicated preserving first
+ * occurrence, then partitioned against env.PATH: a directory PATH already
+ * carries is `present`, the rest are `add`. Presence is the property this bug
+ * is about; the ORDER of a directory the plist already carries is the plist's
+ * business — the watcher never reorders the operator's PATH.
+ */
+export function tickPathPrepend(env, exists) {
+  const unresolved = [];
+  const candidates = (env.ADVANCE_TICK_PATH_EXTRA ?? '')
+    .split(':')
+    .map((d) => d.trim())
+    .filter((d) => d !== '');
+  const docker = resolveDockerBin(env, exists);
+  if (docker.bin) candidates.push(dirname(docker.bin));
+  else unresolved.push(`docker:${docker.reason}`);
+  const gh = resolveGhBin(env, exists);
+  if (gh.bin) candidates.push(dirname(gh.bin));
+  else unresolved.push(`gh:${gh.reason}`);
+
+  const unique = [...new Set(candidates)];
+  const onPath = new Set((env.PATH ?? '').split(':'));
+  const add = [];
+  const present = [];
+  for (const dir of unique) (onPath.has(dir) ? present : add).push(dir);
+  return { add, present, unresolved };
 }
 
 /** `git` by absolute path when we can — same reasoning as docker — but `git`
@@ -2203,6 +2264,9 @@ export function makeEventsOps({
  * @param log        (line) => void
  * @param lockOps|loopOps|deployOps|lanesOps|eventsOps  optional overrides; when
  *                   absent start() builds each exactly as main() does today
+ * @param env|exists AS-92: the environment the tick child's PATH is computed
+ *                   from and the existence probe the docker/gh resolvers use;
+ *                   default process.env / existsSync
  */
 export function makeWatcher({
   config,
@@ -2216,6 +2280,8 @@ export function makeWatcher({
   spawnFn = spawn,
   createLog = createWriteStream,
   exit = (code) => process.exit(code),
+  env = process.env,
+  exists = existsSync,
   lockOps: injectedLockOps,
   loopOps: injectedLoopOps,
   deployOps: injectedDeployOps,
@@ -2329,7 +2395,11 @@ export function makeWatcher({
     // tickChildEnv() (unit-tested pin). launchd's default env is thin, and the
     // minimal-env principle stands: every variable here has a stated reason,
     // and any addition needs one too (AS-14).
-    //   PATH    — locate node + claude (the launchd plist sets it).
+    //   PATH    — locate node + claude (the launchd plist sets it); AS-92
+    //             prepends the docker/gh directories the watcher resolved
+    //             itself and ADVANCE_TICK_PATH_EXTRA, only where the plist
+    //             PATH does not already carry them (tickPathPrepend, per
+    //             fire — a gh installed after START is seen by the next tick).
     //   HOME    — claude config/state directory resolution.
     //   USER    — claude's macOS Keychain auth resolves the login keychain
     //             through it; without it a headless tick dies in ~2s with
@@ -2362,12 +2432,18 @@ export function makeWatcher({
     });
     settled = thisSettled;
 
+    // AS-92: logged BEFORE the spawn, so a spawn error still leaves the line
+    // — it is the diagnostic for exactly that failure.
+    const tickPath = tickPathPrepend(env, exists);
+    const fmt = (list) => (list.length === 0 ? '-' : list.join(','));
+    log(`TICK-PATH add ${fmt(tickPath.add)} present ${fmt(tickPath.present)} unresolved ${fmt(tickPath.unresolved)}`);
+
     const proc = spawnFn(
       config.claudeBin,
       tickArgv(pid, nonce, config.permissionMode, rules ?? undefined),
       {
         cwd: config.repoRoot,
-        env: tickChildEnv(process.env, pid, nonce),
+        env: tickChildEnv(env, pid, nonce, tickPath.add),
         stdio: ['ignore', 'pipe', 'pipe'],
       }
     );
