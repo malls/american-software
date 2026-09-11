@@ -83,14 +83,16 @@ test('link-sites: AS-98 — every href in public/*.js comes from an allowlisted 
   for (const file of files) {
     const { count, violations: v } = classifyHrefAssignments(readFileSync(new URL(file, PUBLIC), 'utf8'));
     total += count;
-    for (const { rhs } of v) violations.push(`${file}: ${rhs}`);
+    for (const { op, rhs } of v) violations.push(`${file}: .href ${op} ${rhs}`);
   }
+  // The count assertion fires first, so it names any violations too — a tenth
+  // assignment that is also a violation is reported as one message (AS-120).
   assert.equal(
     total,
     9,
     `${files.length} files examined: 9 href assignments across public/*.js — a tenth is a deliberate edit here, ` +
       'with its RHS added to ALLOWED_RHS only if it is a new legitimate link source ' +
-      `(found ${total})`
+      `(found ${total}${violations.length ? `; violations: ${violations.join('; ')}` : ''})`
   );
   assert.deepEqual(
     violations,
