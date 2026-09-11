@@ -433,3 +433,42 @@ sets as results (AS-36 rule).
 could be refined for a week (reflog, squash detection by patch-id). Default answer taken:
 the three-fact rule in T4 with the squash limit written down; revisit only if a review
 finds a real lane misclassified.
+
+## Review Cycle 1 Findings (qa-ruben, 2026-09-11, loop tick 6 / watcher:76266)
+
+Verdict: **implementation-level rework needed.** Plan sound; 14/14 ACs with observed reds
+(18 site-anchored mutants, 0 survivors); HOST 416/416 vs master 367/367. Two defects
+outside the list, one blocking. Full comment (+ addendum) on the task, `--role review`.
+
+1. **F1 — BLOCKS.** On `snapshot.reason === 'git-error'` the badge reads `Lanes · 0` and the
+   pane's empty state reads "No lanes in flight." while git actually refused to enumerate.
+   Repro: `composeLanes({snapshot:{generatedAt:<now-5s>, error:'no-git', worktrees:[]},
+   tasks:[one in_progress], ids:{}, nowMs})` → `{count:0, lanes:[], reason:'git-error'}`;
+   `describeLanes(...)` → badge `Lanes · 0`; `renderLanes` in `public/app.js` picks
+   "No lanes in flight." because `view.badge === 'Lanes · 0'`. The caption says git refused,
+   but the badge and the empty-state sentence assert a measurement never taken (Flow 1a /
+   AC-14 confusion). **Fix shape:** dash badge + "Lane data unavailable — …" for `git-error`
+   in `public/lanes.js`; key the empty-state sentence off the reason, not the badge string;
+   add a label test and an api test, each with a site-anchored mutant observed red.
+2. **F2 — defect, non-blocking alone; fix in the same cycle.** `relPathOf(repoRoot, path)` in
+   `watch/advance-watcher.mjs` returns the absolute host path unchanged for a worktree outside
+   the repo root (`relPathOf('/Users/x/repo','/tmp/throwaway-wt')` → `/tmp/throwaway-wt`),
+   flowing into `lane.worktree.relPath` and `lane.key` — T4 says it never should. Sibling-prefix
+   paths are handled correctly. Fix: a non-descendant path yields a non-absolute marker (e.g.
+   `basename` or `'<outside-repo>'`), with a test and a mutant observed red.
+3. **F3 — merge seam, observation.** AS-28 (in review in the parallel lane) adds a
+   `STATIC_FILES` entry two lines below `/lanes.js` and inserts api tests above the AS-27
+   section AS-99 extends. Expected to auto-merge; whichever lands second gets a post-merge
+   HOST run (expect 419).
+4. **F4 — observation, for AS-100.** A `.lattice/tasks/*.json` caught mid-rewrite is dropped by
+   the tolerant reader for one 5 s poll → a lane flickers to unknown-task/absent with a frame
+   each way. Bounded.
+5. **F5 — observation.** `evaluate()` runs up to 13 synchronous git spawns on the watcher's
+   event loop per poll. Fine at WIP 3; revisit if the WIP limit rises.
+
+Still owed before `done` (unchanged): the counted `docker compose run --rm --build test`
+receipt with the `Image … Built` line, from a session with docker; the live probes
+(phone-width field count, kill-the-watcher stale caption at ~60 s, throwaway detached
+worktree card, real-DOM Escape ordering).
+
+## Reset 2026-09-11 by agent:cto-owen
