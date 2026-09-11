@@ -285,8 +285,12 @@ Env knobs: `ADVANCE_DEPLOY_POLL_S` (60), `ADVANCE_DEPLOY_TIMEOUT_MIN` (15),
 
   ```sh
   node --version   # must print v20.x or later
-  command -v node claude   # both must resolve; note the directories for __PATH__
+  command -v node claude docker gh   # all four should resolve; note the directories for __PATH__
   ```
+
+  `docker` and `gh` are optional at install: the watcher prepends whatever it
+  resolves to the tick child's PATH (AS-92, below), but a plist that names
+  their directories is the honest configuration.
 
 - The `claude` CLI logged in and working from this repo root.
 
@@ -299,7 +303,7 @@ LABEL=com.american-software.advance-watcher
 
 sed -e "s|__REPO_ROOT__|$REPO_ROOT|g" \
     -e "s|__NODE_BIN__|$NODE_BIN|g" \
-    -e "s|__PATH__|$(dirname "$NODE_BIN"):$(dirname "$(command -v claude)"):/usr/bin:/bin|g" \
+    -e "s|__PATH__|$(dirname "$NODE_BIN"):$(dirname "$(command -v claude)"):/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin|g" \
     "$REPO_ROOT/apps/chat/watch/$LABEL.plist.template" \
     > ~/Library/LaunchAgents/$LABEL.plist
 
@@ -307,6 +311,27 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/$LABEL.plist
 launchctl print gui/$(id -u)/$LABEL | head -20   # state = running
 tail -f "$REPO_ROOT/apps/chat/data/logs/advance-watcher.log"   # expect a START line
 ```
+
+**What the watcher adds to the tick's PATH (AS-92).** The plist PATH is
+the tick child's PATH, and a four-directory render (node, claude,
+`/usr/bin`, `/bin`) left every headless tick unable to see `docker` or `gh`
+by name — the watcher itself resolves docker by absolute path for its own
+deploys and was fine, so the gap only showed inside ticks. At every fire the
+watcher now resolves docker (`ADVANCE_DOCKER_BIN`, else the candidate list)
+and gh (`ADVANCE_GH_BIN`, else `/opt/homebrew/bin/gh`, `/usr/local/bin/gh`),
+and prepends the directories of what it found — plus any absolute
+directories in `ADVANCE_TICK_PATH_EXTRA=<dir:dir>`, which go first and are
+passed through unchecked — only where the plist PATH does not already carry
+them; a directory the plist already has is left in the plist's order. Each
+fire logs one line, `TICK-PATH add <dirs> present <dirs> unresolved
+<name:reason>` (`-` for an empty list): `add` is what the watcher put in
+front, `present` what the plist already had, `unresolved` a resolver that
+found nothing (`docker:not-found`, `gh:override-missing`). With the
+six-directory render above the expected line is `add - present
+/usr/local/bin,/opt/homebrew/bin unresolved -`. A PATH edit to an installed
+plist takes effect only after `bootout` + `bootstrap` — `kickstart -k`
+relaunches on the old environment (the 2026-09-08 pid 16931 relaunch came
+up on the unedited PATH for exactly this reason).
 
 `RunAtLoad=true` + `KeepAlive=true` mean it starts at login/reboot and is
 restarted if it crashes. The watcher also refuses to start beside another
@@ -514,6 +539,13 @@ tests if the allowlist is too narrow — denials show up in the tick log.
   kill it or bootout the launchd one. Pid is in `advance-watcher.pid`.
 - **FIRE but tick log is empty / `spawn error`** → `claude` not on the
   plist `__PATH__`. Remember launchd does not read your shell profile.
+  Sibling symptom: `docker` or `gh` "command not found" *inside* a tick →
+  read that fire's `TICK-PATH` line in `advance-watcher.log` (AS-92): an
+  `unresolved` entry means the watcher could not find the binary either
+  (install it, or point `ADVANCE_DOCKER_BIN`/`ADVANCE_GH_BIN` at it); `add`
+  or `present` naming the directory means the child had it and the failure
+  is elsewhere. Editing the plist PATH needs `bootout` + `bootstrap`, not
+  `kickstart -k`.
 - **Tick ran but did nothing useful** → read `tick-*.log` for permission
   denials (see Permission modes above).
 - **Messages ignored** → is the sentinel updating? `cat
