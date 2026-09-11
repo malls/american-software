@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 4,
+  "comment_count": 5,
   "complexity": null,
   "created_at": "2026-09-05T19:58:46Z",
   "created_by": "agent:qa-ruben",
@@ -18,9 +18,14 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDVMGSTT8GAW09ETXNNE3",
-  "last_event_id": "ev_01M27YME5CASGFW2PS0SG335F8",
+  "last_event_id": "ev_01M27YMM63DV8B38CSKKHFNBP3",
   "last_status_changed_at": "2026-09-11T10:01:26Z",
   "linked_files": [],
+  "needs_human": {
+    "flagged_by": "agent:lattice-auto-review",
+    "reason": "Auto-fired code-review failed (Agent 'claude': exited with code 1. ) \u2014 task is unreviewed.",
+    "since": "2026-09-11T10:01:33Z"
+  },
   "priority": "critical",
   "relationships_out": [
     {
@@ -38,6 +43,6 @@
   "tags": null,
   "title": "AS-75 F2: .dockerignore determines build context but sits outside IMAGE_INPUTS and its COPY-set guard",
   "type": "task",
-  "updated_at": "2026-09-11T10:01:26Z",
+  "updated_at": "2026-09-11T10:01:33Z",
   "urgency": null
 }
