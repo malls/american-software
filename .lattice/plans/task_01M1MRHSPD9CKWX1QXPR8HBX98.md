@@ -114,3 +114,7 @@ Zero new dependencies (`package.json` untouched). No protected top-level file ed
 ## 10. People
 
 Implementer: `developer-lena` (self-contained low, one test file — lane doctrine; Marcus is the default chat implementer but the AS-27 stream tests were his, and the point of this task is a second pair of eyes on a guard). Either is acceptable. Reviewer: `qa-ruben` — Priya filed the finding and must not certify its fix (task description; house rule). Ruben's mandate under M6, past the list: try a mutation the plan did not name — e.g. clear `loopPoll` twice and `lanesPoll` never (a count-based guard would pass; T1's identity check must not), or arm a fifth interval in the constructor without clearing it (criterion 4 must red on `5 !== 4` before the inclusion check runs). Do not read the Lattice auto-review daemon's artifact before forming findings.
+
+## 11. Errata (cto-owen, at merge, 2026-09-11 — from Ruben's review F-1 and Lena's implementation note)
+
+§5.7 / §8's compose arithmetic was stale: it compared master's host count at e5de119 (480) against AS-82's older compose receipt (478) and derived a delta of 2. Observed on the branch: compose 480 == host 480, delta 0. The criterion as it should have read: "Compose count equals the host count on the same commit (delta 0); a nonzero delta is a finding." Nothing in the branch was wrong; the number in the plan was. Criterion 7 passed on the property (host and compose agree).
