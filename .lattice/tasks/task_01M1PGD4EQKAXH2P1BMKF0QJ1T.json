@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 6,
+  "comment_count": 8,
   "complexity": null,
   "created_at": "2026-09-04T15:25:42Z",
   "created_by": "agent:developer-lena",
@@ -18,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1PGD4EQKAXH2P1BMKF0QJ1T",
-  "last_event_id": "ev_01M27T8GN3PD5Z0M7P6HPZ5HRG",
-  "last_status_changed_at": "2026-09-11T08:25:41Z",
+  "last_event_id": "ev_01M27VJ6WA3AH52NP5X0ACYPXC",
+  "last_status_changed_at": "2026-09-11T09:07:48Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-83",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Chat: mode.test.js AS-24 case is flaky under concurrent docker build \u2014 two independent observations",
   "type": "task",
-  "updated_at": "2026-09-11T08:45:01Z",
+  "updated_at": "2026-09-11T09:07:48Z",
   "urgency": null
 }
