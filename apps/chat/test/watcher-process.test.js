@@ -118,12 +118,15 @@ test('AS-82 entry point: the real process heartbeats on its own interval against
 // child env is the same pinned minimal set as the tick's (PATH, HOME, USER,
 // LOGNAME and the three build variables), so nothing this test exports would
 // reach the script.
-const fakeDocker = (marker) => `#!/bin/sh
+const TRAP_HANDLES_TERM = "trap 'kill $sleeper 2>/dev/null; exit 143' TERM";
+const TRAP_IGNORES_TERM = "trap '' TERM"; // Ruben's cycle-1 F1 repro: a build that will not stop
+const fakeDocker = (marker, trapLine = TRAP_HANDLES_TERM) => `#!/bin/sh
 # AS-84 test double for docker. Records its pid, then behaves like a long
-# build that handles SIGTERM: reap the sleep, exit 143 (the convention a
-# trapping child exits with, and the case that reports signal null).
+# build. With the default trap it handles SIGTERM: reap the sleep, exit 143
+# (the convention a trapping child exits with, and the case that reports
+# signal null). With TRAP_IGNORES_TERM it is the child the grace exists for.
 echo $$ > '${marker}'
-trap 'kill $sleeper 2>/dev/null; exit 143' TERM
+${trapLine}
 sleep 30 &
 sleeper=$!
 wait $sleeper
@@ -138,7 +141,13 @@ const alive = (pid) => {
   }
 };
 
-test('AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0', async (t) => {
+/**
+ * Boot a real watcher over a temp repo with a fake docker, wait until a build
+ * is genuinely in flight (fake docker pid recorded, advance.lock held under
+ * source:'deploy'), SIGTERM the watcher and wait for it to exit 0. Returns the
+ * handles the assertions need; the caller decides what the exit must mean.
+ */
+async function sigtermMidBuild(t, { trapLine = TRAP_HANDLES_TERM, extraEnv = {} } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'chat-watcher-abort-'));
   const dataDir = join(root, 'apps', 'chat', 'data');
   const marker = join(root, 'docker.pid');
@@ -167,7 +176,7 @@ test('AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves 
   await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
   const chatUrl = `http://127.0.0.1:${server.address().port}`;
 
-  writeFileSync(dockerBin, fakeDocker(marker), { mode: 0o755 });
+  writeFileSync(dockerBin, fakeDocker(marker, trapLine), { mode: 0o755 });
 
   const child = spawn(process.execPath, [WATCHER], {
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -181,6 +190,7 @@ test('AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves 
       ADVANCE_DEPLOY_POLL_S: '0.2',
       ADVANCE_LANES_POLL_S: '3600',
       ADVANCE_EVENTS_SWEEP_S: '3600',
+      ...extraEnv,
     },
   });
   let out = '';
@@ -234,6 +244,12 @@ test('AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves 
   clearTimeout(deadlineTimer);
   assert.equal(code, 0, `expected a clean exit; watcher output:\n${out}`);
   assert.equal(signal, null);
+  return { dockerPid, lockPath, dataDir, out: () => out };
+
+}
+
+test('AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0', async (t) => {
+  const { dockerPid, lockPath, dataDir } = await sigtermMidBuild(t);
 
   // THE assertion: no orphan. Before AS-84 this build survived its watcher.
   for (let i = 0; i < 40 && alive(dockerPid); i++) await delay(50);
@@ -249,4 +265,27 @@ test('AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves 
   const log = readFileSync(join(dataDir, 'logs', 'advance-watcher.log'), 'utf8');
   assert.match(log, /STOP aborting in-flight deploy/);
   assert.match(log, /DEPLOY aborted/);
+});
+
+test('AS-84 entry point: a build that ignores SIGTERM is SIGKILLed at grace expiry — no orphan, no deploy lock, exit 0', async (t) => {
+  // Ruben's cycle-1 F1, observed: before the fix the watcher exited 0 with the
+  // fake docker still alive and a source:'deploy' lock on disk under a dead pid.
+  const { dockerPid, lockPath, dataDir } = await sigtermMidBuild(t, {
+    trapLine: TRAP_IGNORES_TERM,
+    extraEnv: { ADVANCE_SHUTDOWN_GRACE_S: '0.5' },
+  });
+
+  for (let i = 0; i < 40 && alive(dockerPid); i++) await delay(50);
+  assert.equal(alive(dockerPid), false, `the compose child (pid ${dockerPid}) outlived its watcher's grace`);
+  assert.equal(existsSync(lockPath), false, 'no source:deploy lock left on disk');
+  assert.equal(existsSync(join(dataDir, 'advance-watcher.pid')), false);
+
+  // The finally never ran, so the pre-build 'started' record is what survives —
+  // it hydrates as a bounded failure at relaunch (AC-4).
+  const state = JSON.parse(readFileSync(join(dataDir, 'deploy-state.json'), 'utf8'));
+  assert.equal(state.lastAttempt.outcome, 'started');
+
+  const log = readFileSync(join(dataDir, 'logs', 'advance-watcher.log'), 'utf8');
+  assert.match(log, /STOP aborting in-flight deploy/);
+  assert.match(log, /STOP grace expired: killing deploy child/);
 });
