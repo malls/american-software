@@ -14,7 +14,7 @@ import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, t
 import {
   IMAGE_INPUTS, NOT_IMAGE_INPUTS, classifyImagePaths,
   DOCKER_CANDIDATES, resolveDockerBin, resolveGitBin, parseLsTree,
-  watchSourceDigest, isPrunableLog, pruneLogs, decideDeploy, makeDeployOps,
+  watchSourceDigest, isPrunableLog, pruneLogs, decideDeploy, makeDeployOps, runDockerCompose,
 } from '../watch/advance-watcher.mjs';
 
 // AS-16: fixed per-fire nonce for the pin tests — production nonces come from
@@ -292,6 +292,48 @@ test('makeLockOps: foreign overwrite between create and verify yields without un
   // releaseLock also sees the foreign pid through the injected reader: no-op.
   ops.releaseLock();
   assert.ok(existsSync(lockPath));
+});
+
+test('AS-84 makeLockOps: release is by pid AND source — a deploy-source instance leaves a watcher-source lock alone, and vice versa', (t) => {
+  // The two instances this models are real and simultaneous: makeWatcher's lock
+  // ops (source 'watcher') and makeDeployOps' own (source 'deploy'), over ONE
+  // file, in ONE process — so their pids are equal by construction and a
+  // pid-only release test cannot tell them apart. It used to let shutdown()
+  // unlink the lock guarding a running build (AS-75 F5).
+  const dir = mkdtempSync(join(tmpdir(), 'watcher-lock-source-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const lockPath = join(dir, 'advance.lock');
+  const logs = [];
+  const make = (source) =>
+    makeLockOps({ lockPath, staleMs: STALE_MS, log: (l) => logs.push(l), pid: 1111, isPidAlive: () => true, source });
+  const watcher = make('watcher');
+  const deploy = make('deploy');
+
+  assert.equal(watcher.acquireLock(NONCE), true);
+  deploy.releaseLock();
+  assert.ok(existsSync(lockPath), "the deploy must not release the watcher's lock");
+  assert.equal(JSON.parse(readFileSync(lockPath, 'utf8')).source, 'watcher');
+
+  // ...and the same in the other direction, which is the F5 case exactly.
+  watcher.releaseLock();
+  assert.ok(!existsSync(lockPath), 'its own owner still releases it');
+  assert.equal(deploy.acquireLock(NONCE), true);
+  watcher.releaseLock();
+  assert.ok(existsSync(lockPath), "shutdown must not release the deploy's lock");
+  assert.equal(JSON.parse(readFileSync(lockPath, 'utf8')).source, 'deploy');
+  deploy.releaseLock();
+  assert.ok(!existsSync(lockPath));
+});
+
+test('AS-84 makeLockOps: verify-after-create requires our nonce, not just our pid', (t) => {
+  // Same ambiguity one function up: after our wx-create, a same-pid sibling may
+  // have unlinked and re-created the lock as its own. Its body carries OUR pid,
+  // so pid alone reads as success; the nonce is per-write and does not.
+  const theirs = JSON.stringify({ pid: 1111, startedAt: new Date().toISOString(), source: 'deploy', nonce: 'ffffffffffffffff' });
+  const { lockPath, logs, ops } = lockFixture(t, { readFile: () => theirs });
+  assert.equal(ops.acquireLock(NONCE), false, 'the file on disk is not the one we wrote');
+  assert.ok(existsSync(lockPath), 'left in place for its owner');
+  assert.ok(logs.some((l) => l.startsWith('STEAL-LOST')), 'and the loss is logged');
 });
 
 // --- AS-14: tick child env pin ----------------------------------------------
@@ -821,9 +863,13 @@ test('AS-75 decideDeploy: an unreadable running id is not-current, never acciden
 /** A makeDeployOps with every collaborator injected: no git, no docker, no
  *  network, no real clock. The lock is real, in a temp dir, exactly as the
  *  AS-13 makeLockOps tests do it. */
-function deployHarness(t, over = {}) {
+function deployHarness(t, { preState, ...over } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'chat-deployops-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
+  // AS-84: `preState` is a deploy-state.json that exists BEFORE the ops are
+  // constructed — the ctor hydrates lastAttempt out of it, so writing it after
+  // makeDeployOps() would prove nothing.
+  if (preState) writeFileSync(join(dir, 'deploy-state.json'), JSON.stringify(preState));
   let clock = Date.now();
   const logs = [];
   const calls = { deploy: [], exit: [] };
@@ -1097,4 +1143,237 @@ test('AS-75 makeDeployOps: deploy-state.json is written on every poll, atomicall
   assert.ok(Number.isFinite(Date.parse(st.lastAttempt.at)), 'lastAttempt.at is an ISO string, not ms');
   // tmp + rename left nothing behind.
   assert.equal(readdirSync(h.dir).some((n) => n.endsWith('.tmp')), false);
+});
+
+// --- AS-84: the deploy survives its own watcher's restart, and its shutdown --
+
+/** The desired id the default harness fixture digests to. Computed rather than
+ *  hard-coded: it is a digest of IMAGE_INPUTS, and AS-86 is changing that set
+ *  in a sibling lane. */
+function desiredIdOf(t) {
+  return deployHarness(t).ops.computeDesired().desired.id;
+}
+
+/** Spin (microtask + macrotask) until `pred` or the bound runs out. Used to
+ *  reach the inside of an in-flight deploy without sleeping on a real clock. */
+async function until(pred, what, turns = 200) {
+  for (let i = 0; i < turns; i++) {
+    if (pred()) return;
+    await new Promise((ok) => setImmediate(ok));
+  }
+  assert.fail(`never reached: ${what}`);
+}
+
+test('AS-84 makeDeployOps: lastAttempt is hydrated from deploy-state.json — a failed attempt at the desired id, inside the cooldown, refuses without building', async (t) => {
+  // lastAttempt used to be memory-only: persist() wrote it and nothing read it
+  // back, so a watchdog-relaunched watcher started with a blank cooldown and
+  // re-ran a build that had just failed — the crash loop the cooldown exists to
+  // bound, restarted from zero by every relaunch.
+  const id = desiredIdOf(t);
+  const at = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const h = deployHarness(t, {
+    preState: { lastAttempt: { id, at, outcome: 'fail', detail: 'exit 1' } },
+  });
+
+  assert.deepEqual(await h.ops.evaluate({}), { action: 'noop', reason: 'cooldown' });
+  assert.equal(h.calls.deploy.length, 0, 'nothing was built');
+  const hydrated = h.ops.lastAttempt();
+  assert.equal(hydrated.id, id);
+  assert.equal(hydrated.outcome, 'fail');
+  assert.equal(hydrated.at, Date.parse(at), 'at comes back as ms — decideDeploy does arithmetic on it');
+
+  // And it is a COOLDOWN, not a permanent refusal: past the window it builds.
+  h.advance(31 * 60 * 1000);
+  assert.equal((await h.ops.evaluate({})).action, 'deploy');
+});
+
+test("AS-84 makeDeployOps: an interrupted attempt ('started' on disk) counts as a failure for the cooldown", async (t) => {
+  // The record performDeploy writes before spawning compose. Finding one still
+  // saying 'started' means the process died under its own build — no `finally`
+  // ran — which is exactly the case a blank slate would retry immediately.
+  const id = desiredIdOf(t);
+  const at = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const h = deployHarness(t, {
+    preState: { lastAttempt: { id, at, outcome: 'started', detail: 'building' } },
+  });
+
+  assert.deepEqual(await h.ops.evaluate({}), { action: 'noop', reason: 'cooldown' });
+  assert.equal(h.calls.deploy.length, 0);
+  assert.equal(h.ops.lastAttempt().outcome, 'fail', 'an unfinished attempt is a failed one');
+  assert.match(h.ops.lastAttempt().detail, /interrupted/);
+
+  // Junk in that slot is not a cooldown at all — a record we cannot date must
+  // never suppress a deploy.
+  for (const bad of [null, 'nope', {}, { id, at: 'not-a-date', outcome: 'fail' }, { id, at, outcome: 'weird' }]) {
+    const g = deployHarness(t, { preState: { lastAttempt: bad } });
+    assert.equal(g.ops.lastAttempt(), null, JSON.stringify(bad));
+    assert.equal((await g.ops.evaluate({})).action, 'deploy', JSON.stringify(bad));
+  }
+});
+
+test("AS-84 makeDeployOps: the 'started' record is on disk before compose is spawned", async (t) => {
+  // Observed from INSIDE the deploy, which is the only place the ordering is
+  // visible: if the write happened after, a SIGKILLed watcher would leave the
+  // previous attempt's record and the relaunch would read a stale verdict.
+  let seen = null;
+  let building = null;
+  const h = deployHarness(t, {
+    deploy: async (opts) => {
+      seen = JSON.parse(readFileSync(join(h.dir, 'deploy-state.json'), 'utf8')).lastAttempt;
+      building = opts.env.CHAT_BUILD_ID;
+      h.state.runningId = opts.env.CHAT_BUILD_ID;
+      return { code: 0, signal: null, timedOut: false };
+    },
+  });
+
+  const decision = await h.ops.evaluate({});
+  assert.equal(decision.action, 'deploy');
+  assert.ok(seen, 'a state file existed when compose was spawned');
+  assert.equal(seen.outcome, 'started');
+  assert.equal(seen.id, building, 'and it names the build being started');
+  assert.equal(seen.detail, 'building');
+  assert.ok(Number.isFinite(Date.parse(seen.at)), 'ISO on disk, like every other attempt record');
+  // The finished attempt overwrites it — 'started' is a window, not a state.
+  assert.equal(h.readState().lastAttempt.outcome, 'ok');
+  assert.equal(h.ops.lastAttempt().outcome, 'ok');
+});
+
+test('AS-84 makeDeployOps: abort() signals the running build, records an abort rather than a failure, and gives the lock back', async (t) => {
+  // AS-75 F5: the compose child lived inside runDockerCompose's closure, so
+  // shutdown() could not signal it — the build kept running under a lock that
+  // shutdown had already unlinked. onSpawn hands the child out; abort() signals
+  // it and resolves only once the deploy has settled itself.
+  const fake = { signals: [], kill(sig) { this.signals.push(sig); return true; } };
+  let resolveDeploy = null;
+  let builds = 0;
+  const h = deployHarness(t, {
+    deploy: (opts) => {
+      builds += 1;
+      if (builds === 1) {
+        opts.onSpawn(fake);
+        return new Promise((ok) => { resolveDeploy = ok; });
+      }
+      h.state.runningId = opts.env.CHAT_BUILD_ID; // the retry succeeds
+      return Promise.resolve({ code: 0, signal: null, timedOut: false });
+    },
+  });
+
+  const evaluating = h.ops.evaluate({});
+  await until(() => h.ops.isDeploying() && resolveDeploy !== null, 'the build started');
+  assert.ok(existsSync(h.lockPath), 'the deploy holds its own lock while it builds');
+
+  const aborting = h.ops.abort();
+  assert.deepEqual(fake.signals, ['SIGTERM'], 'the compose child was signalled');
+  resolveDeploy({ code: null, signal: 'SIGTERM', timedOut: false });
+  await aborting;
+
+  // abort() resolving MEANS settled: the attempt is recorded and the lock is
+  // back. A promise that resolved earlier would let shutdown exit mid-build.
+  assert.equal(h.ops.lastAttempt().outcome, 'aborted');
+  assert.match(h.ops.lastAttempt().detail, /aborted by shutdown \(SIGTERM\)/);
+  assert.equal(existsSync(h.lockPath), false, 'released by its owner');
+  assert.equal(h.ops.isDeploying(), false);
+  await evaluating;
+
+  // And it is NOT a cooldown. A build the operator interrupted must retry at
+  // once — otherwise `launchctl kickstart -k` mid-build delays the very deploy
+  // it was meant to hurry (decideDeploy rule 7 matches 'fail' only).
+  const retry = await h.ops.evaluate({});
+  assert.equal(retry.action, 'deploy');
+  assert.equal(retry.reason, 'stale-build');
+  assert.equal(builds, 2);
+  assert.equal(h.ops.lastAttempt().outcome, 'ok');
+
+  // A child that TRAPS SIGTERM and exits with a code reports signal null, so
+  // "aborted" has to follow the request we made, not the manner of the death —
+  // reading result.signal here would record 143 as a plain failure and put the
+  // merge in a cooldown. (Both real compose and the process test's fake docker
+  // exit this way.)
+  const trapped = deployHarness(t, {
+    deploy: async (opts) => {
+      opts.onSpawn(fake);
+      queueMicrotask(() => void trapped.ops.abort());
+      return new Promise((ok) => setImmediate(() => ok({ code: 143, signal: null, timedOut: false })));
+    },
+  });
+  await trapped.ops.evaluate({});
+  assert.equal(trapped.ops.lastAttempt().outcome, 'aborted');
+
+  // A TIMEOUT is still a failure: nobody asked for that one, and the cooldown
+  // is what stops the watcher from re-running a 15-minute build on every poll.
+  const g = deployHarness(t, {
+    deploy: async (opts) => {
+      opts.onSpawn(fake);
+      return { code: null, signal: 'SIGTERM', timedOut: true };
+    },
+  });
+  await g.ops.evaluate({});
+  assert.equal(g.ops.lastAttempt().outcome, 'fail');
+  assert.match(g.ops.lastAttempt().detail, /timeout/);
+});
+
+test('AS-84 makeDeployOps: abort() while idle resolves immediately and touches nothing', async (t) => {
+  // shutdown() calls abort() whenever isDeploying() says so, but a watcher that
+  // is merely idle must not acquire a lock, write a state file or log a line on
+  // its way out — the quiet path has to stay quiet.
+  const h = deployHarness(t);
+  await h.ops.abort();
+  assert.equal(existsSync(h.lockPath), false, 'no lock taken');
+  assert.equal(existsSync(join(h.dir, 'deploy-state.json')), false, 'no state written');
+  assert.deepEqual(h.logs, [], 'and nothing logged');
+  assert.equal(h.ops.lastAttempt(), null);
+});
+
+test('AS-84 makeDeployOps: evaluate() never rejects — a throwing collaborator becomes {noop, error}, persisted, logged once', async (t) => {
+  // AS-75 F6. The call site is a setInterval callback and Node terminates on an
+  // unhandled rejection, so a throw anywhere in the poll would take down the
+  // watcher — and with it every future tick.
+  const h = deployHarness(t, {
+    run: () => { throw new Error('git exploded'); },
+  });
+
+  const first = await h.ops.evaluate({});
+  assert.equal(first.action, 'noop');
+  assert.equal(first.reason, 'error');
+  assert.equal(first.detail, 'git exploded');
+  assert.equal(h.readState().reason, 'error', 'the sidebar is told, in the same file as every other reason');
+  assert.equal(h.readState().desiredReason, 'error');
+
+  // A broken poll must not make the AS-95 loop wait forever for a rebuild that
+  // is never going to happen.
+  assert.equal(h.ops.pendingDeploy(), false);
+
+  // One WARN per condition, not one per 60s poll (AS-13 #4's rule).
+  await h.ops.evaluate({});
+  assert.equal(h.logs.filter((l) => /^WARN deploy poll failed: git exploded$/.test(l)).length, 1);
+  assert.equal(h.calls.deploy.length, 0);
+});
+
+test('AS-84 runDockerCompose: a compose log stream error is logged, not thrown — the build still resolves', async () => {
+  // Ruben's cycle-1 F2. `createLog(logPath)` is a WriteStream; an EACCES/ENOENT
+  // on logsDir arrives as an EventEmitter 'error' event, which is an uncaught
+  // exception (not a rejection) when nothing listens — outside evaluate()'s
+  // try/catch and deployPoll's .catch, so it took the whole watcher down.
+  const { EventEmitter, once } = await import('node:events');
+  const { PassThrough } = await import('node:stream');
+  const logs = [];
+  const out = new PassThrough();
+  const proc = new EventEmitter();
+  proc.stdout = new PassThrough();
+  proc.stderr = new PassThrough();
+  proc.kill = () => true;
+  const pending = runDockerCompose({
+    dockerBin: '/nonexistent/docker', cwd: '/', env: {}, logPath: '/nonexistent/deploy.log', timeoutMs: 60_000,
+    log: (l) => logs.push(l),
+    spawnFn: () => proc,
+    createLog: () => out,
+  });
+  // The stream fails the way fs does: asynchronously, while the build is running.
+  const seen = once(out, 'error').catch(() => {});
+  out.emit('error', new Error('EACCES: permission denied, open deploy.log'));
+  await seen;
+  proc.emit('exit', 0, null);
+  const result = await pending;
+  assert.deepEqual(result, { code: 0, signal: null, timedOut: false });
+  assert.deepEqual(logs, ['WARN deploy log stream error: EACCES: permission denied, open deploy.log']);
 });

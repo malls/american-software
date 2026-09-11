@@ -52,6 +52,9 @@ const BUILD_REASONS = {
   'inputs-dirty': 'master has uncommitted changes under apps/chat, and the watcher only ever deploys committed code',
   'no-git': 'the watcher cannot read the git tree to work out what master contains',
   'no-docker': 'the watcher cannot find the docker binary — set ADVANCE_DOCKER_BIN in the launchd plist (apps/chat/watch/README.md)',
+  // AS-84: the deploy poll threw and was caught rather than taking the watcher
+  // down with it. The watcher is alive and will poll again; the log says why.
+  error: 'the watcher\'s deploy poll failed with an error — see apps/chat/data/logs/advance-watcher.log',
   current: 'the running build matches master',
   'no-state': 'the watcher has not written a deploy report yet — it may be running pre-AS-75 code, in which case restarting it corrects this',
   'unreadable-state': "the watcher's deploy report is unreadable",

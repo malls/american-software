@@ -72,6 +72,12 @@ export const DEFAULTS = Object.freeze({
   debounceS: 15, // trailing debounce window (board band: 10–30s)
   tickTimeoutMin: 30, // hard tick timeout: SIGTERM, 15s grace, SIGKILL
   lockStaleMin: 45, // lock age staleness (> tick timeout, deliberately)
+  // AS-84: how long shutdown() waits for the children it just SIGTERMed (the
+  // tick child's settle(), the deploy's abort record + lock release) before it
+  // SIGKILLs and exits anyway. The plist template sets KeepAlive:true and no
+  // ExitTimeOut, so launchd SIGKILLs the watcher 20s after SIGTERM — 10s leaves
+  // margin for settle()'s file writes and still exits well inside that box.
+  shutdownGraceS: 10,
   tickLogRetentionDays: 14, // prune tick-*.log and deploy-*.log older than this
   permissionMode: 'acceptEdits',
   claudeBin: 'claude',
@@ -171,6 +177,7 @@ export function loadConfig(env = process.env) {
     debounceS: envNum(env, 'ADVANCE_DEBOUNCE_S', DEFAULTS.debounceS),
     tickTimeoutMin: envNum(env, 'ADVANCE_TICK_TIMEOUT_MIN', DEFAULTS.tickTimeoutMin),
     lockStaleMin: envNum(env, 'ADVANCE_LOCK_STALE_MIN', DEFAULTS.lockStaleMin),
+    shutdownGraceS: envNum(env, 'ADVANCE_SHUTDOWN_GRACE_S', DEFAULTS.shutdownGraceS),
     tickLogRetentionDays: DEFAULTS.tickLogRetentionDays,
     permissionMode: env.ADVANCE_PERMISSION_MODE || DEFAULTS.permissionMode,
     claudeBin: env.ADVANCE_CLAUDE_BIN || DEFAULTS.claudeBin,
@@ -613,17 +620,32 @@ export function makeLockOps({
       // Verify: a racing stale-stealer may have unlinked the lock we just
       // created (believing it stale) and re-created it as its own. If the
       // file no longer shows our pid it is THEIRS — yield without unlinking.
+      // AS-84: pid ALONE cannot tell our write from a same-pid sibling's — the
+      // watcher's lock ops and the deploy's lock ops are two instances in one
+      // process. The nonce is this write's own, so it closes that ambiguity
+      // here exactly as `source` closes it in releaseLock() below.
       const verify = parseLock();
-      if (verify && verify.pid === pid) return true;
+      if (verify && verify.pid === pid && verify.nonce === nonce) return true;
       log(`STEAL-LOST lock holds pid ${verify?.pid ?? '?'} after our create; yielding`);
       return false;
     }
     return false;
   }
 
+  /**
+   * Unlink the lock only when it is OURS — same pid AND same `source`.
+   *
+   * AS-84 (Ruben's AS-75 F5): pid alone is not ownership here. The watcher's
+   * lock ops and the deploy's lock ops are two instances over one file in ONE
+   * process, differing only in `source`, so a pid-only test let shutdown()
+   * unlink a `source:'deploy'` lock while the build it guards was still
+   * running — and would equally let the deploy's `finally` unlink the tick's
+   * `source:'watcher'` lock. Pid stays in the test: a foreign live session's
+   * lock must never be released either.
+   */
   function releaseLock() {
     const held = parseLock();
-    if (held && held.pid === pid) {
+    if (held && held.pid === pid && held.source === source) {
       try {
         unlinkSync(lockPath);
       } catch {
@@ -693,15 +715,28 @@ export async function fetchJsonOrNull(url, timeoutMs) {
  * `platform: linux/amd64` pin is ignored at build time, producing a native
  * image that then refuses to start. The `./apps/chat/chat` wrapper forces the
  * same two toggles for the same reason.
+ *
+ * AS-84: `onSpawn(proc)` hands the child OUT, once, immediately after spawn.
+ * Before this the compose process lived and died inside this closure and
+ * nothing outside could reach it, so shutdown() SIGTERMed the tick child and
+ * left the build running unguarded (AS-75 F5). Default no-op: every existing
+ * call site is unchanged by construction.
  */
-export function runDockerCompose({ dockerBin, cwd, env, logPath, timeoutMs, log, spawnFn = spawn, createLog = createWriteStream }) {
+export function runDockerCompose({ dockerBin, cwd, env, logPath, timeoutMs, log, spawnFn = spawn, createLog = createWriteStream, onSpawn = () => {} }) {
   return new Promise((resolve_) => {
     const out = createLog(logPath, { flags: 'a' });
+    // AS-84 rework 1 (Ruben F2): a stream error (EACCES/ENOENT on logsDir) is
+    // an EventEmitter 'error' event, not a rejection — without a listener it is
+    // an uncaught exception that neither evaluate()'s try/catch nor deployPoll's
+    // .catch can see, and the watcher process dies. Log it; the build itself
+    // still runs and still resolves through 'exit'.
+    out.on('error', (err) => log(`WARN deploy log stream error: ${err.message}`));
     const proc = spawnFn(dockerBin, ['compose', '--progress', 'quiet', 'up', '-d', '--build'], {
       cwd,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+    onSpawn(proc);
     proc.stdout.pipe(out, { end: false });
     proc.stderr.pipe(out, { end: false });
 
@@ -725,6 +760,33 @@ export function runDockerCompose({ dockerBin, cwd, env, logPath, timeoutMs, log,
     proc.on('error', (err) => done({ code: -1, signal: null, timedOut, error: err.message }));
     proc.on('exit', (code, signal) => done({ code, signal, timedOut }));
   });
+}
+
+/**
+ * AS-84: `deploy-state.json`'s `lastAttempt` -> the in-memory record, or null.
+ * Pure; the ctor below calls it once so a RELAUNCHED watcher starts with the
+ * cooldown the process before it earned, instead of a blank slate that retries
+ * a failing build immediately (AS-75 F5, third claim).
+ *
+ * `at` comes back as an ISO string and goes out as ms, because decideDeploy
+ * does arithmetic on it. Anything unparsable is null: a cooldown we cannot date
+ * is not a cooldown we may enforce.
+ *
+ * `outcome:'started'` is the record performDeploy writes BEFORE spawning
+ * compose. Finding one on disk means the process died under its own build —
+ * exactly the crash-loop the cooldown exists to bound — so it hydrates as a
+ * failure, with a detail that says which kind.
+ */
+export function hydrateAttempt(record) {
+  if (!record || typeof record !== 'object') return null;
+  if (typeof record.id !== 'string') return null;
+  const at = Date.parse(record.at);
+  if (!Number.isFinite(at)) return null;
+  if (record.outcome === 'started') {
+    return { id: record.id, at, outcome: 'fail', detail: 'interrupted: watcher exited mid-build' };
+  }
+  if (record.outcome !== 'ok' && record.outcome !== 'fail' && record.outcome !== 'aborted') return null;
+  return { id: record.id, at, outcome: record.outcome, detail: record.detail ?? '' };
 }
 
 /**
@@ -759,6 +821,7 @@ export function makeDeployOps({
   deploy = runDockerCompose,
   readSources = readWatchSources,
   writeState = defaultWriteState,
+  readState = readJson, // AS-84: the other half of writeState — see hydrateAttempt
   prune = pruneLogs,
   exit = (code) => process.exit(code),
   sleep = (ms) => new Promise((ok) => setTimeout(ok, ms)),
@@ -786,9 +849,18 @@ export function makeDeployOps({
   }
 
   let deploying = false;
-  let lastAttempt = null;
+  // AS-84: hydrated, not blank. `lastAttempt` used to be memory-only — persist()
+  // wrote it and nothing ever read it back — so a watcher that launchd relaunched
+  // mid-crash-loop retried the same failing build at once.
+  let lastAttempt = hydrateAttempt(readState(statePath)?.lastAttempt);
   let lastDecision = null; // AS-95: the last evaluate() decision, for pendingDeploy()
   let lastWarn = null;
+  // AS-84: the in-flight compose child and the promise that resolves when the
+  // performDeploy guarding it has fully settled (lock released, attempt
+  // recorded). Both are null while idle; abort() is what reads them.
+  let deployChild = null;
+  let deployDone = null;
+  let abortSignal = null;
 
   /** One WARN per distinct condition, not one per poll (AS-13 #4's lesson). */
   function warnOnce(key, line) {
@@ -874,12 +946,21 @@ export function makeDeployOps({
     return probeRunning();
   }
 
-  async function performDeploy(desiredId) {
+  // `stateFields` is what evaluate() last persisted about this decision; the
+  // pre-build write below repeats it so the only thing that changes on disk is
+  // the attempt record (a bare persist() would reset `reason` to its default
+  // and blank the sidebar's build line for the length of the build).
+  async function performDeploy(desiredId, stateFields = { desiredId }) {
     if (!lock.acquireLock(fireNonce())) {
       log(`SKIP deploy aborted: lock acquisition failed (build ${desiredId})`);
       return;
     }
     deploying = true;
+    abortSignal = null;
+    let settleDeploy;
+    deployDone = new Promise((ok) => {
+      settleDeploy = ok;
+    });
     prune(logsDir, now() - retentionMs);
     const logPath = join(logsDir, `deploy-${new Date(now()).toISOString().replaceAll(':', '-')}.log`);
     const startedAt = now();
@@ -888,12 +969,21 @@ export function makeDeployOps({
     let outcome = 'fail';
     let detail = '';
     try {
+      // AS-84: the attempt is on disk BEFORE compose is spawned. A watcher that
+      // is SIGKILLed under its own build leaves no `finally` behind, so without
+      // this write the crash is invisible to the relaunched process; with it,
+      // hydrateAttempt reads 'started' and counts it as the failure it was.
+      lastAttempt = { id: desiredId, at: startedAt, outcome: 'started', detail: 'building' };
+      persist(stateFields);
       const result = await deploy({
         dockerBin: docker.bin,
         cwd: appDir,
         logPath,
         timeoutMs: deployTimeoutMs,
         log,
+        onSpawn: (proc) => {
+          deployChild = proc;
+        },
         env: {
           PATH: env.PATH,
           HOME: env.HOME,
@@ -905,7 +995,23 @@ export function makeDeployOps({
         },
       });
       if (result.code !== 0) {
-        detail = `exit ${result.code}${result.timedOut ? ' (timeout)' : ''}${result.error ? ` ${result.error}` : ''}`;
+        // A build WE killed on the way out is not a failed build. Recording it
+        // as 'fail' would put the merge in a 30-min cooldown (decideDeploy rule
+        // 7 matches 'fail' only), so an operator `kickstart -k` mid-build would
+        // delay the very deploy it was meant to hurry. A timeout stays a
+        // failure: nobody asked for that one.
+        //
+        // The test is "did WE ask for this", not "did it die by signal": a
+        // child that traps SIGTERM and exits with a code (143, by convention)
+        // reports signal null, and reading the death instead of the request
+        // would misclassify exactly that case — which is what a real compose
+        // child, and the fake docker in the AS-84 process test, both do.
+        if (abortSignal !== null && !result.timedOut) {
+          outcome = 'aborted';
+          detail = `aborted by shutdown (${abortSignal})`;
+        } else {
+          detail = `exit ${result.code}${result.timedOut ? ' (timeout)' : ''}${result.error ? ` ${result.error}` : ''}`;
+        }
       } else {
         const probed = await reprobe(desiredId);
         if (probed && probed.id === desiredId) {
@@ -920,9 +1026,38 @@ export function makeDeployOps({
     } finally {
       lock.releaseLock();
       deploying = false;
+      deployChild = null;
+      abortSignal = null;
     }
     lastAttempt = { id: desiredId, at: now(), outcome, detail };
     log(`DEPLOY ${outcome} ${desiredId} (${detail}) after ${Math.round((now() - startedAt) / 1000)}s`);
+    deployDone = null;
+    settleDeploy();
+  }
+
+  /**
+   * AS-84: signal the in-flight build and resolve when it has settled — the
+   * lock released by its own owner, the attempt recorded. Resolves immediately
+   * and touches nothing when idle, so shutdown() can call it unconditionally.
+   */
+  async function abort(signal = 'SIGTERM') {
+    if (!deploying) return;
+    abortSignal = signal;
+    const pending = deployDone;
+    if (deployChild) {
+      try {
+        deployChild.kill(signal);
+      } catch {
+        /* already gone; the settle below still runs */
+      }
+    }
+    // AS-84 rework 1 (Ruben F1): SIGKILL is the grace-expiry path, fired
+    // un-awaited by finish() a moment before exit(0), so performDeploy's
+    // `finally` never gets to run. Release the deploy's own lock here, now,
+    // synchronously — source-checked, so it is a no-op if the lock is not ours,
+    // and idempotent with the `finally` should it run after all.
+    if (signal === 'SIGKILL') lock.releaseLock();
+    await pending;
   }
 
   function restartWatcher(oldDigest, newDigest) {
@@ -942,7 +1077,7 @@ export function makeDeployOps({
    * One deploy-poll. `busy` is what the caller knows (our own tick child); the
    * foreign-lock half is checked here. At most one action per call.
    */
-  async function evaluate({ busy = false } = {}) {
+  async function evaluateInner({ busy = false } = {}) {
     if (deploying) return { action: 'noop', reason: 'busy' };
     const nowMs = now();
     const { desired, reason: desiredReason } = computeDesired();
@@ -966,7 +1101,13 @@ export function makeDeployOps({
       desiredReason,
     });
     if (decision.action === 'deploy') {
-      await performDeploy(desired.id);
+      await performDeploy(desired.id, {
+        desiredId: desired.id,
+        dirty: false,
+        runningId: running ? running.id : null,
+        reason: decision.reason,
+        desiredReason,
+      });
       persist({
         desiredId: desired.id,
         dirty: false,
@@ -981,8 +1122,34 @@ export function makeDeployOps({
     return decision;
   }
 
+  /**
+   * AS-84 (Ruben's AS-75 F6), the belt: evaluate() never rejects. The call site
+   * is a setInterval callback, and Node terminates the process on an unhandled
+   * rejection — so a throw anywhere in the poll would take the watcher down and
+   * with it every future tick. Today's callees swallow their own errors, which
+   * makes the rejection path latent rather than absent: prune() runs outside
+   * the try, createLog can emit 'error' (EACCES on logsDir), and any future
+   * edit inside evaluateInner re-arms it.
+   *
+   * The error decision is recorded like any other, so pendingDeploy() reads
+   * false (reason is neither 'busy' nor 'stale-build') and a broken poll cannot
+   * make the AS-95 loop wait forever.
+   */
+  async function evaluate(opts = {}) {
+    try {
+      return await evaluateInner(opts);
+    } catch (err) {
+      warnOnce(`error:${err.message}`, `deploy poll failed: ${err.message}`);
+      const decision = { action: 'noop', reason: 'error', detail: err.message };
+      lastDecision = decision;
+      persist({ reason: 'error', desiredReason: 'error' });
+      return decision;
+    }
+  }
+
   return {
     evaluate,
+    abort,
     computeDesired,
     probeRunning,
     isDeploying: () => deploying,
@@ -2061,6 +2228,11 @@ export function makeWatcher({
   let lastBadSentinel = null; // log unparsable sentinel once per content change
   let lastSkipKey = null; // dedupe SKIP logs per episode (AS-13 #4)
   let loopWaitLogged = false; // one LOOP-WAIT line per deploy wait, not one per poll
+  // AS-84: resolves when the CURRENT tick's settle() has finished — the handle
+  // shutdown() waits on so a SIGTERMed tick still writes tick_ended, releases
+  // its lock and folds into the loop (AS-82 F3). Null whenever no tick is in
+  // flight; armed by fire(), resolved and cleared by settle().
+  let settled = null;
 
   // Built by start(), in today's order. fire()/poll() reference them the same
   // way main() did; the forward reference is a `let` here instead of a TDZ
@@ -2182,6 +2354,14 @@ export function makeWatcher({
     // the mutable module-level `child` — a timed-out tick's stray SIGKILL
     // timer must not be able to kill a successor tick. `child` remains only
     // the poll()/shutdown() gate, nulled iff it still points at this proc.
+    // AS-84: armed before the spawn, so there is no instant where a child
+    // exists that shutdown() cannot wait for. Per-fire, like the timers below.
+    let resolveSettled;
+    const thisSettled = new Promise((ok) => {
+      resolveSettled = ok;
+    });
+    settled = thisSettled;
+
     const proc = spawnFn(
       config.claudeBin,
       tickArgv(pid, nonce, config.permissionMode, rules ?? undefined),
@@ -2217,6 +2397,10 @@ export function makeWatcher({
       // has exited, so anything still open belongs to a tick that is over.
       eventsOps.tickEnded({ code, signal, timedOut, headBefore, headAfter });
       loopOps.settle({ code, signal, timedOut, headBefore, headAfter });
+      // AS-84, last: a shutdown waiting on this tick may exit the process the
+      // moment this resolves, so everything above must already have happened.
+      if (settled === thisSettled) settled = null;
+      resolveSettled();
     }
     proc.on('error', (err) => {
       if (!tickLog.writableEnded) tickLog.end(`\n[watcher] spawn error: ${err.message}\n`);
@@ -2314,16 +2498,32 @@ export function makeWatcher({
     fire(sentinel ?? { messageId: highwater ? highwater.messageId : 0, authorId: 'loop' });
   }
 
-  function shutdown(signal) {
-    log(`STOP ${signal}`);
-    clearInterval(interval);
-    clearInterval(deployInterval);
-    clearInterval(lanesInterval);
-    clearInterval(eventsInterval);
-    if (child) {
-      log('STOP terminating in-flight tick');
-      child.kill('SIGTERM');
+  /**
+   * The last thing shutdown() does, on both paths: reap anything the grace did
+   * not, drop the lock IF it is ours, remove the pid marker, exit 0.
+   *
+   * `dying` is the child this shutdown SIGTERMed, or null. `child === dying`
+   * means settle() never ran for it — it is still up, and the grace is over.
+   */
+  function finish(dying) {
+    if (dying && child === dying) {
+      log('STOP grace expired');
+      dying.kill('SIGKILL');
     }
+    // AS-84 rework 1 (Ruben F1): the deploy child gets the same bound. A compose
+    // child that ignored abort()'s SIGTERM would otherwise keep building against
+    // the live project after we exit 0, with its `source:'deploy'` lock left on
+    // disk under a dead pid. abort('SIGKILL') sets abortSignal and kills
+    // deployChild; it is NOT awaited — the process exits before performDeploy's
+    // finally, so the `started` record stays on disk and hydrates as a bounded
+    // failure at relaunch (AC-4).
+    if (deployOps && deployOps.isDeploying()) {
+      log('STOP grace expired: killing deploy child');
+      void deployOps.abort('SIGKILL');
+    }
+    // AS-84: source-checked since this task, so this is a no-op unless the file
+    // is our own `source:'watcher'` lock. A deploy's lock is released by the
+    // deploy, in its own `finally`, after abort() above waited for it.
     releaseLock();
     try {
       unlinkSync(paths.pid);
@@ -2331,6 +2531,65 @@ export function makeWatcher({
       /* already gone */
     }
     exit(0);
+  }
+
+  /**
+   * AS-84: shutdown owns BOTH children. It SIGTERMs the tick child and the
+   * deploy child, then waits — bounded by config.shutdownGraceS — for each to
+   * settle itself: the tick through settle() (lock release, tick_ended, loop
+   * fold; AS-82 F3), the deploy through performDeploy's own finally (abort
+   * recorded, its own lock released; AS-75 F5). Before this, SIGTERM killed the
+   * tick and exited synchronously — the tick never settled and AS-100's sweep
+   * later closed it as `unclosed`, and the compose child was orphaned with its
+   * lock unlinked by a process that did not own it.
+   *
+   * Returns a promise. With nothing in flight it finishes synchronously first,
+   * exactly as it did before, and the promise is incidental.
+   */
+  /**
+   * AS-84 (F6), the suspenders: the deploy interval's callback, named so the
+   * suite can drive the wiring itself rather than a copy of it. evaluate()
+   * already catches; this catches the case evaluate() cannot — a rejection from
+   * an injected or future collaborator ABOVE that try/catch — because an
+   * unhandled rejection in a setInterval callback ends the watcher process.
+   */
+  function deployPoll() {
+    return deployOps
+      .evaluate({ busy: Boolean(child) })
+      .catch((err) => log(`ERROR deploy poll rejected: ${err.message}`));
+  }
+
+  function shutdown(signal) {
+    log(`STOP ${signal}`);
+    clearInterval(interval);
+    clearInterval(deployInterval);
+    clearInterval(lanesInterval);
+    clearInterval(eventsInterval);
+
+    const waits = [];
+    const dying = child;
+    if (dying) {
+      log('STOP terminating in-flight tick');
+      dying.kill('SIGTERM');
+      if (settled) waits.push(settled);
+    }
+    if (deployOps && deployOps.isDeploying()) {
+      log('STOP aborting in-flight deploy');
+      waits.push(deployOps.abort('SIGTERM'));
+    }
+    if (waits.length === 0) return finish(dying);
+
+    // launchd SIGKILLs us 20s after SIGTERM (KeepAlive:true, no ExitTimeOut),
+    // so the wait is a bound, never an open-ended one: whatever has not settled
+    // by then is killed and we exit 0 on our own terms.
+    let graceTimer = null;
+    const grace = new Promise((ok) => {
+      graceTimer = setTimeout(ok, (config.shutdownGraceS ?? DEFAULTS.shutdownGraceS) * 1000);
+    });
+    return Promise.race([Promise.all(waits), grace]).then(() => {
+      clearTimeout(graceTimer);
+      return finish(dying);
+    });
   }
 
   /** Everything main() did after the log closure, in exactly that order. */
@@ -2384,9 +2643,10 @@ export function makeWatcher({
     // AS-75 deploy poll. Everything it does lives in makeDeployOps (exported,
     // unit-tested); these six lines are the entire unguarded wiring, and they are
     // enumerated in the implementation report so a reviewer can check the claim
-    // against the diff rather than re-derive it. `void` because evaluate() is
-    // async and a rejected promise here must not become an unhandled rejection —
-    // every branch inside it already handles its own failure.
+    // against the diff rather than re-derive it. AS-84 replaced the `void` at
+    // the call site — and the argument beside it that every branch inside
+    // evaluate() handled its own failure — with two real guards: evaluate()
+    // catches (the belt) and deployPoll() catches (the suspenders, below).
     deployOps =
       injectedDeployOps ??
       makeDeployOps({
@@ -2407,7 +2667,7 @@ export function makeWatcher({
         isPidAlive,
       });
     log(`DEPLOY-POLL every ${config.deployPollS}s (docker ${deployOps.dockerBin ?? `unresolved: ${deployOps.dockerReason}`}, git ${deployOps.gitBin}, watcher source ${deployOps.baselineDigest})`);
-    deployInterval = setInterval(() => void deployOps.evaluate({ busy: Boolean(child) }), config.deployPollS * 1000);
+    deployInterval = setInterval(deployPoll, config.deployPollS * 1000);
     deployInterval.unref();
 
     // AS-99 lanes poll. Everything it does lives in makeLanesOps (exported,
@@ -2460,6 +2720,7 @@ export function makeWatcher({
     start,
     poll,
     fire,
+    deployPoll, // AS-84: the interval's own callback, for the F6 guard's test
     shutdown,
     readSentinel,
     hasChild: () => child !== null,
@@ -2513,8 +2774,12 @@ function main() {
     log,
   });
   watcher.start();
-  process.on('SIGTERM', () => watcher.shutdown('SIGTERM'));
-  process.on('SIGINT', () => watcher.shutdown('SIGINT'));
+  // AS-84: shutdown() is async now (it waits for the tick child and the deploy
+  // child it just SIGTERMed, bounded by ADVANCE_SHUTDOWN_GRACE_S) and ends in
+  // process.exit(0) on every path, so main ignores the promise exactly as it
+  // ignores the deploy poll's.
+  process.on('SIGTERM', () => void watcher.shutdown('SIGTERM'));
+  process.on('SIGINT', () => void watcher.shutdown('SIGINT'));
 }
 
 // Execute only when run directly (never on `import { decide } ...` in tests).
