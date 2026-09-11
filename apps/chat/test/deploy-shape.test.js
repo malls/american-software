@@ -92,7 +92,7 @@ function parseComposeServices(text) {
     if (indent === 2) {
       if (!line.endsWith(':')) throw new Error(`compose: unrecognised service line: ${raw}`);
       current = line.slice(0, -1);
-      services.set(current, { volumes: null, build: null, profiles: null });
+      services.set(current, { volumes: null, build: null, profiles: null, network_mode: null });
       section = null;
       subsection = null;
       continue;
@@ -108,6 +108,7 @@ function parseComposeServices(text) {
       if (section === 'volumes' && inline === '') svc.volumes = [];
       else if (section === 'build') svc.build = inline === '' ? { args: null } : { context: inline, args: null };
       else if (section === 'profiles' && inline !== '') svc.profiles = parseInlineList(inline, raw);
+      else if (section === 'network_mode') svc.network_mode = inline;
       else if (LIST_KEYS.has(section) && inline !== '') {
         // an inline JSON-ish list for a key we do not otherwise read
         parseInlineList(inline, raw);
@@ -331,6 +332,17 @@ test('deploy-shape: cli keeps its lattice + personnel reads; test service stays 
   // the evidence that the suite touches no real state. It is also the reason
   // this file has to assert the manifests instead of the filesystem.
   assert.deepEqual(SERVICES.get('test').volumes, null, 'test service declares no volumes');
+});
+
+test('deploy-shape: the test service has no network (AS-106 network_mode: none)', () => {
+  // AS-106: `run --rm` removes only the container. A test service on the
+  // project's `default` network makes every `-p asc-*` counted run leave a
+  // `<project>_default` network behind, and at ~27 of them Docker Desktop's
+  // address pool was exhausted and voided counted acceptance runs. With no
+  // network reference compose has no `default` to create — measured in the
+  // AS-106 AC-1 probe: `asc-as106-probe` left zero networks; the same run
+  // with the line removed (M1) left `asc-as106-m1_default`.
+  assert.equal(SERVICES.get('test').network_mode, 'none', 'test service is network_mode: none');
 });
 
 // --- AS-75: the image-inputs manifest and the build-id stamp -----------------
