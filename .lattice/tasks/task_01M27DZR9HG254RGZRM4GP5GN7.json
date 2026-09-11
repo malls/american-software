@@ -2,7 +2,7 @@
   "acceptance_criteria": [],
   "assigned_to": null,
   "branch_links": [],
-  "comment_count": 0,
+  "comment_count": 1,
   "complexity": null,
   "created_at": "2026-09-11T05:10:31Z",
   "created_by": "agent:lattice-auto-review",
@@ -11,7 +11,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M27DZR9HG254RGZRM4GP5GN7",
-  "last_event_id": "ev_01M27DZRDZPXXRVWE0XDGTC8DH",
+  "last_event_id": "ev_01M27EHB3DA54Y50TR6NQQ6N6M",
   "last_status_changed_at": "2026-09-11T05:10:31Z",
   "linked_files": [],
   "needs_human": {
@@ -20,7 +20,15 @@
     "since": "2026-09-11T05:10:32Z"
   },
   "priority": "medium",
-  "relationships_out": [],
+  "relationships_out": [
+    {
+      "created_at": "2026-09-11T05:20:08Z",
+      "created_by": "agent:cto-owen",
+      "note": null,
+      "target_task_id": "task_01M26JYRDKC51TJQ0PZXQRFE2V",
+      "type": "related_to"
+    }
+  ],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-105",
@@ -28,6 +36,6 @@
   "tags": null,
   "title": "Investigate claude review failures \u2014 failed 2 times",
   "type": "task",
-  "updated_at": "2026-09-11T05:10:32Z",
+  "updated_at": "2026-09-11T05:20:08Z",
   "urgency": null
 }

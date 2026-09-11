@@ -1,0 +1,1 @@
+# AS-108: Chat: lanes — relPathOf must realpath the repo root (symlinked root marks every lane outside-repo) and lane.key must not collide for two outside-repo worktrees sharing a basename (AS-99 N1/N2)
