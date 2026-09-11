@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": null,
   "created_at": "2026-09-03T23:09:35Z",
   "created_by": "agent:qa-priya",
@@ -18,7 +18,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
-  "last_event_id": "ev_01M27PWCEFD0MFAMYGV95S1QRG",
+  "last_event_id": "ev_01M27Q02HB20KF6QAPP4S6732M",
   "last_status_changed_at": "2026-09-11T07:45:58Z",
   "linked_files": [],
   "priority": "critical",
@@ -38,6 +38,6 @@
   "tags": null,
   "title": "Chat watcher: the AS-27 heartbeat call site is unexercised \u2014 main() is never run by the suite",
   "type": "task",
-  "updated_at": "2026-09-11T07:45:58Z",
+  "updated_at": "2026-09-11T07:47:59Z",
   "urgency": null
 }
