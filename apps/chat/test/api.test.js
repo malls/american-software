@@ -687,6 +687,127 @@ test('api: AS-25 — live.js is served (app.js module graph must not 404); the 5
   assert.match(sendFn, /applyMessage/, 'send merges its own POST response');
 });
 
+// AS-72 finding 1: the AS-25 guard above parses timers with
+// /setInterval\(([\s\S]*?),\s*([\d_]+)\)/g. The lazy body stops at the FIRST
+// `, <digits>)` after `setInterval(` — so a nested `setTimeout(fn, 60_000)`
+// inside an interval body is read as "the cadence" and the real cadence is
+// skipped. That guard asserts a member's presence (one fetching interval
+// >= 30s); it cannot see what else the region contains. This one asserts the
+// region's COMPLETE contents with a balanced-paren scan: every timer the
+// served app.js schedules, and the exact call list of each body.
+
+/**
+ * Scan `src` from the `(` at `open` to its matching `)`, respecting string
+ * literals, template literals, and comments. Returns the index of the closer.
+ */
+function matchParen(src, open) {
+  let depth = 0;
+  for (let i = open; i < src.length; i += 1) {
+    const c = src[i];
+    if (c === '/' && src[i + 1] === '/') {
+      i = src.indexOf('\n', i);
+      if (i < 0) break;
+    } else if (c === '/' && src[i + 1] === '*') {
+      i = src.indexOf('*/', i + 2) + 1;
+    } else if (c === "'" || c === '"' || c === '`') {
+      const quote = c;
+      i += 1;
+      while (i < src.length && src[i] !== quote) i += src[i] === '\\' ? 2 : 1;
+    } else if (c === '(') {
+      depth += 1;
+    } else if (c === ')') {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  throw new Error(`unbalanced paren from index ${open}`);
+}
+
+/** Split an argument list at top-level commas (same lexing as matchParen). */
+function splitArgs(args) {
+  const out = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < args.length; i += 1) {
+    const c = args[i];
+    if (c === '/' && args[i + 1] === '/') {
+      i = args.indexOf('\n', i);
+      if (i < 0) break;
+    } else if (c === '/' && args[i + 1] === '*') {
+      i = args.indexOf('*/', i + 2) + 1;
+    } else if (c === "'" || c === '"' || c === '`') {
+      const quote = c;
+      i += 1;
+      while (i < args.length && args[i] !== quote) i += args[i] === '\\' ? 2 : 1;
+    } else if (c === '(' || c === '[' || c === '{') {
+      depth += 1;
+    } else if (c === ')' || c === ']' || c === '}') {
+      depth -= 1;
+    } else if (c === ',' && depth === 0) {
+      out.push(args.slice(start, i));
+      start = i + 1;
+    }
+  }
+  out.push(args.slice(start));
+  return out.map((s) => s.trim());
+}
+
+/** Names of non-member calls (`foo(` but not `.foo(`) appearing in `src`. */
+function callNames(src) {
+  return [...src.matchAll(/(^|[^.\w$])([A-Za-z_$][\w$]*)\s*\(/g)].map((m) => m[2]);
+}
+
+test('api: AS-72 — app.js schedules exactly two intervals (balanced-paren scan): one >=30s reconcile, one render-only tick', async (t) => {
+  const { base } = await bootServer(t);
+  const app = await (await fetch(base + '/app.js')).text();
+
+  // The whole served file is the region — a timer scheduled anywhere counts,
+  // including one nested inside another timer's body.
+  const timers = [...app.matchAll(/(^|[^.\w$])(setInterval|setTimeout)\s*\(/g)].map((m) => {
+    const open = m.index + m[0].length - 1;
+    const close = matchParen(app, open);
+    const args = splitArgs(app.slice(open + 1, close));
+    return { kind: m[2], at: m.index, args, body: args.slice(0, -1).join(','), last: args[args.length - 1] };
+  });
+  assert.equal(timers.length, 2, `exactly two timers in app.js (got ${timers.map((x) => x.kind).join(', ')})`);
+  assert.deepEqual(
+    timers.map((x) => x.kind),
+    ['setInterval', 'setInterval'],
+    'both timers are intervals — no setTimeout schedules work in app.js',
+  );
+
+  // Both live in init(); nothing schedules a timer elsewhere.
+  const initAt = app.indexOf('async function init()');
+  const initEnd = app.indexOf('init().catch(');
+  assert.ok(initAt > 0 && initEnd > initAt, 'init() located');
+  for (const timer of timers) {
+    assert.ok(timer.at > initAt && timer.at < initEnd, `timer at ${timer.at} is inside init()`);
+  }
+
+  // Each call's LAST argument is its ms literal — not the first `, <digits>)`
+  // the old lazy regex happened to reach.
+  const ms = timers.map((timer) => {
+    assert.match(timer.last, /^\d[\d_]*$/, `cadence is a numeric literal (got ${timer.last})`);
+    return Number(timer.last.replaceAll('_', ''));
+  });
+
+  // Timer 1 — the reconcile poll. Complete contents: it calls refreshSidebar
+  // and nothing else. A nested timer, a fetch, or a second helper is a change
+  // in what the cadence means, and must fail here.
+  assert.deepEqual(callNames(timers[0].body), ['refreshSidebar'], 'reconcile body calls refreshSidebar and nothing else');
+  assert.ok(ms[0] >= 30_000, `reconcile cadence >= 30s (got ${ms[0]})`);
+
+  // Timer 2 — the local age tick. Complete contents: the render calls, no
+  // network of any kind.
+  assert.deepEqual(
+    callNames(timers[1].body).sort(),
+    ['renderLanes', 'renderLanesBadge', 'renderLoopStatus'],
+    'age tick renders exactly the local views',
+  );
+  assert.doesNotMatch(timers[1].body, /refreshSidebar|\bapi\(|fetch\(/, 'the age tick never hits the network');
+  assert.ok(ms[1] > 0, `age tick cadence is positive (got ${ms[1]})`);
+});
+
 test('api: AS-18 — dm-sort.js is served (app.js module graph must not 404)', async (t) => {
   const { base } = await bootServer(t);
   const mod = await fetch(base + '/dm-sort.js');
