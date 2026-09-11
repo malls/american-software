@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-lena",
   "branch_links": [
     {
       "branch": "feat/AS-86-dockerignore-image-input",
@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 1,
+  "comment_count": 2,
   "complexity": null,
   "created_at": "2026-09-05T19:58:46Z",
   "created_by": "agent:qa-ruben",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDVMGSTT8GAW09ETXNNE3",
-  "last_event_id": "ev_01M27X4EDPBNYTW6J9Z6NJ91ZV",
-  "last_status_changed_at": "2026-09-11T09:35:04Z",
+  "last_event_id": "ev_01M27X9ENG6D5XR88DZNEXSWEA",
+  "last_status_changed_at": "2026-09-11T09:37:57Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-86",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "AS-75 F2: .dockerignore determines build context but sits outside IMAGE_INPUTS and its COPY-set guard",
   "type": "task",
-  "updated_at": "2026-09-11T09:35:14Z",
+  "updated_at": "2026-09-11T09:37:58Z",
   "urgency": null
 }
