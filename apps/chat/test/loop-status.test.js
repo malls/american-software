@@ -198,11 +198,41 @@ test('AS-95 loop-status: watcher-loop never displaces the states that already ex
   assert.equal(derive(lockAt(5_000, { source: 'deploy' }), pidAt(3_000), { loopState: live }).state, 'tick');
   // A watcher tick with no loop anywhere is the plain AS-27 `tick`.
   assert.equal(derive(lockAt(5_000, { source: 'watcher' }), pidAt(3_000), { loopState: loopFile({ active: false, ticks: 0 }) }).state, 'tick');
-  // Between two loop ticks the lock is released: no fresh lock means idle, and
-  // the loop object still reports active so the label can say so.
-  const between = derive(null, pidAt(3_000), { loopState: live });
-  assert.equal(between.state, 'idle');
+  // A stopped loop's file is not a loop: `active` is the switch.
+  assert.equal(derive(null, pidAt(3_000), { loopState: loopFile({ active: false }) }).state, 'idle');
+});
+
+// F5 (cycle-1 review): the sidebar read "Idle" between loop ticks, which is the
+// one moment the board is most likely to look — the company is mid-run and the
+// indicator said it had stopped. Between ticks the lock is gone, so the mirror
+// is the only witness, and it is believed exactly as far as the watcher's
+// heartbeat: a mirror left `active: true` by a watcher that died mid-loop must
+// never keep claiming a live loop.
+
+test('f5-between-ticks: a live loop between its ticks is a loop, not idle', () => {
+  const between = derive(null, pidAt(3_000), { loopState: loopFile() });
+  assert.equal(between.state, 'watcher-loop');
+  assert.equal(between.tick, null, 'nothing holds the lock in the gap');
   assert.equal(between.loop.active, true);
+  assert.equal(between.loop.ticks, 3, 'the label reads the tick count from the mirror');
+});
+
+test('f5-needs-a-live-watcher: an active mirror with a dead watcher is off, never a loop', () => {
+  const abandoned = derive(null, pidAt(10 * 60_000), { loopState: loopFile() });
+  assert.equal(abandoned.state, 'off');
+  assert.equal(abandoned.loop.active, true, 'the file still says what it says; the state does not believe it');
+  assert.equal(derive(null, null, { loopState: loopFile() }).state, 'off', 'no pid file at all');
+});
+
+test('f5-does-not-touch-the-lock-states: a fresh lock still decides who holds it', () => {
+  const live = loopFile();
+  assert.equal(derive(lockAt(5_000, { source: 'loop' }), pidAt(3_000), { loopState: live }).state, 'loop');
+  assert.equal(derive(lockAt(5_000, { source: 'deploy' }), pidAt(3_000), { loopState: live }).state, 'tick');
+  // A STALE lock is no lock: the gap between ticks can contain one (a tick that
+  // was SIGKILLed), and the loop is still the honest headline.
+  const stale = derive(lockAt(60 * 60_000, { source: 'watcher' }), pidAt(3_000), { loopState: live });
+  assert.equal(stale.state, 'watcher-loop');
+  assert.equal(stale.staleLock.reason, 'age', 'and the stale lock is still reported alongside');
 });
 
 test('AS-95 loop-status: lastLoop survives a stopped loop, and a garbage loop file degrades to null', () => {

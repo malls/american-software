@@ -74,6 +74,14 @@ so a cap is logged even when work remains.
 | b | a `backlog` task is ready (every `depends_on` target is `done`/`cancelled`) | continue `backlog-ready` |
 | d | none of the above | **stop** `dry` |
 
+One stop reason does not come from the predicate: `lock-unavailable`, when a
+loop tick could not take `advance.lock` for a solid hour (`maxLockWaitMs`).
+Until then an aborted fire is a **wait**, not an end — the loop keeps the debt
+and retries on the next poll, exactly as the message path has always retried a
+lost lock. The hour is deliberately longer than both the 30-minute tick timeout
+and the 45-minute staleness rule that lets the next fire steal the lock, so an
+honest foreign tick is always waited out.
+
 `needs_human` and `blocked` tasks are **not** work: they are waiting on the
 board, and a loop that treated them as work would never stop. A dependency
 whose target cannot be found counts as unmet — an unreadable edge is not a
@@ -105,7 +113,19 @@ The in-memory loop dies with the process, by design. On startup the watcher
 reads `advance-loop.json` and, if `active`, logs `LOOP-RESUME` and continues:
 `ticks` and `startedAt` carry forward (the cap still counts from the board's
 message) while the no-progress and failure counters reset, because the evidence
-for them died with the old process.
+for them died with the old process. The file is written when the loop is
+**armed**, not when its first tick settles, so a watcher that dies during tick 1
+still comes back into the loop.
+
+A resumed loop does not fire while `advance.lock` exists and is **younger than
+the tick timeout** (`LOOP-WAIT lock held by pid ...`). A watcher killed with
+`kill -9` does not take its tick with it: the child keeps running, and the lock
+it left behind names the dead *watcher*, so the staleness rule would read it as
+free and start a second tick beside the first. The gate is the lock's age, not
+its pid — a dead watcher pid says nothing about whether its child is alive.
+Worst case the resumed loop waits out the tick timeout; a board message still
+fires normally in the meantime (the message path is not gated), and the wait
+ends the moment the lock is released or ages out.
 
 ### Reading it
 
@@ -113,14 +133,29 @@ In `logs/advance-watcher.log` (and `launchd.out`):
 
 ```
 LOOP-START armedBy messageId 651
-LOOP-FIRE tick 1
+FIRE messageId 651 from human:forrest -> .../logs/tick-2026-09-10T21-14-02.118Z.log
+EXIT tick code=0 signal=none
 LOOP-EVAL tick 1 reason=mid-lifecycle detail={"tasks":["AS-95"]} -> continue
+LOOP-FIRE tick 2
+FIRE messageId 651 from human:forrest -> .../logs/tick-2026-09-10T21-22-31.904Z.log
 ...
 LOOP-STOP reason=dry after 6 ticks ({"ticks":6})
 ```
 
+Tick 1 is fired by the **message** path, so it logs `FIRE messageId N` with no
+`LOOP-FIRE` line above it; `LOOP-FIRE tick K` appears from tick 2 on, when the
+loop is the thing doing the firing. Every tick, whichever path fired it, logs a
+`FIRE messageId N` line — a loop tick carries the same message id, because that
+message is still what the run is answering.
+
 `LOOP-EVAL` is printed on **every** evaluation, continue or stop, so the log
 answers "why is it still going?" as well as "why did it stop?".
+
+Two lines say the loop is waiting rather than working. `LOOP-WAIT deploy
+pending` is the rebuild yield below; `LOOP-WAIT lock held ...` means somebody
+else holds `advance.lock` — a `/loop` session, a manual tick, or a tick the
+previous watcher left running. Each is printed once per episode, not once per
+poll.
 
 In the sidebar (`/api/loop-status`): a tick belonging to a loop reads
 **`Loop active · watcher, tick 3`** instead of `Tick in flight · watcher`, and

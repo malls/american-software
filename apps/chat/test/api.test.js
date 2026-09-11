@@ -1197,6 +1197,8 @@ function loopFixture(t) {
     freshLock: (source = 'loop', over = {}) => ({ pid: 5285, startedAt: iso(-60_000), source, ...over }),
     staleLock: (source = 'loop') => ({ pid: 5285, startedAt: iso(-(DEFAULTS.lockStaleMin * 60 * 1000) - 60_000), source }),
     livePid: () => ({ pid: 96123, startedAt: iso(-3_600_000), heartbeatAt: iso(-2_000) }),
+    /** A watcher whose heartbeat stopped: killed, crashed, or the host slept. */
+    stalePid: () => ({ pid: 96123, startedAt: iso(-3_600_000), heartbeatAt: iso(-10 * 60_000) }),
     legacyPid: () => ({ pid: 96123, startedAt: iso(-3_600_000) }),
     /** AS-75: what the watcher last decided, as it writes it. */
     deployState: (over = {}) => ({
@@ -1267,10 +1269,14 @@ test('api: AS-95 — a watcher loop is observable over /api/loop-status, with it
     ['tick', { lockBody: fx.freshLock('watcher'), pidBody: fx.livePid(), loopBody: null }],
     // A /loop session's own lock is untouched by AS-95.
     ['loop', { lockBody: fx.freshLock('loop'), pidBody: fx.livePid(), loopBody: fx.loopFile() }],
-    // Between two loop ticks the lock is released; the loop is still live.
-    ['idle', { lockBody: null, pidBody: fx.livePid(), loopBody: fx.loopFile() }],
+    // Between two loop ticks the lock is released; the loop is still live, and
+    // since the cycle-1 F5 fix the endpoint says so instead of reporting idle.
+    ['watcher-loop', { lockBody: null, pidBody: fx.livePid(), loopBody: fx.loopFile() }],
+    // The same file with no live watcher behind it is NOT a loop: an
+    // `active: true` mirror outlives the watcher that was killed mid-loop.
+    ['off', { lockBody: null, pidBody: fx.stalePid(), loopBody: fx.loopFile() }],
   ];
-  assert.equal(cases.length, 5);
+  assert.equal(cases.length, 6);
   const seen = [];
   for (const [expected, files] of cases) {
     fx.plant(files);
@@ -1279,7 +1285,7 @@ test('api: AS-95 — a watcher loop is observable over /api/loop-status, with it
     assert.equal(res.data.status.state, expected, `${expected}: state`);
     seen.push(res.data.status.state);
   }
-  assert.deepEqual(seen, ['watcher-loop', 'watcher-loop', 'tick', 'loop', 'idle']);
+  assert.deepEqual(seen, ['watcher-loop', 'watcher-loop', 'tick', 'loop', 'watcher-loop', 'off']);
 
   // The tick count the sidebar renders reaches the client from both witnesses.
   fx.plant({ lockBody: fx.freshLock('watcher', { loop: { ticks: 4 } }), pidBody: fx.livePid(), loopBody: fx.loopFile({ ticks: 3 }) });
@@ -1295,7 +1301,7 @@ test('api: AS-95 — a watcher loop is observable over /api/loop-status, with it
     loopBody: fx.loopFile({ active: false, ticks: 0, lastLoop: { stoppedAt: new Date(Date.now() - 60_000).toISOString(), reason: 'no-progress', ticks: 2, detail: { headBefore: 'abc' } } }),
   });
   const after = (await get('/api/loop-status')).data.status;
-  assert.equal(after.state, 'idle');
+  assert.equal(after.state, 'idle', 'a stopped loop is idle again — `active: false` is what ends it');
   assert.equal(after.loop.active, false);
   assert.equal(after.loop.lastLoop.reason, 'no-progress');
   assert.equal(after.loop.lastLoop.ticks, 2);

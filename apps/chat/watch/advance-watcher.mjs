@@ -1706,8 +1706,12 @@ function main() {
     }
     loopWaitLogged = false;
     loopOps.takeFire(); // logs LOOP-FIRE, once per tick rather than per retry
-    // A loop tick has no new message of its own: it re-uses the current
-    // highwater id, so fire()'s highwater write rewrites the same value.
+    // The REAL sentinel, when there is one — load-bearing, not incidental. A
+    // loop tick re-fires the message the run is still answering, so fire()
+    // rewrites the highwater to the value it already holds (no move, AC-5), and
+    // the tick log names the message a reader is looking for. The synthetic
+    // fallback is for the case where the sentinel file is gone or unparsable:
+    // the current highwater id, so the rewrite is still a no-op.
     const highwater = readJson(paths.highwater);
     fire(sentinel ?? { messageId: highwater ? highwater.messageId : 0, authorId: 'loop' });
   }

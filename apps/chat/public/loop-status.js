@@ -85,6 +85,7 @@ const LOOP_STOP_REASONS = {
   'no-progress': 'two ticks in a row ended without a commit on master',
   'cap-hit': 'the safety cap was reached',
   'tick-failed-twice': 'two ticks in a row failed or hit the tick timeout',
+  'lock-unavailable': 'another tick held the advance lock for an hour, so the loop stopped rather than go on waiting',
   error: 'the watcher hit an unexpected error while evaluating the loop',
 };
 
@@ -142,6 +143,10 @@ export function describeLoopStatus(status, nowMs = Date.now()) {
       `${status.state === 'loop' || status.state === 'watcher-loop' ? 'Loop tick' : 'Tick'} from ${status.tick.source || 'unknown source'}` +
         ` (pid ${status.tick.pid ?? '?'}) started ${fmtAge(ageSince(status.tick.startedAt, nowMs))} ago.`
     );
+  } else if (status.state === 'watcher-loop') {
+    // AS-95 F5: the gap between two loop ticks. The company has not stopped —
+    // saying so is the whole point of showing the loop rather than the lock.
+    parts.push('Between loop ticks: no tick holds the lock this instant, and the next one fires within a poll.');
   } else if (status.state === 'idle') {
     parts.push('No tick is running; a board message fires one.');
   } else if (status.state === 'off') {
@@ -155,8 +160,13 @@ export function describeLoopStatus(status, nowMs = Date.now()) {
   if (!status.tick && status.lastTick && status.lastTick.endedAt) {
     parts.push(
       `Last tick: ${status.lastTick.source || 'unknown source'}, ended ` +
-        `${fmtAge(ageSince(status.lastTick.endedAt, nowMs))} ago. ` +
-        'A loop releases the lock between ticks, so a running loop reads as idle in that gap.'
+        `${fmtAge(ageSince(status.lastTick.endedAt, nowMs))} ago.` +
+        // A session's /loop still reads as idle in the gap (nothing mirrors its
+        // state), so C5's explanation stays — but not on a watcher loop, which
+        // since AS-95 says what it is doing in the line above.
+        (status.state === 'watcher-loop'
+          ? ''
+          : ' A loop releases the lock between ticks, so a running loop reads as idle in that gap.')
     );
   }
 

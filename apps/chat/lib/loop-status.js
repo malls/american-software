@@ -147,13 +147,19 @@ function deriveWatcher(watcher, nowMs, watcherStaleMs) {
  *
  *   loop         — a fresh lock whose source is "loop": a /loop /advance session
  *                  is executing a tick right now.
- *   watcher-loop — AS-95: a fresh WATCHER lock that belongs to a watcher loop
- *                  (the board's message started a run of ticks). Distinguished
- *                  from `tick` because "one tick, then silence" and "tick 3 of a
- *                  run that continues until the company is dry" are different
- *                  facts about the company, and the board asked to see which.
+ *   watcher-loop — AS-95: a watcher loop is running (the board's message started
+ *                  a run of ticks). Distinguished from `tick` because "one tick,
+ *                  then silence" and "tick 3 of a run that continues until the
+ *                  company is dry" are different facts about the company, and
+ *                  the board asked to see which. It covers the gaps BETWEEN the
+ *                  loop's ticks as well as the ticks: the lock is released
+ *                  between them, and reporting "Idle" there says the company
+ *                  stopped when it has not (cycle-1 review, F5). A mirror file
+ *                  claiming a live loop is only believed while the watcher's
+ *                  own heartbeat is fresh — nothing else would ever clear it.
  *   tick         — a fresh lock from any other source (watcher, manual).
- *   idle         — no fresh lock, watcher listening: the next board message fires.
+ *   idle         — no fresh lock, no loop, watcher listening: the next board
+ *                  message fires.
  *   off          — no fresh lock, watcher not listening: nothing will fire.
  *
  * @param {object}  args
@@ -181,14 +187,21 @@ export function deriveLoopStatus({ lock, watcher, loopState = null, nowMs, lockS
   // and a pre-AS-95 lock has no marker — and requiring both would report a loop
   // as a bare tick whenever one of them lagged.
   const inWatcherLoop = tick !== null && tick.source === 'watcher' && ((loop !== null && loop.active) || tick.loopTicks !== null);
+  // Between two of the loop's own ticks there is no lock at all. The mirror is
+  // then the only witness, so it is believed only alongside a live watcher
+  // heartbeat: the mirror of a watcher that was killed mid-loop says
+  // `active: true` forever, and a dead watcher is `off`, not a running loop.
+  const betweenLoopTicks = tick === null && loop !== null && loop.active && w.listening;
   const state = tick
     ? tick.source === 'loop'
       ? 'loop'
       : inWatcherLoop
         ? 'watcher-loop'
         : 'tick'
-    : w.listening
-      ? 'idle'
-      : 'off';
+    : betweenLoopTicks
+      ? 'watcher-loop'
+      : w.listening
+        ? 'idle'
+        : 'off';
   return { state, tick, loop, staleLock, watcher: w, checkedAt: new Date(nowMs).toISOString() };
 }

@@ -252,6 +252,10 @@ test('AS-95 label: a stopped loop says WHY, in words, and only while no loop is 
   assert.match(stopped('no-progress', 2), /two ticks in a row ended without a commit on master/);
   assert.match(stopped('cap-hit', 24), /the safety cap was reached/);
   assert.match(stopped('tick-failed-twice', 2), /two ticks in a row failed or hit the tick timeout/);
+  // Every reason shouldContinue() and the loop ops can emit has words here; the
+  // hour-long lock wait is the one that does not come from the predicate.
+  assert.match(stopped('lock-unavailable', 3), /another tick held the advance lock for an hour/);
+  assert.match(stopped('error', 1), /unexpected error while evaluating the loop/);
   assert.match(stopped('dry', 1), /after 1 tick,/, 'one tick, not "1 ticks"');
   // An unknown reason is still a stop worth showing, named rather than hidden.
   assert.match(stopped('something-new', 3), /reason: something-new/);
@@ -283,4 +287,34 @@ test('AS-75 label: an absent or malformed build key changes nothing', () => {
     assert.equal(got.detail, baseline.detail, `build=${JSON.stringify(bad)}: no sentence, no throw`);
     assert.equal(got.tone, 'idle');
   }
+});
+
+// F5 (cycle-1 review): between two loop ticks nothing holds the lock, and the
+// sidebar used to read "Idle · watcher listening" — the company mid-run,
+// reported as stopped, at the moment the board is most likely to be watching.
+
+test('f5-between-ticks-label: the gap between loop ticks reads as a loop, and says it is a gap', () => {
+  const between = describeLoopStatus(
+    status({
+      state: 'watcher-loop',
+      tick: null,
+      loop: { active: true, ticks: 3, startedAt: iso(-600_000), armedBy: 651, lastLoop: null },
+      lastTick: { source: 'watcher', startedAt: iso(-40_000), endedAt: iso(-4_000) },
+    }), NOW);
+  assert.equal(between.label, 'Loop active · watcher, tick 3');
+  assert.equal(between.tone, 'loop');
+  assert.match(between.detail, /Between loop ticks/);
+  assert.match(between.detail, /Last tick: watcher, ended 4 s ago\./);
+  // C5's "a running loop reads as idle in that gap" explained the OLD defect.
+  // It is still true of a /loop session (nothing mirrors that one) and must not
+  // be said here, where the line above has just said the opposite.
+  assert.doesNotMatch(between.detail, /reads as idle in that gap/);
+  assert.doesNotMatch(between.detail, /Idle/);
+});
+
+test('f5-idle-keeps-its-own-words: a session loop between ticks still gets C5’s explanation', () => {
+  const sessionGap = describeLoopStatus(
+    status({ state: 'idle', lastTick: { source: 'loop', startedAt: iso(-300_000), endedAt: iso(-40_000) } }), NOW);
+  assert.equal(sessionGap.label, 'Idle · watcher listening');
+  assert.match(sessionGap.detail, /reads as idle in that gap/);
 });
