@@ -30,7 +30,10 @@ test('AS-87 real build: the state file heartbeats through the build and deploy-*
   mkdirSync(app);
   const logsDir = join(dir, 'logs');
   mkdirSync(logsDir);
-  writeFileSync(join(app, 'Dockerfile'), 'FROM alpine\nRUN echo AS87-MARKER && sleep 75\nCMD ["sleep", "3600"]\n');
+  // The nonce defeats BuildKit's layer cache: without it a second run of this
+  // test builds in ~5 s from cache, 0 heartbeats fire, and a mutant that
+  // empties the log goes red for the wrong reason (observed 2026-09-11).
+  writeFileSync(join(app, 'Dockerfile'), `FROM alpine\nRUN echo AS87-MARKER-${Date.now()} && sleep 75\nCMD ["sleep", "3600"]\n`);
   writeFileSync(join(app, 'compose.yaml'), 'services:\n  as87:\n    build: .\n');
   t.after(() => {
     spawnSync(docker.bin, ['compose', '-p', project, 'down', '--rmi', 'local', '-v', '--remove-orphans'], { cwd: app, stdio: 'ignore' });
