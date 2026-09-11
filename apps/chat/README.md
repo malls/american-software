@@ -213,6 +213,15 @@ click.** `refs[].url`, `task.url` and `employee.work.url` are still emitted
 from `LATTICE_DASHBOARD_URL` or the `http://127.0.0.1:8799` default, unchanged
 since AS-10, and the browser overrides them per the rule above.
 
+The browser never reads that field, and a test pins it
+(`test/link-sites.test.js`, AS-98): every href assignment in `public/` must
+come from one of four allowlisted sources (`dashHref()`, a tokenizer's verbatim
+`tok.href`, the `?m=` message placeholder, or `serializeChatUrl()`), no file
+may set an href by `setAttribute`/`Object.assign`/bracket access, and no file
+outside `dashboard-link.js` may name a dashboard host or port. Adding a
+legitimate fifth source is a deliberate one-line edit to that test's allowlist,
+with a comment saying why.
+
 The links are live only while the dashboard is listening on the host. **Since
 AS-94 that is a supervised launchd user agent**
 (`com.american-software.lattice-dashboard`, install/restart/troubleshooting in
