@@ -7,7 +7,18 @@ import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openStore, StoreError } from './lib/store.js';
-import { ingestNewEvents, resolveRefs, resolveShortId, latticeRoot, assignmentsByActor } from './lib/lattice.js';
+import {
+  ingestNewEvents,
+  resolveRefs,
+  resolveShortId,
+  latticeRoot,
+  assignmentsByActor,
+  listTasks,
+  idsByShortId,
+} from './lib/lattice.js';
+// AS-99: the lane projection. The composer is pure and lives in lib/; the
+// server supplies the three inputs (snapshot file, task list, clock).
+import { composeLanes } from './lib/lanes.js';
 import { readRoster, readPersonnel } from './lib/personnel.js';
 // AS-33: the org rule set + tree builder. The server importing UP into
 // public/ is deliberate: that module is also what the BROWSER imports, and a
@@ -35,6 +46,7 @@ const STATIC_FILES = {
   '/msg-refs.js': ['msg-refs.js', 'text/javascript; charset=utf-8'],
   '/markdown.js': ['markdown.js', 'text/javascript; charset=utf-8'],
   '/loop-status.js': ['loop-status.js', 'text/javascript; charset=utf-8'],
+  '/lanes.js': ['lanes.js', 'text/javascript; charset=utf-8'],
   '/dashboard-link.js': ['dashboard-link.js', 'text/javascript; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
   '/favicon.svg': ['favicon.svg', 'image/svg+xml'],
@@ -61,6 +73,12 @@ export const LOOP_POLL_MS = 2_000;
 // emulated build, comfortably short of "the reporter died an hour ago and the
 // board is still reading its last opinion".
 export const DEPLOY_STATE_STALE_MS = 10 * 60 * 1000;
+
+// AS-99: how often the server recomposes the lane projection and pushes a frame
+// if it CHANGED. Slower than the loop poll (a lane moves on the scale of a git
+// commit, not a lock file) and faster than the watcher's own 15s snapshot
+// cadence, so a new snapshot reaches a browser within one poll of being written.
+export const LANES_POLL_MS = 5_000;
 
 /**
  * AS-75: the `build` half of /api/loop-status — is the code serving this
@@ -167,6 +185,7 @@ export function createChatServer({
   repoRoot,
   dataDir,
   loopPollMs = LOOP_POLL_MS,
+  lanesPollMs = LANES_POLL_MS,
   // AS-75: the id baked into this image by the Dockerfile's ARG BUILD_ID.
   // Taken RAW, `unknown` included — normalising happens once, below, so both
   // /api/build and /api/loop-status answer from the same judgement.
@@ -189,6 +208,11 @@ export function createChatServer({
   // contract as the three files above — absent means "no watcher loop has ever
   // run here" (a pre-AS-95 watcher never writes it), which is not an error.
   const LOOP_STATE_PATH = join(loopDir, 'advance-loop.json');
+  // AS-99: the host watcher's git snapshot of every worktree. Fourth file in
+  // the same directory, same degradation contract as the three above — absent
+  // means "no watcher has written one here", which the pane says out loud
+  // rather than rendering an empty lane list as "nothing is running".
+  const WORKTREES_PATH = join(loopDir, 'worktrees.json');
   // `unknown` is what an image built by hand (no CHAT_BUILD_ID in the env)
   // carries. It is not an id — treating it as one would let a hand-built image
   // claim currency it cannot have — so it normalises to null, exactly like an
@@ -273,6 +297,36 @@ export function createChatServer({
     });
     return { ...status, lastTick, build };
   }
+
+  // AS-99: the lane projection. The git half is the watcher's snapshot (only as
+  // fresh as the watcher, which is why composeLanes reports its age); the
+  // Lattice half is read live here, so stage, assignee and title are never
+  // snapshot-aged, and a task with no worktree yet still gets a lane.
+  function readLanes() {
+    return composeLanes({
+      snapshot: readLoopFile(WORKTREES_PATH),
+      tasks: listTasks(root),
+      ids: idsByShortId(root),
+      nowMs: Date.now(),
+    });
+  }
+
+  // What counts as a CHANGE worth a lanes frame. `ageS` and `checkedAt` move on
+  // every poll and are excluded for the same reason every age field is excluded
+  // from loopStateKey; `snapshot.generatedAt` is INCLUDED deliberately — the
+  // watcher rewrites it every 15 s whether or not git changed, so one small
+  // frame per snapshot is the honest "the feed is alive" signal and keeps the
+  // client's age caption sourced from a current timestamp. `stale` is included
+  // because it flips at the 60 s boundary with no file write behind it.
+  const lanesKey = (p) =>
+    JSON.stringify({
+      generatedAt: p.snapshot.generatedAt,
+      reason: p.snapshot.reason,
+      stale: p.snapshot.stale,
+      error: p.snapshot.error,
+      count: p.count,
+      lanes: p.lanes,
+    });
 
   // What counts as a CHANGE worth a push frame. Deliberately excludes every
   // age field: `ageS` moves on every single poll, so comparing whole payloads
@@ -364,6 +418,33 @@ export function createChatServer({
   }, loopPollMs);
   loopPoll.unref();
 
+  // AS-99: lanes push, change-only. Primed at construction for the same reason
+  // the loop poll is: the first poll after boot must not emit a frame for a
+  // state nothing has changed since.
+  let lastLanesKey = lanesKey(readLanes());
+  const lanesPoll = setInterval(() => {
+    let projection;
+    try {
+      projection = readLanes();
+    } catch {
+      return; // a bad snapshot or task file never takes the server down
+    }
+    const key = lanesKey(projection);
+    if (key === lastLanesKey) return;
+    lastLanesKey = key;
+    // No visibleTo gate: the lane view is identical for every viewer, same
+    // contract as the loop frame.
+    const frame = `event: lanes\ndata: ${JSON.stringify({ lanes: projection })}\n\n`;
+    for (const conn of streams) {
+      try {
+        conn.res.write(frame);
+      } catch {
+        streams.delete(conn);
+      }
+    }
+  }, lanesPollMs);
+  lanesPoll.unref();
+
   // Sentinel key for handleApi results that are raw text (currently only
   // /api/dump's JSONL), sent as text/plain instead of a JSON envelope.
   const RAW_TEXT = Symbol('rawText');
@@ -390,6 +471,14 @@ export function createChatServer({
       // AS-16 `nonce` is the anti-spoof token and is never copied into this
       // payload (enforced in lib/loop-status.js, asserted in its tests).
       return { status: readLoopStatus() };
+    }
+    if (req.method === 'GET' && pathname === '/api/lanes') {
+      // AS-99: what is in flight, one row per lane. Read-only and identical for
+      // every viewer — no 'me', no store, no visibility filter, same contract as
+      // /api/loop-status. The lane's `worktree` object is an exact-key
+      // whitelist (lib/lanes.js), so a snapshot field added on the host cannot
+      // reach a browser without a decision here.
+      return { lanes: readLanes() };
     }
     if (req.method === 'GET' && pathname === '/api/build') {
       // AS-75: what code is actually serving, first-hand. The watcher reads
@@ -637,6 +726,10 @@ export function createChatServer({
         // arrives before any message frame this connection will ever see.
         try {
           res.write(`event: loop\ndata: ${JSON.stringify(readLoopStatus())}\n\n`);
+          // AS-99: and one lanes frame, after the loop frame — a reconnecting
+          // client renders the pane without issuing a fetch, and the order is
+          // fixed so test/stream.test.js can consume both deterministically.
+          res.write(`event: lanes\ndata: ${JSON.stringify({ lanes: readLanes() })}\n\n`);
         } catch {
           streams.delete(conn);
         }
@@ -701,6 +794,7 @@ export function createChatServer({
         // sure the socket is actually gone.
         clearInterval(heartbeat);
         clearInterval(loopPoll); // AS-27: same reason as the heartbeat above
+        clearInterval(lanesPoll); // AS-99: and the same reason again
         for (const conn of streams) {
           try {
             conn.res.end();

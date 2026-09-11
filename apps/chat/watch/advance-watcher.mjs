@@ -60,6 +60,11 @@ export const DEFAULTS = Object.freeze({
   deployTimeoutMin: 15, // an emulated linux/amd64 rebuild, generously
   deployCooldownMin: 30, // suppress only a REPEAT of a failed attempt at the same id
   chatUrl: 'http://127.0.0.1:8347',
+  // AS-99 lanes poll. A tick is when lanes change, so 15s is well inside the
+  // window a board member would notice, and four polls fit inside the 60s
+  // staleness threshold the server applies to the snapshot (lib/lanes.js).
+  // Read-only git calls only, and deliberately NOT gated on `busy`.
+  lanesPollS: 15,
 });
 
 // AS-75: the image's git-committed inputs, as repo-relative-to-apps/chat paths.
@@ -101,6 +106,7 @@ export function loadConfig(env = process.env) {
     deployTimeoutMin: envNum(env, 'ADVANCE_DEPLOY_TIMEOUT_MIN', DEFAULTS.deployTimeoutMin),
     deployCooldownMin: envNum(env, 'ADVANCE_DEPLOY_COOLDOWN_MIN', DEFAULTS.deployCooldownMin),
     chatUrl: env.ADVANCE_CHAT_URL || DEFAULTS.chatUrl,
+    lanesPollS: envNum(env, 'ADVANCE_LANES_POLL_S', DEFAULTS.lanesPollS),
   };
 }
 
@@ -1414,6 +1420,290 @@ export function makeLoopOps({
   };
 }
 
+// --- AS-99: the lanes snapshot ----------------------------------------------
+//
+// The chat container has no git binary and cannot reach a linked worktree's
+// .git anyway (each .worktrees/AS-n/.git is a FILE holding an absolute host
+// path), so the git half of the lane view is a host fact the watcher writes to
+// apps/chat/data/worktrees.json — the fourth file in the table beside
+// deploy-state.json, advance-loop.json and advance-watcher.pid. The server
+// joins it to .lattice read-only; see apps/chat/lib/lanes.js.
+//
+// Pure parser + classifier first, effects in the factory below, same split as
+// every other section of this file.
+
+/**
+ * `git worktree list --porcelain` -> rows. Tolerant by construction: a snapshot
+ * may be taken mid-`worktree add`, so a record missing HEAD yields a row with an
+ * `errors` entry, never a throw (AC-1).
+ *
+ * Row shape: { path, head, branch, detached, locked, prunable, bare, main,
+ * errors[] }. `path` is the ABSOLUTE host path — the factory needs it as a cwd
+ * for the per-row git calls and strips it to a repo-relative path before the
+ * snapshot is written (host-private facts stay out of the payload).
+ */
+export function parseWorktreeList(stdout) {
+  const rows = [];
+  let cur = null;
+  const flush = () => {
+    if (!cur) return;
+    if (cur.head === null) cur.errors.push('head: missing from porcelain record');
+    if (cur.branch === null && !cur.detached) cur.errors.push('branch: no branch and no detached marker');
+    rows.push(cur);
+    cur = null;
+  };
+  for (const raw of String(stdout ?? '').split('\n')) {
+    const line = raw.replace(/\r$/, '');
+    if (line === '') {
+      flush();
+      continue;
+    }
+    const sp = line.indexOf(' ');
+    const key = sp === -1 ? line : line.slice(0, sp);
+    const value = sp === -1 ? '' : line.slice(sp + 1);
+    if (key === 'worktree') {
+      flush();
+      cur = {
+        path: value,
+        head: null,
+        branch: null,
+        detached: false,
+        locked: false,
+        prunable: false,
+        bare: false,
+        // git always lists the main worktree first; every later record is a
+        // linked worktree. The projection drops the main row, but the snapshot
+        // keeps it so the file is a complete answer to "what does git say".
+        main: rows.length === 0,
+        errors: [],
+      };
+      continue;
+    }
+    if (!cur) continue; // a stray attribute before any `worktree` line
+    if (key === 'HEAD') cur.head = value;
+    else if (key === 'branch') cur.branch = value.replace(/^refs\/heads\//, '');
+    else if (key === 'detached') cur.detached = true;
+    else if (key === 'locked') cur.locked = true;
+    else if (key === 'prunable') cur.prunable = true;
+    else if (key === 'bare') cur.bare = true;
+  }
+  flush();
+  return rows;
+}
+
+/**
+ * Is this branch already merged into master? Three facts, all three needed
+ * (AC-6): a branch cut from master's tip this minute is an ancestor with ahead
+ * 0 too, and only the first-parent test separates "merged with --no-ff" from
+ * "never committed on". Any unknown input yields null — never a confident false.
+ *
+ * Known limit, recorded in apps/chat/README.md: a SQUASH merge leaves a tip
+ * that is not an ancestor of master at all, so git alone cannot see it. The
+ * task-status half of the STALE flag covers that case once the task is done.
+ */
+export function classifyMerged({ ahead, isAncestor, onFirstParent }) {
+  if (ahead === null || ahead === undefined) return null;
+  if (isAncestor === null || isAncestor === undefined) return null;
+  if (onFirstParent === null || onFirstParent === undefined) return null;
+  return ahead === 0 && isAncestor === true && onFirstParent === false;
+}
+
+/** The marker a worktree outside the repo root gets instead of its host path.
+ *  It cannot collide with a real repo-relative path (those never start with a
+ *  '<'), which is what lets the composer keep using relPath as a lane key. */
+export const OUTSIDE_REPO = '<outside repo>';
+
+/** Repo-relative path for the snapshot. '.' for the main checkout itself.
+ *
+ *  A linked worktree can legitimately live anywhere on the host (`git worktree
+ *  add /tmp/throwaway`), and the absolute host path must NEVER reach the
+ *  snapshot — the plan's T4 says so outright, and the payload flows straight to
+ *  a browser through lane.worktree.relPath and lane.key. Such a row is marked
+ *  instead, keeping only the basename so two outside worktrees stay distinct
+ *  lanes (the key falls back to relPath when no task joins). */
+export function relPathOf(repoRoot, path) {
+  const root = String(repoRoot ?? '').replace(/\/+$/, '');
+  const p = String(path ?? '');
+  if (p === root) return '.';
+  if (root && p.startsWith(root + '/')) return p.slice(root.length + 1);
+  // Already relative (or empty): nothing to leak, leave it alone.
+  if (!p.startsWith('/')) return p;
+  const base = p.replace(/\/+$/, '').split('/').pop();
+  return base ? `${OUTSIDE_REPO}/${base}` : OUTSIDE_REPO;
+}
+
+/** Porcelain v1 status lines -> { dirtyCount, dirtyLattice }. `dirtyLattice`
+ *  surfaces the two-plane-rule violation CLAUDE.md § "Working-directory hazard"
+ *  describes: board state written onto a task branch, visible for free. */
+export function summarizeStatus(stdout) {
+  let dirtyCount = 0;
+  let dirtyLattice = false;
+  for (const line of String(stdout ?? '').split('\n')) {
+    if (line.trim() === '') continue;
+    dirtyCount += 1;
+    const rest = line.length > 3 ? line.slice(3) : line;
+    for (const part of rest.split(' -> ')) {
+      const p = part.trim().replace(/^"|"$/g, '');
+      if (p === '.lattice' || p.startsWith('.lattice/')) dirtyLattice = true;
+    }
+  }
+  return { dirtyCount, dirtyLattice };
+}
+
+const LOG_FORMAT = '%H%x00%an%x00%ae%x00%cI%x00%s';
+
+function parseLastCommit(stdout) {
+  const parts = String(stdout ?? '').replace(/\n$/, '').split('\0');
+  if (parts.length < 5 || !parts[0]) return null;
+  return {
+    sha: parts[0],
+    authorName: parts[1],
+    authorEmail: parts[2],
+    committedAt: parts[3],
+    subject: parts.slice(4).join('\0'),
+  };
+}
+
+/**
+ * The lanes snapshot's effects, injected exactly as makeDeployOps injects its
+ * own — every git call, the clock, the writer and the log, so each branch below
+ * is a unit test with no git and no filesystem.
+ *
+ * evaluate() NEVER rejects and writes the file on EVERY call, including the
+ * failure paths: a failed poll is a fact with a timestamp, not a missing file,
+ * and the freshness rule (lib/lanes.js LANES_STALE_MS) is only honest if
+ * generatedAt advances whether or not the content changed (AC-2, AC-3).
+ *
+ * Returns { evaluate, statePath, gitBin }.
+ */
+export function makeLanesOps({
+  repoRoot,
+  statePath,
+  gitBin = 'git',
+  run = runSync,
+  now = () => Date.now(),
+  writeState = defaultWriteState,
+  log = () => {},
+}) {
+  let lastWriteWarn = null;
+
+  function persist(body) {
+    try {
+      writeState(statePath, body);
+    } catch (err) {
+      if (lastWriteWarn !== err.message) {
+        lastWriteWarn = err.message;
+        log(`WARN cannot write ${statePath} (${err.message}); the lane view degrades, the watcher does not`);
+      }
+      return;
+    }
+    lastWriteWarn = null;
+  }
+
+  function git(args, cwd) {
+    return run(gitBin, args, { cwd });
+  }
+
+  function firstLine(text) {
+    return String(text ?? '').split('\n')[0].trim();
+  }
+
+  async function evaluate() {
+    const generatedAt = new Date(now()).toISOString();
+    const base = { schema: 1, source: 'watcher:git', generatedAt };
+    try {
+      const list = git(['worktree', 'list', '--porcelain'], repoRoot);
+      if (list.code !== 0) {
+        const error = list.code === -1 ? 'no-git' : `worktree-list-failed: ${firstLine(list.stderr) || `exit ${list.code}`}`;
+        persist({ ...base, master: { head: null }, error, worktrees: [] });
+        return;
+      }
+
+      const masterRev = git(['rev-parse', 'master'], repoRoot);
+      const masterHead = masterRev.code === 0 ? masterRev.stdout.trim() || null : null;
+
+      // ONE first-parent walk per poll, shared by every row: the membership
+      // question is the same question for all of them, and master's first-parent
+      // chain is the same list.
+      const fp = git(['rev-list', '--first-parent', 'master'], repoRoot);
+      const firstParent = fp.code === 0 ? new Set(fp.stdout.split('\n').map((s) => s.trim()).filter(Boolean)) : null;
+
+      const worktrees = [];
+      for (const row of parseWorktreeList(list.stdout)) {
+        const out = {
+          relPath: relPathOf(repoRoot, row.path),
+          main: row.main,
+          head: row.head,
+          branch: row.branch,
+          detached: row.detached,
+          ahead: null,
+          behind: null,
+          dirtyCount: null,
+          dirtyLattice: null,
+          merged: null,
+          lastCommit: null,
+          errors: [...row.errors],
+        };
+        // The main checkout is master by definition: counting it against
+        // itself is noise, and the projection drops the row anyway.
+        if (row.main || !row.head) {
+          worktrees.push(out);
+          continue;
+        }
+        const ref = row.branch ?? row.head;
+        const cwd = row.path;
+
+        // Each call is isolated: one broken worktree records its own error and
+        // never blanks its neighbours or aborts the snapshot (AC-4).
+        const counts = git(['rev-list', '--left-right', '--count', `master...${ref}`], cwd);
+        if (counts.code === 0) {
+          const [behind, ahead] = counts.stdout.trim().split(/\s+/).map((n) => Number(n));
+          if (Number.isFinite(behind) && Number.isFinite(ahead)) {
+            out.behind = behind;
+            out.ahead = ahead;
+          } else {
+            out.errors.push(`rev-list: unparsable count "${counts.stdout.trim()}"`);
+          }
+        } else {
+          out.errors.push(`rev-list: exit ${counts.code} ${firstLine(counts.stderr)}`.trim());
+        }
+
+        // --no-optional-locks is the whole reason a background poll is safe to
+        // run against a worktree an employee is committing in: without it git
+        // may take the index lock and write the worktree's git dir (AC-5).
+        const status = git(['--no-optional-locks', 'status', '--porcelain'], cwd);
+        if (status.code === 0) {
+          const s = summarizeStatus(status.stdout);
+          out.dirtyCount = s.dirtyCount;
+          out.dirtyLattice = s.dirtyLattice;
+        } else {
+          out.errors.push(`status: exit ${status.code} ${firstLine(status.stderr)}`.trim());
+        }
+
+        const logOut = git(['log', '-1', `--format=${LOG_FORMAT}`], cwd);
+        if (logOut.code === 0) out.lastCommit = parseLastCommit(logOut.stdout);
+        else out.errors.push(`log: exit ${logOut.code} ${firstLine(logOut.stderr)}`.trim());
+
+        const ancestor = git(['merge-base', '--is-ancestor', row.head, 'master'], cwd);
+        const isAncestor = ancestor.code === 0 ? true : ancestor.code === 1 ? false : null;
+        if (isAncestor === null) out.errors.push(`merge-base: exit ${ancestor.code} ${firstLine(ancestor.stderr)}`.trim());
+        const onFirstParent = firstParent === null ? null : firstParent.has(row.head);
+        out.merged = classifyMerged({ ahead: out.ahead, isAncestor, onFirstParent });
+
+        worktrees.push(out);
+      }
+
+      persist({ ...base, master: { head: masterHead }, error: null, worktrees });
+    } catch (err) {
+      // Nothing above is allowed to take the watcher down, and a poll that
+      // died still owes the reader a timestamped answer.
+      persist({ ...base, master: { head: null }, error: `worktree-list-failed: ${err.message}`, worktrees: [] });
+    }
+  }
+
+  return { evaluate, statePath, gitBin };
+}
+
 function main() {
   const config = loadConfig();
   const dataDir = join(config.repoRoot, 'apps', 'chat', 'data');
@@ -1427,6 +1717,7 @@ function main() {
     settings: join(config.repoRoot, '.claude', 'settings.json'),
     deployState: join(dataDir, 'deploy-state.json'), // AS-75
     loopState: join(dataDir, 'advance-loop.json'), // AS-95
+    worktrees: join(dataDir, 'worktrees.json'), // AS-99
   };
   mkdirSync(logsDir, { recursive: true });
 
@@ -1740,6 +2031,22 @@ function main() {
   const deployInterval = setInterval(() => void deployOps.evaluate({ busy: Boolean(child) }), config.deployPollS * 1000);
   deployInterval.unref();
 
+  // AS-99 lanes poll. Everything it does lives in makeLanesOps (exported,
+  // unit-tested); these six lines are the entire unguarded wiring. NOT gated on
+  // `child`: a tick running is exactly when lanes move, and every call it makes
+  // is read-only (the status call carries --no-optional-locks so it cannot even
+  // take an index lock in a worktree an employee is committing in).
+  const lanesOps = makeLanesOps({
+    repoRoot: config.repoRoot,
+    statePath: paths.worktrees,
+    gitBin: deployOps.gitBin,
+    log,
+  });
+  log(`LANES-POLL every ${config.lanesPollS}s (git ${lanesOps.gitBin}) -> ${paths.worktrees}`);
+  const lanesInterval = setInterval(() => void lanesOps.evaluate(), config.lanesPollS * 1000);
+  lanesInterval.unref();
+  void lanesOps.evaluate(); // first snapshot now, not 15s from now
+
   log(
     `START watcher pid ${process.pid} repo ${config.repoRoot} ` +
       `(poll ${config.pollS}s, debounce ${config.debounceS}s, timeout ${config.tickTimeoutMin}min, ` +
@@ -1753,6 +2060,7 @@ function main() {
     log(`STOP ${signal}`);
     clearInterval(interval);
     clearInterval(deployInterval);
+    clearInterval(lanesInterval);
     if (child) {
       log('STOP terminating in-flight tick');
       child.kill('SIGTERM');

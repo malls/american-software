@@ -10,6 +10,9 @@ import { BOARD_ROOT, buildOrgTree } from './org-chart.js';
 import { tokenizeMsgRefs, tokenizeFileRefs } from './msg-refs.js';
 import { tokenizeInline, parseBlocks, tokenizeUrls } from './markdown.js';
 import { describeLoopStatus } from './loop-status.js';
+// AS-99: every word the lanes badge and pane show is decided in this module,
+// where it is unit-tested; this file does DOM only.
+import { describeLanes, describeLane, describeTickLine } from './lanes.js';
 import { dashboardTaskHref } from './dashboard-link.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -31,6 +34,7 @@ const state = {
   pins: new Set(), // AS-18: pinned roster actor ids for state.me (localStorage-backed)
   loopStatus: null, // AS-27: last /api/loop-status payload (null = unavailable)
   dashboardUrl: null, // AS-93: LATTICE_DASHBOARD_URL from /api/config (null = infer)
+  lanes: null, // AS-99: last /api/lanes projection (null = we cannot see, badge shows a dash)
 };
 
 // --- pins (AS-18) -----------------------------------------------------------
@@ -370,6 +374,14 @@ async function refreshSidebar() {
   } catch {
     state.loopStatus = null;
   }
+  // AS-99: and the lane projection, on the same terms — no 'me', and a failed
+  // fetch means "we cannot see what is running" (badge: a dash), which is a
+  // different statement from "nothing is running" (badge: 0).
+  try {
+    state.lanes = (await api('/api/lanes')).lanes;
+  } catch {
+    state.lanes = null;
+  }
   renderSidebar();
 }
 
@@ -424,6 +436,7 @@ function renderSidebar() {
     ...dmOrder(dms, otherOf, (c) => displayName(otherOf(c) || '?')).map(li)
   );
   renderLoopStatus();
+  renderLanesBadge(); // AS-99: the ambient count rides the same re-render
 }
 
 // --- roster rows (AS-8) -----------------------------------------------------
@@ -916,6 +929,128 @@ function closeOrgModal() {
   $('#org-modal').hidden = true;
 }
 
+// --- AS-99: lanes ----------------------------------------------------------
+// What is in flight, one card per lane. Same doctrine as the org chart above:
+// derived on every render from /api/lanes (the watcher's git snapshot joined to
+// .lattice read live), never a cached artifact. Push frames ('lanes') and the
+// 15 s render timer keep it current while it is open.
+
+/** The ambient sidebar glance. A count, never a denominator — nothing on disk
+ *  carries the WIP limit as data, so a "2/3" would be invented. */
+function renderLanesBadge() {
+  const badge = $('#lanes-badge');
+  if (!badge) return;
+  const { badge: text, title } = describeLanes(state.lanes, Date.now());
+  badge.textContent = text;
+  badge.title = title;
+}
+
+function laneField(label, value, className) {
+  const row = el('div', `lane-field ${className || ''}`.trim());
+  row.appendChild(el('span', 'lane-field-label', label));
+  row.appendChild(el('span', 'lane-field-value', value));
+  return row;
+}
+
+function laneCard(lane, nowMs) {
+  const card = el('div', 'lane-card');
+  const c = describeLane(lane, nowMs);
+
+  const head = el('header', 'lane-head');
+  if (c.shortId) {
+    // AS-93: the one dashboard-link helper, and the task panel on click — the
+    // same anchor shape every other AS-<n> reference in this app uses.
+    const a = el('a', 'lane-task ref-link', c.shortId);
+    a.href = dashHref(c.taskId);
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      showTaskPanel(c.shortId);
+    });
+    head.appendChild(a);
+  } else {
+    // LANES-UNKNOWN-TASK: a worktree with no join is never filtered out — its
+    // existence is itself information — so the branch stands in for the id.
+    head.appendChild(el('span', 'lane-task lane-task--unknown', c.taskText));
+  }
+  head.appendChild(el('span', 'lane-stage', c.stage));
+  if (c.staleFlag) head.appendChild(el('span', 'lane-stale', c.staleText));
+  card.appendChild(head);
+  if (c.title) card.appendChild(el('div', 'lane-title', c.title));
+
+  card.appendChild(laneField('Employee', c.employee));
+  card.appendChild(laneField('Worktree', c.worktree, 'lane-mono'));
+  card.appendChild(laneField('Branch', c.branch, 'lane-mono'));
+  card.appendChild(laneField('Commits', c.ahead));
+  card.appendChild(laneField('Working tree', c.dirty));
+  card.appendChild(laneField('Last commit', c.lastCommit));
+  if (c.errorsText) card.appendChild(laneField('git', c.errorsText, 'lane-errors'));
+
+  // The two AS-100 slots: always rendered, never omitted, never styled as an
+  // error. Absence has to read as "not built yet", not "forgotten".
+  card.appendChild(laneField('Stage timer', c.stageTimer, 'lane-placeholder'));
+  card.appendChild(laneField('Sub-agent', c.subAgent, 'lane-placeholder'));
+
+  // AS-103's transient line: the element and its three states ship here with
+  // NO PRODUCER. Blank until a frame arrives, and blank again after a reload —
+  // the stream is strictly ephemeral and has nothing to replay.
+  card.appendChild(el('div', 'lane-now lane-now--blank', ''));
+  return card;
+}
+
+function renderLanes() {
+  const body = $('#lanes-body');
+  if (!body || $('#lanes-modal').hidden) return;
+  const nowMs = Date.now();
+  const view = describeLanes(state.lanes, nowMs);
+  const nodes = [];
+
+  // Whole-tick liveness, above the cards and labelled as whole-company: the
+  // one honesty requirement the north-star comment states outright.
+  const tick = describeTickLine(state.loopStatus, nowMs);
+  const tickLine = el('div', 'lanes-tick');
+  tickLine.appendChild(el('span', 'lanes-tick-text', tick.text));
+  tickLine.appendChild(el('span', 'lanes-tick-caption', tick.caption));
+  nodes.push(tickLine);
+  nodes.push(el('div', `lanes-caption${view.stale ? ' lanes-caption--stale' : ''}`, view.caption));
+
+  if (view.lanes.length === 0) {
+    // The sentence comes from the label module, keyed off the snapshot REASON.
+    // It is never re-derived here by comparing the badge string: a badge is a
+    // rendering, and "0 lanes" and "git refused" render the same way the moment
+    // anyone touches the badge (F1, cycle 1).
+    nodes.push(el('div', 'lanes-empty', view.emptyText));
+  } else {
+    const list = el('div', 'lane-list');
+    for (const lane of view.lanes) list.appendChild(laneCard(lane, nowMs));
+    nodes.push(list);
+  }
+  body.replaceChildren(...nodes);
+}
+
+function openLanes() {
+  $('#lanes-modal').hidden = false;
+  renderLanes();
+  // The badge and the pane read the same state; a fetch here only shortens the
+  // gap to the next poll, and a failure leaves the last projection standing.
+  refreshLanes().catch(() => {});
+}
+
+function closeLanesModal() {
+  $('#lanes-modal').hidden = true;
+}
+
+async function refreshLanes() {
+  try {
+    state.lanes = (await api('/api/lanes')).lanes;
+  } catch {
+    state.lanes = null;
+  }
+  renderLanesBadge();
+  renderLanes();
+}
+
 // --- DM typeahead (AS-6) ----------------------------------------------------
 // Inline combobox over the already-loaded identity map — no new endpoint.
 // Rendering stays textContent-only, like everything else in this file.
@@ -1166,6 +1301,22 @@ function connectStream() {
     }
     state.loopStatus = status;
     renderLoopStatus();
+    renderLanes(); // AS-99: the pane's tick line reads the same payload
+  });
+  // AS-99: lane frames. Same terms as the loop frame above — their own event
+  // name, server state rather than a message, no visibility gate because the
+  // answer is identical for every viewer. The server pushes only on change,
+  // and one frame on connect, so this is the whole refresh path while open.
+  eventSource.addEventListener('lanes', (e) => {
+    let payload;
+    try {
+      payload = JSON.parse(e.data);
+    } catch {
+      return; // a torn frame is the reconnect path's problem, not a crash
+    }
+    state.lanes = payload && 'lanes' in payload ? payload.lanes : null;
+    renderLanesBadge();
+    renderLanes();
   });
   eventSource.addEventListener('open', () => {
     // First open: nothing missed. Open after a drop: the gap is unknown —
@@ -1311,6 +1462,10 @@ async function init() {
     openOrgChart().catch(() => alert(ORG_UNAVAILABLE));
   });
   $('#org-close').addEventListener('click', () => closeOrgModal());
+  // AS-99: the lanes pane re-derives on every open and on every push frame, so
+  // there is no cached render to invalidate.
+  $('#lanes-open').addEventListener('click', () => openLanes());
+  $('#lanes-close').addEventListener('click', () => closeLanesModal());
   // AS-19: document-level Escape, live only while the modal is visible.
   // defaultPrevented is respected so the DM typeahead's own Escape (which
   // preventDefaults on its input before the event reaches document) wins.
@@ -1322,7 +1477,12 @@ async function init() {
   // sidebar, which a full-screen backdrop covers), but the handler should read
   // the way the z-order inventory does, so the next overlay has a rule to
   // follow instead of a precedent to guess at.
+  // AS-99: lanes (37) sits above org (36) in the same descending-z-order chain.
   document.addEventListener('keydown', (e) => {
+    if (shouldCloseOnEscape(e, $('#lanes-modal').hidden)) {
+      closeLanesModal();
+      return;
+    }
     if (shouldCloseOnEscape(e, $('#org-modal').hidden)) {
       closeOrgModal();
       return;
@@ -1392,7 +1552,13 @@ async function init() {
   // describeLoopStatus derives from the timestamps already in state, so
   // "started 3 min ago" stays true between push frames. State changes arrive
   // over SSE; this timer can never invent one.
-  setInterval(() => renderLoopStatus(), 15_000);
+  // AS-99 rides the same timer for the same reason: snapshot age and commit
+  // age are recomputed locally from the timestamps already in state.
+  setInterval(() => {
+    renderLoopStatus();
+    renderLanesBadge();
+    renderLanes();
+  }, 15_000);
 }
 
 init().catch((err) => {

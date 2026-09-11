@@ -402,3 +402,75 @@ body {
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
   }
 }
+
+/* --- lanes pane (AS-99) ---------------------------------------------------
+   What is in flight, one card per lane. Patterned on the org modal above; the
+   lanes modal sits one step higher (37 > 36) so Escape closes it first, which
+   is the order app.js's handler reads in. Tokens per BRANDING.md, matched to
+   the surrounding file's literals rather than introducing a second palette. */
+#lanes-line { display: flex; align-items: center; gap: 6px; padding: 0 12px 6px; }
+#lanes-open {
+  padding: 2px 8px; background: none; border: 1px solid #d0d0d0; border-radius: 4px;
+  color: inherit; font: inherit; font-size: 12px; cursor: pointer;
+}
+#lanes-open:hover { background: rgba(0, 0, 0, .06); }
+#lanes-badge { font-size: 12px; color: #616061; }
+#lanes-modal {
+  position: fixed; inset: 0; z-index: 37;
+  background: rgba(0, 0, 0, .45);
+  display: flex; align-items: center; justify-content: center;
+}
+#lanes-modal[hidden] { display: none; }
+#lanes-dialog {
+  width: min(900px, 94vw); height: min(85vh, 100%);
+  background: #fff; border-radius: 8px; overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .3);
+  display: flex; flex-direction: column;
+}
+#lanes-dialog header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 12px; border-bottom: 1px solid #ddd; font-weight: 700;
+}
+#lanes-dialog header button {
+  background: none; border: none; font-size: 16px; cursor: pointer; color: #616061;
+}
+#lanes-body { flex: 1; overflow: auto; padding: 12px 16px; }
+/* Whole-tick liveness, above every card and captioned as such — it is company
+   level, and must never read as per-lane liveness. */
+.lanes-tick { display: flex; align-items: baseline; gap: 8px; font-weight: 600; }
+.lanes-tick-caption { font-weight: 400; font-size: 11px; color: #616061; }
+.lanes-caption { font-size: 12px; color: #616061; margin: 2px 0 10px; }
+.lanes-caption--stale { color: #a1421f; }
+.lanes-empty { color: #616061; margin: 8px 0; }
+/* Three lanes side by side at desktop width; one column under 700px with no
+   field dropped (LANES-MOBILE-NARROW). */
+.lane-list {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+.lane-card { border: 1px solid #e2e2e2; border-radius: 6px; padding: 10px 12px; }
+.lane-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.lane-task { font-weight: 700; }
+.lane-task--unknown { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.lane-stage { font-size: 11px; color: #616061; text-transform: uppercase; letter-spacing: .04em; }
+.lane-stale {
+  font-size: 11px; font-weight: 700; color: #a1421f;
+  border: 1px solid #a1421f; border-radius: 3px; padding: 0 4px;
+}
+.lane-title { font-size: 12px; color: #3f3f3f; margin: 2px 0 8px; }
+.lane-field { display: flex; gap: 8px; font-size: 12px; padding: 1px 0; }
+.lane-field-label { flex: 0 0 88px; color: #616061; }
+.lane-field-value { flex: 1; overflow-wrap: anywhere; }
+.lane-mono .lane-field-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.lane-errors .lane-field-value { color: #a1421f; }
+/* Not built yet, not broken: muted, never warning-coloured (Jonah §2). */
+.lane-placeholder .lane-field-value { color: #9a9a9a; font-style: italic; }
+/* AS-103's transient line: shipped with its three states and no producer. */
+.lane-now { margin-top: 8px; min-height: 1em; font-size: 12px; }
+.lane-now--live { color: #2a7b5f; }
+.lane-now--decayed { color: #9a9a9a; }
+.lane-now--blank { color: transparent; }
+@media (max-width: 700px) {
+  #lanes-dialog { width: 100%; height: 100dvh; border-radius: 0; box-shadow: none; }
+  .lane-list { grid-template-columns: 1fr; }
+}

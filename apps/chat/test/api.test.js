@@ -7,7 +7,9 @@ import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { createChatServer, LOOP_POLL_MS, composeBuild } from '../server.js';
+import { createChatServer, LOOP_POLL_MS, LANES_POLL_MS, composeBuild } from '../server.js';
+import { LANES_STALE_MS, LANE_WORKTREE_KEYS } from '../lib/lanes.js';
+import { describeLanes, EMPTY_STATES } from '../public/lanes.js';
 import { DEFAULTS } from '../watch/advance-watcher.mjs';
 
 const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
@@ -1252,14 +1254,15 @@ function loopFixture(t) {
   const pid = join(dataDir, 'advance-watcher.pid');
   const deploy = join(dataDir, 'deploy-state.json');
   const loopState = join(dataDir, 'advance-loop.json'); // AS-95
+  const worktrees = join(dataDir, 'worktrees.json'); // AS-99
   const iso = (offsetMs = 0) => new Date(Date.now() + offsetMs).toISOString();
   return {
     dataDir,
-    /** Plant one of the four file configurations (AS-75 adds a third file,
-     *  AS-95 a fourth). An omitted key deletes its file, so every call states
-     *  the whole world and no test inherits a neighbour's leftovers. */
-    plant({ lockBody = null, pidBody = null, deployBody = null, loopBody = null }) {
-      for (const [path, body] of [[lock, lockBody], [pid, pidBody], [deploy, deployBody], [loopState, loopBody]]) {
+    /** Plant one of the file configurations (AS-75 adds a third file, AS-95 a
+     *  fourth, AS-99 a fifth). An omitted key deletes its file, so every call
+     *  states the whole world and no test inherits a neighbour's leftovers. */
+    plant({ lockBody = null, pidBody = null, deployBody = null, loopBody = null, worktreesBody = null }) {
+      for (const [path, body] of [[lock, lockBody], [pid, pidBody], [deploy, deployBody], [loopState, loopBody], [worktrees, worktreesBody]]) {
         if (body === null) {
           try { unlinkSync(path); } catch { /* already absent */ }
         } else {
@@ -1282,6 +1285,27 @@ function loopFixture(t) {
      *  writes it — a live loop by default. */
     loopFile: (over = {}) => ({
       active: true, startedAt: iso(-600_000), ticks: 3, armedBy: 651, lastTick: null, lastLoop: null, ...over,
+    }),
+    /** AS-99: worktrees.json, exactly as makeLanesOps writes it. The default is
+     *  one main row plus one linked worktree whose branch carries AS-7's short
+     *  code — the fixture repo's ids.json resolves it, so the lane joins by
+     *  branch name (the fixture's task files carry no branch_links). */
+    worktreesFile: (over = {}) => ({
+      schema: 1,
+      source: 'watcher:git',
+      generatedAt: iso(-8_000),
+      master: { head: 'f6717b8' },
+      error: null,
+      worktrees: [
+        { relPath: '.', main: true, head: 'f6717b8', branch: 'master', detached: false, ahead: null, behind: null,
+          dirtyCount: null, dirtyLattice: null, merged: null, lastCommit: null, errors: [] },
+        { relPath: '.worktrees/AS-7', main: false, head: '3c1a000', branch: 'feat/AS-7-thing', detached: false,
+          ahead: 4, behind: 2, dirtyCount: 3, dirtyLattice: false, merged: false,
+          lastCommit: { sha: '3c1a000', authorName: 'eng-ada', authorEmail: 'eng-ada@agents.american-software.local',
+            committedAt: iso(-600_000), subject: 'AS-7: a commit' },
+          errors: [] },
+      ],
+      ...over,
     }),
   };
 }
@@ -1644,7 +1668,7 @@ test('api: AS-93 — /api/config exposes exactly the dashboard override; dashboa
   }
 });
 
-test('api: AS-93 — all three dashboard link sites go through the helper (3 examined, 3 covered)', async (t) => {
+test('api: AS-93 — all four dashboard link sites go through the helper (4 examined, 4 covered)', async (t) => {
   const { base } = await bootServer(t);
   const app = await (await fetch(base + '/app.js')).text();
 
@@ -1655,15 +1679,18 @@ test('api: AS-93 — all three dashboard link sites go through the helper (3 exa
     ['message refs (asRefLink)', /a\.href = dashHref\(ref\.taskId\)/],
     ['roster row (rosterRow)', /a\.href = dashHref\(emp\.work\.taskId\)/],
     ['task panel (showTaskPanel)', /open\.href = dashHref\(task\.taskId\)/],
+    // AS-99 added the fourth site; the count below is the deliberate edit the
+    // guard asks for, not a relaxation of it.
+    ['lane card (laneCard)', /a\.href = dashHref\(c\.taskId\)/],
   ];
-  assert.equal(sites.length, 3, '3 dashboard link sites examined');
+  assert.equal(sites.length, 4, '4 dashboard link sites examined');
   for (const [name, re] of sites) {
-    assert.match(app, re, `3 sites examined, 3 must be covered: ${name} goes through dashHref()`);
+    assert.match(app, re, `4 sites examined, 4 must be covered: ${name} goes through dashHref()`);
   }
   assert.equal(
     (app.match(/dashHref\(/g) || []).length,
-    4,
-    '3 call sites + 1 definition — a fourth call site is a deliberate edit here'
+    5,
+    '4 call sites + 1 definition — a fifth call site is a deliberate edit here'
   );
   // msgRefLink's `?m=` template-literal href and the AS-26 file refs do not
   // match this and must stay green: the ban is on server-baked .url bases.
@@ -1689,4 +1716,152 @@ test('api: AS-93 — all three dashboard link sites go through the helper (3 exa
       );
     }
   }
+});
+
+// --- AS-99: the lanes projection endpoint -----------------------------------
+
+test('api: AS-99 — GET /api/lanes joins the watcher snapshot to the live board', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+  fx.plant({ worktreesBody: fx.worktreesFile() });
+
+  const res = await get('/api/lanes');
+  assert.equal(res.status, 200);
+  assert.deepEqual(Object.keys(res.data), ['lanes'], 'one key, same envelope shape as /api/loop-status');
+  const p = res.data.lanes;
+  assert.deepEqual(Object.keys(p), ['checkedAt', 'snapshot', 'count', 'lanes']);
+  assert.deepEqual(Object.keys(p.snapshot), ['generatedAt', 'ageS', 'stale', 'reason', 'error']);
+  assert.equal(p.snapshot.reason, 'ok');
+  assert.equal(p.snapshot.stale, false);
+
+  // Cardinality: 1 non-main worktree row + the fixture board's mid-lifecycle
+  // tasks that no worktree joined (AS-21 planned, AS-22 in_progress, AS-23
+  // planned; AS-7 is the joined one, AS-8/AS-25 backlog, AS-24 done, AS-26
+  // cancelled).
+  assert.equal(p.count, 4, `4 lanes expected, got ${p.count}: ${p.lanes.map((l) => l.key).join(',')}`);
+  // key is the short id when the lane joined a task, the path when it did not.
+  assert.deepEqual(p.lanes.map((l) => l.key), ['AS-7', 'AS-21', 'AS-22', 'AS-23']);
+
+  const [lane] = p.lanes;
+  assert.equal(lane.joinedBy, 'branch-name');
+  assert.equal(lane.task.shortId, 'AS-7');
+  assert.equal(lane.task.status, 'in_progress', 'the Lattice half is read live, never snapshot-aged');
+  assert.equal(lane.worktree.ahead, 4);
+  assert.equal(lane.employee.lastCommitAuthor, 'eng-ada');
+  assert.equal(lane.stale.flag, false);
+  for (const taskOnly of p.lanes.slice(1)) {
+    assert.equal(taskOnly.joinedBy, 'task-only');
+    assert.equal(taskOnly.worktree, null, 'a lane with no branch cut yet has no worktree object');
+  }
+});
+
+test('api: AS-99 — api-lanes-stale-boundary: age comes from generatedAt, never the file mtime', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+  const lanes = async () => (await get('/api/lanes')).data.lanes;
+
+  // Both files below are written NOW, so their mtime is fresh by construction:
+  // a reader that stat()ed the file instead of reading generatedAt would call
+  // the second one current.
+  fx.plant({ worktreesBody: fx.worktreesFile({ generatedAt: new Date(Date.now() - (LANES_STALE_MS - 1_000)).toISOString() }) });
+  const fresh = await lanes();
+  assert.equal(fresh.snapshot.stale, false, `${LANES_STALE_MS - 1_000}ms old must not be stale`);
+  assert.equal(fresh.snapshot.reason, 'ok');
+
+  fx.plant({ worktreesBody: fx.worktreesFile({ generatedAt: new Date(Date.now() - (LANES_STALE_MS + 1_000)).toISOString() }) });
+  const stale = await lanes();
+  assert.equal(stale.snapshot.stale, true, `${LANES_STALE_MS + 1_000}ms old must be stale`);
+  assert.equal(stale.snapshot.reason, 'stale-snapshot');
+  assert.ok(stale.count >= 1, 'a stale snapshot still renders its lanes, with the caption');
+  assert.ok(stale.snapshot.ageS >= 60);
+});
+
+test('api: AS-99 — every degraded feed is a named reason, never a short list', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+  const lanes = async () => (await get('/api/lanes')).data.lanes;
+
+  fx.plant({});
+  const absent = await lanes();
+  assert.equal(absent.snapshot.reason, 'no-snapshot');
+  assert.equal(absent.lanes, null, 'the board sees "unavailable", not a Lattice-only half-list');
+  assert.equal(absent.count, null);
+
+  fx.plant({ worktreesBody: 'not json at all' });
+  const garbage = await lanes();
+  assert.equal(garbage.snapshot.reason, 'unreadable-snapshot');
+  assert.equal(garbage.lanes, null);
+
+  fx.plant({ worktreesBody: fx.worktreesFile({ error: 'worktree-list-failed: exit 128', worktrees: [] }) });
+  const gitDown = await lanes();
+  assert.equal(gitDown.snapshot.reason, 'git-error');
+  assert.equal(gitDown.snapshot.error, 'worktree-list-failed: exit 128');
+  assert.deepEqual(gitDown.lanes, []);
+});
+
+test('api: AS-99 — api-lanes-git-error-badge: a refused git enumeration reaches the board as a dash, not a zero', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+  // End to end on the real payload: the server's own bytes, through the module
+  // that decides the words. The unit test proves the words; this proves the
+  // server actually produces the shape those words are decided from (F1).
+  fx.plant({ worktreesBody: fx.worktreesFile({ error: 'worktree-list-failed: exit 128', worktrees: [] }) });
+  const p = (await get('/api/lanes')).data.lanes;
+  assert.equal(p.snapshot.reason, 'git-error');
+
+  const view = describeLanes(p, Date.now());
+  assert.equal(view.badge, 'Lanes · –', 'the sidebar badge does not report a count git never gave us');
+  assert.match(view.caption, /^Lane data unavailable — /);
+  assert.notEqual(view.emptyText, EMPTY_STATES.ok, 'and the pane does not say nothing is in flight');
+
+  // The pane's empty state is keyed off the reason, not off the badge string:
+  // that string comparison is exactly how the two states collapsed into one.
+  const here = dirname(fileURLToPath(import.meta.url));
+  const app = readFileSync(join(here, '..', 'public', 'app.js'), 'utf8');
+  assert.match(app, /view\.emptyText/, 'renderLanes takes its empty-state sentence from the label module');
+  assert.doesNotMatch(app, /view\.badge ===/, 'and never re-derives it by comparing the rendered badge');
+});
+
+test('api: AS-99 — api-lanes-key-whitelist: the payload carries no field the contract does not name', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+  // A snapshot that grew two fields on the host, one of them an absolute path.
+  const body = fx.worktreesFile();
+  body.worktrees[1].absPath = '/Users/someone/Code/american-software-company/.worktrees/AS-7';
+  body.worktrees[1].secretFutureField = 'nope';
+  fx.plant({ worktreesBody: body });
+
+  const p = (await get('/api/lanes')).data.lanes;
+  const lane = p.lanes[0];
+  assert.deepEqual(Object.keys(lane), ['key', 'task', 'joinedBy', 'worktree', 'employee', 'stale', 'stageStartedAt', 'subAgent']);
+  assert.deepEqual(Object.keys(lane.worktree), [...LANE_WORKTREE_KEYS]);
+  assert.deepEqual(Object.keys(lane.employee), ['assignee', 'lastCommitAuthor', 'agree']);
+  const raw = JSON.stringify(p);
+  assert.ok(!raw.includes('secretFutureField'), 'a grown snapshot field does not reach a browser');
+  assert.ok(!raw.includes('/Users/'), 'and neither does an absolute host path');
+});
+
+test('api: AS-99 — /lanes.js is served, and the client edges are real', async (t) => {
+  const { base } = await bootServer(t);
+  const res = await fetch(base + '/lanes.js');
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /javascript/);
+  assert.match(await res.text(), /export function describeLanes/);
+
+  const here = dirname(fileURLToPath(import.meta.url));
+  const index = readFileSync(join(here, '..', 'public', 'index.html'), 'utf8');
+  for (const id of ['lanes-open', 'lanes-badge', 'lanes-modal']) {
+    assert.match(index, new RegExp(`id="${id}"`), `index.html carries #${id}`);
+  }
+  const app = readFileSync(join(here, '..', 'public', 'app.js'), 'utf8');
+  assert.match(app, /from '\.\/lanes\.js'/, 'app.js imports the label module rather than restating its words');
+  assert.match(app, /\/api\/lanes/, 'app.js fetches the projection');
+  assert.match(app, /addEventListener\('lanes'/, "app.js listens for the 'lanes' frame");
+});
+
+test('api: AS-99 — LANES_POLL_MS is the pinned production cadence', async () => {
+  assert.equal(LANES_POLL_MS, 5_000);
+  const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  assert.match(server, /lanesPollMs = LANES_POLL_MS/, 'the default is the exported constant');
+  assert.equal(LANES_STALE_MS, 60_000, 'four watcher polls');
 });

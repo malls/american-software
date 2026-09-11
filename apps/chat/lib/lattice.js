@@ -134,6 +134,49 @@ export function assignmentsByActor(root) {
   return Object.fromEntries(byActor);
 }
 
+// --- AS-99: the Lattice half of the lane projection ------------------------
+
+/**
+ * Every task file, in the shape lib/lanes.js joins against. Same tolerant
+ * readJson as the rest of this module (a dozen small files, no cache), and the
+ * same read-only promise the file header makes: this never writes .lattice/.
+ *
+ * The field set is deliberately narrow — a lane card needs an id, a short id, a
+ * title, a status, an assignee and the branch links, and nothing else in a task
+ * file has any business reaching a browser.
+ */
+export function listTasks(root) {
+  const dir = join(latticeDir(root), 'tasks');
+  if (!existsSync(dir)) return [];
+  let files;
+  try {
+    files = readdirSync(dir);
+  } catch {
+    return [];
+  }
+  const tasks = [];
+  for (const file of files) {
+    if (!file.endsWith('.json')) continue;
+    const task = readJson(join(dir, file));
+    if (!task || typeof task !== 'object' || !task.id) continue;
+    tasks.push({
+      id: task.id,
+      short_id: task.short_id ?? null,
+      title: task.title ?? '',
+      status: task.status ?? null,
+      assigned_to: task.assigned_to ?? null,
+      branch_links: Array.isArray(task.branch_links) ? task.branch_links : [],
+    });
+  }
+  return tasks;
+}
+
+/** shortId -> task file id, from ids.json. The branch-name fallback in the lane
+ *  join resolves `AS-99` through this map; `{}` when the file is unreadable. */
+export function idsByShortId(root) {
+  return idMap(root);
+}
+
 const REF_RE = /\bAS-\d+\b/g;
 
 /** Unique resolved refs for a message body. Unresolvable codes are flagged, not linked. */
