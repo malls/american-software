@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 0,
+  "comment_count": 2,
   "complexity": null,
   "created_at": "2026-09-05T19:58:46Z",
   "created_by": "agent:qa-ruben",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1SJDVRA4BFMR4X33E454SWQ",
-  "last_event_id": "ev_01M28Z025F53XXZ3SJBVW3QXC5",
-  "last_status_changed_at": "2026-09-11T19:27:02Z",
+  "last_event_id": "ev_01M28ZKSVDERPQ87N3PCCTXND8",
+  "last_status_changed_at": "2026-09-11T19:37:49Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-87",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "AS-75 F3/F4: an in-flight deploy reports as a crashed watcher, and its log file is empty",
   "type": "task",
-  "updated_at": "2026-09-11T19:27:02Z",
+  "updated_at": "2026-09-11T19:37:49Z",
   "urgency": null
 }
