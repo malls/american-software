@@ -248,7 +248,10 @@ inside launchd's 20 s SIGKILL) — for each to settle itself: the tick through i
 own `settle()` (lock released, `tick_ended` written, the AS-95 loop folded), the
 deploy through its own `finally` (attempt recorded `aborted`, its own lock
 released). Only then does it remove `advance-watcher.pid` and exit 0. Anything
-still alive when the grace expires is SIGKILLed and the exit happens anyway. Two
+still alive when the grace expires is SIGKILLed and the exit happens anyway —
+the tick child and the compose child alike; a SIGKILLed build leaves its
+`started` attempt on disk (hydrated as a failure at relaunch, so the cooldown
+applies) and its lock is released before the exit. Two
 consequences worth knowing: `launchctl kickstart -k` mid-build no longer orphans
 a `docker compose` run, and a tick interrupted by a watcher restart is closed by
 the process that fired it rather than labelled `unclosed` by a later sweep.
