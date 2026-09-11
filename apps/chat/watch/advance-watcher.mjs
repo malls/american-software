@@ -1147,6 +1147,187 @@ function defaultWriteState(path, body) {
   renameSync(path + '.tmp', path);
 }
 
+/**
+ * AS-95 — the loop's state machine, as a factory beside makeLockOps and
+ * makeDeployOps rather than as inner functions of main().
+ *
+ * WHY THIS IS A FACTORY (cycle-1 review, F7). The first cut of AS-95 put this
+ * state machine inside main(): 142 unguarded lines carrying three policies —
+ * when a loop is armed, what a resumed loop does, what an aborted fire means —
+ * none of which any test could reach, because reaching them meant running
+ * main(). Both blocking defects of that cycle lived in exactly those lines. The
+ * pure predicate (shouldContinue) was not what failed and is not what changed;
+ * what failed was the part with no falsifier. So the effects are injected —
+ * every read, every write, the clock — and the policies become assertions.
+ *
+ * It owns: the live loop counters, the `pending` flag (poll() owes a tick), the
+ * mirror file, the resume policy, and the three stop paths (predicate, error,
+ * lock-unavailable). It owns no fs paths, no spawn, and no lock: the caller
+ * hands it readers and writers, and fire()/poll() stay in main().
+ *
+ * @param loadBoard     () => board            `readBoard(.lattice/tasks)`
+ * @param loadSentinel  () => {messageId}|null the latest human message
+ * @param loadHighwater () => {messageId}|null the last message we fired for
+ * @param loadLock      () => lockBody|null    parsed advance.lock (no pidAlive:
+ *                                             the resume gate judges AGE)
+ * @param loadState     () => mirror|null      parsed advance-loop.json
+ * @param saveState     (body) => void         writes advance-loop.json
+ * @param log           (line) => void
+ * @param now           () => ms
+ * @param limits        LOOP_DEFAULTS, injectable for tests
+ * @param resumeGraceMs how young a lock has to be for a resumed loop to wait it
+ *                      out — the tick timeout, so a legitimately running tick
+ *                      is always waited for and a dead one never is
+ */
+export function makeLoopOps({
+  loadBoard,
+  loadSentinel,
+  loadHighwater,
+  loadLock,
+  loadState,
+  saveState,
+  log,
+  now = () => Date.now(),
+  limits = LOOP_DEFAULTS,
+  resumeGraceMs = DEFAULTS.tickTimeoutMin * 60 * 1000,
+}) {
+  let loop = null; // the live loop, null when idle
+  let pending = false; // the last tick said continue; poll() owes a fire
+  let lastLoop = null; // why the previous loop stopped (survives, for the sidebar)
+  let lastTick = null;
+  let resumeHold = false; // we resumed and have not fired our own tick yet
+  let waitingSince = null; // when the current lock-wait episode began
+  let waitLogged = null; // one line per wait episode, not one per poll
+
+  function mirror() {
+    try {
+      saveState({
+        active: loop !== null,
+        startedAt: loop ? new Date(loop.startedAt).toISOString() : null,
+        ticks: loop ? loop.ticks : 0,
+        armedBy: loop ? loop.armedBy : null,
+        lastTick,
+        lastLoop,
+      });
+    } catch (err) {
+      log(`WARN loop state unwritable: ${err.message}`);
+    }
+  }
+
+  /** Every way a loop ends goes through here, so every end has a logged reason
+   *  and a `lastLoop` the sidebar can read. There is no other way to clear
+   *  `loop` — that is the point (cycle-1 F1 was an exit that took neither). */
+  function stop(reason, detail) {
+    const ticks = loop ? loop.ticks : 0;
+    lastLoop = { stoppedAt: new Date(now()).toISOString(), reason, ticks, detail };
+    log(`LOOP-STOP reason=${reason} after ${ticks} ticks (${JSON.stringify(detail)})`);
+    loop = null;
+    pending = false;
+    resumeHold = false;
+    waitingSince = null;
+    waitLogged = null;
+  }
+
+  /** A message armed a loop, or a loop tick is going ahead. Idempotent inside a
+   *  running loop: ticks are counted at settle, by the predicate. */
+  function start(sentinel) {
+    waitingSince = null;
+    waitLogged = null;
+    resumeHold = false;
+    if (loop !== null) return;
+    loop = { startedAt: now(), ticks: 0, noProgress: 0, failures: 0, armedBy: sentinel.messageId };
+    log(`LOOP-START armedBy messageId ${sentinel.messageId}`);
+  }
+
+  /** The tail of a settled tick: fold it into the counters, ask the predicate,
+   *  log, mirror. Guarded end to end — the loop must never be able to kill the
+   *  watcher, for the same reason the heartbeat is guarded. */
+  function settle(tick) {
+    lastTick = {
+      endedAt: new Date(now()).toISOString(),
+      code: tick.code,
+      signal: tick.signal,
+      timedOut: Boolean(tick.timedOut),
+      headMoved: Boolean(tick.headBefore && tick.headAfter && tick.headBefore !== tick.headAfter),
+    };
+    if (loop === null) {
+      mirror();
+      return;
+    }
+    try {
+      const board = loadBoard();
+      if (board.missingDir) log('BOARD-UNREADABLE .lattice/tasks missing or unreadable; treating the board as dry');
+      const verdict = shouldContinue({
+        board,
+        sentinel: loadSentinel(),
+        highwater: loadHighwater(),
+        loop,
+        tick,
+        now: now(),
+        limits,
+      });
+      loop = { ...loop, ...verdict.loop };
+      log(
+        `LOOP-EVAL tick ${loop.ticks} reason=${verdict.reason} detail=${JSON.stringify(verdict.detail)} -> ` +
+          (verdict.continue ? 'continue' : 'stop')
+      );
+      if (verdict.continue) pending = true;
+      else stop(verdict.reason, verdict.detail);
+    } catch (err) {
+      // An unexpected failure stops the loop rather than spinning: a board
+      // message re-arms it, and a runaway loop costs real tokens.
+      stop('error', { message: err.message });
+    }
+    mirror();
+  }
+
+  /** Startup: a watcher restart (AS-75 self-restart or launchd relaunch) loses
+   *  the in-memory loop by design, so re-enter it from the file. ticks and
+   *  startedAt carry forward — the cap still counts from the board's message —
+   *  while noProgress/failures reset, because the evidence for them died with
+   *  the old process. */
+  function resume() {
+    const prior = loadState();
+    if (!prior || typeof prior !== 'object') return;
+    lastLoop = prior.lastLoop ?? null;
+    lastTick = prior.lastTick ?? null;
+    if (prior.active !== true) return;
+    const startedAt = Date.parse(prior.startedAt ?? '');
+    loop = {
+      startedAt: Number.isFinite(startedAt) ? startedAt : now(),
+      ticks: Number.isFinite(prior.ticks) ? prior.ticks : 0,
+      noProgress: 0,
+      failures: 0,
+      armedBy: prior.armedBy ?? null,
+    };
+    pending = true;
+    log(`LOOP-RESUME reason=watcher-restart tick ${loop.ticks} armedBy ${loop.armedBy}`);
+  }
+
+  return {
+    active: () => loop !== null,
+    pending: () => pending,
+    /** The number of the tick about to run — the lock's loop marker. */
+    nextTick: () => (loop ? loop.ticks : 0) + 1,
+    /** poll() is firing the loop's owed tick now. */
+    takeFire: () => {
+      pending = false;
+    },
+    start,
+    settle,
+    resume,
+    /** Test/report view of the private counters. Never the mirror body. */
+    snapshot: () => ({
+      active: loop !== null,
+      ticks: loop ? loop.ticks : 0,
+      pending,
+      resumeHold,
+      lastLoop,
+      lastTick,
+    }),
+  };
+}
+
 function main() {
   const config = loadConfig();
   const dataDir = join(config.repoRoot, 'apps', 'chat', 'data');
@@ -1203,14 +1384,7 @@ function main() {
   let child = null; // currently running tick, if any
   let lastBadSentinel = null; // log unparsable sentinel once per content change
   let lastSkipKey = null; // dedupe SKIP logs per episode (AS-13 #4)
-  // AS-95 loop state. `loop` is the live loop (null when idle); `loopPending`
-  // means the last tick settled on `continue` and poll() owes a fire;
-  // `lastLoop` is why the previous loop stopped, kept for the sidebar.
-  let loop = null;
-  let loopPending = false;
   let loopWaitLogged = false; // one LOOP-WAIT line per deploy wait, not one per poll
-  let lastLoop = null;
-  let lastTick = null;
 
   function readSentinel() {
     if (!existsSync(paths.sentinel)) return null;
@@ -1233,47 +1407,6 @@ function main() {
     }
   }
 
-  // AS-95: the loop's mirror file. Written after every evaluation (tmp+rename,
-  // like the highwater) so the server, the sidebar and the next watcher
-  // process can all read where the loop is without asking this process.
-  function writeLoopState() {
-    try {
-      defaultWriteState(paths.loopState, {
-        active: loop !== null,
-        startedAt: loop ? new Date(loop.startedAt).toISOString() : null,
-        ticks: loop ? loop.ticks : 0,
-        armedBy: loop ? loop.armedBy : null,
-        lastTick,
-        lastLoop,
-      });
-    } catch (err) {
-      log(`WARN loop state unwritable: ${err.message}`);
-    }
-  }
-
-  // Startup: a watcher restart (AS-75 self-restart or launchd relaunch) loses
-  // the in-memory loop by design, so re-enter it from the file. ticks and
-  // startedAt carry forward — the cap still counts from the board's message —
-  // while noProgress/failures reset, because the evidence for them died with
-  // the old process.
-  function loadLoopState() {
-    const prior = readJson(paths.loopState);
-    if (!prior) return;
-    lastLoop = prior.lastLoop ?? null;
-    lastTick = prior.lastTick ?? null;
-    if (!prior.active) return;
-    const startedAt = Date.parse(prior.startedAt ?? '');
-    loop = {
-      startedAt: Number.isFinite(startedAt) ? startedAt : Date.now(),
-      ticks: Number.isFinite(prior.ticks) ? prior.ticks : 0,
-      noProgress: 0,
-      failures: 0,
-      armedBy: prior.armedBy ?? null,
-    };
-    loopPending = true;
-    log(`LOOP-RESUME reason=watcher-restart tick ${loop.ticks} armedBy ${loop.armedBy}`);
-  }
-
   const { acquireLock, releaseLock, readLock } = makeLockOps({
     lockPath: paths.lock,
     staleMs: config.lockStaleMin * 60 * 1000,
@@ -1288,68 +1421,30 @@ function main() {
     pruneLogs(logsDir, Date.now() - config.tickLogRetentionDays * 24 * 60 * 60 * 1000);
   }
 
-  // AS-95: the loop's tail, run once per settled tick. Pure decision in
-  // shouldContinue(); everything here is logging, counters and the mirror
-  // file. Guarded end to end — the loop must never be able to kill the
-  // watcher, for the same reason the heartbeat is guarded.
-  function settleLoop(tick) {
-    lastTick = {
-      endedAt: new Date().toISOString(),
-      code: tick.code,
-      signal: tick.signal,
-      timedOut: Boolean(tick.timedOut),
-      headMoved: Boolean(tick.headBefore && tick.headAfter && tick.headBefore !== tick.headAfter),
-    };
-    if (loop === null) {
-      writeLoopState();
-      return;
-    }
-    try {
-      const board = readBoard(join(config.repoRoot, '.lattice', 'tasks'));
-      if (board.missingDir) log('BOARD-UNREADABLE .lattice/tasks missing or unreadable; treating the board as dry');
-      const verdict = shouldContinue({
-        board,
-        sentinel: readSentinel(),
-        highwater: readJson(paths.highwater),
-        loop,
-        tick,
-        now: Date.now(),
-      });
-      loop = { ...loop, ...verdict.loop };
-      log(
-        `LOOP-EVAL tick ${loop.ticks} reason=${verdict.reason} detail=${JSON.stringify(verdict.detail)} -> ` +
-          (verdict.continue ? 'continue' : 'stop')
-      );
-      if (verdict.continue) {
-        loopPending = true;
-      } else {
-        lastLoop = { stoppedAt: new Date().toISOString(), reason: verdict.reason, ticks: loop.ticks, detail: verdict.detail };
-        log(`LOOP-STOP reason=${verdict.reason} after ${loop.ticks} ticks (${JSON.stringify(verdict.detail)})`);
-        loop = null;
-        loopPending = false;
-      }
-    } catch (err) {
-      // An unexpected failure stops the loop rather than spinning: a board
-      // message re-arms it, and a runaway loop costs real tokens.
-      log(`LOOP-STOP reason=error after ${loop ? loop.ticks : 0} ticks (${err.message})`);
-      lastLoop = { stoppedAt: new Date().toISOString(), reason: 'error', ticks: loop ? loop.ticks : 0, detail: { message: err.message } };
-      loop = null;
-      loopPending = false;
-    }
-    writeLoopState();
-  }
+  // AS-95: the loop state machine (counters, mirror file, resume policy, stop
+  // paths). Everything it touches is passed in here and nowhere else, so main()
+  // keeps exactly the wiring below and the policies are unit-testable.
+  const loopOps = makeLoopOps({
+    loadBoard: () => readBoard(join(config.repoRoot, '.lattice', 'tasks')),
+    loadSentinel: readSentinel,
+    loadHighwater: () => readJson(paths.highwater),
+    loadLock: () => readJson(paths.lock),
+    loadState: () => readJson(paths.loopState),
+    saveState: (body) => defaultWriteState(paths.loopState, body),
+    log,
+    resumeGraceMs: config.tickTimeoutMin * 60 * 1000,
+  });
 
   function fire(sentinel) {
     // AS-16: one nonce per fire, minted before lock acquisition — the lock
     // body and both markers (argv + env) below carry this same value.
     const nonce = fireNonce();
-    // AS-95: a message arms a loop; every later tick of that loop reuses it.
-    if (loop === null) {
-      loop = { startedAt: Date.now(), ticks: 0, noProgress: 0, failures: 0, armedBy: sentinel.messageId };
-      log(`LOOP-START armedBy messageId ${sentinel.messageId}`);
-    }
     const headBefore = headOf(config.repoRoot);
-    if (!acquireLock(nonce, { loop: { ticks: loop.ticks + 1 } })) {
+    // AS-95: a message arms a loop; every later tick of that loop reuses it.
+    if (loopOps.active() === false) {
+      loopOps.start(sentinel);
+    }
+    if (!acquireLock(nonce, { loop: { ticks: loopOps.nextTick() } })) {
       log(`SKIP fire aborted: lock acquisition failed (messageId ${sentinel.messageId})`);
       return;
     }
@@ -1431,7 +1526,7 @@ function main() {
       if (killTimer !== null) clearTimeout(killTimer);
       if (child === proc) child = null;
       releaseLock();
-      settleLoop({ code, signal, timedOut, headBefore, headAfter: headOf(config.repoRoot) });
+      loopOps.settle({ code, signal, timedOut, headBefore, headAfter: headOf(config.repoRoot) });
     }
     proc.on('error', (err) => {
       if (!tickLog.writableEnded) tickLog.end(`\n[watcher] spawn error: ${err.message}\n`);
@@ -1498,7 +1593,7 @@ function main() {
     // exported pure function that a test can hold, instead of an argument.
     const next = nextPollAction({
       decideAction: result.action,
-      loopPending,
+      loopPending: loopOps.pending(),
       deployPending: deployOps.pendingDeploy(),
     });
     if (next === 'idle') return;
@@ -1516,8 +1611,8 @@ function main() {
       return;
     }
     loopWaitLogged = false;
-    loopPending = false;
-    log(`LOOP-FIRE tick ${loop ? loop.ticks + 1 : 1}`);
+    loopOps.takeFire();
+    log(`LOOP-FIRE tick ${loopOps.nextTick()}`);
     // A loop tick has no new message of its own: it re-uses the current
     // highwater id, so fire()'s highwater write rewrites the same value.
     const highwater = readJson(paths.highwater);
@@ -1553,7 +1648,7 @@ function main() {
       `(poll ${config.pollS}s, debounce ${config.debounceS}s, timeout ${config.tickTimeoutMin}min, ` +
       `stale ${config.lockStaleMin}min, mode ${config.permissionMode})`
   );
-  loadLoopState(); // AS-95: re-enter a loop the previous process was running
+  loopOps.resume(); // AS-95: re-enter a loop the previous process was running
   const interval = setInterval(poll, config.pollS * 1000);
   poll(); // immediate startup pass: missed-while-down recovery (plan §4)
 
