@@ -1,0 +1,32 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "low",
+  "created_at": "2026-09-11T23:24:15Z",
+  "created_by": "agent:qa-priya",
+  "custom_fields": {},
+  "description": "Found in the AS-106 review (qa-priya, 2026-09-11). runCounted's post-teardown image check is images.filter(n => n.startsWith(project + '-')), which is the <p>-* glob AC-6 asked for \u2014 but compose image names are <project>-<service>, so any project whose name plus '-' prefixes another project's name matches that project's images too. Reproduced on the host with the real listing shape: project asc-impl-as108 against an images list containing asc-impl-as108-base-test:latest (present on this daemon today, from the AS-108 lane) -> exit 4, LEAK: asc-impl-as108-base-test:latest, for a run that leaked nothing. Fails safe (voids a good receipt; never passes a leaky one), so not blocking. Fix shape (implementer's call): ask docker for the project's own images (docker compose -p <p> images --format json, or filter by the com.docker.compose.project label via docker images --filter label=com.docker.compose.project=<p>) instead of a name prefix; the network side is already anchored at ^<p>_ and is fine. Falsifier: the fixture above must report clean.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M29CJE5SGS16DXJTRSSV0BQS",
+  "last_event_id": "ev_01M29CJE5V3AW76P9KG0BJTRVX",
+  "last_status_changed_at": "2026-09-11T23:24:15Z",
+  "linked_files": [],
+  "priority": "low",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-122",
+  "status": "backlog",
+  "tags": [
+    "chat",
+    "tooling",
+    "as-106"
+  ],
+  "title": "Chat tooling: compose-run.mjs image leak filter <project>-* reports a sibling project's image as a leak (false exit 4)",
+  "type": "bug",
+  "updated_at": "2026-09-11T23:24:15Z",
+  "urgency": null
+}
