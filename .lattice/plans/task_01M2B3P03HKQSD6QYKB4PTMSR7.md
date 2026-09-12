@@ -36,9 +36,9 @@ watcher.test.js — T14 (one `test()` per var, five): `ADVANCE_TICK_TIMEOUT_MIN`
 
 | | mutation (scratch copy or trap-restored) | red |
 |---|---|---|
-| M1 | `workRemains` always true (delete the mid-lifecycle/ready check) — **the (b) falsifier** | T3, T6, T12 |
+| M1 | `workRemains` always true (delete the mid-lifecycle/ready check) — **the (b) falsifier** | T3, T6, T9b, T12 *(T9b added at review — resumes past the cap through `workRemains`; Ruben F3)* |
 | M2 | settle() never schedules the cooldown (drop the `detail.rearm` branch) | T4, T5, T7, T11 |
-| M3 | `rearmIfDue()` ignores the clock (re-arms at once) | T5, T11 |
+| M3 | `rearmIfDue()` ignores the clock (re-arms at once) | T5, T8, T11 *(T8 added at review — asserts not-due at T0; Ruben F3)* |
 | M4 | `rearmIfDue()` always false | T5, T8, T11 |
 | M5 | re-armed loop keeps the old counters (`ticks` not reset to 0) | T5, T11 |
 | M6 | `start()` does not clear `rearm` | T7 |
@@ -53,7 +53,7 @@ watcher.test.js — T14 (one `test()` per var, five): `ADVANCE_TICK_TIMEOUT_MIN`
 ## Acceptance criteria (M4: each satisfied only by an observed red)
 
 1. (a) T4+T5+T11 green; M2, M3, M4, M5, M11 each red exactly as tabled.
-2. (b) T6+T12 green; M1 red exactly {T3, T6, T12}.
+2. (b) T6+T12 green; M1 red exactly {T3, T6, T9b, T12} *(corrected at review, Ruben F3)*.
 3. (c) T10+T13 green; M9 red {T13}; M10 red {T10, T13}; no `60 * 60 * 1000` literal remains in LOOP_DEFAULTS or loopLimits (`grep`).
 4. (d) five T14 green; M12–M16 each red on its own var only; M17 red on all five.
 5. A message during the cooldown wins: T7 green; M6 red {T7}.

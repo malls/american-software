@@ -9,27 +9,33 @@
       "repo": null
     }
   ],
-  "comment_count": 4,
+  "comment_count": 5,
   "complexity": "medium",
   "created_at": "2026-09-12T15:27:24Z",
   "created_by": "human:forrest",
   "custom_fields": {},
   "description": null,
-  "done_at": null,
-  "evidence_refs": [],
+  "done_at": "2026-09-12T17:03:05Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01M2B8RFV6P2M02S1DMM8VZTNS",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M2B3P03HKQSD6QYKB4PTMSR7",
-  "last_event_id": "ev_01M2B7HKZA0VPGD55S6W39E4DD",
-  "last_status_changed_at": "2026-09-12T16:34:55Z",
+  "last_event_id": "ev_01M2B9577X83A4TPEBXKSVFP76",
+  "last_status_changed_at": "2026-09-12T17:03:05Z",
   "linked_files": [],
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-129",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "Chat watcher: a loop stopped by the safety cap with work mid-lifecycle re-arms itself after a cooldown; maxLockWaitMs re-derived from the 60/75 tick box",
   "type": "task",
-  "updated_at": "2026-09-12T16:34:55Z",
+  "updated_at": "2026-09-12T17:03:05Z",
   "urgency": null
 }
