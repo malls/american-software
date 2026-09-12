@@ -442,14 +442,20 @@ test('S3-EMPTY-FIRSTRUN: zero records render the first-run copy with the invoice
     // the entity — asserted as served, never as authored.
     assert.equal(occurrences(ready, 'Let&#39;s get your first client paid'), 2, 'title and h1');
     assert.equal(occurrences(ready, 'You&#39;re connected to Stripe.'), 1);
-    assert.equal(occurrences(ready, 'Create your first invoice'), 1, 'the CTA, primary while the contract CTA waits for AS-127');
-    assert.equal(occurrences(ready, 'Create your first contract'), 0, 'absent until /contracts/new exists');
+    // AS-127 landed /contracts/new: the contract CTA is the primary (the
+    // wireframe's; AS-48 plan §11 Q5) and the invoice CTA is the secondary,
+    // relabelled — asserted as class + label so a swap back is red.
+    assert.equal(occurrences(ready, '<a href="/contracts/new" class="btn btn-primary">Create your first contract</a>'), 1, 'the primary CTA');
+    assert.equal(occurrences(ready, '<a href="/invoices/new" class="btn btn-secondary">Or create an invoice directly</a>'), 1, 'the invoice CTA, demoted');
+    assert.equal(occurrences(ready, 'Create your first invoice'), 0, 'the old primary label is gone');
+    assert.ok(ready.indexOf('Create your first contract') < ready.indexOf('Or create an invoice directly'), 'contract CTA first in the form-actions');
     setReady(false);
     const gated = await (await get('/')).text();
     assert.equal(stateOf(gated), 'S3-EMPTY-FIRSTRUN');
     assert.equal(occurrences(gated, 'Connect Stripe when you&#39;re ready to invoice.'), 1, 'the other branch of the lede');
     assert.equal(occurrences(gated, 'You&#39;re connected to Stripe.'), 0);
-    assert.equal(occurrences(gated, 'Create your first invoice'), 0, 'no CTA pointing at a refusal');
+    assert.equal(occurrences(gated, 'Or create an invoice directly'), 0, 'no CTA pointing at a refusal');
+    assert.equal(occurrences(gated, 'Create your first contract'), 1, 'the contract CTA is not gated: contract creation has no Stripe dependency');
   });
 });
 
@@ -801,15 +807,19 @@ test('S3-DENIED-SIGNEDOUT and S5-DENIED-SIGNEDOUT: cookieless GETs 303 to /signi
 // --- the link check over the two new templates and the amended nav -------------------
 
 /** Constant href/action values across the two AS-48 templates, predicted
- *  before the run and read off it: dashboard.ejs 9, invoice-detail.ejs 8. */
-const NEW_TEMPLATE_LINKS = 17;
+ *  before the run and read off it: dashboard.ejs 9, invoice-detail.ejs 8.
+ *  RE-MEASURED by AS-127 (the "New contract" nav anchor on both, and the
+ *  first-run contract CTA on dashboard.ejs): dashboard.ejs 11,
+ *  invoice-detail.ejs 9 — predicted before the run, then read off it. */
+const NEW_TEMPLATE_LINKS = 20;
 
 test('every href and form action in every template names a route the app registers or a file public/ serves', async () => {
   // The AS-46 case-25 walker, duplicated (its twenty lines) rather than
   // imported: a test file is not a module, and importing it would run it. The
   // invoice-screen.test.js copy still walks every template with the whole
   // count; this one is scoped to the two new files so its cardinality names
-  // them, and it is RED if `/contracts/new` is linked before AS-127 lands.
+  // them. It was RED while `/contracts/new` was linked before AS-127 landed;
+  // now it pins the three links AS-127 owed these templates.
   const config = configFor();
   const publicFiles = new Set(['/app.css']);
   await withServer(config, async (base, app) => {
@@ -836,7 +846,13 @@ test('every href and form action in every template names a route the app registe
     }
     assert.equal(examined.length, NEW_TEMPLATE_LINKS, `examined ${examined.length} links, expected ${NEW_TEMPLATE_LINKS}:\n${examined.join('\n')}`);
     assert.deepEqual(problems, [], problems.join('\n'));
-    assert.equal(examined.filter((e) => e.endsWith('/contracts/new')).length, 0, 'no link to /contracts/new before AS-127');
+    // AS-127's three: the nav anchor on each template and the Dashboard's
+    // first-run CTA — each named by file, each driven above.
+    assert.deepEqual(
+      examined.filter((e) => e.endsWith('/contracts/new')),
+      ['dashboard.ejs href /contracts/new', 'dashboard.ejs href /contracts/new', 'invoice-detail.ejs href /contracts/new'],
+      'the New contract nav entry on both templates and the Dashboard CTA (AS-127)',
+    );
     // The amended nav in the two existing chrome-bearing templates.
     for (const file of ['invoice-form.ejs', 'connect-stripe.ejs']) {
       const source = readFileSync(join(config.viewsDir, file), 'utf8');

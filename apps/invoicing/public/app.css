@@ -209,7 +209,8 @@ legend {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   font: inherit;
   color: var(--color-text-primary);
   background: var(--color-bg-surface);
@@ -224,7 +225,8 @@ legend {
 }
 
 .field--invalid input,
-.field--invalid select {
+.field--invalid select,
+.field--invalid textarea {
   border-color: var(--color-danger-solid);
   border-width: var(--focus-ring-width);
 }
@@ -242,6 +244,7 @@ legend {
 
 input:focus,
 select:focus,
+textarea:focus,
 button:focus,
 a:focus {
   outline: var(--focus-ring-width) solid var(--color-focus-ring);

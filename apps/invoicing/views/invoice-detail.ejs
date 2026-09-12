@@ -41,8 +41,8 @@
   <body>
     <%# Full chrome (01-screens.md §3): constant markup. Screen 4's own gate
         refuses at the route, so "New invoice" stays a plain anchor here; the
-        gated span renders on screen 3 only. "New contract" is absent until
-        AS-127 lands /contracts/new. %>
+        gated span renders on screen 3 only. "New contract" landed with
+        AS-127's /contracts/new (README.md § Obligations). %>
     <header class="site-header">
       <div class="container site-header__inner">
         <span class="app-label">Invoicing</span>
@@ -51,6 +51,7 @@
         <nav class="site-nav" aria-label="Primary">
           <a class="site-nav__link" href="/">Dashboard</a>
           <a class="site-nav__link" href="/invoices/new">New invoice</a>
+          <a class="site-nav__link" href="/contracts/new">New contract</a>
           <form class="site-nav__signout" method="post" action="/signout">
             <button type="submit" class="btn-link">Sign out</button>
           </form>

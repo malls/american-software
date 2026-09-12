@@ -375,7 +375,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 61, `expected 61 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 63, `expected 63 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/auth/accounts.js',
@@ -409,6 +409,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/invoices/mapping.js',
     'lib/screens/connect-view.js',
     'lib/screens/contract-detail-view.js',
+    'lib/screens/contract-form-view.js',
     'lib/screens/dashboard-view.js',
     'lib/screens/dates.js',
     'lib/screens/invoice-detail-view.js',
@@ -434,6 +435,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'server.js',
     'views/connect-stripe.ejs',
     'views/contract-detail.ejs',
+    'views/contract-form.ejs',
     'views/dashboard.ejs',
     'views/invoice-detail.ejs',
     'views/invoice-form.ejs',
@@ -803,8 +805,16 @@ const VIEW_FILES = /^views\//;
  *  `<p><a>Back to Dashboard</a></p>`, +4), dashboard.ejs 131,
  *  invoice-detail.ejs 101 — the same instrument, calibrated against the
  *  committed numbers above before it was read on the new files, then confirmed
- *  by the run. The constant is the SUM over views/, in declaration order. */
-const VIEW_START_TAGS = 87 + 47 + 208 + 64 + 131 + 101;
+ *  by the run. The constant is the SUM over views/, in declaration order.
+ *
+ *  RE-MEASURED 2026-09-12 (AS-127, at the rebase onto AS-48's merge) with
+ *  views/contract-form.ejs in the set (185: its own chrome including the
+ *  Dashboard anchor) and the "New contract" nav anchor on the four
+ *  chrome-bearing templates (+2 each, open and close): invoice-form.ejs
+ *  208 -> 210, contract-detail.ejs 64 -> 66, invoice-detail.ejs 101 -> 103,
+ *  dashboard.ejs 131 -> 135 (the nav anchor and the first-run contract CTA
+ *  anchor) — predicted before the run, then read off it. */
+const VIEW_START_TAGS = 87 + 47 + 210 + 66 + 135 + 103 + 185;
 
 const lineAt = (text, index) => text.slice(0, index).split('\n').length;
 
@@ -1108,7 +1118,7 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
     'interpolation in a URL or style attribute',
     /(href|src|action|formaction|style)\s*=\s*"[^"]*<%/i,
     [],
-    { only: /^(views|public)\//, expectFiles: 7 },
+    { only: /^(views|public)\//, expectFiles: 8 },
   );
   // P2b — no event-handler attribute. Scoped to templates and stylesheets: the
   // pattern matches ` once =` in JavaScript, and narrowing the pattern to avoid
@@ -1120,12 +1130,12 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
   // none of the five characters EJS escapes, so the escape is a no-op against
   // it. P2c three lines below always carried `/i`; the omission here and on P2a
   // was an oversight, not a decision. Re-measured baseline after the flag: ZERO.
-  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^(views|public)\//, expectFiles: 7 });
+  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^(views|public)\//, expectFiles: 8 });
   // P2c — THE NO-CLIENT-SIDE-JAVASCRIPT ASSUMPTION, MADE MECHANICAL. Two ledger
   // rows (S1-LOADING, S2-LOADING) are unimplementable under it and are recorded
   // as `unrenderable — browser-supplied` rather than silently skipped. This row
   // is what stops the assumption decaying into a comment.
-  scanConcept('script or style element', /<(script|style)\b/i, [], { only: /^(views|public)\//, expectFiles: 7 });
+  scanConcept('script or style element', /<(script|style)\b/i, [], { only: /^(views|public)\//, expectFiles: 8 });
   // P3 — an attribute value that carries data is DOUBLE-quoted, because
   // escaping `"` is only load-bearing if `"` is the delimiter. This row catches
   // the two spellings that break that: a single-quoted value, and an unquoted
@@ -1134,7 +1144,7 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
     'interpolation in an unquoted or single-quoted attribute value',
     /=\s*'[^']*<%|=\s*<%/,
     [],
-    { only: /^(views|public)\//, expectFiles: 7 },
+    { only: /^(views|public)\//, expectFiles: 8 },
   );
   // P4 — NO INTERPOLATION IN THE TAG-NAME OR ATTRIBUTE-NAME REGION (review
   // cycle 1, F-3; the tag-name half added by review cycle 2, ruling R-6).
@@ -1146,11 +1156,11 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
   // interpolated tag name is counted as a start tag, so planting one leaves this
   // number unmoved and the findings assertion is the only thing that can catch it.
   const attrName = scanAttributeNamePosition();
-  // A COMMITTED COUNT, not a `> 0` floor (AS-70, B5): six templates today —
+  // A COMMITTED COUNT, not a `> 0` floor (AS-70, B5): seven templates today —
   // signin.ejs, connect-stripe.ejs, invoice-form.ejs (AS-46), contract-detail.ejs
-  // (AS-47), dashboard.ejs and invoice-detail.ejs (AS-48). The next screen
-  // moves this with its VIEWS row.
-  assert.equal(attrName.files, 6, `P4 examined ${attrName.files} template(s) under views/, expected 6`);
+  // (AS-47), dashboard.ejs and invoice-detail.ejs (AS-48), contract-form.ejs
+  // (AS-127). The next screen moves this with its VIEWS row.
+  assert.equal(attrName.files, 7, `P4 examined ${attrName.files} template(s) under views/, expected 7`);
   assert.equal(
     attrName.tags,
     VIEW_START_TAGS,

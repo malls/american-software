@@ -38,9 +38,9 @@
     <link rel="stylesheet" href="/app.css" />
   </head>
   <body>
-    <%# Full chrome (01-screens.md §3): constant markup. "New contract" is
-        absent until AS-127 lands /contracts/new — a nav link to a 404 is the
-        R-2 defect (README.md § Obligations). %>
+    <%# Full chrome (01-screens.md §3): constant markup. "New contract" landed
+        with AS-127's /contracts/new (README.md § Obligations); it is NOT gated
+        by readiness — contract creation has no Stripe dependency. %>
     <header class="site-header">
       <div class="container site-header__inner">
         <span class="app-label">Invoicing</span>
@@ -57,6 +57,7 @@
               <span class="site-nav__note">Connect Stripe before invoicing — <a href="/connect-stripe">finish setup</a></span>
             </span>
           <% } %>
+          <a class="site-nav__link" href="/contracts/new">New contract</a>
           <form class="site-nav__signout" method="post" action="/signout">
             <button type="submit" class="btn-link">Sign out</button>
           </form>
@@ -81,11 +82,15 @@
 
       <% if (isEmpty) { %>
         <p class="lede"><%= firstRunLede %></p>
-        <% if (showInvoiceCta) { %>
-          <div class="form-actions">
-            <a href="/invoices/new" class="btn btn-primary"><%= invoiceCta %></a>
-          </div>
-        <% } %>
+        <%# The first-run primary CTA is the contract (the wireframe's; AS-48
+            plan §11 Q5, landed by AS-127 with the route). It is not gated: the
+            invoice CTA beside it is, and is the secondary. %>
+        <div class="form-actions">
+          <a href="/contracts/new" class="btn btn-primary">Create your first contract</a>
+          <% if (showInvoiceCta) { %>
+            <a href="/invoices/new" class="btn btn-secondary"><%= invoiceCta %></a>
+          <% } %>
+        </div>
       <% } %>
 
       <% if (hasContracts) { %>

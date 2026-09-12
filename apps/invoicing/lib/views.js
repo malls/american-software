@@ -24,6 +24,7 @@ import { invoiceFormLocals } from './screens/invoice-form-view.js';
 import { contractDetailLocals } from './screens/contract-detail-view.js';
 import { dashboardLocals } from './screens/dashboard-view.js';
 import { invoiceDetailLocals } from './screens/invoice-detail-view.js';
+import { contractFormLocals } from './screens/contract-form-view.js';
 
 export const VIEWS = Object.freeze([
   Object.freeze({
@@ -67,5 +68,13 @@ export const VIEWS = Object.freeze([
     name: 'invoice-detail',
     file: 'invoice-detail.ejs',
     sampleLocals: invoiceDetailLocals(),
+  }),
+  // Screen 6 (AS-127). The default input (no clients, no submission) renders
+  // S6-CLIENT-EMPTY — the picker forced to add-new mode and the declared
+  // fields blank — decided by the same function the route calls.
+  Object.freeze({
+    name: 'contract-form',
+    file: 'contract-form.ejs',
+    sampleLocals: contractFormLocals(),
   }),
 ]);

@@ -85,8 +85,9 @@ export const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
 /** Copy, verbatim from docs/design/wireframes/screen-3-dashboard.html where it
  *  supplies it. Deviations are recorded in the plan (§11): the first-run
  *  lede's first sentence branches on readiness (Q2), draft rows say "View"
- *  (Q3), and "Create your first contract" is absent until AS-127 lands
- *  /contracts/new (Q5) — the invoice CTA is the primary meanwhile. */
+ *  (Q3), and "Create your first contract" was absent until AS-127 landed
+ *  /contracts/new (Q5) — the invoice CTA was the primary meanwhile, and is
+ *  now the wireframe's secondary. */
 const COPY = Object.freeze({
   populatedTitle: 'Your work',
   emptyTitle: "Let's get your first client paid",
@@ -94,7 +95,7 @@ const COPY = Object.freeze({
   systemMessage: 'Something went wrong loading your contracts and invoices.',
   ledeReady: "You're connected to Stripe. The next step is a contract or an invoice for your first client.",
   ledeNotReady: "Connect Stripe when you're ready to invoice. The next step is a contract or an invoice for your first client.",
-  invoiceCta: 'Create your first invoice',
+  invoiceCta: 'Or create an invoice directly',
   totalLabel: 'Amount',
 });
 

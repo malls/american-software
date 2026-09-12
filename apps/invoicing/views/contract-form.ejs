@@ -1,0 +1,266 @@
+<%#
+  contract-form.ejs — Screen 6, contract create (AS-127; the AS-47 §3.2 design).
+
+  Built to docs/design/wireframes/screen-6-contract-create.html and its ledger,
+  02-states-ledger.md §6 (with the §0 client sub-pattern). Every element the
+  wireframe marks `data-wf-note` is annotation and is deliberately NOT built.
+
+  PRESENTATION ONLY. Every decision was made in
+  lib/screens/contract-form-view.js; this file branches on precomputed booleans
+  and reads properties. Four properties hold over it, each a concept row in
+  test/dependency-policy.test.js rather than a convention (README.md § The view
+  layer):
+
+    P1  no raw-output tag anywhere — this file has NO sanctioned raw line; the
+        one in this app is contract-detail.ejs's, and this template adds none
+    P2  no interpolation in an href/src/action/formaction/style attribute, no
+        event-handler attribute, no script or style element
+    P3  every attribute value carrying data is DOUBLE-quoted
+    P4  within any start tag, every output tag sits inside an attribute value
+
+  ONE FORM, NO action ATTRIBUTE. The page's own URL is the target. Every
+  control that changes the page is a submit button named `intent`, dispatched
+  server-side. There is no client-side script. The client sub-form is INSIDE
+  the one form (nested forms are not HTML), so every round trip carries every
+  contract value back by construction.
+
+  THE FIELDS ARE THE DECLARATION'S. The loop below renders whatever
+  lib/contracts/templates/ declares as form-sourced, by type; name=, id= and
+  for= carry the declared name — a renderer-authored constant from code, never
+  from a request. No hidden templateId input exists.
+
+  THE TEXTAREA EMITS ONE NEWLINE AFTER ITS OPENING TAG (AS-127 decision 4):
+  HTML drops exactly one leading newline inside a textarea, so a value that
+  begins with a blank line would lose it on every re-render without it.
+
+  THE CLIENT PICKER IS invoice-form.ejs's BLOCK, CARRIED A SECOND TIME with
+  "Bill to" read "Client" and nothing else changed (AS-127 decision 2; the third
+  consumer extracts it).
+
+  NOTE FOR ANYONE EDITING THIS COMMENT: do not spell the raw-output tag or a
+  closing EJS tag inside it — the dependency-policy scanner strips an EJS
+  comment up to its FIRST closing tag. And keep the three words the
+  minor-units concept row scans for out of this file, comments included.
+-%>
+<!doctype html>
+<html lang="en" data-state="<%= state %>">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoicing — <%= title %></title>
+    <link rel="stylesheet" href="/tokens.css" />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <%# Full chrome (01-screens.md §3): the nav is CONSTANT markup — a loop over
+        data would put hrefs in data. All four entries: Dashboard (AS-48's
+        screen 3, merged before this one), New invoice, New contract (this
+        screen's own self-link — the nav is the same markup on screens 3-7)
+        and Sign out. %>
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <span class="app-label">Invoicing</span>
+      </div>
+      <div class="container">
+        <nav class="site-nav" aria-label="Primary">
+          <a class="site-nav__link" href="/">Dashboard</a>
+          <a class="site-nav__link" href="/invoices/new">New invoice</a>
+          <a class="site-nav__link" href="/contracts/new">New contract</a>
+          <form class="site-nav__signout" method="post" action="/signout">
+            <button type="submit" class="btn-link">Sign out</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1 class="page-title"><%= title %></h1>
+
+      <%# The legal gate, as page chrome (AS-47 plan §3.6): constant copy in
+          every rendered state, in addition to the notice inside the document. %>
+      <div class="banner banner-warning">
+        <p class="banner__title"><%= placeholder.title %></p>
+        <p><%= placeholder.message %></p>
+      </div>
+
+      <% if (isSystem) { %>
+        <%# S6-ERROR-SYSTEM's distinctive marker: the sentence is a literal of
+            this branch. Nothing was created, so the form below, with every
+            value preserved, IS the retry. %>
+        <div class="banner banner-error">
+          <p>Something went wrong generating this contract. Nothing was created — try again.</p>
+        </div>
+      <% } else if (banner !== null) { %>
+        <div class="banner banner-error">
+          <% if (banner.title !== null) { %>
+            <p class="banner__title"><%= banner.title %></p>
+          <% } %>
+          <% if (banner.message !== null) { %>
+            <p><%= banner.message %></p>
+          <% } %>
+        </div>
+      <% } %>
+
+      <form method="post">
+        <div class="client-picker">
+          <% if (showSelect) { %>
+            <% if (showNewClientToggle) { %>
+              <p class="client-picker__mode-toggle">Client:
+                <button type="submit" name="intent" value="new-client" class="btn-link">add a new client instead</button>
+              </p>
+            <% } %>
+            <input type="hidden" name="pickerMode" value="select" />
+            <% if (clientError !== null) { %>
+              <div class="field field--invalid">
+                <label for="clientId">Client</label>
+                <select id="clientId" name="clientId" aria-invalid="true" aria-describedby="clientId-error">
+                  <option value="">Select a client…</option>
+                  <% for (const client of clients) { %>
+                    <% if (client.selected) { %>
+                      <option value="<%= client.id %>" selected><%= client.label %></option>
+                    <% } else { %>
+                      <option value="<%= client.id %>"><%= client.label %></option>
+                    <% } %>
+                  <% } %>
+                </select>
+                <span class="field-error" id="clientId-error"><%= clientError %></span>
+              </div>
+            <% } else { %>
+              <div class="field">
+                <label for="clientId">Client</label>
+                <select id="clientId" name="clientId">
+                  <option value="">Select a client…</option>
+                  <% for (const client of clients) { %>
+                    <% if (client.selected) { %>
+                      <option value="<%= client.id %>" selected><%= client.label %></option>
+                    <% } else { %>
+                      <option value="<%= client.id %>"><%= client.label %></option>
+                    <% } %>
+                  <% } %>
+                </select>
+              </div>
+            <% } %>
+          <% } else { %>
+            <% if (showExistingClientToggle) { %>
+              <p class="client-picker__mode-toggle">Client:
+                <button type="submit" name="intent" value="existing-client" class="btn-link">choose an existing client instead</button>
+              </p>
+            <% } %>
+            <% if (!hasClients) { %>
+              <p>No clients yet — add one below.</p>
+            <% } %>
+            <input type="hidden" name="pickerMode" value="new" />
+            <% if (clientError !== null) { %>
+              <%# A generate with no client while adding one (the AS-46 review
+                  cycle 1 D1 shape): the picker as a whole is the invalid field.
+                  There is no select to mark, so the slot carries the message
+                  alone and the banner's count still equals the page's markers. %>
+              <div class="field field--invalid">
+                <span class="field-error" id="client-error"><%= clientError %></span>
+              </div>
+            <% } %>
+            <% if (clientNameError !== null) { %>
+              <div class="field field--invalid">
+                <label for="clientName">Client name</label>
+                <input type="text" id="clientName" name="clientName" value="<%= clientName %>" aria-invalid="true" aria-describedby="clientName-error" />
+                <span class="field-error" id="clientName-error"><%= clientNameError %></span>
+              </div>
+            <% } else { %>
+              <div class="field">
+                <label for="clientName">Client name</label>
+                <input type="text" id="clientName" name="clientName" value="<%= clientName %>" />
+              </div>
+            <% } %>
+            <% if (clientEmailError !== null) { %>
+              <div class="field field--invalid">
+                <label for="clientEmail">Client email</label>
+                <input type="email" id="clientEmail" name="clientEmail" value="<%= clientEmail %>" aria-invalid="true" aria-describedby="clientEmail-error" />
+                <span class="field-error" id="clientEmail-error"><%= clientEmailError %></span>
+              </div>
+            <% } else { %>
+              <div class="field">
+                <label for="clientEmail">Client email</label>
+                <input type="email" id="clientEmail" name="clientEmail" value="<%= clientEmail %>" />
+              </div>
+            <% } %>
+            <% if (duplicate !== null) { %>
+              <%# Non-blocking (ledger §0): nothing was refused, so this is a
+                  warning INSIDE the form with both ways forward as submit
+                  buttons. The match's id travels in a hidden input, never in
+                  a URL; "create anyway" carries the confirmation with it. %>
+              <div class="banner banner-warning">
+                <p><%= duplicate.before %><strong><%= duplicate.label %></strong><%= duplicate.after %></p>
+                <p>
+                  <button type="submit" name="intent" value="existing-client" class="btn btn-secondary">Use this client instead</button>
+                  <button type="submit" name="intent" value="add-client" class="btn-link">Create a new client anyway</button>
+                </p>
+              </div>
+              <input type="hidden" name="duplicateId" value="<%= duplicateId %>" />
+              <input type="hidden" name="clientConfirm" value="1" />
+            <% } else { %>
+              <div class="form-actions">
+                <button type="submit" name="intent" value="add-client" class="btn btn-secondary">Add client</button>
+              </div>
+            <% } %>
+          <% } %>
+        </div>
+
+        <%# The declared form fields, in declaration order, one branch pair per
+            type. Each pair is written out (field--invalid / plain) rather than
+            composing a class attribute from data. %>
+        <% for (const field of fields) { %>
+          <% if (field.type === 'multiline') { %>
+            <% if (field.error !== null) { %>
+              <div class="field field--invalid">
+                <label for="<%= field.name %>"><%= field.label %></label>
+                <textarea id="<%= field.name %>" name="<%= field.name %>" rows="3" aria-invalid="true" aria-describedby="<%= field.name %>-error">
+<%= field.value %></textarea>
+                <span class="field-error" id="<%= field.name %>-error"><%= field.error %></span>
+              </div>
+            <% } else { %>
+              <div class="field">
+                <label for="<%= field.name %>"><%= field.label %></label>
+                <textarea id="<%= field.name %>" name="<%= field.name %>" rows="3">
+<%= field.value %></textarea>
+              </div>
+            <% } %>
+          <% } else if (field.type === 'date') { %>
+            <% if (field.error !== null) { %>
+              <div class="field field--invalid">
+                <label for="<%= field.name %>"><%= field.label %></label>
+                <input type="date" id="<%= field.name %>" name="<%= field.name %>" value="<%= field.value %>" aria-invalid="true" aria-describedby="<%= field.name %>-error" />
+                <span class="field-error" id="<%= field.name %>-error"><%= field.error %></span>
+              </div>
+            <% } else { %>
+              <div class="field">
+                <label for="<%= field.name %>"><%= field.label %></label>
+                <input type="date" id="<%= field.name %>" name="<%= field.name %>" value="<%= field.value %>" />
+              </div>
+            <% } %>
+          <% } else { %>
+            <% if (field.error !== null) { %>
+              <div class="field field--invalid">
+                <label for="<%= field.name %>"><%= field.label %></label>
+                <input type="text" id="<%= field.name %>" name="<%= field.name %>" value="<%= field.value %>" aria-invalid="true" aria-describedby="<%= field.name %>-error" />
+                <span class="field-error" id="<%= field.name %>-error"><%= field.error %></span>
+              </div>
+            <% } else { %>
+              <div class="field">
+                <label for="<%= field.name %>"><%= field.label %></label>
+                <input type="text" id="<%= field.name %>" name="<%= field.name %>" value="<%= field.value %>" />
+              </div>
+            <% } %>
+          <% } %>
+        <% } %>
+
+        <div class="form-actions">
+          <% if (isSystem) { %>
+            <button type="submit" name="intent" value="generate" class="btn btn-primary">Try again</button>
+          <% } else { %>
+            <button type="submit" name="intent" value="generate" class="btn btn-primary">Generate contract</button>
+          <% } %>
+        </div>
+      </form>
+    </main>
+  </body>
+</html>
