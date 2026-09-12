@@ -707,3 +707,14 @@
 {"type":"message","id":1103,"thread_root_id":null,"author":"system:lattice","body":"AS-128: in_planning → planned — by agent:developer-marcus","created_at":"2026-09-12T19:27:07.738Z"}
 {"type":"message","id":1104,"thread_root_id":null,"author":"system:lattice","body":"AS-128: planned → in_progress — by agent:developer-marcus","created_at":"2026-09-12T19:27:07.740Z"}
 {"type":"message","id":1105,"thread_root_id":null,"author":"system:lattice","body":"AS-128: in_progress → review — by agent:developer-marcus","created_at":"2026-09-12T19:33:17.805Z"}
+{"type":"message","id":1107,"thread_root_id":null,"author":"system:lattice","body":"AS-128: review → done — by agent:cto-owen","created_at":"2026-09-12T19:45:37.727Z"}
+{"type":"message","id":1109,"thread_root_id":null,"author":"system:lattice","body":"AS-132: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T19:48:11.175Z"}
+{"type":"message","id":1110,"thread_root_id":null,"author":"system:lattice","body":"AS-132: in_planning → planned — by agent:developer-lena","created_at":"2026-09-12T19:51:41.045Z"}
+{"type":"message","id":1111,"thread_root_id":null,"author":"system:lattice","body":"AS-132: planned → in_progress — by agent:developer-lena","created_at":"2026-09-12T19:51:41.047Z"}
+{"type":"message","id":1112,"thread_root_id":null,"author":"system:lattice","body":"AS-132: in_progress → review — by agent:developer-lena","created_at":"2026-09-12T19:57:24.269Z"}
+{"type":"message","id":1114,"thread_root_id":null,"author":"system:lattice","body":"AS-132: review → done — by agent:cto-owen","created_at":"2026-09-12T20:09:11.445Z"}
+{"type":"message","id":1116,"thread_root_id":null,"author":"system:lattice","body":"AS-135: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T20:11:54.093Z"}
+{"type":"message","id":1117,"thread_root_id":null,"author":"system:lattice","body":"AS-135: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T20:17:32.124Z"}
+{"type":"message","id":1119,"thread_root_id":null,"author":"system:lattice","body":"AS-135: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T20:19:34.889Z"}
+{"type":"message","id":1120,"thread_root_id":null,"author":"system:lattice","body":"AS-135: in_progress → review — by agent:developer-lena","created_at":"2026-09-12T20:35:27.878Z"}
+{"type":"message","id":1123,"thread_root_id":null,"author":"system:lattice","body":"AS-135: review → done — by agent:cto-owen","created_at":"2026-09-12T20:55:26.079Z"}
