@@ -31,6 +31,12 @@
 // to check, run the suite, and confirm it fails. A check you cannot
 // demonstrate failing is not a check.
 //
+// Third corollary (AS-35, the seventh instance): VALUES ARE NOT STRUCTURE. The
+// declaration checks read tokens.css by comment marker and were blind to the
+// selectors delivering those declarations — a typo in block 4's selector
+// broke theming with the suite green. The cascade-structure tests pin the
+// four rule preludes literally and their order, joined to the marker blocks.
+//
 // Side effect, deliberate (plan §8.3): this test COMPUTES the full
 // foreground x background x mode contrast matrix and WRITES it into
 // tokens.json's "contrast" field each run (idempotent — only touches the
@@ -254,6 +260,121 @@ if (Object.keys(cssBlock1).length === 0) throw new Error('FORMAT CONTRACT BROKEN
 if (Object.keys(cssBlock2).length === 0) throw new Error('FORMAT CONTRACT BROKEN in tokens.css: block 2 parsed to zero declarations.');
 if (Object.keys(cssBlock3).length === 0) throw new Error('FORMAT CONTRACT BROKEN in tokens.css: block 3 parsed to zero declarations.');
 if (Object.keys(cssBlock4).length === 0) throw new Error('FORMAT CONTRACT BROKEN in tokens.css: block 4 parsed to zero declarations.');
+
+// ============================================================================
+// tokens.css cascade STRUCTURE — selectors and rule order (AS-35)
+//
+// Everything above reads tokens.css by its BLOCK-N comment markers and checks
+// the declarations inside each slice. Nothing read the rule preludes — the
+// selectors and the @media condition — so a correct palette wired to the
+// wrong selector was invisible: `[data-theme="drak"]` on block 4 left every
+// cascade panel in the style reference resolving light with the suite 35/35
+// green (AS-29 cycle-2 review, R1). The tests below pin the four preludes
+// literally and their order by index, and join each rule back to the marker
+// block the declaration tests already verify, so "block N" as this file reads
+// it is the same thing as "rule N" as the browser cascades it.
+// ============================================================================
+
+/**
+ * Split a stylesheet into its top-level rules: `[{ prelude, body, start }]`
+ * in source order. Comments are blanked to equal-length whitespace first so
+ * `start` is an offset into the ORIGINAL text (the marker join below needs
+ * that). Preludes are whitespace-normalised: runs collapse to one space,
+ * commas become `, `. Nested rules (an @media body) are parsed by calling this
+ * again on `body`.
+ *
+ * Fail-loud, like every extractor in this file: an unbalanced brace or a
+ * stylesheet with zero rules throws a named error rather than returning a
+ * partial or empty list that every assertion downstream would sail through.
+ * Braces inside strings are not understood — tokens.css has none, and the
+ * exact-count and marker-join assertions below would catch a mis-split.
+ */
+function normalisePrelude(text) {
+  return text.replace(/\s+/g, ' ').replace(/\s*,\s*/g, ', ').trim();
+}
+
+function parseTopLevelRules(cssText, sourceLabel) {
+  const blanked = cssText.replace(/\/\*[\s\S]*?\*\//g, (m) => ' '.repeat(m.length));
+  const rules = [];
+  let outside = ''; // everything at depth 0 that is not a prelude — must be whitespace
+  let preludeStart = 0;
+  let bodyStart = -1;
+  let depth = 0;
+  for (let i = 0; i < blanked.length; i += 1) {
+    const ch = blanked[i];
+    if (ch === '{') {
+      if (depth === 0) bodyStart = i + 1;
+      depth += 1;
+    } else if (ch === '}') {
+      depth -= 1;
+      if (depth < 0) {
+        throw new Error(`FORMAT CONTRACT BROKEN in ${sourceLabel}: unbalanced "}" at offset ${i} — the rule parser cannot split this stylesheet.`);
+      }
+      if (depth === 0) {
+        const preludeRaw = blanked.slice(preludeStart, bodyStart - 1);
+        rules.push({ prelude: normalisePrelude(preludeRaw), body: blanked.slice(bodyStart, i), start: preludeStart + (preludeRaw.length - preludeRaw.trimStart().length) });
+        preludeStart = i + 1;
+      }
+    }
+  }
+  if (depth !== 0) {
+    throw new Error(`FORMAT CONTRACT BROKEN in ${sourceLabel}: unbalanced "{" (depth ${depth} at end of file) — the rule parser cannot split this stylesheet.`);
+  }
+  outside = blanked.slice(preludeStart);
+  if (rules.length === 0) {
+    throw new Error(`FORMAT CONTRACT BROKEN in ${sourceLabel}: no rules found at all — the rule parser would otherwise return an empty list and every structural assertion would pass on nothing.`);
+  }
+  return { rules, trailing: outside };
+}
+
+const BLOCK_MARKERS = ['BLOCK 1 — PRIMITIVES', 'BLOCK 2 — LIGHT SEMANTICS', 'BLOCK 3 — DARK SEMANTICS', 'BLOCK 4 — EXPLICIT DARK'];
+const blockMarkerOffsets = BLOCK_MARKERS.map((marker) => {
+  const idx = tokensCss.indexOf(marker);
+  if (idx === -1) throw new Error(`FORMAT CONTRACT BROKEN in tokens.css: block marker ${JSON.stringify(marker)} not found.`);
+  return idx;
+});
+const { rules: topLevelRules, trailing: topLevelTrailing } = parseTopLevelRules(tokensCss, 'tokens.css');
+
+test('tokens.css cascade structure — exactly four top-level rules, one per BLOCK marker, in order, each carrying that block\'s declarations', () => {
+  assert.equal(topLevelRules.length, 4, `tokens.css must contain exactly four top-level rules (blocks 1–4); found ${topLevelRules.length}: ${JSON.stringify(topLevelRules.map((r) => r.prelude))}`);
+  assert.equal(topLevelTrailing.trim(), '', `tokens.css has content after the last rule that is not a rule: ${JSON.stringify(topLevelTrailing.trim().slice(0, 80))}`);
+  // Rule i must sit inside marker section i: after marker i and (for 1–3)
+  // before marker i+1. That is what makes the declaration tests above and the
+  // selector tests below talk about the same block.
+  const blockDicts = [cssBlock1, cssBlock2, cssBlock3, cssBlock4];
+  for (let i = 0; i < 4; i += 1) {
+    const rule = topLevelRules[i];
+    const lower = blockMarkerOffsets[i];
+    const upper = i < 3 ? blockMarkerOffsets[i + 1] : Number.POSITIVE_INFINITY;
+    assert.ok(rule.start > lower && rule.start < upper, `tokens.css rule ${i + 1} (${rule.prelude}) starts at offset ${rule.start}, outside the BLOCK ${i + 1} marker section [${lower}, ${upper})`);
+    // (A stray top-level statement — an @import, a bare declaration — has no
+    // brace of its own, so it lands in the next rule's prelude and fails the
+    // literal selector assertions below. No separate scan is needed.)
+    // The rule's own declarations are the block's declarations — block 3's
+    // live one level down, inside the @media body.
+    const declarationsIn = i === 2 ? parseTopLevelRules(rule.body, 'tokens.css block 3 @media body').rules.map((r) => r.body).join('\n') : rule.body;
+    assert.deepEqual(parseCssDeclarations(declarationsIn), blockDicts[i], `tokens.css rule ${i + 1} (${rule.prelude}) does not carry exactly the custom properties the BLOCK ${i + 1} marker section declares`);
+  }
+});
+
+test('tokens.css block selectors — blocks 1, 2 and 4 are literally `:root`, `:root, [data-theme="light"]` and `[data-theme="dark"]`, in that order', () => {
+  // Literal, not "contains": BRANDING.md §3.2/§3.3 and the block comments in
+  // tokens.css say exactly which selector delivers each layer, and the cascade
+  // depends on it — block 4's `[data-theme="dark"]` (0-1-0) beats block 2's
+  // `:root` (0-1-0) on a dark-stamped root only because it comes LATER.
+  assert.equal(topLevelRules[0].prelude, ':root', 'tokens.css block 1 (primitives) selector');
+  assert.equal(topLevelRules[1].prelude, ':root, [data-theme="light"]', 'tokens.css block 2 (light semantics) selector');
+  assert.equal(topLevelRules[3].prelude, '[data-theme="dark"]', 'tokens.css block 4 (explicit dark) selector — the AS-29 R1 gap: a typo here re-themed nothing and the suite stayed green');
+});
+
+test('tokens.css block 3 — `@media (prefers-color-scheme: dark)` wraps exactly one rule, `:root:not([data-theme="light"])`, and nothing else', () => {
+  const media = topLevelRules[2];
+  assert.equal(media.prelude, '@media (prefers-color-scheme: dark)', 'tokens.css block 3 must be the prefers-color-scheme: dark media query, third in source order');
+  const inner = parseTopLevelRules(media.body, 'tokens.css block 3 @media body');
+  assert.equal(inner.rules.length, 1, `tokens.css block 3 @media body must contain exactly one rule; found ${inner.rules.length}: ${JSON.stringify(inner.rules.map((r) => r.prelude))}`);
+  assert.equal(inner.rules[0].prelude, ':root:not([data-theme="light"])', 'tokens.css block 3 guard selector — a bare :root here would override an explicit data-theme="light" under a dark OS');
+  assert.equal(inner.trailing.trim(), '', 'tokens.css block 3 @media body has content outside its one rule');
+});
 
 /** Resolve a raw `var(--color-X)` (or bare hex) declaration to its final hex, chasing at most one semantic->semantic hop. */
 function resolveCssValue(rawValue, semanticBlockDict, primDict) {
@@ -1354,4 +1475,17 @@ test('format-contract guard — requireTable throws a distinct error when no tab
     () => requireTable(tables, (t) => t[0][0] === 'NoSuchHeader', 'a table that does not exist', 'fixture'),
     /FORMAT CONTRACT BROKEN in fixture.*a table that does not exist/s
   );
+});
+
+test('format-contract guard — parseTopLevelRules throws on unbalanced braces and on a stylesheet with zero rules (AS-35)', () => {
+  // The happy path, so a regression in the parser itself is visible here and
+  // not only through the tokens.css assertions it feeds.
+  const parsed = parseTopLevelRules('/* c */ a,\n  b { x: 1; }\n@media (m) { c { y: 2; } }\n', 'fixture');
+  assert.deepEqual(parsed.rules.map((r) => r.prelude), ['a, b', '@media (m)']);
+  assert.equal(parsed.rules[0].start, 8, 'start is an offset into the original text, comments included');
+  assert.equal(parsed.trailing.trim(), '');
+  assert.throws(() => parseTopLevelRules('a { x: 1; ', 'fixture'), /FORMAT CONTRACT BROKEN in fixture.*unbalanced "\{"/s);
+  assert.throws(() => parseTopLevelRules('a { x: 1; } }', 'fixture'), /FORMAT CONTRACT BROKEN in fixture.*unbalanced "\}"/s);
+  assert.throws(() => parseTopLevelRules('/* only a comment */\n', 'fixture'), /FORMAT CONTRACT BROKEN in fixture.*no rules found/s);
+  assert.throws(() => parseTopLevelRules('', 'fixture'), /FORMAT CONTRACT BROKEN in fixture.*no rules found/s);
 });
