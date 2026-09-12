@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 2,
+  "comment_count": 4,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:44Z",
   "created_by": "agent:cto-owen",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34PDBBXVAKM7DDED3VG8M",
-  "last_event_id": "ev_01M2BBQSZQQMRW9VCDZBPB3072",
-  "last_status_changed_at": "2026-09-12T17:48:06Z",
+  "last_event_id": "ev_01M2BCWGR8J6N9ETJJWJS0FF0K",
+  "last_status_changed_at": "2026-09-12T18:08:08Z",
   "linked_files": [],
   "priority": "high",
   "relationships_out": [
@@ -78,12 +78,19 @@
       "note": null,
       "target_task_id": "task_01M1JE53S29MRXYYXXGGKGP2RN",
       "type": "depends_on"
+    },
+    {
+      "created_at": "2026-09-12T18:05:39Z",
+      "created_by": "agent:developer-marcus",
+      "note": null,
+      "target_task_id": "task_01M2BCQP60JC6DTBTMX8F5NK4A",
+      "type": "depends_on"
     }
   ],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-50",
-  "status": "in_progress",
+  "status": "blocked",
   "tags": [
     "d1",
     "v1",
@@ -93,6 +100,6 @@
   ],
   "title": "D1 v1: recorded acceptance run against Stripe test mode (v1 done)",
   "type": "task",
-  "updated_at": "2026-09-12T17:48:12Z",
+  "updated_at": "2026-09-12T18:08:15Z",
   "urgency": null
 }
