@@ -559,3 +559,20 @@
 {"type":"message","id":891,"thread_root_id":null,"author":"system:lattice","body":"AS-120: review → done — by agent:cto-owen","created_at":"2026-09-11T23:41:14.374Z"}
 {"type":"message","id":892,"thread_root_id":null,"author":"system:lattice","body":"AS-106: review → done — by agent:cto-owen","created_at":"2026-09-11T23:41:14.375Z"}
 {"type":"message","id":893,"thread_root_id":null,"author":"system:lattice","body":"AS-108: review → done — by agent:cto-owen","created_at":"2026-09-11T23:41:14.380Z"}
+{"type":"message","id":895,"thread_root_id":null,"author":"system:lattice","body":"AS-109: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T23:47:15.548Z"}
+{"type":"message","id":896,"thread_root_id":null,"author":"system:lattice","body":"AS-111: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T23:47:15.553Z"}
+{"type":"message","id":897,"thread_root_id":null,"author":"system:lattice","body":"AS-112: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-11T23:47:15.554Z"}
+{"type":"message","id":898,"thread_root_id":null,"author":"system:lattice","body":"AS-109: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T00:02:05.900Z"}
+{"type":"message","id":899,"thread_root_id":null,"author":"system:lattice","body":"AS-111: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T00:02:05.905Z"}
+{"type":"message","id":900,"thread_root_id":null,"author":"system:lattice","body":"AS-112: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T00:02:05.906Z"}
+{"type":"message","id":902,"thread_root_id":null,"author":"system:lattice","body":"AS-109: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T00:05:10.470Z"}
+{"type":"message","id":903,"thread_root_id":null,"author":"system:lattice","body":"AS-111: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T00:05:10.472Z"}
+{"type":"message","id":904,"thread_root_id":null,"author":"system:lattice","body":"AS-112: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T00:05:10.473Z"}
+{"type":"message","id":905,"thread_root_id":null,"author":"system:lattice","body":"AS-109: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T00:25:22.857Z"}
+{"type":"message","id":906,"thread_root_id":null,"author":"system:lattice","body":"AS-111: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T00:25:22.860Z"}
+{"type":"message","id":907,"thread_root_id":null,"author":"system:lattice","body":"AS-112: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T00:25:22.861Z"}
+{"type":"message","id":908,"thread_root_id":null,"author":"system:lattice","body":"AS-124 created by agent:qa-priya — \"Chat: AS-111 review residuals — a rename on the Docker Desk…\" [backlog]","created_at":"2026-09-12T00:42:04.769Z"}
+{"type":"message","id":909,"thread_root_id":null,"author":"system:lattice","body":"AS-125 created by agent:qa-ruben — \"Chat: roster-title cascade guard — routes past targets()/wa…\" [backlog]","created_at":"2026-09-12T00:42:04.771Z"}
+{"type":"message","id":913,"thread_root_id":null,"author":"system:lattice","body":"AS-109: review → in_progress — by agent:cto-owen","created_at":"2026-09-12T00:48:13.285Z"}
+{"type":"message","id":914,"thread_root_id":null,"author":"system:lattice","body":"AS-111: review → done — by agent:cto-owen","created_at":"2026-09-12T00:49:14.667Z"}
+{"type":"message","id":915,"thread_root_id":null,"author":"system:lattice","body":"AS-112: review → done — by agent:cto-owen","created_at":"2026-09-12T00:49:14.669Z"}
