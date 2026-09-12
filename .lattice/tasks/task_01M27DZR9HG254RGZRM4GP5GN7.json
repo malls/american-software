@@ -11,8 +11,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M27DZR9HG254RGZRM4GP5GN7",
-  "last_event_id": "ev_01M28XCY12R7BTX5SY0B85QEDJ",
-  "last_status_changed_at": "2026-09-11T05:10:31Z",
+  "last_event_id": "ev_01M2B3P4R191J6Y4W7VX87QYWD",
+  "last_status_changed_at": "2026-09-12T15:27:29Z",
   "linked_files": [],
   "needs_human": null,
   "priority": "medium",
@@ -28,10 +28,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-105",
-  "status": "backlog",
+  "status": "cancelled",
   "tags": null,
   "title": "Investigate claude review failures \u2014 failed 2 times",
   "type": "task",
-  "updated_at": "2026-09-11T18:59:06Z",
+  "updated_at": "2026-09-12T15:27:29Z",
   "urgency": null
 }
