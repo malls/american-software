@@ -62,3 +62,71 @@ export function applyMessage(data, msg) {
   if (root) root.replyCount = (root.replyCount || 0) + 1;
   return true;
 }
+
+// --- AS-131: page mode -----------------------------------------------------
+// The cold load is now GET /api/messages?before=0&limit=50 — the same
+// { conversation, messages, threads } shape plus hasMore/nextBefore. Older
+// pages (before=nextBefore) are merged in front of the loaded set here.
+
+/** Ceiling on pages ensureLoaded will walk back for one target (50 × 20 = 1,000 roots). */
+export const ENSURE_LOADED_MAX_PAGES = 20;
+
+/**
+ * Merge one OLDER page into the loaded payload: prepend the page's top-level
+ * rows that are not already present (the result stays id-ordered), install
+ * the page's threads for each newly-added root (the server list is
+ * authoritative at fetch time; a root already loaded keeps the list it has,
+ * which may include live replies newer than this fetch), and adopt the page's
+ * hasMore/nextBefore as the new cursor. maxLoadedId is unaffected by design:
+ * a prepended page is older than everything loaded, so `since=` catch-up
+ * still resumes from the newest id.
+ *
+ * @param {{ messages: object[], threads: Record<string, object[]>, hasMore?: boolean, nextBefore?: number|null }} data
+ * @param {{ messages: object[], threads: Record<string, object[]>, hasMore: boolean, nextBefore: number|null }} page
+ * @returns {number} how many top-level rows were added.
+ */
+export function mergeOlderPage(data, page) {
+  const have = new Set(data.messages.map((m) => m.id));
+  const fresh = (page.messages || []).filter((m) => !have.has(m.id));
+  if (fresh.length) {
+    const wasOrdered = !data.messages.length || fresh[fresh.length - 1].id < data.messages[0].id;
+    data.messages.unshift(...fresh);
+    if (!wasOrdered) data.messages.sort((a, b) => a.id - b.id);
+    for (const root of fresh) data.threads[root.id] = (page.threads && page.threads[root.id]) || [];
+  }
+  data.hasMore = Boolean(page.hasMore);
+  data.nextBefore = page.nextBefore ?? null;
+  return fresh.length;
+}
+
+/** Is message `id` in the loaded payload — as a top-level row or a thread reply? */
+export function isLoaded(data, id) {
+  if (!data) return false;
+  if (data.messages.some((m) => m.id === id)) return true;
+  for (const arr of Object.values(data.threads || {})) if (arr.some((m) => m.id === id)) return true;
+  return false;
+}
+
+/**
+ * Page backward until `targetId` is loaded (Decision 7: one direction of
+ * paging, one code path — permalinks, thread-open and goToMessage all use
+ * it). Stops when the target is present, when the server says there is no
+ * older page, or at `maxPages` fetches; a target past the cap is dropped by
+ * the caller exactly as a dead id is today (AS-9).
+ *
+ * @param {object} data           The loaded payload (mutated by mergeOlderPage).
+ * @param {number} targetId       Root or reply id to bring into the loaded set.
+ * @param {(before: number|null) => Promise<object>} fetchPage  Fetches the page older than `before`.
+ * @param {{ maxPages?: number }} [opts]
+ * @returns {Promise<boolean>} true iff the target is loaded on return.
+ */
+export async function ensureLoaded(data, targetId, fetchPage, { maxPages = ENSURE_LOADED_MAX_PAGES } = {}) {
+  let pages = 0;
+  while (!isLoaded(data, targetId)) {
+    if (!data.hasMore || pages >= maxPages) return false;
+    const page = await fetchPage(data.nextBefore);
+    pages += 1;
+    mergeOlderPage(data, page);
+  }
+  return true;
+}

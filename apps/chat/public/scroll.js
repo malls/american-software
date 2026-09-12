@@ -46,3 +46,20 @@ export function renderPreservingScroll(pane, render, { forceBottom = false } = {
   if (forceBottom || wasAtBottom) pane.scrollTop = pane.scrollHeight;
   else pane.scrollTop = savedTop;
 }
+
+/**
+ * Re-render a pane after content was PREPENDED (AS-131: an older page merged
+ * in front of the loaded messages) so the row the reader was looking at does
+ * not move: scrollTop ends at savedTop + (scrollHeight after − before). The
+ * sticky-bottom rule is deliberately not consulted — the reader is at the top
+ * loading history, and following "new content" would yank them to the bottom.
+ *
+ * @param {Element|object} pane    The scrollable element being re-rendered.
+ * @param {() => void} render      Callback that replaces the pane's content.
+ */
+export function prependPreservingScroll(pane, render) {
+  const savedTop = pane.scrollTop;
+  const heightBefore = pane.scrollHeight;
+  render();
+  pane.scrollTop = savedTop + (pane.scrollHeight - heightBefore);
+}

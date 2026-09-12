@@ -3,7 +3,7 @@
 // browser-module pattern as url-state.test.js / scroll.test.js.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyMessage, maxLoadedId } from '../public/live.js';
+import { applyMessage, maxLoadedId, mergeOlderPage, ensureLoaded, isLoaded, ENSURE_LOADED_MAX_PAGES } from '../public/live.js';
 
 const msg = (id, conversationId, threadRootId = null, extra = {}) => ({
   id,
@@ -98,4 +98,125 @@ test('AS-25 live: catch-up idempotency — replaying the same delta changes noth
   assert.deepEqual(data, snapshot);
   assert.equal(maxLoadedId(data), 5);
   assert.equal(data.messages.find((m) => m.id === 1).replyCount, 2, 'no double-counted replies');
+});
+
+// --- AS-131: page mode -------------------------------------------------------
+
+/** A page payload as GET /api/messages?before= returns it. */
+const pageOf = (rootIds, { threads = {}, hasMore = true, convId = 7 } = {}) => ({
+  conversation: { id: convId, type: 'channel', name: 'eng', visibility: 'public' },
+  messages: rootIds.map((id) => msg(id, convId, null, { replyCount: (threads[id] || []).length })),
+  threads,
+  hasMore,
+  nextBefore: rootIds.length ? Math.min(...rootIds) : null,
+});
+
+test('AS-131 live: mergeOlderPage prepends id-ordered, dedupes, adopts the cursor, and replaces only the page roots\' threads', () => {
+  // Newest page loaded: roots 30, 40 (40 has a live reply 41 already merged).
+  const data = pageOf([30, 40], { threads: { 40: [msg(41, 7, 40)] }, hasMore: true });
+  assert.equal(data.nextBefore, 30);
+
+  // Older page: roots 10, 20 with 20's replies; prepends in front, in order.
+  const older = pageOf([10, 20], { threads: { 20: [msg(21, 7, 20), msg(22, 7, 20)] }, hasMore: true });
+  assert.equal(mergeOlderPage(data, older), 2);
+  assert.deepEqual(data.messages.map((m) => m.id), [10, 20, 30, 40], 'older rows go in FRONT, ascending');
+  assert.deepEqual(data.threads[20].map((m) => m.id), [21, 22], 'page root threads installed');
+  assert.deepEqual(data.threads[40].map((m) => m.id), [41], 'an already-loaded root keeps its thread');
+  assert.equal(data.hasMore, true);
+  assert.equal(data.nextBefore, 10, 'cursor adopted from the page');
+  assert.equal(maxLoadedId(data), 41, 'since= watermark unchanged by an older page');
+
+  // Overlapping page (a re-fetch, or a row that arrived by frame meanwhile):
+  // already-present rows are skipped, nothing duplicates, length holds.
+  const overlap = pageOf([5, 10, 20], { threads: { 10: [msg(11, 7, 10)] }, hasMore: false });
+  assert.equal(mergeOlderPage(data, overlap), 1);
+  assert.deepEqual(data.messages.map((m) => m.id), [5, 10, 20, 30, 40]);
+  assert.equal(data.messages.length, 5, 'no duplicate rows');
+  assert.equal(data.hasMore, false);
+  assert.equal(data.nextBefore, 5);
+  assert.deepEqual(data.threads[10], [], 'a deduped (already loaded) root keeps its list; the overlap page\'s [11] is not installed');
+  assert.deepEqual(data.threads[20].map((m) => m.id), [21, 22]);
+
+  // Terminal empty page: no rows, hasMore false, cursor null; loaded set intact.
+  assert.equal(mergeOlderPage(data, pageOf([], { hasMore: false })), 0);
+  assert.deepEqual(data.messages.map((m) => m.id), [5, 10, 20, 30, 40]);
+  assert.equal(data.nextBefore, null);
+  assert.equal(data.hasMore, false);
+  // The ordinary live path still works on the merged set.
+  assert.equal(applyMessage(data, msg(23, 7, 20)), true);
+  assert.equal(data.messages.find((m) => m.id === 20).replyCount, 3);
+});
+
+test('AS-131 live: ensureLoaded pages back until the target is loaded, stops on hasMore:false, and caps at 20 pages', async () => {
+  // Fixture: 10 pages of 2 roots (ids 2..40 by twos) — page k (from newest)
+  // holds roots [40-2k-1... ] — plus a reply 27 on root 26 (page 3 from newest).
+  const all = [];
+  for (let id = 2; id <= 40; id += 2) all.push(id);
+  const threads = { 26: [msg(27, 7, 26)] };
+  const fetcher = () => {
+    const calls = [];
+    const fetchPage = async (before) => {
+      calls.push(before);
+      const older = all.filter((id) => before === 0 || before == null || id < before);
+      const roots = older.slice(-2);
+      const t = {};
+      for (const r of roots) if (threads[r]) t[r] = threads[r];
+      return pageOf(roots, { threads: t, hasMore: older.length > 2 });
+    };
+    return { calls, fetchPage };
+  };
+
+  // Target root 30 sits in page 3 (pages: [38,40] loaded, then [34,36], [30,32]).
+  {
+    const data = pageOf([38, 40], { hasMore: true });
+    const { calls, fetchPage } = fetcher();
+    assert.equal(await ensureLoaded(data, 30, fetchPage), true);
+    assert.deepEqual(calls, [38, 34], 'two fetches (pages 2 and 3) after the loaded page 1');
+    assert.deepEqual(data.messages.map((m) => m.id), [30, 32, 34, 36, 38, 40]);
+    assert.equal(data.nextBefore, 30);
+  }
+  // Already loaded: zero fetches.
+  {
+    const data = pageOf([38, 40], { hasMore: true });
+    const { calls, fetchPage } = fetcher();
+    assert.equal(await ensureLoaded(data, 40, fetchPage), true);
+    assert.deepEqual(calls, []);
+  }
+  // A reply id counts as loaded once its root's page is in.
+  {
+    const data = pageOf([38, 40], { hasMore: true });
+    const { calls, fetchPage } = fetcher();
+    assert.equal(await ensureLoaded(data, 27, fetchPage), true);
+    assert.deepEqual(calls, [38, 34, 30], 'stops as soon as the reply\'s root page (26, 28) is in');
+    assert.equal(isLoaded(data, 27), true);
+    assert.equal(isLoaded(data, 25), false);
+  }
+  // Absent target on a short history: stops when the server says no more.
+  {
+    const data = pageOf([38, 40], { hasMore: true });
+    const short = [30, 32, 34, 36, 38, 40]; // three pages of two
+    const calls = [];
+    const fetchPage = async (before) => {
+      calls.push(before);
+      const older = short.filter((id) => id < before);
+      return pageOf(older.slice(-2), { hasMore: older.length > 2 });
+    };
+    assert.equal(await ensureLoaded(data, 999, fetchPage), false);
+    assert.deepEqual(calls, [38, 34], 'exactly 2 fetches: hasMore:false on the second page stops the walk');
+    assert.deepEqual(data.messages.map((m) => m.id), [30, 32, 34, 36, 38, 40]);
+    assert.equal(data.hasMore, false);
+  }
+  // Runaway guard: a server that always says hasMore:true is cut off at the cap.
+  {
+    const data = pageOf([38, 40], { hasMore: true });
+    let n = 0;
+    const fetchPage = async (before) => {
+      n += 1;
+      return pageOf([before - 2, before - 1], { hasMore: true });
+    };
+    assert.equal(ENSURE_LOADED_MAX_PAGES, 20);
+    assert.equal(await ensureLoaded(data, 9999, fetchPage), false);
+    assert.equal(n, 20, 'capped at 20 fetches');
+    assert.equal(data.messages.length, 42);
+  }
 });
