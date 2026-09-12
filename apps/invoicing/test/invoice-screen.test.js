@@ -144,6 +144,29 @@ test('the view model reaches every rendered state, exhaustively, with no HTTP at
   assert.equal(INTENTS.length, 6, 'the closed intent set');
 });
 
+test('clientEmailRefused (AS-128): the repository\'s shape refusal is S4-CLIENT-ERROR-VALIDATION on the email field alone, blank wins over it, and it means nothing outside add-client', () => {
+  const typed = { intent: 'add-client', clientName: 'Dee', clientEmail: 'not-an-email' };
+  const refused = invoiceFormLocals({ account: READY, clients: CLIENTS, submission: parseInvoiceForm(typed), clientEmailRefused: true });
+  assert.equal(refused.state, 'S4-CLIENT-ERROR-VALIDATION');
+  assert.equal(refused.status, 400);
+  assert.equal(refused.clientEmailError, 'Enter a complete email address.');
+  assert.equal(refused.clientNameError, null);
+  assert.equal(refused.clientEmail, 'not-an-email', 'as typed');
+  assert.equal(refused.banner.title, '1 field needs attention');
+  // Without the flag the same well-formed-to-the-screen email is not an error:
+  // the screen has no shape rule of its own (AS-67 D6).
+  assert.equal(invoiceFormLocals({ account: READY, clients: CLIENTS, submission: parseInvoiceForm(typed) }).state, 'S4-DEFAULT-CREATE');
+  // Blank wins: a blank email reports what it always has, flag or no flag.
+  const blank = invoiceFormLocals({ account: READY, clients: CLIENTS, submission: parseInvoiceForm({ ...typed, clientEmail: ' ' }), clientEmailRefused: true });
+  assert.equal(blank.state, 'S4-CLIENT-ERROR-VALIDATION');
+  assert.equal(blank.clientEmailError, 'This field is required.');
+  // Only the boolean true, and only under add-client.
+  assert.equal(invoiceFormLocals({ account: READY, clients: CLIENTS, submission: parseInvoiceForm(typed), clientEmailRefused: 'yes' }).state, 'S4-DEFAULT-CREATE');
+  const onSave = invoiceFormLocals({ account: READY, clients: CLIENTS, submission: parseInvoiceForm(FILLED), clientEmailRefused: true });
+  assert.equal(onSave.state, 'S4-DEFAULT-CREATE');
+  assert.equal(onSave.clientEmailError, null);
+});
+
 // =============================================================================
 // HTTP: the app under test
 // =============================================================================
@@ -506,6 +529,62 @@ test('S4-CLIENT-ERROR-VALIDATION: blank client fields re-render with every value
     assert.equal(occurrences(html, 'name="clientEmail" value="   "'), 1, 'as typed, whitespace included');
     assert.equal(repos.clients.listByFreelancer(freelancer.id).length, 0);
     assert.equal(repos.invoices.listByFreelancer(freelancer.id).length, 0);
+  });
+});
+
+test('S4-CLIENT-ERROR-VALIDATION (AS-128): a malformed client email re-renders the form with every value preserved, the email marked, and no client row created', async () => {
+  await withScreenApp({ clients: 0 }, async ({ post, repos, freelancer }) => {
+    // Two bodies: one the repository refuses outright, one whose INNER
+    // whitespace survives the screen's trim and is refused just the same.
+    const emails = ['not-an-email', ' not an email '];
+    assert.equal(emails.length, 2, 'cardinality first');
+    for (const clientEmail of emails) {
+      const res = await post(NEW, {
+        intent: 'add-client',
+        clientName: 'Dee Newclient',
+        clientEmail,
+        daysUntilDue: '21',
+        ...itemFields([{ description: 'Kept', quantity: '2', unitPrice: '5.25' }]),
+      });
+      assert.equal(res.status, 400, clientEmail);
+      assert.match(res.headers.get('content-type'), /^text\/html/, `${clientEmail}: the screen, not the API's text/plain line`);
+      const html = await res.text();
+      assert.equal(stateOf(html), 'S4-CLIENT-ERROR-VALIDATION', clientEmail);
+      assert.equal(occurrences(html, 'class="field field--invalid"'), 1, `${clientEmail}: the email field alone is marked`);
+      assert.equal(occurrences(html, 'id="clientEmail-error"'), 1, clientEmail);
+      assert.equal(occurrences(html, 'id="clientName-error"'), 0, clientEmail);
+      assert.ok(html.includes('Enter a complete email address.'), clientEmail);
+      assert.ok(html.includes('1 field needs attention'), clientEmail);
+      assert.equal(occurrences(html, 'value="Dee Newclient"'), 1, clientEmail);
+      assert.equal(occurrences(html, `name="clientEmail" value="${clientEmail}"`), 1, `${clientEmail}: as typed, whitespace included`);
+      assert.equal(occurrences(html, 'value="Kept"'), 1, clientEmail);
+      assert.equal(occurrences(html, 'value="5.25"'), 1, clientEmail);
+      assert.equal(occurrences(html, 'name="daysUntilDue" value="21"'), 1, clientEmail);
+      assert.equal(occurrences(html, 'name="pickerMode" value="new"'), 1, `${clientEmail}: still in add-new mode`);
+      assert.equal(repos.clients.listByFreelancer(freelancer.id).length, 0, clientEmail);
+      assert.equal(repos.invoices.listByFreelancer(freelancer.id).length, 0, clientEmail);
+    }
+  });
+});
+
+test('add-client (AS-128) trims the email before the repository sees it: a padded address is created trimmed, and a padded match warns as the duplicate', async () => {
+  await withScreenApp({ clients: 0 }, async ({ post, repos, freelancer }) => {
+    const common = { intent: 'add-client', clientName: 'Dee Newclient', daysUntilDue: '30', ...itemFields([blank]) };
+    const res = await post(NEW, { ...common, clientEmail: ' dee@example.test ' });
+    assert.equal(res.status, 200);
+    const clients = repos.clients.listByFreelancer(freelancer.id);
+    assert.equal(clients.length, 1, 'exactly one client row');
+    assert.equal(clients[0].email, 'dee@example.test', 'stored trimmed');
+    const html = await res.text();
+    assert.equal(stateOf(html), 'S4-DEFAULT-CREATE');
+    assert.equal(optionSelected(html, clients[0].id), 1);
+    // The trim reaches findByEmail too: the padded, re-cased match is the duplicate.
+    const again = await post(NEW, { ...common, clientEmail: ' DEE@EXAMPLE.TEST ' });
+    assert.equal(again.status, 200);
+    const againHtml = await again.text();
+    assert.equal(stateOf(againHtml), 'S4-CLIENT-ERROR-DUPLICATE');
+    assert.equal(occurrences(againHtml, `name="duplicateId" value="${clients[0].id}"`), 1, 'the match, named');
+    assert.equal(repos.clients.listByFreelancer(freelancer.id).length, 1, 'still one row');
   });
 });
 

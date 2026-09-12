@@ -107,6 +107,10 @@ const FIELD_MESSAGE = Object.freeze({
   // The same error with the picker in add-new mode, where there is nothing to
   // select from (the AS-46 review cycle 1 D1 shape).
   clientAddFirst: 'Add the client first.',
+  // The repository refused the new client's email shape (AS-128). Screen 1's
+  // sentence for the same refusal on the sign-up form, so the two screens
+  // that take a typed address agree; the wireframe supplies no copy for it.
+  email: 'Enter a complete email address.',
 });
 
 const CHOOSE_ACTION = 'Choose an action.';
@@ -201,10 +205,12 @@ export function parseContractForm(body) {
 
 /** The client sub-form's own validation — exactly POST /clients's rule, name
  *  and email non-blank (AS-46 §3.3, Q3: blankness only, still one consumer of
- *  no shape rule, so nothing is exported). */
-const clientFieldErrors = (values) => ({
+ *  no shape rule, so nothing is exported). `emailRefused` is the REPOSITORY's
+ *  shape answer, carried in by the route (AS-128), and blank wins over it so a
+ *  blank field reports what it always has. */
+const clientFieldErrors = (values, emailRefused) => ({
   clientName: isBlank(values.clientName) ? FIELD_MESSAGE.required : null,
-  clientEmail: isBlank(values.clientEmail) ? FIELD_MESSAGE.required : null,
+  clientEmail: isBlank(values.clientEmail) ? FIELD_MESSAGE.required : emailRefused ? FIELD_MESSAGE.email : null,
 });
 
 /** "2 fields need attention" — the wireframe's banner, agreeing with itself
@@ -224,6 +230,7 @@ const optionLabel = (client) => `${client.name} (${client.email})`;
  *   submission?: ReturnType<typeof parseContractForm> | null,   a POST's parsed body; null on a GET
  *   duplicate?: { id: string, name: string, email: string } | null,   add-client: the first case-insensitive match, when unconfirmed
  *   createdClientId?: string | null,   add-client: the row the route created
+ *   clientEmailRefused?: boolean,   add-client: the repository refused the email's shape (AS-128)
  *   clientRefused?: boolean,     generate: NotFoundError with entity 'client' — the id the parser accepted is not this freelancer's
  *   generationFailed?: boolean,  generate: anything else thrown
  * }} [input]
@@ -239,7 +246,8 @@ export function contractFormLocals(input = {}) {
   const values = submission === null ? null : submission.values;
   const duplicate = intent === 'add-client' ? input.duplicate ?? null : null;
   const createdClientId = intent === 'add-client' ? input.createdClientId ?? null : null;
-  const clientErrors = intent === 'add-client' ? clientFieldErrors(values) : { clientName: null, clientEmail: null };
+  const clientEmailRefused = intent === 'add-client' && input.clientEmailRefused === true;
+  const clientErrors = intent === 'add-client' ? clientFieldErrors(values, clientEmailRefused) : { clientName: null, clientEmail: null };
   const clientInvalid = clientErrors.clientName !== null || clientErrors.clientEmail !== null;
   // generate refusing a clientId the parser accepted (a foreign or unknown id)
   // is marked exactly like an unselected one — the answer for someone else's

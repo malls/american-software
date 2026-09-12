@@ -198,14 +198,31 @@ export function contractRoutes(config, { repos }) {
         // warns on a case-insensitive email match unless confirmed, then
         // creates through the SAME repository call the endpoint uses. One
         // client row and nothing else is written in this request.
+        // The email is TRIMMED before it reaches the repository (AS-128): the
+        // shape rule lives there and does not trim (AS-67, lib/db/errors.js),
+        // and a typed address with a stray space is not a typing mistake worth
+        // refusing. The typed value is what re-renders, whitespace and all.
         const { clientName, clientEmail, clientConfirm } = submission.values;
         if (clientName.trim() === '' || clientEmail.trim() === '') return renderForm(res, contractFormLocals(base));
+        const email = clientEmail.trim();
         if (!clientConfirm) {
-          const matches = repos.clients.findByEmail(freelancerId, clientEmail);
+          const matches = repos.clients.findByEmail(freelancerId, email);
           // Several matches: the first by created_at is named (AS-46 §10 Q4).
           if (matches.length > 0) return renderForm(res, contractFormLocals({ ...base, duplicate: matches[0] }));
         }
-        const created = repos.clients.create(freelancerId, { name: clientName, email: clientEmail });
+        let created;
+        try {
+          created = repos.clients.create(freelancerId, { name: clientName, email });
+        } catch (err) {
+          // The repository's shape refusal is S6-CLIENT-ERROR-VALIDATION with
+          // every value preserved (AS-128; 00-flows.md Flow 3 step 3a). No
+          // second email check here: the repository is the one place the
+          // rule lives (AS-67 D6), the screen only renders its answer.
+          if (err instanceof ValidationError && err.field === 'email') {
+            return renderForm(res, contractFormLocals({ ...base, clientEmailRefused: true }));
+          }
+          throw err;
+        }
         return renderForm(res, contractFormLocals({
           ...base,
           clients: repos.clients.listByFreelancer(freelancerId),
