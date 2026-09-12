@@ -1,8 +1,15 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
-  "branch_links": [],
-  "comment_count": 0,
+  "branch_links": [
+    {
+      "branch": "feat/AS-125-cascade-guard-routes",
+      "linked_at": "2026-09-12T01:13:37Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-09-12T00:42:02Z",
   "created_by": "agent:qa-ruben",
@@ -11,15 +18,15 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M29H0VGAV21915QR50F6YCSP",
-  "last_event_id": "ev_01M29HKE9YQSRPVVCZTXHCG2FV",
-  "last_status_changed_at": "2026-09-12T00:52:11Z",
+  "last_event_id": "ev_01M29JTNWC6NB402B4JWDX7SH3",
+  "last_status_changed_at": "2026-09-12T01:13:37Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-125",
-  "status": "in_planning",
+  "status": "planned",
   "tags": [
     "chat",
     "test-guard",
@@ -28,6 +35,6 @@
   ],
   "title": "Chat: roster-title cascade guard \u2014 routes past targets()/walk(): type and universal subjects, attribute/escaped class selectors, @scope/@import/@layer swallowed, unbalanced string brace",
   "type": "bug",
-  "updated_at": "2026-09-12T00:52:11Z",
+  "updated_at": "2026-09-12T01:13:37Z",
   "urgency": null
 }
