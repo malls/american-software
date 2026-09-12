@@ -1,7 +1,14 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:developer-marcus",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-128-add-client-validation-state",
+      "linked_at": "2026-09-12T19:26:38Z",
+      "linked_by": "agent:developer-marcus",
+      "repo": null
+    }
+  ],
   "comment_count": 0,
   "complexity": "low",
   "created_at": "2026-09-12T11:20:11Z",
@@ -11,7 +18,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M2ANHB7ZXXZZCGV0XVN71A2G",
-  "last_event_id": "ev_01M2BHC1CJNQAQ9HM0TM1GH1M0",
+  "last_event_id": "ev_01M2BHC1M63HYQZD1B9W42XMZ0",
   "last_status_changed_at": "2026-09-12T19:26:37Z",
   "linked_files": [],
   "priority": "medium",
@@ -31,6 +38,6 @@
   "tags": null,
   "title": "apps/invoicing: add-client on the invoice and contract screens answers a malformed email with a bare text/plain 400 instead of the specified validation state (S4/S6-CLIENT-ERROR-VALIDATION)",
   "type": "task",
-  "updated_at": "2026-09-12T19:26:37Z",
+  "updated_at": "2026-09-12T19:26:38Z",
   "urgency": null
 }
