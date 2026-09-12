@@ -124,6 +124,16 @@ function walk(blocks, condition, counter, rules) {
     if (UNSCORABLE.test(prelude)) {
       throw new Error(`cannot score selector list (functional pseudo-class): ${prelude}`);
     }
+    // AS-112 (AS-74 review P7): a style rule nested inside a style rule —
+    // `#r { .t { … } }` or `.t { &:hover { … } }` — is valid CSS in every
+    // current browser, but parseDecls would swallow it as one garbage
+    // declaration and the inner rule would never compete. Fail loudly here,
+    // where the prelude is in hand for the message, rather than score a
+    // stylesheet this parser cannot read. (@keyframes/@font-face bodies are
+    // skipped above and stay ignored wholesale.)
+    if (body.includes('{')) {
+      throw new Error(`cannot score nested style rule (native CSS nesting) under: ${prelude}`);
+    }
     const decls = parseDecls(body);
     for (const selector of prelude.split(',').map((s) => s.trim()).filter(Boolean)) {
       rules.push({ selector, condition, order: counter.order++, decls });
@@ -256,6 +266,25 @@ test('css-cascade: a selector it cannot score throws instead of guessing', () =>
   assert.throws(() => parseRules('.t:has(> .u) { white-space: normal; }'), /cannot score selector/);
 });
 
+// H6 (AS-112): a separate case rather than lines appended to H5, so the file's
+// count moves by one — a count that must change is the cheapest stale-image
+// detector this suite has.
+test('css-cascade: a nested style rule throws instead of being swallowed as a declaration', () => {
+  // (a) descendant nesting; (b) `&` nesting; (c) nesting inside a flattened at-rule
+  assert.throws(() => parseRules('#r { .t { white-space: normal; } }'), /cannot score nested style rule/);
+  assert.throws(
+    () => parseRules('.t { white-space: nowrap; &:hover { white-space: normal; } }'),
+    /cannot score nested style rule/,
+  );
+  assert.throws(
+    () => parseRules('@media (max-width: 700px) { #r { .t { white-space: normal; } } }'),
+    /cannot score nested style rule/,
+  );
+  // The ignore path is intact: @keyframes bodies hold keyframe selectors, not
+  // nested style rules, and still contribute nothing without throwing.
+  assert.equal(parseRules('@keyframes p { from { x: 1; } to { x: 2; } }').length, 0);
+});
+
 // --- T1: the standing guard --------------------------------------------------
 
 // property -> the winners the contract allows. `null` means "unset": no rule
@@ -281,6 +310,10 @@ const CONTRACT = [
   ['-webkit-line-clamp', [null]],
   ['height', [null]],
   ['max-height', [null]],
+  // AS-112 (AS-74 review P6): the reset shorthand re-opens every row above in
+  // one declaration — `all: unset` puts white-space back to normal without
+  // any watched longhand ever appearing in the stylesheet.
+  ['all', [null]],
 ];
 
 test('truncation: AS-74 — the cascade leaves .roster-title nowrap, overflow hidden, ellipsis — no later or stronger rule re-enables wrapping', () => {
@@ -304,12 +337,14 @@ test('truncation: AS-74 — the cascade leaves .roster-title nowrap, overflow hi
   for (const [prop, allowed] of CONTRACT) {
     const won = cascade(rules, 'roster-title', prop);
     const value = won === null ? null : won.value;
+    // AS-112: the null case renders as "undeclared", not "unset" — a declared
+    // value of `unset` (the `all` row) must not read like the no-rule case.
     const by = won === null
-      ? 'unset (no rule declares it)'
+      ? 'undeclared (no rule declares it)'
       : `${won.value} — won by ${won.condition ? `${won.condition} ` : ''}${won.selector} (spec ${won.spec.join(',')}, order ${won.order}${won.important ? ', !important' : ''})`;
     assert.ok(
       allowed.includes(value),
-      `.roster-title ${prop}: effective value is ${by}; the contract allows ${allowed.map((a) => (a === null ? 'unset' : a)).join(' or ')}. `
+      `.roster-title ${prop}: effective value is ${by}; the contract allows ${allowed.map((a) => (a === null ? 'undeclared' : a)).join(' or ')}. `
       + `${rules.length} rules parsed, ${targeting.length} target .roster-title: ${where}`,
     );
   }

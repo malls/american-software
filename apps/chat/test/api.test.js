@@ -1373,6 +1373,24 @@ test('api: AS-74 — served app.js keeps the org chart node label as title · cl
   assert.equal((region.match(/node\.team/g) || []).length, 1,
     'orgNodeItem reads node.team exactly once — in the meta line');
 
+  // AS-112 (AS-74 review P10): the COMPLETE element set, the AS-32 shape. The
+  // meta-line pins above are literal, so a stray el("span", "org-extra")
+  // beside them was invisible; deepEqual on the sorted set fails on a missing
+  // class and on an extra one. Quote-agnostic (AS-74 item 3) — el('li') has
+  // no class argument and is correctly not counted.
+  assert.deepEqual(
+    [...region.matchAll(/el\((['"])[a-z]+\1,\s*(['"])([^'"]+)\2/g)].map((m) => m[3]).sort(),
+    ['org-node-meta', 'org-node-name', 'org-node-row', 'org-tree'],
+    'orgNodeItem builds exactly these classes via el() — a missing one and a stray extra one both fail',
+  );
+  // Sibling pin: the one class added outside el(). Without this,
+  // row.classList.add('org-extra') is the same hole one line down.
+  assert.deepEqual(
+    [...region.matchAll(/classList\.add\((['"])([^'"]+)\1\)/g)].map((m) => m[2]).sort(),
+    ['org-root'],
+    'orgNodeItem adds exactly one class by classList — the board root marker',
+  );
+
   // Structure-first, same as the roster row: the label becomes an element via
   // el(), whose third argument goes to textContent.
   assert.ok(region.includes("el('span', 'org-node-meta', meta)"),
