@@ -3,7 +3,7 @@
   "assigned_to": "agent:designer-sofia",
   "branch_links": [],
   "comment_count": 2,
-  "complexity": null,
+  "complexity": "medium",
   "created_at": "2026-09-01T19:17:22Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
@@ -11,7 +11,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1F6F5J2AECJGC0PW6BAPHRY",
-  "last_event_id": "ev_01M2AF98B2SBQE8JBW0C8TRXC0",
+  "last_event_id": "ev_01M2AF9EGG0FZC2YNG39SHNH84",
   "last_status_changed_at": "2026-09-12T09:30:45Z",
   "linked_files": [],
   "priority": "medium",
@@ -23,6 +23,6 @@
   "tags": null,
   "title": "design tokens: danger-solid on bg-surface (dark) is 2.97:1 against the 3:1 non-text floor \u2014 palette amendment, now inherited by two consumers",
   "type": "task",
-  "updated_at": "2026-09-12T09:30:55Z",
+  "updated_at": "2026-09-12T09:31:01Z",
   "urgency": null
 }
