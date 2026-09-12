@@ -2,7 +2,7 @@
   "acceptance_criteria": [],
   "assigned_to": null,
   "branch_links": [],
-  "comment_count": 0,
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-09-12T18:35:30Z",
   "created_by": "agent:developer-lena",
@@ -11,7 +11,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M2BEEDK4E81C5TJQ4XJS6YFZ",
-  "last_event_id": "ev_01M2BEEGGAYRF034Q37PFDD510",
+  "last_event_id": "ev_01M2BH1367R71X2Q0CGES3VV1P",
   "last_status_changed_at": "2026-09-12T18:35:30Z",
   "linked_files": [],
   "priority": "medium",
@@ -31,6 +31,6 @@
   "tags": null,
   "title": "Chat: incremental message DOM \u2014 stop rebuilding the pane on live frames",
   "type": "task",
-  "updated_at": "2026-09-12T18:35:33Z",
+  "updated_at": "2026-09-12T19:20:39Z",
   "urgency": null
 }
