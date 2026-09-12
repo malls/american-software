@@ -1,8 +1,12 @@
 // states-ledger.test.js — the join between every screen's frozen ledger and the
 // DESIGN DOCUMENT itself (AS-71).
 //
-// THIS FILE'S ONE CLAIM: a row that appears, vanishes, is renamed, or changes
-// category in docs/design/wireframes/02-states-ledger.md turns this suite red.
+// THIS FILE'S ONE CLAIM: a row that appears, vanishes, is renamed, becomes or
+// stops being n/a, or changes category to or from LOADING in
+// docs/design/wireframes/02-states-ledger.md turns this suite red. (A category
+// change between the other five shorthands is NOT joined — the module ledgers
+// carry no category — and is red only when it leaves a screen without one of
+// the six; AS-71 review probe P3.)
 // Before this task that sentence was false, and screens.test.js's header said so
 // in as many words: the view module and the test each carried a hand
 // transcription of the ledger and the suite compared those two copies to each

@@ -818,9 +818,11 @@ it: 7 screens, 65 rows against the document's own §8 count, and per screen the
 id set both directions, the n/a rows, and the `LOADING` rows — which are exactly
 the rows the modules record as `unrenderable — browser-supplied`, so their
 absence is asserted against the document rather than left as a gap. A row that
-appears, vanishes, is renamed, or changes category in the ledger turns that
-screen's case red; that is verified by mutation on the task record, not by
-review. Before AS-71 the join was a dated review act (screen 1 by
+appears, vanishes, is renamed, becomes or stops being n/a, or changes category
+to or from `LOADING` in the ledger turns that screen's case red; that is
+verified by mutation on the task record, not by review. A category change among
+the other five shorthands is not joined (the module ledgers carry no category)
+and is red only when it leaves a screen without one of the six. Before AS-71 the join was a dated review act (screen 1 by
 `agent:qa-priya` on 2026-09-03, screen 2 by `agent:developer-marcus` on
 2026-09-12); those acts stand as the record of the first transcriptions.
 
