@@ -19,11 +19,18 @@
 // The scaffold obligation AS-37 left here is DISCHARGED: scaffold.ejs and its
 // row are gone (AS-45).
 import { signinLocals } from './screens/signin-view.js';
+import { connectLocals } from './screens/connect-view.js';
 
 export const VIEWS = Object.freeze([
   Object.freeze({
     name: 'signin',
     file: 'signin.ejs',
     sampleLocals: signinLocals(),
+  }),
+  // Screen 2 (AS-70). The default input renders S2-DEFAULT-NOTSTARTED.
+  Object.freeze({
+    name: 'connect-stripe',
+    file: 'connect-stripe.ejs',
+    sampleLocals: connectLocals(),
   }),
 ]);
