@@ -174,15 +174,19 @@ test('E1 (STRIPE DOUBLE): the loop, end to end, over the API — the twelve step
     assert.match(signup.setCookie, /;\s*SameSite=Lax/i, at('SameSite=Lax'));
     const freelancerId = repos.freelancers.findByEmail(FREELANCER.email).id;
 
-    // Route-table fact at rebase (plan §9): on master `GET /` behind the
-    // boundary is the interim 303 to /connect-stripe (routes/pages.js, until
-    // AS-48's dashboard replaces it) — not the 200 plan AC-2 was written
-    // against. The property is the same: with the cookie the boundary lets the
-    // request through; without it the boundary sends it to sign in.
+    // Route-table fact at rebase (plan §9, amended by AS-48 at its rebase):
+    // `GET /` behind the boundary is the Dashboard — the 200 plan AC-2 was
+    // written against. AS-70's interim 303 to /connect-stripe is gone; a fresh
+    // sign-up (no rows, no account) renders S3-EMPTY-FIRSTRUN with the gated
+    // note, whose one anchor points at /connect-stripe — the loop's next stop,
+    // reached directly at step 3 exactly as before. The property is the same:
+    // with the cookie the boundary lets the request through; without it the
+    // boundary sends it to sign in.
     at = step(2, 'session');
     const withCookie = await call(base, 'GET', '/', { cookie });
-    assert.equal(withCookie.status, 303, at(`with the cookie: ${withCookie.status}`));
-    assert.equal(withCookie.location, '/connect-stripe', at('with the cookie: past the boundary, to the interim landing'));
+    assert.equal(withCookie.status, 200, at(`with the cookie: ${withCookie.status}`));
+    assert.equal(count(withCookie.body, 'data-state="S3-EMPTY-FIRSTRUN"'), 1, at('with the cookie: the Dashboard, first-run state'));
+    assert.equal(count(withCookie.body, 'href="/connect-stripe"'), 1, at('with the cookie: the gated note points at Connect, once'));
     const withoutCookie = await call(base, 'GET', '/');
     assert.equal(withoutCookie.status, 303, at('without a cookie'));
     assert.match(withoutCookie.location ?? '', /^\/signin(\?|$)/, at(`without a cookie: Location ${withoutCookie.location}`));
