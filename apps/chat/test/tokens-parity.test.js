@@ -15,8 +15,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const served = path.join(here, '..', 'public', 'tokens.css');
 const source = path.join(here, '..', '..', '..', 'docs', 'design', 'tokens', 'tokens.css');
 
-// sha256 of docs/design/tokens/tokens.css at AS-115 (291 lines).
-const SOURCE_SHA256 = 'a35909d4a6fa0f6f08c1893bc8dfeb3707cfd599503b1a6e37a94fd0475df634';
+// sha256 of docs/design/tokens/tokens.css at AS-56 (292 lines: the danger-400
+// primitive and the re-pointed dark danger-solid alias). Was
+// a35909d4a6fa0f6f08c1893bc8dfeb3707cfd599503b1a6e37a94fd0475df634 at AS-115 (291 lines).
+const SOURCE_SHA256 = '03ba306beac647227397101c1ec66728e906059036b79a8b19b6b977719dbc86';
 const sha = (buf) => createHash('sha256').update(buf).digest('hex');
 
 test('T16 AC-16: public/tokens.css is byte-identical to docs/design/tokens/tokens.css', () => {
