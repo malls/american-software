@@ -633,10 +633,20 @@ two checks (AS-111): the **inode changed** (checked on every poll, before the
 size rule, so a rotation to a shorter new file and a same-size swap are both
 caught), or the **bytes just before its cursor** are not the last ≤ 64 bytes it
 consumed (checked only on a poll that has new bytes to read anyway — one extra
-small read on the same descriptor). Either way it re-reads the whole new file
-from the start, re-folds, pushes every line as a `company` frame again (to this
-process they are all arrivals — a consumer that must not double-count dedupes
-by `id`), and reports `replaced` until a new line arrives. `replaced` is a
+small read on the same descriptor). An inode change is **confirmed, not
+trusted** (AS-124): the tail keeps a running hash of every byte it has
+consumed, and when the inode moves it hashes the new file's bytes before its
+cursor and compares — an identical prefix means the new file holds exactly
+what the fold was built from, so the inode is adopted with the cursor kept and
+**nothing is replayed**; a shorter file or a differing prefix is `replaced`.
+The confirmation exists because on the Docker Desktop bind mount the deployed
+container reads from, a single rename can be reported as two inode changes
+some milliseconds apart, and trusting the number replayed the file twice per
+rotation. On a genuine replacement it re-reads the whole new file from the
+start, re-folds, pushes every line as a `company` frame again (to this process
+they are all arrivals — a consumer that must not double-count dedupes by `id`),
+and reports `replaced` until a new line arrives; `malformed` counts the file
+currently folded, recounted from zero on every reset. `replaced` is a
 different word from `truncated` on purpose: nothing is missing after a
 replacement. Residual, by design: same inode, same size, and an edit *before*
 the last 64 bytes is not noticed until a later mismatch — nothing edits the
