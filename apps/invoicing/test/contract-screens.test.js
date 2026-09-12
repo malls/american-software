@@ -519,7 +519,13 @@ test('S6-DENIED-SIGNEDOUT: cookieless GET and POST /contracts/new are answered b
 
 test('S6-ABANDON: two GETs are byte-identical, a non-persisting re-render is forgotten, and nothing was created', async () => {
   await withScreenApp(async ({ get, post, repos, freelancer, client }) => {
-    const first = await (await get('/contracts/new')).text();
+    const firstRes = await get('/contracts/new');
+    // The GET is the screen, not a byte-identical pair of 404s: under F9 (the
+    // literals registered below /contracts/:id) two NOTFOUND pages were
+    // byte-identical too, and this case stayed green — found by the battery.
+    assert.equal(firstRes.status, 200);
+    const first = await firstRes.text();
+    assert.equal(stateOf(first), 'S6-DEFAULT');
     const second = await (await get('/contracts/new')).text();
     assert.equal(first, second, 'two successive GETs are byte-identical — a read creates no state');
     const rerender = await post('/contracts/new', validBody(client, { intent: 'new-client', projectDescription: 'Typed, then abandoned — ASC127ABANDON' }));
