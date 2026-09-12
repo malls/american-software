@@ -214,9 +214,8 @@ test('the comment stripper works, in both directions', () => {
  *  may we — deploy-shape.test.js makes the same choice in DOCKERFILE_CODE);
  *  .json → not stripped at all, JSON has no comment syntax and a `#` inside a
  *  JSON string is data. Line-preserving, like stripComments: a removed comment
- *  leaves its (empty) line behind. The per-line loop is the shared helper
- *  (AS-57): deploy-shape.test.js runs the same bytes, so an escape-handling
- *  fix lands in both scans at once. */
+ *  leaves its (empty) line behind. The per-line loop is the helper shared with
+ *  deploy-shape.test.js (AS-57): one loop, one escape rule, both scans. */
 function stripHashComments(text, { trailing = false } = {}) {
   return text
     .split('\n')
@@ -239,14 +238,11 @@ test('the manifest comment stripper works, in both directions', () => {
   assert.equal(stripHashComments('k: "a # b"', { trailing: true }), 'k: "a # b"');
   assert.equal(stripHashComments("k: 'a # b'", { trailing: true }), "k: 'a # b'");
   assert.equal(stripHashComments('k: "a # b"', { trailing: false }), 'k: "a # b"');
-  // Keeps: an ESCAPED quote inside "…" does not close the string (AS-57 item 3),
-  // so the ` #` after it — and the call site behind it — is still data.
+  // Keeps: an ESCAPED quote inside "…" does not close it (AS-57), so the ` #`
+  // and the call site behind it are still data. An escaped backslash is a
+  // pair, so the quote after it really closes; '…' has no escape at all.
   assert.equal(stripHashComments('k: "a \\" # fetch("', { trailing: true }), 'k: "a \\" # fetch("');
-  // ...but an escaped backslash is consumed as a pair, so the quote after it
-  // really closes and the tail IS a comment.
   assert.equal(stripHashComments('k: "a\\\\" # c"', { trailing: true }), 'k: "a\\\\" ');
-  // ...and '…' has no escape at all in YAML: `\'` is a literal backslash then
-  // the closing quote, so the tail is a comment.
   assert.equal(stripHashComments("k: 'a\\' # c'", { trailing: true }), "k: 'a\\' ");
   // Keeps: code before the comment; `a#b` is not a comment in YAML either.
   assert.equal(stripHashComments('x: fetch( # c', { trailing: true }), 'x: fetch( ');
@@ -311,17 +307,20 @@ const UNSCANNED = new Set(['package-lock.json', 'README.md', '.dockerignore']);
  *  walkthrough: like test/ it drives its own loopback listener with `fetch`
  *  and is never imported by app code — which the closed-world case below
  *  asserts rather than assumes, so skipping the directory cannot quietly make
- *  it an import path for lib/ or routes/. */
+ *  it an import path for lib/ or routes/. TOP LEVEL ONLY (AS-57): a nested
+ *  `lib/vendor/` or `routes/test/` is walked like any other directory AND
+ *  reported in `nestedSkipped` — skip-by-name at every depth was a hiding place. */
 const SKIPPED_DIRS = new Set(['node_modules', 'test', 'vendor', 'demo']);
 
-/** Walk `dir` and bucket every file by basename. */
-function classifyTree(dir) {
-  const buckets = { source: [], manifest: [], unscanned: [], unknown: [] };
+/** Walk `dir` and bucket every file by basename; SKIPPED_DIRS at depth 0 only. */
+function classifyTree(dir, depth = 0) {
+  const buckets = { source: [], manifest: [], unscanned: [], unknown: [], nestedSkipped: [] };
   for (const entry of readdirSync(dir).sort()) {
-    if (SKIPPED_DIRS.has(entry)) continue;
+    if (depth === 0 && SKIPPED_DIRS.has(entry)) continue;
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) {
-      const sub = classifyTree(path);
+      if (SKIPPED_DIRS.has(entry)) buckets.nestedSkipped.push(path);
+      const sub = classifyTree(path, depth + 1);
       for (const key of Object.keys(buckets)) buckets[key].push(...sub[key]);
     } else if (UNSCANNED.has(entry)) {
       buckets.unscanned.push(path);
@@ -357,6 +356,17 @@ test('the scan examines exactly the files it is supposed to — source, manifest
   // Exact lists per class, not minimums: a new .yaml file is a visible,
   // deliberate two-line change (the file, and the list here).
   const rel = (paths) => paths.map((p) => relative(APP_DIR, p)).sort();
+
+  // 0. No skip-named directory below the top level (AS-57). First, because a
+  // nested `lib/vendor/` is walked now and its files surface in 1–3 below.
+  const nested = rel(FILES.nestedSkipped);
+  assert.deepEqual(
+    nested,
+    [],
+    nested
+      .map((d) => `${d} is a SKIPPED_DIRS name below the top level — SKIPPED_DIRS applies to apps/invoicing/ only; rename it or classify its contents`)
+      .join('\n'),
+  );
 
   // 1. The closed world: nothing is unclassified. This is the load-bearing one.
   const unknown = rel(FILES.unknown);
