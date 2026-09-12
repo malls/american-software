@@ -288,15 +288,15 @@ const SOURCE_EXT = /\.(js|mjs|cjs|ejs|css)$/;
 const MANIFEST_NAME = /^(Dockerfile(\..+)?|.+\.ya?ml|.+\.json)$/;
 
 /** Files the walker accounts for but never reads. ALLOWED-IF-PRESENT, not an
- *  expected list: README.md exists only on the host and .dockerignore only in
- *  the image, and the suite must pass in both places.
+ *  expected list: .dockerignore exists only in the image (COPY'd from the repo
+ *  root), and the suite must pass in both places.
  *   - package-lock.json: generated, no executable content, and guarded by the
  *     right tool for its shape — LOCK_ENTRIES plus exact-name matching above.
  *     A regex over 898 lines adds noise and no coverage.
- *   - README.md: prose cannot execute, and it is not COPY'd into the image, so
- *     scanning it would break host/container parity of the scanned set.
+ *   - README.md: prose cannot execute. In the image since AS-57 (the whole
+ *     directory is COPY'd), and still not worth a scan.
  *   - .dockerignore: a pattern list; cannot execute; already parsed as data by
- *     deploy-shape.test.js. Present only at /app (COPY'd from the repo root). */
+ *     deploy-shape.test.js. */
 const UNSCANNED = new Set(['package-lock.json', 'README.md', '.dockerignore']);
 
 /** Not walked at all, as before AS-53: test/ legitimately fetches its own
