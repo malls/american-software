@@ -198,10 +198,10 @@ which is the whole reason `lib/stripe/custody.js` exists.
 Why this is not a signup, and not an account: pulling a public image creates no
 credential and no relationship with Stripe. The mock checks only that the key
 has a test-mode prefix; the placeholder is the one key-shaped VALUE in the
-repository (spelled in exactly three mock-gated test files —
-`stripe-mock.test.js`, `connect.test.js` since AS-41, and `invoices.test.js`
-since AS-43 — deliberately the identical literal so one grep finds all
-three), and it never leaves the compose network. The `contract` and
+repository (spelled in exactly four mock-gated test files —
+`stripe-mock.test.js`, `connect.test.js` since AS-41, `invoices.test.js`
+since AS-43, and `e2e-loop.test.js` since AS-49 — deliberately the identical
+literal so one grep finds all four), and it never leaves the compose network. The `contract` and
 `stripe-mock` services sit on an `internal: true` network with no gateway; `web`
 is not on it; `test` still has no network at all. The first `contract` run pulls
 the image once (registry access at pull time, like `npm ci` at build time); every
@@ -212,6 +212,49 @@ is untouched.
 Readiness is the test's own poll — an unauthenticated `GET /v1/customers` every
 100 ms for at most 10 s; the 401 is the reachability signal. A compose
 healthcheck on the mock would need a key literal in `compose.yaml`, which is banned.
+
+### The loop half (the stateful double)
+
+`test/e2e-loop.test.js` drives the whole chain — sign up, connect, become
+ready, add a client, generate a contract, draft, finalize, send, get paid,
+survive a redelivery and an out-of-order event — over the app's real HTTP API,
+inside the `test` service (no network, no volumes, no environment). The Stripe
+side of every step is `test/helpers/stripe-double.js`: a transport function at
+the seam `createStripeClient({ transport })` already exposes, so the real client
+pipeline and the custody guard run on every call, while the double holds
+account, customer, item and invoice state, transitions invoices on finalize and
+pay, models the idempotency window, and signs webhook events with the
+documented HMAC scheme so the app's real receiver verifies them. Every case
+title carries `(STRIPE DOUBLE)`. The claim, pinned as `STRIPE_DOUBLE_CLAIM` in
+the double and quoted in the suite's header:
+
+> This suite proves that OUR half of the loop is correct against OUR MODEL of Stripe. The
+> model — `test/helpers/stripe-double.js` — was written by us from Stripe's documentation and
+> from the stripe-mock fixtures; it holds state the way we believe Stripe does and signs events
+> the way Stripe documents. A green run means: every step of the chain, driven over the app's
+> real HTTP API, behaves as designed **when Stripe behaves as we assume**. It does not mean
+> Stripe behaves that way. Two instruments, two claims, neither of them Stripe: stripe-mock
+> (the `contract` service) validates the SHAPE of every request we send against Stripe's
+> OpenAPI spec and answers with stateless fixtures; the double holds STATE and emits events, and
+> validates nothing. The fidelity of the model is exactly what the recorded test-mode
+> acceptance run (AS-50) exists to check, and nothing in this suite substitutes for it.
+
+| Instrument | Service | Holds state | Validates request shape | Emits events | What a green run proves |
+|---|---|---|---|---|---|
+| stripe-mock (`stripe-mock.test.js` K-cases, the M-cases) | `contract` | no | yes, against the OpenAPI spec | no | every request we send is well-formed |
+| the double (`e2e-loop.test.js`) | `test` and `contract` | yes | no | yes, signed | our chain behaves as designed against our model |
+
+The one case that runs only in `contract` (`E5 (STRIPE DOUBLE vs STRIPE-MOCK)`)
+is the bridge: every object the double emits is a key-subset of the mock's
+spec-derived fixture, so the model can drift from the spec only by omission,
+never by invention.
+
+To prove the sandbox is still offline, break it: route one endpoint of the
+double to the real `fetchTransport` (import it from `../../lib/stripe/transport.js`
+and delegate `POST /v1/customers`) and run both services — the finalize step
+goes red with `StripeTransportError: create-customer` (502) in both, which
+proves at once that the sandbox has no route out and that the suite would
+notice a real call (the F-NET recipe in the AS-49 plan).
 
 ### The three structural guards
 
