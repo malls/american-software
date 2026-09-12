@@ -41,7 +41,7 @@ into something load-bearing.
 | `logs/tick-<timestamp>.log` | watcher | full stdout+stderr of each fired tick; pruned after 14 days |
 | `logs/deploy-<timestamp>.log` | watcher | full output of each unattended rebuild (AS-75); same 14-day pruning |
 | `deploy-state.json` | watcher | AS-75: what the last deploy-poll decided — `{desiredId, dirty, reason, desiredReason, runningId, dockerBin, dockerReason, computedAt, lastAttempt}`. The chat server reads it for the sidebar's build line. AS-84: the watcher reads it back too — `lastAttempt` (`outcome` ∈ `ok` \| `fail` \| `aborted` \| `started`) is hydrated at startup so the cooldown survives a relaunch. |
-| `advance-loop.json` | watcher | AS-95: where the loop is — `{active, startedAt, ticks, armedBy, lastTick, lastLoop}`. The chat server reads it for the sidebar's loop label and its stop reason. |
+| `advance-loop.json` | watcher | AS-95: where the loop is — `{active, startedAt, ticks, armedBy, rearmAt, lastTick, lastLoop}`. The chat server reads it for the sidebar's loop label and its stop reason. AS-129: `rearmAt` (ISO or null) is the end of a cap cooldown; while it is set `active` is false and `armedBy` still names the message the re-armed loop will carry. |
 | `worktrees.json` | watcher | AS-99: what `git worktree list` says, plus ahead/behind, dirty count, last commit and a merged classification per row — `{schema, source, generatedAt, master, error, worktrees[]}`. Written every lanes poll (`ADVANCE_LANES_POLL_S`, default 15 s) whether or not anything changed, so `generatedAt` is the freshness signal; the chat server joins it to `.lattice` and serves the result at `/api/lanes`. Git runs on the host only — the container has no git binary and linked worktrees carry absolute host gitdir paths, so it could not run them anyway. |
 | `events/company.jsonl` | watcher + the emit CLI | AS-100: the append-only company-events stream — one JSON line per lifecycle event, same seven-key envelope as `.lattice/events` (`{actor, data, id, schema_version, task_id, ts, type}`), six types (`tick_started`, `tick_ended`, `stage_started`, `stage_ended`, `subagent_spawned`, `subagent_exited`). **Two producers, and only two:** the watcher writes `tick_*` itself in `fire()`/`settle()` as `system:watcher`, and the orchestrator emits the stage/sub-agent boundaries through `node apps/chat/bin/events.js emit …`. Nothing edits or deletes a line, ever. The **reconciler** closes what a dead tick left open: `settle()` closes every open stage and sub-agent *before* it writes `tick_ended` (`cut_by_timeout` on a timeout, `error` on a non-zero exit, `unclosed` on a clean exit the orchestrator never closed), and a level-triggered sweep every `ADVANCE_EVENTS_SWEEP_S` (default 60 s) closes anything older than the tick box left by a tick this watcher did not fire — skipped while our own child runs or any *fresh* `advance.lock` is held, so it never races a live session. "Open" is derived from the stream on every pass; there is no open-set file. The chat server only ever reads it (`/api/events`, the `company` SSE frames, and the lane view's liveness slots). Gitignored with the rest of `data/`, append-only until retention is a measured problem. |
 | `logs/launchd.{out,err}.log` | launchd | crashes before our logger exists |
@@ -72,18 +72,21 @@ so a cap is logged even when work remains.
 |---|------|---------|
 | g | the tick exited non-zero, was signalled, or hit the 30-min tick timeout — twice in a row | **stop** `tick-failed-twice` |
 | e | master's HEAD did not move across two consecutive ticks | **stop** `no-progress` |
-| f | 24 ticks, or 8 hours since the message that armed the loop | **stop** `cap-hit` |
+| f | 24 ticks, or 8 hours since the message that armed the loop | **stop** `cap-hit` — a runaway guard, not an end: with work remaining a fresh loop re-arms after the cooldown (AS-129, below) |
 | c | the sentinel is above the highwater again (a new human message) | continue `new-message` |
 | a | any task is `in_planning`, `planned`, `in_progress` or `review` | continue `mid-lifecycle` |
 | b | a `backlog` task is ready (every `depends_on` target is `done`/`cancelled`) | continue `backlog-ready` |
 | d | none of the above | **stop** `dry` |
 
 One stop reason does not come from the predicate: `lock-unavailable`, when a
-loop tick could not take `advance.lock` for a solid hour (`maxLockWaitMs`).
-Until then an aborted fire is a **wait**, not an end — the loop keeps the debt
-and retries on the next poll, exactly as the message path has always retried a
-lost lock. The hour is deliberately longer than both the 30-minute tick timeout
-and the 45-minute staleness rule that lets the next fire steal the lock, so an
+loop tick could not take `advance.lock` for **the tick timeout plus the lock
+staleness** (`maxLockWaitMs`: 135 min on the host's 60/75, derived by
+`loopLimits(config)` — never a literal since AS-129, when the old 60-minute
+literal turned out to be shorter than the host's staleness rule alone). Until
+then an aborted fire is a **wait**, not an end — the loop keeps the debt and
+retries on the next poll, exactly as the message path has always retried a
+lost lock. The sum is deliberately longer than both the longest legitimate
+tick and the staleness rule that lets the next fire steal the lock, so an
 honest foreign tick is always waited out.
 
 `needs_human` and `blocked` tasks are **not** work: they are waiting on the
@@ -96,6 +99,49 @@ the loop path are ordered against each other).
 
 Caps live in `LOOP_DEFAULTS` and are injectable, so a test can tighten them
 without waiting eight hours.
+
+### After the cap (AS-129)
+
+The live loop stopped `cap-hit` at 11:21Z on 2026-09-12 after 15 ticks with a
+task still in review, and the company sat idle until the board spoke again.
+The cap is a **runaway guard, not a stop rule**: it bounds one loop, it does
+not decide the company is finished.
+
+- **What re-arms:** a `cap-hit` while any task is mid-lifecycle or any backlog
+  task is ready. The loop still stops (`LOOP-STOP reason=cap-hit`, `lastLoop`
+  written, `active:false`), then enters a **cooldown** —
+  `ADVANCE_LOOP_REARM_MIN`, default 10 minutes, `rearmAt` in
+  `advance-loop.json`. When it elapses the next poll arms a **fresh loop**:
+  `ticks` 0, a new `startedAt` (the cap counts from the re-arm), the same
+  `armedBy`. Its first tick is a loop tick like any other — same lock wait,
+  same deploy yield, `LOOP-FIRE tick 1`.
+- **What does not:** a `cap-hit` on a dry board (`rearmAt` stays null), and
+  every other stop — `dry`, `no-progress`, `tick-failed-twice`,
+  `lock-unavailable`, `error` end a loop for good. A new board message is not
+  "work" for this purpose: the message path re-arms on its own, and a message
+  **during** the cooldown wins — `fire()` arms its loop and the pending re-arm
+  is cancelled.
+- **Across a restart:** an inactive mirror with a `rearmAt` resumes into the
+  cooldown (`LOOP-RESUME reason=cooldown`) and re-arms at the file's deadline,
+  so the watcher's own self-restart after a merge does not drop it. An
+  `active:true` mirror already past the cap is evaluated **before** a tick is
+  owed: with work it goes straight into the cooldown, without it the cap is
+  logged and nothing fires (this closed AS-104, which had one extra tick
+  firing first).
+
+The log lines, in order:
+
+```
+LOOP-EVAL tick 24 reason=cap-hit detail={"ticks":24,"elapsedMs":...,"rearm":true} -> stop
+LOOP-STOP reason=cap-hit after 24 ticks ({...,"rearm":true})
+LOOP-COOLDOWN until 2026-09-12T11:31:00.000Z armedBy messageId 1040 (cap-hit with work remaining)
+LOOP-REARM armedBy messageId 1040 after cap-hit cooldown
+LOOP-FIRE tick 1
+```
+
+The sidebar is unchanged: while cooling it says the last loop stopped at the
+safety cap, which is true. A "re-arming in N min" label is a residual for the
+next task touching `lib/loop-status.js`.
 
 ### What is deliberately NOT modelled
 
@@ -123,7 +169,10 @@ reads `advance-loop.json` and, if `active`, logs `LOOP-RESUME` and continues:
 message) while the no-progress and failure counters reset, because the evidence
 for them died with the old process. The file is written when the loop is
 **armed**, not when its first tick settles, so a watcher that dies during tick 1
-still comes back into the loop.
+still comes back into the loop. AS-129: the cap is evaluated at resume, before
+any tick is owed — a mirror already past 24 ticks or 8 hours does not buy one
+more tick; it cools down (work remaining) or stops (dry), exactly as settle()
+would have decided.
 
 A resumed loop does not fire while `advance.lock` exists and is **younger than
 the tick timeout** (`LOOP-WAIT lock held by pid ...`). A watcher killed with
@@ -164,6 +213,13 @@ pending` is the rebuild yield below; `LOOP-WAIT lock held ...` means somebody
 else holds `advance.lock` — a `/loop` session, a manual tick, or a tick the
 previous watcher left running. Each is printed once per episode, not once per
 poll.
+
+Two more say the cap was a pause, not an end (AS-129): `LOOP-COOLDOWN until
+<iso> armedBy messageId N (cap-hit with work remaining)` right after a
+`LOOP-STOP reason=cap-hit`, and `LOOP-REARM armedBy messageId N after cap-hit
+cooldown` when the fresh loop is armed — followed by `LOOP-FIRE tick 1`. A
+`LOOP-RESUME reason=cooldown until <iso> ...` means a restarted watcher picked
+the cooldown up from the file.
 
 In the sidebar (`/api/loop-status`): a tick belonging to a loop reads
 **`Loop active · watcher, tick 3`** instead of `Tick in flight · watcher`, and
@@ -338,6 +394,17 @@ Env knobs: `ADVANCE_DEPLOY_POLL_S` (60), `ADVANCE_DEPLOY_TIMEOUT_MIN` (15),
 `ADVANCE_DEPLOY_COOLDOWN_MIN` (30), `ADVANCE_DOCKER_BIN`, `ADVANCE_GIT_BIN`,
 `ADVANCE_CHAT_URL` (`http://127.0.0.1:8347`), `ADVANCE_SHUTDOWN_GRACE_S` (10).
 There is no knob for the compose project (see AS-88 above).
+
+**Every `*_MIN` knob has a ceiling (AS-129).** `ADVANCE_TICK_TIMEOUT_MIN`,
+`ADVANCE_LOCK_STALE_MIN`, `ADVANCE_DEPLOY_TIMEOUT_MIN`,
+`ADVANCE_DEPLOY_COOLDOWN_MIN` and `ADVANCE_LOOP_REARM_MIN` are refused —
+`loadConfig()` throws, naming the variable — when the value in milliseconds
+exceeds Node's timer limit of 2147483647 ms, i.e. anything above **35791**
+minutes. A `setTimeout` past that limit fires after 1 ms, so a "very long" tick
+box would in fact be an instant one; refusing beats clamping because a clamp
+hides the mistake until it matters. Junk and non-positive values still fall
+back to the default as before. Under launchd the throw is a crash loop with
+the reason in `logs/launchd.err.log`, same as the AS-88 refusal.
 
 ## Counted runs (AS-106)
 
