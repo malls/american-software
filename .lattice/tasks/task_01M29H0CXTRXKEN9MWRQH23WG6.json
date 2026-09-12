@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": null,
+  "assigned_to": "agent:cto-owen",
   "branch_links": [],
   "comment_count": 2,
   "complexity": null,
@@ -11,20 +11,20 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M29H0CXTRXKEN9MWRQH23WG6",
-  "last_event_id": "ev_01M29HE6Y4Y8WK9M3J8Z2WKZ4S",
-  "last_status_changed_at": "2026-09-12T00:41:47Z",
+  "last_event_id": "ev_01M29HKE1MA9SA6F0GXRR03VC8",
+  "last_status_changed_at": "2026-09-12T00:52:11Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-124",
-  "status": "backlog",
+  "status": "in_planning",
   "tags": [
     "chat"
   ],
   "title": "Chat: AS-111 review residuals \u2014 a rename on the Docker Desktop bind mount replays the event stream twice (transient inode on the first stat), malformed counter survives resetTail after a re-read, and the watcher cut-close cycle (AC-7) has no red-capable test",
   "type": "task",
-  "updated_at": "2026-09-12T00:49:20Z",
+  "updated_at": "2026-09-12T00:52:11Z",
   "urgency": null
 }

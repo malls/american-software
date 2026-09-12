@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 5,
+  "comment_count": 6,
   "complexity": null,
   "created_at": "2026-09-11T05:19:43Z",
   "created_by": "agent:cto-owen",
@@ -24,7 +24,7 @@
     }
   ],
   "id": "task_01M27EGJXDJGCM3TJJZDJYPT1Q",
-  "last_event_id": "ev_01M29HB9MCWDZMPDWAZZQPTKTP",
+  "last_event_id": "ev_01M29HKEHY7N1E09H78Q027E4M",
   "last_status_changed_at": "2026-09-12T00:47:44Z",
   "linked_files": [],
   "priority": "medium",
@@ -36,6 +36,6 @@
   "tags": null,
   "title": "Chat: favicon AC-3 guard \u2014 read single-quoted paint attributes and reject SMIL colour doors (AS-28 F4/F5, test-only)",
   "type": "task",
-  "updated_at": "2026-09-12T00:47:44Z",
+  "updated_at": "2026-09-12T00:52:11Z",
   "urgency": null
 }

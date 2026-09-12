@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": null,
+  "assigned_to": "agent:cto-owen",
   "branch_links": [],
   "comment_count": 0,
   "complexity": "medium",
@@ -11,15 +11,15 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M29H0VGAV21915QR50F6YCSP",
-  "last_event_id": "ev_01M29H0VGCMFSK5W2K2FX3VJBB",
-  "last_status_changed_at": "2026-09-12T00:42:02Z",
+  "last_event_id": "ev_01M29HKE9YQSRPVVCZTXHCG2FV",
+  "last_status_changed_at": "2026-09-12T00:52:11Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-125",
-  "status": "backlog",
+  "status": "in_planning",
   "tags": [
     "chat",
     "test-guard",
@@ -28,6 +28,6 @@
   ],
   "title": "Chat: roster-title cascade guard \u2014 routes past targets()/walk(): type and universal subjects, attribute/escaped class selectors, @scope/@import/@layer swallowed, unbalanced string brace",
   "type": "bug",
-  "updated_at": "2026-09-12T00:42:02Z",
+  "updated_at": "2026-09-12T00:52:11Z",
   "urgency": null
 }
