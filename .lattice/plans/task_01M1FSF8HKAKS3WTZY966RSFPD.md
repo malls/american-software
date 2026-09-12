@@ -2,7 +2,7 @@
 
 Complexity low; one stage (plan + implement, developer-marcus), Ruben reviews.
 Four one-function changes in `apps/invoicing`, none visible to a user. Line
-numbers in the task description are as of 2026-09-02; the suite is now 24 test
+numbers in the task description are as of 2026-09-02; the suite is now 23 test
 files (was 8), so "stays 8 files" reads "adds no test file" today.
 
 ## Scope
@@ -89,4 +89,4 @@ dependencies, no protected top-level files.
    test(s).
 5. Suite green under `compose run --rm --build test` with the `Image … Built`
    receipt; dependency-policy, deploy-shape, harness, route-surface guards
-   green; `package.json`/lock unchanged; test file count unchanged (24).
+   green; `package.json`/lock unchanged; test file count unchanged (23).
