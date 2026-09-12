@@ -206,7 +206,7 @@ test('§3.1 primitives — pinned counts (12 ink, 10 accent)', () => {
   const accentCount = Object.keys(brandingPrimitives).filter((k) => k.startsWith('accent-')).length;
   assert.equal(inkCount, 12, 'BRANDING.md §3.1 ink primitives count');
   assert.equal(accentCount, 10, 'BRANDING.md §3.1 accent primitives count');
-  assert.equal(Object.keys(brandingPrimitives).length, 43, 'total primitive count (12 ink + 10 accent + 7 success + 6 warning + 8 danger)');
+  assert.equal(Object.keys(brandingPrimitives).length, 44, 'total primitive count (12 ink + 10 accent + 7 success + 6 warning + 9 danger)');
 });
 
 // ============================================================================
@@ -368,7 +368,7 @@ test('color-scheme is declared alongside every semantic block (plan §4.1)', () 
 
 test('§3.1 primitives — tokens.json.primitive.color matches BRANDING.md in BOTH directions', () => {
   // Review cycle 1, V2: nothing read tokensJson.primitive at all. Corrupting
-  // ink-50 passed; deleting all 43 primitives passed. Plan §8.1.1 requires
+  // ink-50 passed; deleting all 43 (now 44) primitives passed. Plan §8.1.1 requires
   // three-way equality, and criterion 3 requires every §3.1 token present in
   // BOTH artifacts — for tokens.json that was entirely unenforced.
   assert.ok(tokensJson.primitive, 'tokens.json has no "primitive" key at all');
@@ -388,7 +388,7 @@ test('§3.1 primitives — tokens.json.primitive.color matches BRANDING.md in BO
     assert.ok(brandingPrimitives[short] !== undefined, `tokens.json primitive.color."${short}" is not in BRANDING.md §3.1`);
   }
   // And the count is pinned, so a row deleted from both sides at once is caught.
-  assert.equal(Object.keys(jsonPrimitives).length, 43, 'tokens.json primitive.color count');
+  assert.equal(Object.keys(jsonPrimitives).length, 44, 'tokens.json primitive.color count');
   // tokens.css block 1 and tokens.json must agree too (the third leg of §8.1.1).
   for (const [short, hex] of Object.entries(brandingPrimitives)) {
     assert.equal(cssPrimitives[short], hex, `tokens.css block 1 --color-${short}`);
@@ -510,9 +510,11 @@ const darkContrastSection = sliceBetween(branding, '**Dark mode**', '\n---\n', '
 const brandingContrastLight = parseContrastSection(lightContrastSection, 'BRANDING.md §3.4 light');
 const brandingContrastDark = parseContrastSection(darkContrastSection, 'BRANDING.md §3.4 dark');
 
-test('§3.4 contrast — pinned row counts (27 light, 27 dark = 54 total)', () => {
+test('§3.4 contrast — pinned row counts (27 light, 29 dark = 56 total)', () => {
+  // Dark went 27 -> 29 in AS-56: the two danger-solid boundary rows against
+  // bg-surface (PASS) and bg-surface-sunken (a labelled FAIL) were added.
   assert.equal(brandingContrastLight.length, 27, 'light contrast row count');
-  assert.equal(brandingContrastDark.length, 27, 'dark contrast row count');
+  assert.equal(brandingContrastDark.length, 29, 'dark contrast row count');
 });
 
 // --- WCAG 2.1 relative-luminance contrast, per BRANDING.md §11 ---
@@ -563,8 +565,8 @@ test('§3.4 contrast recomputation — every documented row recomputes to the do
   // Floors (review cycle 1, V4): without these, a Result column the parser
   // stopped understanding would leave this test running zero threshold
   // assertions and still reporting green.
-  assert.equal(rowsChecked, 54, 'must recompute all 54 documented rows (27 light + 27 dark)');
-  assert.equal(passRowsChecked, 50, 'must check the threshold of all 50 documented PASS rows (54 less 2 EXEMPT and 2 DECORATIVE)');
+  assert.equal(rowsChecked, 56, 'must recompute all 56 documented rows (27 light + 29 dark)');
+  assert.equal(passRowsChecked, 51, 'must check the threshold of all 51 documented PASS rows (56 less 2 EXEMPT, 2 DECORATIVE and 1 labelled FAIL — dark danger-solid vs bg-surface-sunken, AS-56)');
 });
 
 // --- Generated full matrix (§8.3): 19 foregrounds x 3 backgrounds x 2 modes ---
@@ -627,7 +629,7 @@ test('generated contrast matrix — every §3.4-documented PASS row still passes
   // Floor (review cycle 1, V4): this test's whole job is comparing documented
   // PASS rows against the generated matrix. If the Result column stops parsing
   // — or the §3.4 tables shrink — it must fail, not quietly assert nothing.
-  assert.equal(asserted, 34, 'must compare all 34 documented PASS rows that fall inside the generated cross-product');
+  assert.equal(asserted, 35, 'must compare all 35 documented PASS rows that fall inside the generated cross-product');
 });
 
 test('generated contrast matrix — write to tokens.json.contrast (idempotent)', () => {
@@ -897,7 +899,7 @@ test('completeness — every color- token in tokens.css block 1 is a known primi
     assert.ok(brandingPrimitives[short] !== undefined, `tokens.css primitive --${key} is not in BRANDING.md §3.1`);
     checked += 1;
   }
-  assert.equal(checked, 43, 'block 1 must declare all 43 §3.1 primitives — a block that parsed to no colours would otherwise report green');
+  assert.equal(checked, 44, 'block 1 must declare all 44 §3.1 primitives — a block that parsed to no colours would otherwise report green');
 });
 
 test('completeness — every non-color token in tokens.css block 1 is either a known BRANDING.md scale value or an allowlisted addition', () => {
@@ -1218,7 +1220,7 @@ function themeAt(html, index) {
 const SWATCH_RE =
   /<code class="swatch__name">--color-([a-z0-9-]+)<\/code><span class="swatch__hex">(#[0-9A-Fa-f]{6})<\/span>(?:<span class="swatch__alias">alias of ([a-z0-9-]+)<\/span>)?/g;
 
-test('style reference — every printed swatch hex matches the generated token data (43 primitive + 56 semantic)', () => {
+test('style reference — every printed swatch hex matches the generated token data (44 primitive + 56 semantic)', () => {
   const swatches = [...styleRefHtml.matchAll(SWATCH_RE)];
   if (swatches.length === 0) {
     throw new Error(
@@ -1248,7 +1250,7 @@ test('style reference — every printed swatch hex matches the generated token d
     assert.equal(alias, documented.aliasRaw, `index.html ${mode} swatch --color-${short} prints "alias of ${alias}"`);
     semanticSeen[mode].add(short);
   }
-  assert.equal(primitiveCount, 43, 'index.html must render all 43 §3.1 primitives as labelled swatches');
+  assert.equal(primitiveCount, 44, 'index.html must render all 44 §3.1 primitives as labelled swatches');
   assert.equal(semanticSeen.light.size, 28, 'index.html must render all 28 light semantic tokens as labelled swatches');
   assert.equal(semanticSeen.dark.size, 28, 'index.html must render all 28 dark semantic tokens as labelled swatches');
 });
@@ -1305,7 +1307,8 @@ test('style reference — the rendered contrast matrix is the generated matrix, 
   assert.deepEqual(missing, [], `generated matrix rows absent from the page: ${JSON.stringify(missing)}`);
   // And the honesty claim itself (criterion 10): every generated FAIL is on the page, badged FAIL.
   const generatedFails = generatedMatrix.filter((r) => r.result === 'FAIL');
-  assert.equal(generatedFails.length, 12, 'expected 12 generated FAILs (all dark mode) — see plan F2');
+  // 12 -> 11 in AS-56: dark danger-solid on bg-surface moved to PASS (3.17:1).
+  assert.equal(generatedFails.length, 11, 'expected 11 generated FAILs (all dark mode) — see AS-29 plan F2 and the AS-56 amendment');
   for (const r of generatedFails) {
     assert.ok(renderedKeys.has(`${r.mode}|${r.foreground}|${r.background}`), `generated FAIL ${r.mode} ${r.foreground} on ${r.background} is not rendered on the page`);
   }

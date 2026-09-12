@@ -890,8 +890,8 @@ resolution half is the one that matters and the one no "no literals" check can
 do: CSS ignores an unknown custom property **silently**, so
 `var(--color-text-primaryy)` renders unstyled and passes any literal check ever
 written. `test/assets.test.js` resolves every name against the token file, after
-four cardinality assertions — the directory listing, the token file's 183
-declarations and 127 distinct names, the stylesheet's declaration count and its
+four cardinality assertions — the directory listing, the token file's 184
+declarations and 128 distinct names, the stylesheet's declaration count and its
 `var()` reference count — so nothing is quantified over an empty set.
 
 Media preludes are the one exception, because `var()` is invalid inside a media
@@ -1067,7 +1067,8 @@ test/            node --test; helpers/server.js starts and stops apps safely
 `docs/design/tokens/tokens.css` is the single source of visual truth for
 everything the company ships (AS-29), derived from `BRANDING.md`. The stack
 decision requires it be served **byte-identical — no copy, no transform, no
-hash**, verified as `Content-Length: 12199`.
+hash**, verified as `Content-Length: 12350` (12199 at the stack decision;
+AS-56 added one primitive).
 
 So this app **consumes** it and never owns it: `compose.yaml` builds with
 `context: ../..` (the repo root) and the `Dockerfile` COPYs the one file to

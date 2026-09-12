@@ -5,7 +5,8 @@
 // test/assets.test.js:
 //
 //  1. BYTE-IDENTICAL. The stack decision requires tokens.css be served with no
-//     copy, no transform, no hash — Content-Length: 12199. So the bytes are
+//     copy, no transform, no hash — Content-Length: 12350 (12199 at the
+//     decision; the AS-56 primitive moved it). So the bytes are
 //     read and written verbatim, with the length set explicitly. Nothing here
 //     may minify, re-encode, or fingerprint.
 //  2. REGISTERED BEFORE express.static. These are named explicit routes, never
@@ -38,7 +39,7 @@ export function assetRoutes(config) {
       // which would negotiate a type and could attach an ETag. HEAD requests
       // route to this handler too (Express dispatches HEAD to GET), and Node
       // keeps an explicitly-set Content-Length while dropping the body — which
-      // is what makes `curl -sI /tokens.css` show 12199.
+      // is what makes `curl -sI /tokens.css` show 12350.
       res.setHeader('Content-Type', asset.contentType);
       res.setHeader('Content-Length', body.length);
       res.end(body);

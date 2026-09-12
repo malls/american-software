@@ -9,7 +9,7 @@
 // route) has been mutation-tested: delete the COPY line, rebuild, and this file
 // turns the suite red.
 //
-// The literals below (12199 bytes, 183 declarations, 1 public file) are
+// The literals below (12350 bytes, 184 declarations, 1 public file) are
 // committed numbers, not thresholds. tokens.css is governed by
 // docs/design/tokens/tokens.test.mjs and derived from BRANDING.md; when design
 // changes it, this file goes red and the numbers are updated deliberately in
@@ -23,16 +23,18 @@ import { join } from 'node:path';
 import { VENDOR_ASSETS } from '../lib/vendor.js';
 import { configFor, withServer } from './helpers/server.js';
 
-/** The exact byte length the stack decision names for tokens.css. */
-const TOKENS_BYTES = 12199;
+/** The exact byte length of tokens.css (the stack decision named 12199; AS-56
+ *  added the danger-400 primitive and re-pointed dark danger-solid: 12350). */
+const TOKENS_BYTES = 12350;
 /** Custom-property DECLARATIONS in tokens.css. A truncated file would sail
- *  through a "non-empty" check; it cannot sail through an exact count. */
-const TOKENS_DECLARATIONS = 183;
+ *  through a "non-empty" check; it cannot sail through an exact count.
+ *  183 -> 184 at AS-56 (one new primitive). */
+const TOKENS_DECLARATIONS = 184;
 /** Distinct custom-property NAMES in tokens.css. Smaller than the declaration
  *  count because blocks 2-4 re-declare the same semantic names for light, dark
  *  and explicit-dark. It is the SET that a var() reference has to resolve
- *  against, so it gets its own committed literal. */
-const TOKEN_NAMES = 127;
+ *  against, so it gets its own committed literal. 127 -> 128 at AS-56. */
+const TOKEN_NAMES = 128;
 /** Files in public/. */
 const PUBLIC_FILES = ['app.css'];
 /** Declarations in public/app.css, measured when the file was finished.

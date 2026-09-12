@@ -168,6 +168,7 @@
           <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-50)"></span><code class="swatch__name">--color-danger-50</code><span class="swatch__hex">#FCEEEF</span></div>
           <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-100)"></span><code class="swatch__name">--color-danger-100</code><span class="swatch__hex">#F8D8DB</span></div>
           <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-300)"></span><code class="swatch__name">--color-danger-300</code><span class="swatch__hex">#E5767F</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-400)"></span><code class="swatch__name">--color-danger-400</code><span class="swatch__hex">#D62937</span></div>
           <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-500)"></span><code class="swatch__name">--color-danger-500</code><span class="swatch__hex">#CE2735</span></div>
           <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-600)"></span><code class="swatch__name">--color-danger-600</code><span class="swatch__hex">#AB212C</span></div>
           <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-700)"></span><code class="swatch__name">--color-danger-700</code><span class="swatch__hex">#891A23</span></div>
@@ -308,7 +309,7 @@
             <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-text)"></span><code class="swatch__name">--color-danger-text</code><span class="swatch__hex">#E5767F</span><span class="swatch__alias">alias of danger-300</span></div>
             <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-bg-subtle)"></span><code class="swatch__name">--color-danger-bg-subtle</code><span class="swatch__hex">#511015</span><span class="swatch__alias">alias of danger-900</span></div>
             <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-text-on-subtle)"></span><code class="swatch__name">--color-danger-text-on-subtle</code><span class="swatch__hex">#E5767F</span><span class="swatch__alias">alias of danger-300</span></div>
-            <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-solid)"></span><code class="swatch__name">--color-danger-solid</code><span class="swatch__hex">#CE2735</span><span class="swatch__alias">alias of danger-500</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-solid)"></span><code class="swatch__name">--color-danger-solid</code><span class="swatch__hex">#D62937</span><span class="swatch__alias">alias of danger-400</span></div>
             <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-solid-hover)"></span><code class="swatch__name">--color-danger-solid-hover</code><span class="swatch__hex">#AB212C</span><span class="swatch__alias">alias of danger-600</span></div>
           </div>
         </div>
@@ -330,17 +331,21 @@
           "change the value, don't change the claim").
         </p>
         <div class="matrix-callout">
-          <strong>12 combinations fail, all in dark mode, all involving a
+          <strong>11 combinations fail, all in dark mode, all involving a
           solid fill (<code>accent-solid</code>/<code>-hover</code>,
           <code>danger-solid</code>/<code>-hover</code>,
           <code>focus-ring</code>) or error text against
-          <code>bg-surface-sunken</code>.</strong> Three were already named in
-          the CTO's acceptance read (F2); the other nine — mostly hover-state
+          <code>bg-surface-sunken</code>.</strong> Twelve failed when this
+          matrix was first generated (AS-29): three were already named in the
+          CTO's acceptance read (F2); the other nine — mostly hover-state
           fills — surfaced only once the check stopped being one person
           manually sampling pairs. This is exactly what the generated matrix
-          is for. None of these are fixed in this task (palette amendments are
-          a v1.1 brand-doc call, not an AS-29 prerequisite); see this task's
-          Lattice comment for the full account.
+          is for. One has since been fixed at the token layer — dark
+          <code>danger-solid</code> on <code>bg-surface</code>, 2.97:1 to
+          3.17:1, by moving the alias to the new <code>danger-400</code> step
+          (AS-56, BRANDING.md §3.4 amendment). The other eleven stand,
+          honestly labeled, each awaiting its own retune-or-split decision;
+          see the AS-29 and AS-56 Lattice records for the full account.
         </div>
         <h3 class="subsection__title">Light mode</h3>
         <div class="contrast-tables">
@@ -450,7 +455,7 @@
               <tr class="result--pass"><td><code>--color-warning-text-on-subtle</code></td><td>10.73:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
               <tr class="result--pass"><td><code>--color-danger-text</code></td><td>6.3:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
               <tr class="result--pass"><td><code>--color-danger-text-on-subtle</code></td><td>6.3:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
-              <tr class="result--pass"><td><code>--color-danger-solid</code></td><td>3.46:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-solid</code></td><td>3.69:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
               <tr class="result--fail"><td><code>--color-danger-solid-hover</code></td><td>2.6:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
             </tbody>
           </table>
@@ -477,7 +482,7 @@
               <tr class="result--pass"><td><code>--color-warning-text-on-subtle</code></td><td>9.23:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
               <tr class="result--pass"><td><code>--color-danger-text</code></td><td>5.42:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
               <tr class="result--pass"><td><code>--color-danger-text-on-subtle</code></td><td>5.42:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
-              <tr class="result--fail"><td><code>--color-danger-solid</code></td><td>2.97:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-solid</code></td><td>3.17:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
               <tr class="result--fail"><td><code>--color-danger-solid-hover</code></td><td>2.24:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
             </tbody>
           </table>
@@ -504,7 +509,7 @@
               <tr class="result--pass"><td><code>--color-warning-text-on-subtle</code></td><td>7.29:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
               <tr class="result--fail"><td><code>--color-danger-text</code></td><td>4.28:1</td><td>4.5:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
               <tr class="result--fail"><td><code>--color-danger-text-on-subtle</code></td><td>4.28:1</td><td>4.5:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
-              <tr class="result--fail"><td><code>--color-danger-solid</code></td><td>2.35:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+              <tr class="result--fail"><td><code>--color-danger-solid</code></td><td>2.51:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
               <tr class="result--fail"><td><code>--color-danger-solid-hover</code></td><td>1.77:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
             </tbody>
           </table>
@@ -733,11 +738,11 @@
               <button class="btn btn-ghost is-hover">Ghost (hover)</button>
             </div>
             <div class="btn-row">
-              <button class="btn btn-destructive">Destructive<span class="ratio-note">2.97:1 boundary, FAIL (F2)</span></button>
+              <button class="btn btn-destructive">Destructive</button>
               <button class="btn btn-destructive is-hover">Destructive (hover)<span class="ratio-note">2.24:1, FAIL</span></button>
               <button class="btn btn-destructive" disabled>Destructive (disabled)</button>
             </div>
-            <p class="section__intro">On <code>bg-surface</code> (not sunken) no structural mitigation is applied here — §7's composition table scopes the border-interactive addition to "dark + on sunken" specifically. This instance ships as an honestly-labeled known failure per acceptance criterion #10, not silently hidden.</p>
+            <p class="section__intro">On <code>bg-surface</code> (not sunken) no structural mitigation is applied here — §7's composition table scopes the border-interactive addition to "dark + on sunken" specifically. The resting destructive fill was an honestly-labeled known failure on this surface (2.97:1, F2) until AS-56 moved dark <code>danger-solid</code> to the new <code>danger-400</code> step; it now clears the 3:1 non-text floor on its own at 3.17:1. The hover fill still fails and is still labeled.</p>
             <p class="section__intro"><a href="#components">A link, hover changes underline thickness, not color (F4)</a></p>
 
             <h3 class="subsection__title">Input</h3>
