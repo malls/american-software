@@ -1,8 +1,15 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
-  "branch_links": [],
-  "comment_count": 0,
+  "branch_links": [
+    {
+      "branch": "feat/AS-131-lazy-load-messages",
+      "linked_at": "2026-09-12T18:12:03Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-09-12T16:38:56Z",
   "created_by": "agent:cto-owen",
@@ -11,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M2B7RZCZ1QTTQ41EJPBTXYK9",
-  "last_event_id": "ev_01M2BBQVQD1N6KWF8HM3Z0WJ24",
-  "last_status_changed_at": "2026-09-12T17:48:13Z",
+  "last_event_id": "ev_01M2BD3W0CKSGYR9083C3RV9Q2",
+  "last_status_changed_at": "2026-09-12T18:12:04Z",
   "linked_files": [],
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-131",
-  "status": "in_planning",
+  "status": "planned",
   "tags": null,
   "title": "Chat: lazy-load messages \u2014 paginate conversation history so long channels and DMs stay fast",
   "type": "task",
-  "updated_at": "2026-09-12T17:48:13Z",
+  "updated_at": "2026-09-12T18:12:16Z",
   "urgency": null
 }
