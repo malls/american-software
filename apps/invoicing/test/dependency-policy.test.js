@@ -371,7 +371,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 50, `expected 50 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 52, `expected 52 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/auth/accounts.js',
@@ -403,6 +403,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/health.js',
     'lib/invoices/lifecycle.js',
     'lib/invoices/mapping.js',
+    'lib/screens/connect-view.js',
     'lib/screens/signin-view.js',
     'lib/stripe/client.js',
     'lib/stripe/custody.js',
@@ -422,6 +423,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'routes/pages.js',
     'routes/webhooks.js',
     'server.js',
+    'views/connect-stripe.ejs',
     'views/signin.ejs',
   ]);
 
@@ -570,12 +572,17 @@ test('no app source or manifest outside test/ contains an outbound HTTP client',
  *  (AS-45: the view-layer rows are lexical properties of TEMPLATES and
  *  STYLESHEETS, and two of their patterns have false positives in JavaScript —
  *  `\son[a-z]+\s*=` matches ` once =`). Narrowing the SET is safe in a way
- *  narrowing a PATTERN is not, and it carries its own vacuity floor: a scoped
- *  set that came back empty fails before anything is quantified over it. */
-function scanConcept(name, pattern, allowed, { raw = false, only = null } = {}) {
+ *  narrowing a PATTERN is not, and it carries its own cardinality check:
+ *  `expectFiles` is the COMMITTED number of files the scoped set must contain
+ *  (AS-70, the B5 debt from AS-45's review). A `> 0` floor could not tell
+ *  "examined 1 of 3 files" from "examined 3" — with a second template, the
+ *  committed count is cheaper than the argument. A scoped row without
+ *  `expectFiles` is refused: a floor is not a count. */
+function scanConcept(name, pattern, allowed, { raw = false, only = null, expectFiles = null } = {}) {
   const files = only === null ? SCANNED : SCANNED.filter((p) => only.test(relative(APP_DIR, p)));
   if (only !== null) {
-    assert.ok(files.length > 0, `${name}: the scoped file set is EMPTY — this row is examining nothing`);
+    assert.ok(Number.isInteger(expectFiles) && expectFiles > 0, `${name}: a scoped row must commit to a file count (expectFiles), not a floor`);
+    assert.equal(files.length, expectFiles, `${name}: examined ${files.length} files, expected ${expectFiles} — a template or stylesheet was added, removed, or fell outside the scope`);
   }
   const hits = files
     .filter((p) => pattern.test(raw ? readFileSync(p, 'utf8') : strippedText(p)))
@@ -729,8 +736,15 @@ const VIEW_FILES = /^views\//;
  *  reported 87; `grep -oE '</?[A-Za-z]' | wc -l` reported 86, which is 87 less
  *  the `<!doctype` its character class cannot see. Closing tags are counted
  *  too: they carry no attributes, so scanning them costs nothing and excluding
- *  them would be a second rule to get wrong. */
-const VIEW_START_TAGS = 87;
+ *  them would be a second rule to get wrong.
+ *
+ *  RE-MEASURED 2026-09-12 (AS-70), the same three instruments on
+ *  views/connect-stripe.ejs: 43 / 43 / 42 (+1 doctype). signin.ejs re-run
+ *  alongside still reads 87 / 87 / 86. The constant is the SUM over views/:
+ *  87 + 43. Deleting one banner branch from screen 2 (a div and a p, open and
+ *  close) moves it by 4, which is how the partition case's falsifier reaches
+ *  this row too. */
+const VIEW_START_TAGS = 87 + 43;
 
 const lineAt = (text, index) => text.slice(0, index).split('\n').length;
 
@@ -1019,7 +1033,7 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
     'interpolation in a URL or style attribute',
     /(href|src|action|formaction|style)\s*=\s*"[^"]*<%/i,
     [],
-    { only: /^(views|public)\// },
+    { only: /^(views|public)\//, expectFiles: 3 },
   );
   // P2b — no event-handler attribute. Scoped to templates and stylesheets: the
   // pattern matches ` once =` in JavaScript, and narrowing the pattern to avoid
@@ -1031,12 +1045,12 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
   // none of the five characters EJS escapes, so the escape is a no-op against
   // it. P2c three lines below always carried `/i`; the omission here and on P2a
   // was an oversight, not a decision. Re-measured baseline after the flag: ZERO.
-  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^(views|public)\// });
+  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^(views|public)\//, expectFiles: 3 });
   // P2c — THE NO-CLIENT-SIDE-JAVASCRIPT ASSUMPTION, MADE MECHANICAL. Two ledger
   // rows (S1-LOADING, S2-LOADING) are unimplementable under it and are recorded
   // as `unrenderable — browser-supplied` rather than silently skipped. This row
   // is what stops the assumption decaying into a comment.
-  scanConcept('script or style element', /<(script|style)\b/i, [], { only: /^(views|public)\// });
+  scanConcept('script or style element', /<(script|style)\b/i, [], { only: /^(views|public)\//, expectFiles: 3 });
   // P3 — an attribute value that carries data is DOUBLE-quoted, because
   // escaping `"` is only load-bearing if `"` is the delimiter. This row catches
   // the two spellings that break that: a single-quoted value, and an unquoted
@@ -1045,7 +1059,7 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
     'interpolation in an unquoted or single-quoted attribute value',
     /=\s*'[^']*<%|=\s*<%/,
     [],
-    { only: /^(views|public)\// },
+    { only: /^(views|public)\//, expectFiles: 3 },
   );
   // P4 — NO INTERPOLATION IN THE TAG-NAME OR ATTRIBUTE-NAME REGION (review
   // cycle 1, F-3; the tag-name half added by review cycle 2, ruling R-6).
@@ -1057,7 +1071,9 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
   // interpolated tag name is counted as a start tag, so planting one leaves this
   // number unmoved and the findings assertion is the only thing that can catch it.
   const attrName = scanAttributeNamePosition();
-  assert.ok(attrName.files > 0, 'P4: the views/ file set is EMPTY — this row is examining nothing');
+  // A COMMITTED COUNT, not a `> 0` floor (AS-70, B5): two templates today,
+  // signin.ejs and connect-stripe.ejs. A third screen moves this with its VIEWS row.
+  assert.equal(attrName.files, 2, `P4 examined ${attrName.files} template(s) under views/, expected 2`);
   assert.equal(
     attrName.tags,
     VIEW_START_TAGS,
