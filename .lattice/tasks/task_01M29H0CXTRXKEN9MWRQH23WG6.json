@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 10,
+  "comment_count": 11,
   "complexity": null,
   "created_at": "2026-09-12T00:41:47Z",
   "created_by": "agent:qa-priya",
@@ -24,7 +24,7 @@
     }
   ],
   "id": "task_01M29H0CXTRXKEN9MWRQH23WG6",
-  "last_event_id": "ev_01M29T7NXJ5TQQT4XJ56V8AC2H",
+  "last_event_id": "ev_01M29TGA7R19MDFS8SQ9R23M0K",
   "last_status_changed_at": "2026-09-12T03:23:03Z",
   "linked_files": [],
   "priority": "critical",
@@ -38,6 +38,6 @@
   ],
   "title": "Chat: AS-111 review residuals \u2014 a rename on the Docker Desktop bind mount replays the event stream twice (transient inode on the first stat), malformed counter survives resetTail after a re-read, and the watcher cut-close cycle (AC-7) has no red-capable test",
   "type": "task",
-  "updated_at": "2026-09-12T03:23:03Z",
+  "updated_at": "2026-09-12T03:27:46Z",
   "urgency": null
 }
