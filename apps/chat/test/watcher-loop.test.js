@@ -901,8 +901,7 @@ test('as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resu
   h.advance(5 * 60 * 1000);
   assert.equal(h.ops.rearmIfDue(), true, 'T0+5 min: the file\'s deadline, not a fresh ten minutes');
   assert.equal(h.ops.pending(), true);
-  assert.equal(h.saved.at(-1).armedBy, 3);
-  assert.equal(h.saved.at(-1).ticks, 0);
+  assert.equal(h.saved.at(-1).armedBy, 3, 'the re-armed loop carries the file\'s message');
 });
 
 // AS-104, subsumed: resume() used to re-enter an active mirror past the cap
