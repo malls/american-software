@@ -155,9 +155,18 @@ function checkScope(row, request) {
  *  into bracket/dot segments, each segment compared case-insensitively against
  *  the banned names. `transfer_data[destination]`, `TRANSFER_DATA`,
  *  `subscription_data%5Btransfer_data%5D%5Bamount%5D`, `phases[0][transfer_data]`
- *  and `?on_behalf_of=` all reach the same refusal. */
+ *  and `?on_behalf_of=` all reach the same refusal.
+ *
+ *  Pairs are split on `;` as well as `&` (AS-58 item 3). URLSearchParams splits
+ *  only on `&`, so a raw `customer=cus_1;transfer_data[destination]=acct_x`
+ *  would otherwise read as ONE key; a form parser that honours `;` reads two.
+ *  Treating `;` as a separator fails closed whichever way Stripe parses it: if
+ *  it splits, the banned key is refused; if it does not, the value was inert
+ *  and the refusal merely conservative. encodeForm percent-encodes `;`, so no
+ *  request the client builds is affected, and values stay uninspected — only
+ *  what a `;`-tolerant parser would see as a KEY is examined. */
 function checkParams(request, where) {
-  const sources = [new URLSearchParams(request.body ?? ''), request.url.searchParams];
+  const sources = [decodeForm(request.body ?? ''), decodeForm(request.url.search)];
   for (const params of sources) {
     for (const key of params.keys()) {
       const segments = key.split(/[\[\].]+/).filter((s) => s.length > 0).map((s) => s.trim().toLowerCase());
@@ -165,4 +174,12 @@ function checkParams(request, where) {
       if (segment !== undefined) throw new StripeCustodyError('banned_parameter', { ...where, key, segment });
     }
   }
+}
+
+/** The separator set the guard honours: `&` and `;`. A leading `?` (from
+ *  URL.search) is dropped by URLSearchParams itself. */
+const PAIR_SEPARATOR = /[&;]/g;
+
+function decodeForm(text) {
+  return new URLSearchParams(text.replace(PAIR_SEPARATOR, '&'));
 }

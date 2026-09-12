@@ -272,8 +272,9 @@ test('the startup log line names the bind and port', () => {
 
 test('an unconfigured Stripe key is null in the config AND in redacted(), so the startup line says which it is', () => {
   // `null` and `[redacted]` are different facts — "no key" versus "a key you may
-  // not see" — and an operator reading the startup line or /healthz needs to tell
-  // them apart without a debugger. Nothing about the value is ever said.
+  // not see" — and an operator reading the startup line needs to tell them
+  // apart without a debugger. (The startup line only, since AS-58 item 4:
+  // /healthz no longer carries the config.) Nothing about the value is ever said.
   const config = loadConfig({});
   assert.equal(config.stripeSecretKey, null);
   assert.equal(config.redacted().stripeSecretKey, null);
@@ -304,8 +305,9 @@ test('the webhook signing secret is [redacted] when set and null when not — th
   // routes/webhooks.js registers NO ROUTE when this is unset, so an
   // unconfigured deployment answers 404 and tells an unauthenticated caller
   // nothing. That is deliberate, and it is why the operator's signal has to
-  // live on the authenticated side: the startup line and /healthz, through
-  // redacted() and nothing else. No new health check, no new log line.
+  // live on the authenticated side: the startup line, through redacted() and
+  // nothing else (AS-58 item 4 took it off /healthz). No new health check, no
+  // new log line.
   const unset = loadConfig({});
   assert.equal(unset.webhookSecret, null);
   assert.equal(unset.redacted().webhookSecret, null);

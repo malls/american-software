@@ -202,6 +202,42 @@ test('custody: every forbidden parameter is refused at every nesting depth', () 
   assert.equal(guardRequest(value), value);
 });
 
+test('custody: a raw ";" separates pairs the same as "&", in the body and in the query', () => {
+  // AS-58 item 3 (from the AS-38 review). URLSearchParams splits only on `&`,
+  // so `customer=cus_1;transfer_data[destination]=acct_x` used to read as ONE
+  // key (`customer`) and pass. A form parser that honours `;` reads two, and
+  // the second is the forbidden shape. The guard now fails closed on `;`
+  // regardless of which parser Stripe runs — unreachable from the client
+  // (encodeForm percent-encodes `;`), so this pins the guard, not the client.
+  const smuggled = wire({ path: '/v1/invoices', account: 'acct_123', body: 'customer=cus_1;transfer_data[destination]=acct_x' });
+  const err = refused(() => guardRequest(smuggled), 'banned_parameter');
+  assert.equal(err.detail.key, 'transfer_data[destination]', 'the key AFTER the ";" is what tripped');
+  assert.equal(err.detail.segment, 'transfer_data');
+  // Every banned name, hidden behind a `;` at the top level and nested, POST
+  // body and GET query. Body: 10 names × 3 placements; query: 10 × 1.
+  let refusals = 0;
+  for (const name of NAMES) {
+    for (const body of [`customer=cus_1;${name}=x`, `customer=cus_1;a=1;${name}[child]=x`, `${name}=x;customer=cus_1`]) {
+      const e = refused(() => guardRequest(wire({ path: '/v1/invoices', account: 'acct_123', body })), 'banned_parameter');
+      assert.equal(e.detail.segment, name);
+      refusals += 1;
+    }
+    const q = refused(() => guardRequest(wire({ method: 'GET', path: '/v1/invoices/in_1', account: 'acct_123', query: `expand[0]=customer;${name}=x` })), 'banned_parameter');
+    assert.equal(q.detail.segment, name);
+    refusals += 1;
+  }
+  assert.equal(refusals, 40);
+  // A PERCENT-ENCODED `;` is a value, not a separator — the only form the
+  // client ever produces — and values are never inspected.
+  const encoded = wire({ path: '/v1/customers', account: 'acct_123', body: 'customer=cus_1&description=a%3Btransfer_data%5Bdestination%5D%3Dacct_x' });
+  assert.equal(guardRequest(encoded), encoded);
+  assert.equal(encodeForm({ description: 'a;b' }), 'description=a%3Bb', 'encodeForm never emits a raw ";"');
+  // An allowed name after a `;` still passes: the separator changes what is a
+  // key, never which keys are allowed.
+  const benign = wire({ path: '/v1/invoices', account: 'acct_123', body: 'customer=cus_1;collection_method=send_invoice' });
+  assert.equal(guardRequest(benign), benign);
+});
+
 test('custody: an allowlisted request passes through unchanged', () => {
   const connected = wire({ path: '/v1/invoices', account: 'acct_123', body: 'customer=cus_1&collection_method=send_invoice' });
   const platform = wire({ method: 'GET', path: '/v1/accounts/acct_123', platform: true });
@@ -622,7 +658,12 @@ test('transport: sends method, headers and body byte-for-byte to a loopback list
     assert.equal(seen.headers['idempotency-key'], 'idem-t1');
     assert.equal(seen.headers.authorization, `Bearer ${KEY}`);
     assert.equal(seen.headers['content-length'], String(Buffer.byteLength(seen.body)));
-    assert.ok(!('user-agent' in seen.headers) || seen.headers['user-agent'] !== undefined, 'the runtime may add its own user-agent; the client sets none');
+    // Not asserted here: user-agent. The runtime's fetch puts its own on the
+    // wire (`node`), so nothing seen by this listener can say whether the
+    // CLIENT set one. That property lives where it is observable — 'client:
+    // the transport receives exactly the guarded request plus authorization'
+    // pins the signed header set exactly, and a user-agent added by the client
+    // turns it red. (AS-58 item 1 removed a tautology that stood here.)
     assert.deepStrictEqual(result, { status: 200, requestId: 'req_loopback', data: { object: 'invoice', id: 'in_loopback' } });
 
     // A GET: no body, no content-type, no content-length, query on the wire.

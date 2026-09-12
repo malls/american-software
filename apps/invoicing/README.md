@@ -416,8 +416,12 @@ everything": `webhookRoutes` registers no handler at all and express answers
 database — not one that returns early, one that does not exist. Unconfigured is
 the normal state of this repository, of every test run and of every developer's
 stack, so it is not an error. The operator's signal lives on the authenticated
-side instead: the startup line and `/healthz` both print
-`"webhookSecret":null` (or `"[redacted]"`) via `config.redacted()`.
+side instead: the startup line prints `"webhookSecret":null` (or
+`"[redacted]"`) via `config.redacted()`. `/healthz` does not: since AS-58 its
+body is `{ ok, checks }` and nothing else, because an unauthenticated endpoint
+that lists setting names and which secrets are configured says more than a
+health check needs to (dropped outright rather than gated on `NODE_ENV`, which
+is itself a setting a deploy can get wrong).
 
 **Verification**, in `lib/webhooks/signature.js` — pure, the only `createHmac`
 in the product, and the only thing between an unauthenticated POST and the
