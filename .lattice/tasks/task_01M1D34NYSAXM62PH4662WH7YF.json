@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 7,
+  "comment_count": 8,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:43Z",
   "created_by": "agent:cto-owen",
@@ -21,10 +21,15 @@
       "id": "ev_01M2A53NRZXFKTCQTYCGQBGD4Z",
       "role": "review",
       "source_type": "comment"
+    },
+    {
+      "id": "ev_01M2A8WDNH997Y9JK68T2TFX6S",
+      "role": "review",
+      "source_type": "comment"
     }
   ],
   "id": "task_01M1D34NYSAXM62PH4662WH7YF",
-  "last_event_id": "ev_01M2A6Z0YG5SW0WCPN72S7G0XF",
+  "last_event_id": "ev_01M2A8WDNH997Y9JK68T2TFX6S",
   "last_status_changed_at": "2026-09-12T07:05:31Z",
   "linked_files": [],
   "priority": "medium",
@@ -63,6 +68,6 @@
   ],
   "title": "D1 v1 UI: invoice create/edit screen (screen 4)",
   "type": "task",
-  "updated_at": "2026-09-12T07:05:31Z",
+  "updated_at": "2026-09-12T07:39:03Z",
   "urgency": null
 }
