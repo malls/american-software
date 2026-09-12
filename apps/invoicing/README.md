@@ -31,7 +31,9 @@ reader — see [Demo](#demo).
 AS-48 replaces it with the Dashboard; see § The view layer), `/healthz`,
 `/tokens.css`, and the Stripe Connect onboarding routes (AS-41):
 `POST /connect-stripe/start` (create-or-reuse the connected account, 303 to
-Stripe-hosted onboarding), `GET /connect-stripe/return` (fresh readiness read —
+Stripe-hosted onboarding; when Stripe refuses, is unreachable, or no key is
+configured, it answers 502/503 with screen 2 rendered in its error state and
+its "Try again" control — AS-69), `GET /connect-stripe/return` (fresh readiness read —
 the return itself is never trusted — then 303 to the screen) and
 `GET /connect-stripe/refresh` (mint a fresh link, 303 straight back into the
 hosted flow). All four are behind the auth boundary (AS-40) and read the acting
@@ -981,7 +983,16 @@ declaration count are committed literals. Update them in the same commit.
   `?freelancer=` parameter are gone: every connect route now reads the session
   (§ Accounts below). Return and refresh keep working, as AS-41 predicted,
   because a Stripe redirect is a top-level GET navigation and the cookie is
-  `SameSite=Lax`. **AS-70 landed screen 2** at `GET /connect-stripe`, so every
+  `SameSite=Lax`. **AS-69 revised one AS-41 decision in the open:** a failed
+  `POST /connect-stripe/start` no longer answers with the one-line
+  `text/plain` body naming the error class and step — it renders screen 2 in
+  S2-ERROR-SYSTEM at the *same* status (`statusFor` is untouched: 502 for a
+  Stripe refusal or transport failure, 503 for no key), the way AS-45's
+  `renderSignIn` did for screen 1. Return's and refresh's one-line bodies are
+  unchanged, and the class-and-step line for a failed start now appears
+  nowhere on the wire — the app has no error log, and AS-69 did not add one;
+  a diagnostic surface is a separate task if wanted. **AS-70 landed screen 2**
+  at `GET /connect-stripe`, so every
   redirect this module issues ends on a rendered state, and `GET /` redirects
   there again. The Stripe redirect target is one constant in
   `lib/connect/onboarding.js` plus its test assertions if the route is ever

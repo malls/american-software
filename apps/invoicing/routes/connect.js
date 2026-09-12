@@ -10,10 +10,19 @@
 // HTTP to service calls and error classes to statuses.
 //
 // All redirects are 303 See Other: semantically required for the POST, used
-// uniformly for the GETs — one literal. Error bodies are one-line text/plain
-// (the routes/assets.js precedent) carrying the error class and the step that
-// failed, never the key and never request material; screens render states from
-// the DB row, not from these bodies.
+// uniformly for the GETs — one literal. Error bodies for return and refresh are
+// one-line text/plain (the routes/assets.js precedent) carrying the error class
+// and the step that failed, never the key and never request material; screens
+// render states from the DB row, not from these bodies.
+//
+// REVISED BY AS-69, in the open: a FAILED START renders screen 2 in its
+// S2-ERROR-SYSTEM state — banner and "Try again" control — at the SAME status
+// statusFor() already picks, instead of the one-line body. The status taxonomy
+// did not move (the routes/auth.js precedent from AS-45: render the screen,
+// keep the status), so a Stripe outage is still a 5xx on the wire and the
+// freelancer still gets the ledger's retry affordance. The error class and step
+// no longer appear on the wire for that one route; the screen renders
+// renderer-authored constants only.
 import { Router } from 'express';
 import { ConfigError } from '../lib/config.js';
 import { NotFoundError, ValidationError } from '../lib/db/database.js';
@@ -55,17 +64,32 @@ export function connectRoutes(config, { repos, stripe }) {
   // are mounted below the auth boundary in app.js, so actingFreelancerId cannot
   // return null — it THROWS if it is ever reached without one, which would mean
   // this router was mounted above the boundary.
-  const handle = (step, act) => async (req, res) => {
+  //
+  // `fail` is what the step answers with when the service throws; the status
+  // is statusFor's in both shapes. The one-line body is the default; start
+  // overrides it with the screen (AS-69).
+  const plainFailure = (step) => (req, res, err) => {
+    res.status(statusFor(err)).type('text/plain').send(`${err?.name ?? 'Error'}: ${err?.step ?? step}\n`);
+  };
+  // S2-ERROR-SYSTEM at the POST, status kept. The row is read so the locals
+  // are honest about it, though the error flag outranks it in the view model
+  // (connectLocals' precedence) — every row state gets the same screen, whose
+  // one control re-POSTs here.
+  const screenFailure = (req, res, err) => {
+    const account = repos.connectedAccounts.getByFreelancer(actingFreelancerId(req));
+    res.status(statusFor(err)).render('connect-stripe', connectLocals({ account, startFailed: true }));
+  };
+  const handle = (step, act, fail = plainFailure(step)) => async (req, res) => {
     const freelancerId = actingFreelancerId(req);
     try {
       const { redirectTo } = await act(freelancerId);
       res.redirect(303, redirectTo);
     } catch (err) {
-      res.status(statusFor(err)).type('text/plain').send(`${err?.name ?? 'Error'}: ${err?.step ?? step}\n`);
+      fail(req, res, err);
     }
   };
 
-  router.post('/connect-stripe/start', handle('start', (id) => onboarding.start(id)));
+  router.post('/connect-stripe/start', handle('start', (id) => onboarding.start(id), screenFailure));
   router.get('/connect-stripe/return', handle('return', (id) => onboarding.handleReturn(id)));
   router.get('/connect-stripe/refresh', handle('refresh', (id) => onboarding.handleRefresh(id)));
 
@@ -80,8 +104,10 @@ export function connectRoutes(config, { repos, stripe }) {
   // `?error=start` is the documented URL for S2-ERROR-SYSTEM (AS-45 plan
   // §3.5.3): the parameter is a PRESENCE FLAG selecting a state. It crosses
   // into the view model as a boolean, never as its value, so nothing the
-  // freelancer typed can reach the page. A closed enum with one member today;
-  // AS-69 adds members HERE if it wires the POST's failure into the screen.
+  // freelancer typed can reach the page. A closed enum with one member, and
+  // AS-69 added none: a failed POST renders the state in place (screenFailure
+  // above) rather than travelling through this parameter, which stays as the
+  // documented direct URL for the state.
   router.get('/connect-stripe', (req, res) => {
     const account = repos.connectedAccounts.getByFreelancer(actingFreelancerId(req));
     res.render('connect-stripe', connectLocals({ account, startFailed: req.query.error === 'start' }));
