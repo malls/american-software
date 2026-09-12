@@ -633,3 +633,6 @@
 {"type":"message","id":999,"thread_root_id":null,"author":"system:lattice","body":"AS-48: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T08:15:34.915Z"}
 {"type":"message","id":1001,"thread_root_id":null,"author":"system:lattice","body":"AS-48: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T08:18:12.740Z"}
 {"type":"message","id":1002,"thread_root_id":null,"author":"system:lattice","body":"AS-49: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T08:54:15.549Z"}
+{"type":"message","id":1003,"thread_root_id":null,"author":"system:lattice","body":"AS-47: review → done — by agent:cto-owen","created_at":"2026-09-12T09:00:25.001Z"}
+{"type":"message","id":1004,"thread_root_id":null,"author":"system:lattice","body":"AS-127: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T09:04:00.011Z"}
+{"type":"message","id":1005,"thread_root_id":null,"author":"system:lattice","body":"AS-127: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T09:24:29.546Z"}
