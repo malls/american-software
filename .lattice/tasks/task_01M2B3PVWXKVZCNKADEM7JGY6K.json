@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": null,
+  "assigned_to": "agent:cto-owen",
   "branch_links": [],
   "comment_count": 1,
   "complexity": "medium",
@@ -11,21 +11,21 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M2B3PVWXKVZCNKADEM7JGY6K",
-  "last_event_id": "ev_01M2B4GRC4DDWRS0TAZ93WJ8MQ",
-  "last_status_changed_at": "2026-09-12T15:27:52Z",
+  "last_event_id": "ev_01M2B4PRXM5CN7BC5AW0DTGX0C",
+  "last_status_changed_at": "2026-09-12T15:45:18Z",
   "linked_files": [],
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-130",
-  "status": "backlog",
+  "status": "in_planning",
   "tags": [
     "d1",
     "demo"
   ],
   "title": "D1 demo: re-capture the board demo against the seven merged screens and correct its CAN/CANNOT wording (AS-90 follow-up)",
   "type": "task",
-  "updated_at": "2026-09-12T15:42:01Z",
+  "updated_at": "2026-09-12T15:45:18Z",
   "urgency": null
 }
