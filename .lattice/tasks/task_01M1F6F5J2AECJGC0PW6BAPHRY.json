@@ -9,16 +9,22 @@
       "repo": null
     }
   ],
-  "comment_count": 4,
+  "comment_count": 5,
   "complexity": "medium",
   "created_at": "2026-09-01T19:17:22Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": null,
   "done_at": null,
-  "evidence_refs": [],
+  "evidence_refs": [
+    {
+      "id": "ev_01M2AKCVJGYQZ99K2MAAC83PHA",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M1F6F5J2AECJGC0PW6BAPHRY",
-  "last_event_id": "ev_01M2AJD221XQ1YHTM207REAASS",
+  "last_event_id": "ev_01M2AKCVJGYQZ99K2MAAC83PHA",
   "last_status_changed_at": "2026-09-12T10:25:25Z",
   "linked_files": [],
   "priority": "medium",
@@ -30,6 +36,6 @@
   "tags": null,
   "title": "design tokens: danger-solid on bg-surface (dark) is 2.97:1 against the 3:1 non-text floor \u2014 palette amendment, now inherited by two consumers",
   "type": "task",
-  "updated_at": "2026-09-12T10:25:25Z",
+  "updated_at": "2026-09-12T10:42:47Z",
   "urgency": null
 }
