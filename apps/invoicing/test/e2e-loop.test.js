@@ -500,7 +500,7 @@ test('E5 (STRIPE DOUBLE vs STRIPE-MOCK): every object the double emits is a key-
   // Cardinality FIRST: the mock's invoice fixture is a real spec-derived object.
   const mockInvoiceKeys = Object.keys(mockInvoice);
   t.diagnostic(`stripe-mock invoice fixture carries ${mockInvoiceKeys.length} keys; account ${Object.keys(mockAccount).length}; customer ${Object.keys(mockCustomer).length}`);
-  assert.ok(mockInvoiceKeys.length >= 30, `the mock's invoice fixture has ${mockInvoiceKeys.length} keys — expected at least 30 (measured 2026-09-12)`);
+  assert.ok(mockInvoiceKeys.length >= 30, `the mock's invoice fixture has ${mockInvoiceKeys.length} keys — expected at least 30 (measured 75 on 2026-09-12; account 20, customer 22)`);
 
   const subset = (ours, theirs, what) => {
     const missing = Object.keys(ours).filter((k) => !Object.hasOwn(theirs, k));
