@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [
     {
       "branch": "feat/AS-50-stripe-acceptance-run",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34PDBBXVAKM7DDED3VG8M",
-  "last_event_id": "ev_01M2BAKR20QFHJ64MR4HPP352P",
-  "last_status_changed_at": "2026-09-12T17:28:12Z",
+  "last_event_id": "ev_01M2BBQSZQQMRW9VCDZBPB3072",
+  "last_status_changed_at": "2026-09-12T17:48:06Z",
   "linked_files": [],
   "priority": "high",
   "relationships_out": [
@@ -83,7 +83,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-50",
-  "status": "planned",
+  "status": "in_progress",
   "tags": [
     "d1",
     "v1",
@@ -93,6 +93,6 @@
   ],
   "title": "D1 v1: recorded acceptance run against Stripe test mode (v1 done)",
   "type": "task",
-  "updated_at": "2026-09-12T17:28:30Z",
+  "updated_at": "2026-09-12T17:48:12Z",
   "urgency": null
 }
