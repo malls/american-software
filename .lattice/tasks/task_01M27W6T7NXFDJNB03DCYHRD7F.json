@@ -1,8 +1,15 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
-  "branch_links": [],
-  "comment_count": 1,
+  "branch_links": [
+    {
+      "branch": "feat/AS-112-cascade-guard-hardening",
+      "linked_at": "2026-09-12T00:01:58Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 2,
   "complexity": null,
   "created_at": "2026-09-11T09:19:03Z",
   "created_by": "agent:qa-priya",
@@ -11,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M27W6T7NXFDJNB03DCYHRD7F",
-  "last_event_id": "ev_01M29DWD4X6XFAKN7XR2P50XB2",
-  "last_status_changed_at": "2026-09-11T23:47:11Z",
+  "last_event_id": "ev_01M29ER5KRNEF0Z8J0HRFE42CK",
+  "last_status_changed_at": "2026-09-12T00:01:59Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-112",
-  "status": "in_planning",
+  "status": "planned",
   "tags": null,
   "title": "Chat: harden the AS-74 roster-title cascade guard \u2014 all: unset, native CSS nesting, orgNodeItem class set",
   "type": "task",
-  "updated_at": "2026-09-11T23:47:11Z",
+  "updated_at": "2026-09-12T00:02:20Z",
   "urgency": null
 }
