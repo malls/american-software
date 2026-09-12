@@ -567,7 +567,7 @@ the documentation):
 | `tick_started` | `source`, `pid`, `startedAt`, `messageId`, `loopTick` |
 | `tick_ended` | `tickId`, `outcome`, `code`, `signal`, `timedOut`, `headMoved`, `lanesTouched`, `stagesClosed`, `reason` |
 | `stage_started` | `task`, `stage`, `actor`, `worktree`, `branch`, `cycle` |
-| `stage_ended` | `task`, `stage`, `actor`, `outcome`, `reason`, `closedBy`, `startedId`, `durationS` |
+| `stage_ended` | `task`, `stage`, `actor`, `outcome`, `reason`, `closedBy`, `startedId`, `durationS`, `cycle` |
 | `subagent_spawned` | `task`, `stage`, `actor`, `model` |
 | `subagent_exited` | `task`, `stage`, `actor`, `exit`, `closedBy`, `spawnedId`, `durationS`, `tokens`, `costUsd` |
 
@@ -578,7 +578,7 @@ the documentation):
 
 ```sh
 events emit stage_started    --task AS-<n> --stage plan|implement|review --employee <id> --actor <id> [--worktree <rel>] [--branch <name>] [--cycle <k>]
-events emit stage_ended      --task AS-<n> --stage <stage> --employee <id> --actor <id> --outcome completed|error [--reason "…"]
+events emit stage_ended      --task AS-<n> --stage <stage> --employee <id> --actor <id> --outcome completed|error [--reason "…"] [--cycle <k>]
 events emit subagent_spawned --task AS-<n> --stage <stage> --employee <id> --actor <id> [--model <name>]
 events emit subagent_exited  --task AS-<n> --stage <stage> --employee <id> --actor <id> --exit ok|error
 events tail [--since <id>] [--limit <n>] [--task AS-<n>]
@@ -592,6 +592,18 @@ reconciler-only — an orchestrator must not be able to narrate a timeout that d
 not happen. `events open` lists what an earlier tick left open, which is why the
 tick procedure reads it in step 1 next to `git worktree list`.
 
+**A close finds its open by `startedId`, else by `(task, stage, actor)` — and
+that triple is not unique across rework cycles** (AS-111). So `stage_ended`
+carries `cycle` too, and the rule in both the CLI's back-reference lookup and
+the fold is: a close and an open with two *stated* cycles that differ never
+match; a `null` on either side ("not stated") matches on the triple as before,
+so a hand close without `--cycle` never strands. On a rework cycle, pass the
+same `--cycle <k>` the stage's `stage_started` carried — otherwise a late close
+for cycle *k* can close cycle *k+1*'s open stage on the same employee. The
+watcher's reconciler records the cycle of the stage it cut; it matches by
+`startedId` regardless. Sub-agent events carry no cycle (a sub-agent's cycle is
+its enclosing stage's).
+
 **Producers.** The **watcher** owns the tick boundary: `tick_started` when it
 fires a tick, `tick_ended` when it settles, and a sweep every
 `ADVANCE_EVENTS_SWEEP_S` seconds (default **60**) that closes anything a dead
@@ -604,8 +616,9 @@ the log; `?task=AS-<n>` and `?limit=<n>` filter. Every event is projected
 through the whitelist, so a line that grew a field never reaches a browser.
 `stream.path` is deliberately `null` — a host path is no more a browser's
 business than the lock nonce is. `stream.reason` is one of `ok`, `no-stream`,
-`unreadable-stream`, `truncated`, and every one of those has a sentence in
-`public/lanes.js` (key-set asserted, so a new code cannot ship as a bare word).
+`unreadable-stream`, `truncated`, `replaced`, and every one of those has a
+sentence in `public/lanes.js` (key-set asserted, so a new code cannot ship as a
+bare word).
 
 **SSE: two names, one channel.** `event: company` frames carry the persisted
 AS-100 events as they are appended (the server tails the file by byte offset
@@ -613,7 +626,21 @@ every `EVENTS_POLL_MS` = 2 s and pushes one frame per new event, in file order);
 it has a read-back door at `/api/events`. `event: activity` is reserved for
 AS-103's tool-level frames, which are strictly ephemeral, are written to no file
 or store, and have no read-back. If the file **shrinks** under the server the
-tail resets and reports `truncated` until a new line arrives.
+tail resets and reports `truncated` until a new line arrives. If the file is
+**replaced** under the server — `mv` of a longer file over the path, `cp` or a
+restored backup written over it, an editor save — the tail notices by one of
+two checks (AS-111): the **inode changed** (checked on every poll, before the
+size rule, so a rotation to a shorter new file and a same-size swap are both
+caught), or the **bytes just before its cursor** are not the last ≤ 64 bytes it
+consumed (checked only on a poll that has new bytes to read anyway — one extra
+small read on the same descriptor). Either way it re-reads the whole new file
+from the start, re-folds, pushes every line as a `company` frame again (to this
+process they are all arrivals — a consumer that must not double-count dedupes
+by `id`), and reports `replaced` until a new line arrives. `replaced` is a
+different word from `truncated` on purpose: nothing is missing after a
+replacement. Residual, by design: same inode, same size, and an edit *before*
+the last 64 bytes is not noticed until a later mismatch — nothing edits the
+file, and the check that would see it is a full re-read per poll.
 
 **Liveness** is decided from events alone and bounded by the tick clock:
 `alive = open ∧ (tickLive ∨ ageMs < tickTimeoutMs)`. While a tick holds its lock

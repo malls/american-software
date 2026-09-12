@@ -2248,6 +2248,48 @@ test('api-events-key-whitelist: AS-100 — a line that grew a field reaches no r
   assert.ok(!wire.includes(fx.dataDir), 'and the stream never names its own host path');
 });
 
+test('api-events-since-resolves-before-task-filter: AS-111 F1 — the since cursor is resolved on the full stream, then the task filter applies', async (t) => {
+  const fx = loopFixture(t);
+  const { get } = await bootServer(t, FIXTURE_ROOT, { dataDir: fx.dataDir });
+
+  // Three lines across two tasks; the cursor a client holds is the AS-8 line,
+  // which the AS-7 filter would drop BEFORE the cursor resolved under the
+  // pre-b0763ad ordering (qa-ruben review, AS-100 F1: `task=AS-7&since=<AS-8
+  // id>` returned []).
+  const specs = [
+    { type: 'stage_started', data: { task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', worktree: '.worktrees/AS-7', branch: 'feat/AS-7-thing', cycle: 1 } },
+    { type: 'stage_started', actor: 'agent:qa-priya', data: { task: 'AS-8', stage: 'review', actor: 'agent:qa-priya', worktree: '.worktrees/AS-8', branch: 'feat/AS-8-thing', cycle: 1 } },
+    { type: 'stage_ended', data: { task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', outcome: 'completed', reason: null, closedBy: 'orchestrator', startedId: null, durationS: 120 } },
+  ];
+  fx.plant({ eventsBody: fx.eventLines(specs) });
+
+  // Cardinality first: three planted, three read.
+  const all = await get('/api/events');
+  assert.equal(all.status, 200);
+  assert.equal(all.data.events.length, 3, 'three planted, three read');
+  const [as7Start, as8Start, as7End] = all.data.events;
+  assert.equal(as7Start.data.task, 'AS-7');
+  assert.equal(as8Start.data.task, 'AS-8');
+  assert.equal(as7End.type, 'stage_ended');
+
+  // The defect: a task filter combined with a cursor that belongs to ANOTHER lane.
+  const crossLane = await get(`/api/events?task=AS-7&since=${as8Start.id}`);
+  assert.equal(crossLane.status, 200);
+  assert.deepEqual(crossLane.data.events.map((e) => e.id), [as7End.id], 'task=AS-7&since=<AS-8 id> resolves the cursor on the full stream, then filters');
+
+  // The two doors agree: the unfiltered catch-up from the same cursor is the same one id.
+  const unfiltered = await get(`/api/events?since=${as8Start.id}`);
+  assert.deepEqual(unfiltered.data.events.map((e) => e.id), [as7End.id], 'since alone returns the same single event');
+
+  // A cursor inside the filtered lane still works as before.
+  const sameLane = await get(`/api/events?task=AS-7&since=${as7Start.id}`);
+  assert.deepEqual(sameLane.data.events.map((e) => e.type), ['stage_ended'], 'task=AS-7&since=<AS-7 start id> yields the close');
+
+  // Exclusive: nothing after the AS-8 line in AS-8's own lane.
+  const exhausted = await get(`/api/events?task=AS-8&since=${as8Start.id}`);
+  assert.deepEqual(exhausted.data.events, [], 'task=AS-8&since=<AS-8 id> is empty — since is exclusive and nothing follows in that lane');
+});
+
 test('api: AS-100 — EVENTS_POLL_MS is the pinned production cadence', async () => {
   assert.equal(EVENTS_POLL_MS, 2_000);
   const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');

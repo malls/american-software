@@ -30,7 +30,7 @@ import { idsByShortId, latticeRoot } from '../lib/lattice.js';
 
 const USAGE = `usage:
   events emit stage_started    --task AS-<n> --stage plan|implement|review --employee <id> --actor <id> [--worktree <rel>] [--branch <name>] [--cycle <k>] [--json]
-  events emit stage_ended      --task AS-<n> --stage <stage> --employee <id> --actor <id> --outcome completed|error [--reason "…"] [--json]
+  events emit stage_ended      --task AS-<n> --stage <stage> --employee <id> --actor <id> --outcome completed|error [--reason "…"] [--cycle <k>] [--json]
   events emit subagent_spawned --task AS-<n> --stage <stage> --employee <id> --actor <id> [--model <name>] [--json]
   events emit subagent_exited  --task AS-<n> --stage <stage> --employee <id> --actor <id> --exit ok|error [--json]
   events emit tick_started|tick_ended --actor <id> [watcher flags] [--json]
@@ -118,12 +118,17 @@ function resolveTask(short) {
 
 /** Best effort back-reference to the open item this event closes, so a
  *  consumer can pair them without re-folding. Null when there is none — the
- *  event is still written. */
+ *  event is still written. AS-111 F4: a stage close and an open stage with two
+ *  STATED cycles that differ never pair (the triple is not unique across rework
+ *  cycles); a null on either side matches on the triple as before, the same
+ *  rule the fold's matches() applies. */
 function closing(path, type, data) {
   const { events } = readStream(path);
   const open = openItems(events);
   const list = type === 'stage_ended' ? open.stages : open.subagents;
-  const match = list.find((item) => item.task === data.task && item.stage === data.stage && item.actor === data.actor);
+  const match = list.find((item) =>
+    item.task === data.task && item.stage === data.stage && item.actor === data.actor
+    && !(data.cycle != null && item.cycle != null && data.cycle !== item.cycle));
   if (!match) return { id: null, durationS: null };
   const started = Date.parse(match.ts);
   return { id: match.id, durationS: Number.isFinite(started) ? Math.round((Date.now() - started) / 1000) : null };
@@ -150,6 +155,7 @@ function buildData(type, flags) {
         closedBy: 'orchestrator',
         startedId: null,
         durationS: null,
+        cycle: intFlag(flags, 'cycle'),
       };
     case 'subagent_spawned':
       return {

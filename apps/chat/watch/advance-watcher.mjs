@@ -2270,6 +2270,9 @@ export function makeEventsOps({
           closedBy,
           startedId: stage.id,
           durationS: secondsSince(stage.ts, nowMs),
+          // AS-111 F4: the record says which cycle the reconciler cut; the
+          // match itself is by startedId regardless.
+          cycle: stage.cycle ?? null,
         },
         nowMs
       );

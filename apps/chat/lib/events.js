@@ -57,8 +57,11 @@ export const EVENT_SHAPES = Object.freeze({
     'tickId', 'outcome', 'code', 'signal', 'timedOut', 'headMoved', 'lanesTouched', 'stagesClosed', 'reason',
   ]),
   stage_started: Object.freeze(['task', 'stage', 'actor', 'worktree', 'branch', 'cycle']),
+  // AS-111 F4: `cycle` is appended LAST so every existing key keeps its
+  // position, and makeEvent fills it null for every producer that does not
+  // state one — nothing that emits today breaks.
   stage_ended: Object.freeze([
-    'task', 'stage', 'actor', 'outcome', 'reason', 'closedBy', 'startedId', 'durationS',
+    'task', 'stage', 'actor', 'outcome', 'reason', 'closedBy', 'startedId', 'durationS', 'cycle',
   ]),
   subagent_spawned: Object.freeze(['task', 'stage', 'actor', 'model']),
   subagent_exited: Object.freeze([
@@ -75,6 +78,7 @@ export const EVENTS_REASON_CODES = Object.freeze([
   'no-stream',
   'unreadable-stream',
   'truncated',
+  'replaced', // AS-111 F3: the file was swapped out (new inode, or the bytes before the cursor changed) and re-read
 ]);
 
 export const ACTOR_RE = /^(agent|human|system):[a-z0-9-]+$/;
@@ -141,18 +145,23 @@ function checkEnum(type, key, value, allowed, { optional = false } = {}) {
   if (!allowed.includes(value)) fail(`${type}: ${key} must be one of ${allowed.join('|')} (got ${JSON.stringify(value)})`);
 }
 
+/** A stated cycle is a positive integer; null/undefined is "not stated". */
+function checkCycle(type, cycle) {
+  if (cycle === null || cycle === undefined) return;
+  if (!Number.isInteger(cycle) || cycle < 1) fail(`${type}: cycle must be a positive integer`);
+}
+
 function validate(type, data) {
   switch (type) {
     case 'stage_started':
       checkEnum(type, 'stage', data.stage, STAGES);
-      if (data.cycle !== null && data.cycle !== undefined) {
-        if (!Number.isInteger(data.cycle) || data.cycle < 1) fail(`${type}: cycle must be a positive integer`);
-      }
+      checkCycle(type, data.cycle);
       break;
     case 'stage_ended':
       checkEnum(type, 'stage', data.stage, STAGES);
       checkEnum(type, 'outcome', data.outcome, STAGE_OUTCOMES);
       checkEnum(type, 'closedBy', data.closedBy, CLOSED_BY, { optional: true });
+      checkCycle(type, data.cycle);
       break;
     case 'subagent_spawned':
       checkEnum(type, 'stage', data.stage, STAGES);
@@ -311,7 +320,14 @@ function matches(open, ev, idKey) {
   // unreachable, and every hand-closed stage stayed open until the sweep cut
   // it as a timeout. Found by api-events-since-exclusive, whose planted
   // stage_ended carries a null startedId exactly as `events close` emits one.
-  return open.stage === ev.data?.stage && open.actor === ev.data?.actor;
+  if (open.stage !== ev.data?.stage || open.actor !== ev.data?.actor) return false;
+  // AS-111 F4: the triple is not unique across rework cycles. A mismatch
+  // exists only when BOTH sides state a cycle and they differ — a null on
+  // either side ("not stated") matches on the triple as before, so a hand
+  // close without --cycle never strands. Sub-agent records carry no `cycle`
+  // (undefined), so sub-agent closes are untouched by construction.
+  if (ev.data?.cycle != null && open.cycle != null && ev.data.cycle !== open.cycle) return false;
+  return true;
 }
 
 function lastEventOf(ev, outcome = null) {

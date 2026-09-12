@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   mkdtempSync, rmSync, cpSync, writeFileSync, unlinkSync, mkdirSync, appendFileSync, truncateSync,
-  renameSync,
+  renameSync, readFileSync, statSync,
 } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -990,6 +990,199 @@ test('stream-lanes-liveness-change-only: a stage event earns a lanes frame; elap
     [],
     'and a closed stage settles — no frame per poll'
   );
+});
+
+test('stream-lanes-no-frame-for-laneless-event: an event that touches no lane earns a company frame but no lanes frame; a junk line earns neither', async (t) => {
+  const dataDir = loopDataDir(t);
+  const path = eventsFile(dataDir);
+  writeFileSync(path, '');
+  writeFileSync(join(dataDir, 'worktrees.json'), laneSnapshot(new Date().toISOString(), {
+    worktrees: [
+      { relPath: '.', main: true, head: 'f6717b8', branch: 'master', detached: false, ahead: null, behind: null,
+        dirtyCount: null, dirtyLattice: null, merged: null, lastCommit: null, errors: [] },
+      { relPath: '.worktrees/AS-7', main: false, head: 'abc1234', branch: 'feat/AS-7-thing', detached: false,
+        ahead: 1, behind: 0, dirtyCount: 0, dirtyLattice: false, merged: false, lastCommit: null, errors: [] },
+    ],
+  }));
+  const { base } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS, eventsPollMs: FAST_POLL_MS,
+  });
+
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  // A tick starts. It is a real event (one `company` frame) but it belongs to
+  // no lane and moves nothing the pane draws — so no `lanes` frame. Under the
+  // AS-100 key (`events.lastId` in the block) every such event bought a frame
+  // with a payload that had not changed (AS-111 F2).
+  appendFileSync(path, eventLine('tick_started', {
+    source: 'watcher', pid: 5285, startedAt: new Date().toISOString(), messageId: 651, loopTick: 3,
+  }));
+  const framesA = await drain(stream, FAST_POLL_MS * 8 + 300);
+  assert.equal(framesA.filter((f) => f.event === 'company').length, 1, 'one tick event, one company frame');
+  assert.equal(framesA.filter((f) => f.event === 'lanes').length, 0, 'a laneless event earns no lanes frame');
+
+  // A hand-appended junk line: counted as malformed, rendered nowhere, and
+  // therefore worth neither kind of frame.
+  appendFileSync(path, 'not json\n');
+  const framesB = await drain(stream, FAST_POLL_MS * 8 + 300);
+  assert.equal(framesB.filter((f) => f.event === 'company').length, 0, 'junk is not an event');
+  assert.equal(framesB.filter((f) => f.event === 'lanes').length, 0, 'and malformed alone earns no lanes frame');
+
+  // The control: a stage event for a listed lane still moves the key — the
+  // frame is withheld for the payload that did not change, not for every event.
+  appendFileSync(path, stageStarted('AS-7'));
+  const framesC = await drain(stream, FAST_POLL_MS * 8 + 300);
+  const lanesC = framesC.filter((f) => f.event === 'lanes');
+  assert.equal(lanesC.length, 1, 'a real lane change still earns exactly one lanes frame');
+  assert.ok(lanesC[0].data.lanes.lanes.some((l) => l.subAgent && l.subAgent.alive), 'and the lane it belongs to is live');
+});
+
+// --- AS-111 F3: a REPLACED stream is noticed, re-read, and named ------------
+
+/** Two lines every replacement fixture starts from: AS-7 opens, then spawns.
+ *  Appended AFTER the stream is open (like every sibling above): lines on disk
+ *  at boot are primed silently, and the count of frames is the point. */
+function appendTwoLines(path) {
+  const first = stageStarted('AS-7');
+  const second = eventLine('subagent_spawned', {
+    task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', model: 'fable',
+  });
+  appendFileSync(path, first + second);
+  return { first, second };
+}
+
+const laneOf = (payload, short) => payload.lanes.lanes.find((l) => l.key === short);
+
+/** A snapshot with a worktree for each of the fixture repo's two tasks, so
+ *  both lanes exist to be looked up (no snapshot → `lanes: null`). */
+function plantTwoLaneSnapshot(dataDir) {
+  writeFileSync(join(dataDir, 'worktrees.json'), laneSnapshot(new Date().toISOString(), {
+    worktrees: [
+      { relPath: '.', main: true, head: 'f6717b8', branch: 'master', detached: false, ahead: null, behind: null,
+        dirtyCount: null, dirtyLattice: null, merged: null, lastCommit: null, errors: [] },
+      { relPath: '.worktrees/AS-7', main: false, head: 'abc1234', branch: 'feat/AS-7-thing', detached: false,
+        ahead: 1, behind: 0, dirtyCount: 0, dirtyLattice: false, merged: false, lastCommit: null, errors: [] },
+      { relPath: '.worktrees/AS-8', main: false, head: 'def5678', branch: 'feat/AS-8-thing', detached: false,
+        ahead: 1, behind: 0, dirtyCount: 0, dirtyLattice: false, merged: false, lastCommit: null, errors: [] },
+    ],
+  }));
+}
+
+test('stream-company-replaced-new-inode: a file renamed over the stream (new inode, bytes before the cursor identical) is re-read from the start and reported as replaced', async (t) => {
+  const dataDir = loopDataDir(t);
+  const path = eventsFile(dataDir);
+  writeFileSync(path, '');
+  plantTwoLaneSnapshot(dataDir);
+  const { base, get } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS, eventsPollMs: FAST_POLL_MS,
+  });
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  const { first, second } = appendTwoLines(path);
+  const before = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(before.length, 2, 'two planted lines, two frames');
+  const lanes0 = (await get('/api/lanes')).data;
+  assert.ok(laneOf(lanes0, 'AS-7').subAgent, 'AS-7 is the live lane');
+  assert.equal(laneOf(lanes0, 'AS-8').subAgent, null, 'AS-8 has no signal');
+
+  // The replacement: line 1 is the SAME event re-addressed to AS-8 (same byte
+  // length — the digit is the only change), line 2 unchanged, plus a laneless
+  // third line so the new file is at least as long as the old.
+  const oldBuf = readFileSync(path);
+  const oldSize = oldBuf.length;
+  const ev1 = JSON.parse(first);
+  const moved = `${serialiseEvent({ ...ev1, data: { ...ev1.data, task: 'AS-8', worktree: '.worktrees/AS-8', branch: 'feat/AS-8-thing' } })}\n`;
+  assert.equal(Buffer.byteLength(moved), Buffer.byteLength(first), 'precondition: the rewritten line is byte-for-byte the same length');
+  const third = eventLine('tick_started', {
+    source: 'watcher', pid: 5285, startedAt: new Date().toISOString(), messageId: 651, loopTick: 3,
+  });
+  const newBuf = Buffer.from(moved + second + third);
+  assert.ok(newBuf.length >= oldSize, 'precondition: the new file is at least as long as the old');
+  assert.ok(
+    newBuf.subarray(oldSize - 64, oldSize).equals(oldBuf.subarray(oldSize - 64, oldSize)),
+    'precondition: the 64 bytes before the old cursor are identical — the bytes check CANNOT see this swap, only the inode check can'
+  );
+  const inoBefore = statSync(path).ino;
+  writeFileSync(`${path}.next`, newBuf);
+  renameSync(`${path}.next`, path);
+  assert.notEqual(statSync(path).ino, inoBefore, 'precondition: the rename landed a new inode');
+
+  const after = await drain(stream, FAST_POLL_MS * 8 + 300);
+  const company = after.filter((f) => f.event === 'company');
+  assert.equal(company.length, 3, 'the whole new file is re-read: three lines, three frames');
+  assert.deepEqual(company.map((f) => f.data.data.task ?? null), ['AS-8', 'AS-7', null], 'in file order, with the re-addressed first line');
+  const pushed = after.filter((f) => f.event === 'lanes');
+  assert.ok(pushed.some((f) => f.data.lanes.events.reason === 'replaced'), 'the pane learns by push: a lanes frame carries the new reason');
+  const lanes1 = (await get('/api/lanes')).data;
+  assert.equal(lanes1.lanes.events.reason, 'replaced');
+  assert.equal(lanes1.lanes.events.malformed, 0, 'no mid-line fragment: the old offset was not carried into the new file');
+  assert.ok(laneOf(lanes1, 'AS-8').subAgent, 'the fold was rebuilt from the new content: AS-8 is now the live lane');
+  assert.equal(laneOf(lanes1, 'AS-7').subAgent, null, 'and AS-7, which the new file never opens, has no signal');
+
+  // The next append clears it, exactly as truncated does. The line is a
+  // LANELESS one on purpose: it moves no lane field and no open count, so the
+  // one lanes frame it earns is earned by `events.reason` alone — the push-side
+  // proof that the reason is in the key (it survived a mutant that dropped it
+  // while the swap above was still moving a lane).
+  appendFileSync(path, eventLine('tick_started', {
+    source: 'watcher', pid: 5286, startedAt: new Date().toISOString(), messageId: 652, loopTick: 4,
+  }));
+  const cleared = (await drain(stream, FAST_POLL_MS * 6 + 300)).filter((f) => f.event === 'lanes');
+  assert.equal(cleared.length, 1, 'reason replaced → ok, no lane moved: exactly one lanes frame, for the reason alone');
+  assert.equal(cleared[0].data.lanes.events.reason, 'ok');
+  assert.equal((await get('/api/lanes')).data.lanes.events.reason, 'ok', 'the next append clears the reason');
+});
+
+test('stream-company-replaced-same-inode: a file rewritten in place (same inode, old offset lands mid-line) is re-read from the start and reported as replaced', async (t) => {
+  const dataDir = loopDataDir(t);
+  const path = eventsFile(dataDir);
+  writeFileSync(path, '');
+  plantTwoLaneSnapshot(dataDir);
+  const { base, get } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS, eventsPollMs: FAST_POLL_MS,
+  });
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  const { second } = appendTwoLines(path);
+  const before = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(before.length, 2, 'two planted lines, two frames');
+
+  // A restored backup: same path, same inode, a first line of a DIFFERENT
+  // length, so the tail's old byte offset lands in the middle of a line.
+  const oldBuf = readFileSync(path);
+  const oldSize = oldBuf.length;
+  const longer = stageStarted('AS-7', { branch: 'feat/AS-7-a-noticeably-longer-branch-name' });
+  const third = stageStarted('AS-8', { actor: 'agent:qa-priya', stage: 'review' });
+  const newBuf = Buffer.from(longer + second + third);
+  assert.ok(newBuf.length > oldSize, 'precondition: longer than the old file, so the size rule cannot see this');
+  assert.notEqual(newBuf[oldSize - 1], 0x0a, 'precondition: the old cursor lands mid-line in the new content');
+  assert.ok(
+    !newBuf.subarray(oldSize - 64, oldSize).equals(oldBuf.subarray(oldSize - 64, oldSize)),
+    'precondition: the bytes before the old cursor changed — this is what the bytes check sees'
+  );
+  const inoBefore = statSync(path).ino;
+  writeFileSync(path, newBuf);
+  assert.equal(statSync(path).ino, inoBefore, 'precondition: same inode — the inode check CANNOT be the guard here');
+
+  const after = await drain(stream, FAST_POLL_MS * 8 + 300);
+  const company = after.filter((f) => f.event === 'company');
+  assert.equal(company.length, 3, 'the whole new file is re-read: three lines, three frames (a carried offset would give one fragment and two frames)');
+  assert.ok(after.filter((f) => f.event === 'lanes').some((f) => f.data.lanes.events.reason === 'replaced'), 'a lanes frame carries the new reason');
+  const lanes = (await get('/api/lanes')).data;
+  assert.equal(lanes.lanes.events.reason, 'replaced');
+  assert.equal(lanes.lanes.events.malformed, 0, 'no mid-line fragment counted as malformed');
+  assert.ok(laneOf(lanes, 'AS-8').subAgent, 'the fold was rebuilt: the third line opened AS-8');
+
+  // Same reason-only clear as the new-inode case: a laneless line, one frame.
+  appendFileSync(path, eventLine('tick_started', {
+    source: 'watcher', pid: 5286, startedAt: new Date().toISOString(), messageId: 652, loopTick: 4,
+  }));
+  const cleared = (await drain(stream, FAST_POLL_MS * 6 + 300)).filter((f) => f.event === 'lanes');
+  assert.equal(cleared.length, 1, 'reason replaced → ok, no lane moved: exactly one lanes frame, for the reason alone');
+  assert.equal(cleared[0].data.lanes.events.reason, 'ok');
 });
 
 test('stream: AS-99 — lanes frames reach every viewer identically (no visibility gate)', async (t) => {

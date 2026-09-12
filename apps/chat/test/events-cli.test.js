@@ -120,3 +120,46 @@ test('events-cli-open-and-tail', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('events-cli-close-lookup-honours-cycle', () => {
+  const { dir, path } = scratch();
+  try {
+    const END_ARGS = [
+      'emit', 'stage_ended', '--task', 'AS-7', '--stage', 'implement',
+      '--employee', 'agent:developer-lena', '--actor', 'agent:cto-owen', '--outcome', 'completed',
+    ];
+    const lines = () => readFileSync(path, 'utf8').trimEnd().split('\n').map((l) => JSON.parse(l));
+    // Two opens on the same (task, stage, employee): cycle 1, then cycle 2.
+    const c1Start = run(path, [...STAGE_ARGS, '--cycle', '1']);
+    assert.equal(c1Start.status, 0, c1Start.stderr);
+    const c2Start = run(path, [...STAGE_ARGS, '--cycle', '2']);
+    assert.equal(c2Start.status, 0, c2Start.stderr);
+    const c2Id = c2Start.stdout.trim();
+
+    // A late close for cycle 1 must not be paired with — or close — cycle 2's open.
+    const lateClose = run(path, [...END_ARGS, '--cycle', '1']);
+    assert.equal(lateClose.status, 0, lateClose.stderr);
+    assert.equal(lines().length, 3, 'cardinality: two starts and one close on disk');
+    const close1 = lines()[2];
+    assert.equal(close1.type, 'stage_ended');
+    assert.equal(close1.data.cycle, 1, 'the close records the cycle it was told');
+    assert.equal(close1.data.startedId, null, 'and back-references nothing: the only open stage states cycle 2');
+    const open = JSON.parse(run(path, ['open', '--json']).stdout);
+    assert.deepEqual(open.stages.map((s) => s.id), [c2Id], 'the cycle-2 stage is still open');
+
+    // The matching close pairs by cycle and closes it.
+    const close2 = run(path, [...END_ARGS, '--cycle', '2']);
+    assert.equal(close2.status, 0, close2.stderr);
+    assert.equal(lines()[3].data.startedId, c2Id, 'a cycle-2 close back-references the cycle-2 start');
+    assert.equal(JSON.parse(run(path, ['open', '--json']).stdout).stages.length, 0, 'nothing open');
+
+    // --cycle 0 on a close is refused before anything is written.
+    const before = lines().length;
+    const bad = run(path, [...END_ARGS, '--cycle', '0']);
+    assert.equal(bad.status, 1);
+    assert.match(bad.stderr, /usage:/);
+    assert.equal(lines().length, before, 'a refused close writes no line');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
