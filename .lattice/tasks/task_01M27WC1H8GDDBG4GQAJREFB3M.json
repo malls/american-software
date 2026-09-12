@@ -1,7 +1,14 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:developer-lena",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-113-probe-budget-ceiling",
+      "linked_at": "2026-09-12T10:59:52Z",
+      "linked_by": "agent:developer-lena",
+      "repo": null
+    }
+  ],
   "comment_count": 2,
   "complexity": "low",
   "created_at": "2026-09-11T09:21:54Z",
@@ -11,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M27WC1H8GDDBG4GQAJREFB3M",
-  "last_event_id": "ev_01M2AMBXE8NTT8B9ANB92RHD2E",
-  "last_status_changed_at": "2026-09-12T10:59:45Z",
+  "last_event_id": "ev_01M2AMC4ZPTQ9AGVVKBFRZJVZX",
+  "last_status_changed_at": "2026-09-12T10:59:52Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-113",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat: chat.js probe budget accepts values above 2^31-1, which Node clamps to 1 ms \u2014 a budget of 2147483648 refuses a live server after 54 ms naming a budget it never spent (AS-83 Ruben F-1)",
   "type": "task",
-  "updated_at": "2026-09-12T10:59:45Z",
+  "updated_at": "2026-09-12T10:59:52Z",
   "urgency": null
 }
