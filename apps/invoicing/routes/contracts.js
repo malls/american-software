@@ -141,8 +141,8 @@ export function contractRoutes(config, { repos }) {
   // plain handlers in the GET /contracts/:id shape: read the session through
   // the one accessor, read what the view model needs, hand it a pure input,
   // render at the status the view model chose. The GET reads the client list
-  // and NOTHING else — no connected-account row (the screen has no Stripe
-  // gate, by the ledger's own n/a row) and no contracts.
+  // and NOTHING else — no connected-account row (the screen has no
+  // processor gate, by the ledger's own n/a row) and no contracts.
   const renderForm = (res, locals) => res.status(locals.status).render('contract-form', locals);
 
   router.get('/contracts/new', (req, res) => {
