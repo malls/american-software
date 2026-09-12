@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-lena",
   "branch_links": [
     {
       "branch": "feat/AS-127-contract-create",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M2A41GARN600RYVHS4RXVXW3",
-  "last_event_id": "ev_01M2AEWJP5BHZPM0ESHFWFPEN0",
-  "last_status_changed_at": "2026-09-12T09:23:59Z",
+  "last_event_id": "ev_01M2AF8YPPK8V6Q0MMWEMG0YQ5",
+  "last_status_changed_at": "2026-09-12T09:30:45Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-127",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "D1 v1 UI: contract create screen (screen 6) \u2014 AS-47b",
   "type": "task",
-  "updated_at": "2026-09-12T09:23:59Z",
+  "updated_at": "2026-09-12T09:30:45Z",
   "urgency": null
 }
