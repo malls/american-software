@@ -32,7 +32,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { openStore, StoreError, EVENTS_CHANNEL } from '../lib/store.js';
 import { reconcileIdentities } from '../lib/identities.js';
-import { probe, createApiBackend, DEFAULT_API, DEFAULT_PROBE_TIMEOUT_MS } from '../lib/client.js';
+import { probe, createApiBackend, DEFAULT_API, DEFAULT_PROBE_TIMEOUT_MS, MAX_PROBE_TIMEOUT_MS } from '../lib/client.js';
 import { ingestNewEvents, resolveRefs, resolveShortId, latticeRoot, assignmentsByActor } from '../lib/lattice.js';
 import { readRoster } from '../lib/personnel.js';
 
@@ -65,7 +65,8 @@ const USAGE = `usage: chat <command> [args] [--me <identity>] [--json]
   ($CHAT_API or http://127.0.0.1:8347), opens the DB directly only when no
   server is provably listening or $CHAT_DB names an alternate store.
   Override with CHAT_MODE=api|direct. CHAT_PROBE_TIMEOUT_MS sets the probe's
-  budget in milliseconds (positive integer, default ${DEFAULT_PROBE_TIMEOUT_MS}).
+  budget in milliseconds (positive integer, at most ${MAX_PROBE_TIMEOUT_MS},
+  default ${DEFAULT_PROBE_TIMEOUT_MS}).
   DB: $CHAT_DB or apps/chat/data/chat.db`;
 
 function parseArgs(argv) {
@@ -121,6 +122,10 @@ const REFUSAL = (base, reason) =>
  * (CHAT_MODE=direct, rule 4): a typo'd budget that happens to be unused on this
  * run is still a typo, and silently ignoring it hides the operator's mistake
  * until the run where it matters.
+ * Bounded above by MAX_PROBE_TIMEOUT_MS (AS-113): past 2^31-1 Node clamps the
+ * timer to 1 ms, so a larger value is not a longer budget — it is a 1 ms one
+ * that reports itself as huge. Rejected here, at the one place the knob is
+ * parsed, so no probe ever sees it.
  */
 function probeBudget() {
   const raw = process.env.CHAT_PROBE_TIMEOUT_MS || null;
@@ -128,6 +133,9 @@ function probeBudget() {
   const ms = Number(raw);
   if (!/^\d+$/.test(raw) || !(ms > 0)) {
     fail(`chat: invalid CHAT_PROBE_TIMEOUT_MS '${raw}' — a positive integer of milliseconds (AS-83).`);
+  }
+  if (ms > MAX_PROBE_TIMEOUT_MS) {
+    fail(`chat: invalid CHAT_PROBE_TIMEOUT_MS '${raw}' — above ${MAX_PROBE_TIMEOUT_MS} ms, the Node timer ceiling; a larger delay is clamped to 1 ms (AS-113).`);
   }
   return ms;
 }
