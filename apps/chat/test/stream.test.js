@@ -1185,6 +1185,38 @@ test('stream-company-replaced-same-inode: a file rewritten in place (same inode,
   assert.equal(cleared[0].data.lanes.events.reason, 'ok');
 });
 
+// --- AS-124 N2: a reset recounts `malformed` from the file it re-reads -------
+
+test('stream-company-reset-recounts-malformed: after a reset the malformed count describes the new file, not the dead one', async (t) => {
+  const dataDir = loopDataDir(t);
+  const path = eventsFile(dataDir);
+  // One junk line ON DISK AT BOOT: primed silently, counted once.
+  writeFileSync(path, 'not json\n');
+  const { base, get } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS, eventsPollMs: FAST_POLL_MS,
+  });
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  appendTwoLines(path);
+  const before = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(before.length, 2, 'two planted lines, two frames');
+  assert.equal((await get('/api/lanes')).data.lanes.events.malformed, 1, 'the boot-time junk line is counted once');
+
+  // The cheapest reset: truncate in place (same inode). The new file carries
+  // ONE junk line of its own. The counter must say 1 — not 0 (a reset that
+  // zeroes and never recounts) and not 2 (master: the dead file's junk carried).
+  truncateSync(path, 0);
+  const fresh = stageStarted('AS-9');
+  appendFileSync(path, `still not json\n${fresh}`);
+  const after = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(after.length, 1, 'one real line after the truncate, one frame');
+  assert.equal(after[0].data.id, JSON.parse(fresh).id);
+  const lanes = (await get('/api/lanes')).data;
+  assert.equal(lanes.lanes.events.reason, 'truncated');
+  assert.equal(lanes.lanes.events.malformed, 1, 'recounted from the new file: its one junk line, not the old file\'s too');
+});
+
 test('stream: AS-99 — lanes frames reach every viewer identically (no visibility gate)', async (t) => {
   const dataDir = loopDataDir(t);
   const { base } = await bootServer(t, FIXTURE_ROOT, {

@@ -380,6 +380,9 @@ export function createChatServer({
     eventsTail.reason = reason;
     eventsTail.lastId = null;
     eventsTail.lastTs = null;
+    // AS-124 N2: the file is re-read from 0 after any reset, so its junk lines
+    // are counted fresh — the counter describes the file the fold was built from.
+    eventsTail.malformed = 0;
     eventsTail.ino = null;
     eventsTail.lastBytes = Buffer.alloc(0);
   }
