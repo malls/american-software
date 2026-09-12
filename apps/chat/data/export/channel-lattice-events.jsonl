@@ -683,3 +683,9 @@
 {"type":"message","id":1070,"thread_root_id":null,"author":"system:lattice","body":"AS-131 created by agent:cto-owen — \"Chat: lazy-load messages — paginate conversation history so…\" [backlog]","created_at":"2026-09-12T16:39:05.863Z"}
 {"type":"message","id":1072,"thread_root_id":null,"author":"system:lattice","body":"AS-121: review → in_progress — by agent:cto-owen","created_at":"2026-09-12T16:43:40.322Z"}
 {"type":"message","id":1073,"thread_root_id":null,"author":"system:lattice","body":"AS-129: review → done — by agent:cto-owen","created_at":"2026-09-12T17:03:07.399Z"}
+{"type":"message","id":1074,"thread_root_id":null,"author":"system:lattice","body":"AS-132 created by agent:cto-owen — \"Chat watcher: a loop re-armed after resume() lands past the…\" [backlog]","created_at":"2026-09-12T17:04:40.387Z"}
+{"type":"message","id":1075,"thread_root_id":null,"author":"system:lattice","body":"AS-130: review → in_progress — by agent:cto-owen","created_at":"2026-09-12T17:05:07.498Z"}
+{"type":"message","id":1076,"thread_root_id":null,"author":"system:lattice","body":"AS-121: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T17:05:40.344Z"}
+{"type":"message","id":1077,"thread_root_id":null,"author":"system:lattice","body":"AS-50: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T17:08:08.366Z"}
+{"type":"message","id":1078,"thread_root_id":null,"author":"system:lattice","body":"AS-130: in_progress → needs_human — by agent:cto-owen","created_at":"2026-09-12T17:19:35.860Z"}
+{"type":"message","id":1079,"thread_root_id":null,"author":"system:lattice","body":"AS-50: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T17:28:14.609Z"}
