@@ -112,6 +112,11 @@ reading (`prependPreservingScroll`, `public/scroll.js`). Live frames, the
 A permalink or thread link whose target is older than the newest page pages
 back until it is loaded — at most 20 pages (1,000 top-level messages); past
 that the anchor drops exactly like a dead id.
+Rendering rule (AS-135): navigation and an older-page prepend rebuild the
+pane from data; a live frame, send echo or catch-up row patches it — one node
+inserted in id order, the reply's root count edited in place
+(`public/message-pane.js`), so existing nodes, the `m=` highlight and the
+reader's scroll position survive every frame.
 
 | `GET /api/messages?conversation=&me=` + | Returns |
 |---|---|
