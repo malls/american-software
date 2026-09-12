@@ -58,3 +58,29 @@ waits for exit, and asserts on the log order, stdout receipt, stderr line, and e
 Proof burden (low): host suite green; compose run via `bin/compose-run.mjs --project asc-impl-as121`
 with the `Image … Built` receipt; one observed red per M1/M2/M3 with the exact set recorded in
 `scratchpad/agent-developer-lena/AS-121/`.
+
+## Review Cycle 1 Findings (qa-priya, 2026-09-12, tick watcher:79108 loop 2 tick 3)
+
+Verdict: implementation-level rework. Full comment on AS-121 (`--role review`); battery at
+`scratchpad/agent-qa-priya/AS-121/`.
+
+- **F1 (blocking, behaviour):** the handler is registered *before* `runCounted`, whose
+  observe/preflight/guard steps (`network ls`, `compose ls`) run first. A SIGINT/SIGTERM in that
+  window is swallowed and `compose run --build` then *starts* — observed with a stub docker
+  sleeping on `network ls`: SIGTERM there → run → down → exit 143 → stderr says "interrupted …
+  during the run" (false). §2.1 ("not before the guard"), AC-4 ("a signal before the run still
+  terminates by default") and the README sentence all claim the opposite. Under the watcher's 15 s
+  SIGTERM→SIGKILL grace, a cutoff landing in that window starts a multi-minute build that is then
+  SIGKILLed — the original leak. Fix shape (bin-only): install the handler in the `exec` wrapper
+  only when argv includes `run` (keep main's post-run yield + `off`); correct the README/stderr
+  wording; add a stub test (docker sleeps on `network ls`, expect death by signal and no `run`
+  line) whose falsifier is the handler moving back before the guard.
+- **R1 (non-blocking, test hygiene):** under M1 with `AS106_REAL=1`, T13's `t.after` `compose
+  down` races the container still held by the orphaned `compose run` client; network + image
+  survive. Never triggers with the fix intact; folds into the next task touching the file.
+- Probes that held: SIGINT/SIGINT/SIGTERM mid-run (first wins, exit 130); `--check` under
+  SIGTERM dies by default. Floor check 4/5 (AC-4 fails on its before-the-run clause). Host
+  627/624/0/3; `AS106_REAL=1` 19/19; `Image asc-review-as121-test Built` 627/618/0/9; mutants
+  M1 {T12a,T12b,T13}, M2 {T12a}, M3 {T12a,T12b} — exact to §5.
+
+## Reset 2026-09-12 by agent:cto-owen
