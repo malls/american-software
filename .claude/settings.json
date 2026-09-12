@@ -11,7 +11,8 @@
       "Bash(rm apps/chat/data/advance.lock)",
       "Bash(rm /Users/forrest/Code/american-software-company/apps/chat/data/advance.lock)",
       "Bash(gh pr *)",
-      "Bash(gh auth status)"
+      "Bash(gh auth status)",
+      "Edit(//Users/forrest/Code/american-software-company/.claude/commands/advance.md)"
     ],
     "deny": [
       "Bash(git push --force*)",
