@@ -238,29 +238,33 @@ test('T10b runCheck is read-only: never down, rm, or prune', () => {
 //
 // A real child process, not the exec stub: bin/compose-run.mjs is spawned with
 // a `#!/bin/sh` stub docker as ADVANCE_DOCKER_BIN that appends every argv to
-// $AS121_LOG, sleeps on `compose … run`, and answers the rest with nothing.
-// The test waits for the run line in the log, signals, and reads the log
-// order, the receipt, the stderr line, and the exit code.
+// $AS121_LOG, sleeps on `compose … run` (and, with AS121_SLOW_PREFLIGHT set,
+// on the guard's `network ls` too), and answers the rest with nothing. The
+// test waits for a line in the log, signals, and reads the log order, the
+// receipt, the stderr line, and the exit code.
 
 const SCRIPT = new URL('../bin/compose-run.mjs', import.meta.url).pathname;
 const STUB_DOCKER = `#!/bin/sh
 echo "$*" >> "$AS121_LOG"
 case "$*" in
+  *"network ls"*) if [ -n "$AS121_SLOW_PREFLIGHT" ]; then sleep 2; fi ;;
   *" run "*) echo started; sleep 2; printf 'ℹ tests 1\\nℹ pass 1\\nℹ fail 0\\nℹ skipped 0\\n Image asc-as121-stub-test Built \\n' ;;
   *"compose ls"*) echo '[]' ;;
 esac
 `;
 
 /** Spawns the script against the stub docker; resolves { code, signal, stdout, stderr, log } after exit. */
-function spawnWithStub(t, project, { detached = false } = {}) {
+function spawnWithStub(t, project, { detached = false, slowPreflight = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'asc-as121-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const bin = join(dir, 'docker');
   const log = join(dir, 'argv.log');
   writeFileSync(bin, STUB_DOCKER, { mode: 0o755 });
   writeFileSync(log, '');
+  const env = { ...process.env, ADVANCE_DOCKER_BIN: bin, AS121_LOG: log };
+  if (slowPreflight) env.AS121_SLOW_PREFLIGHT = '1';
   const child = spawn(process.execPath, [SCRIPT, '--project', project, '--cwd', dir], {
-    detached, env: { ...process.env, ADVANCE_DOCKER_BIN: bin, AS121_LOG: log }, stdio: ['ignore', 'pipe', 'pipe'],
+    detached, env, stdio: ['ignore', 'pipe', 'pipe'],
   });
   let stdout = '';
   let stderr = '';
@@ -268,14 +272,15 @@ function spawnWithStub(t, project, { detached = false } = {}) {
   child.stderr.on('data', (d) => { stderr += d; });
   const exited = new Promise((res) => child.on('exit', (code, signal) => res({ code, signal, stdout, stderr, log: readFileSync(log, 'utf8') })));
   const argvLines = () => readFileSync(log, 'utf8').split('\n').filter(Boolean);
-  const untilRunning = async () => {
+  const until = async (re, what) => {
     for (let i = 0; i < 200; i++) {
-      if (argvLines().some((l) => / run /.test(l))) return;
+      if (argvLines().some((l) => re.test(l))) return;
       await sleep(25);
     }
-    throw new Error(`stub docker never saw the run call; log: ${argvLines().join(' | ')}`);
+    throw new Error(`stub docker never saw the ${what} call; log: ${argvLines().join(' | ')}`);
   };
-  return { child, exited, untilRunning, argvLines };
+  const untilRunning = () => until(/ run /, 'run');
+  return { child, exited, until, untilRunning, argvLines };
 }
 
 function downAfterRunInLog(log, project) {
@@ -315,6 +320,27 @@ test('T12b SIGINT to the whole process group (script + docker child): down runs 
   assert.match(r.stderr, /compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt/);
   assert.notEqual(r.code, 0);
   assert.equal(r.code, EXIT.NO_BUILD, 'a killed run has no Built line: the lib exit wins over 130');
+});
+
+// Review cycle 1 F1: the handler must not be armed before the guard. A signal
+// while the pre-flight `network ls` is still running has nothing to tear down,
+// so the default disposition applies: the script dies of the signal and the
+// build never starts. (Cycle-0 code armed the handler before runCounted, swallowed
+// the signal here, and then ran the build.)
+test('T12c SIGTERM during the pre-flight (before the guard): default disposition — dies of the signal, no run, no down, no receipt', async (t) => {
+  const project = 'asc-as121-t12c';
+  const s = spawnWithStub(t, project, { slowPreflight: true });
+  await s.until(/network ls/, 'network ls');
+  await sleep(200);
+  s.child.kill('SIGTERM');
+  const r = await s.exited;
+  const lines = r.log.split('\n').filter(Boolean);
+  assert.equal(r.signal, 'SIGTERM', `before the run the script dies of the signal; log: ${lines.join(' | ')}; stderr: ${r.stderr}`);
+  assert.equal(r.code, null);
+  assert.ok(!lines.some((l) => / run /.test(l)), `no run after a signal in the guard window: ${lines.join(' | ')}`);
+  assert.ok(!lines.some((l) => / down /.test(l)), `nothing to tear down, so no down: ${lines.join(' | ')}`);
+  assert.doesNotMatch(r.stdout, /RECEIPT/);
+  assert.doesNotMatch(r.stderr, /interrupted by/);
 });
 
 // --- AC-11: the real thing, opt in ------------------------------------------------------------
