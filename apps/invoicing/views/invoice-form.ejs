@@ -132,6 +132,15 @@
               <p>No clients yet — add one below.</p>
             <% } %>
             <input type="hidden" name="pickerMode" value="new" />
+            <% if (clientError !== null) { %>
+              <%# A save/send with no client while adding one (review cycle 1,
+                  D1): the picker as a whole is the invalid field. There is no
+                  select to mark, so the slot carries the message alone and
+                  the banner's count still equals the page's markers. %>
+              <div class="field field--invalid">
+                <span class="field-error" id="client-error"><%= clientError %></span>
+              </div>
+            <% } %>
             <% if (clientNameError !== null) { %>
               <div class="field field--invalid">
                 <label for="clientName">Client name</label>

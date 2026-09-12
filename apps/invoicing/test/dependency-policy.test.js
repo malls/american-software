@@ -766,8 +766,10 @@ const VIEW_FILES = /^views\//;
  *  RE-MEASURED 2026-09-12 (AS-46, at the rebase onto AS-70's merge) with
  *  views/invoice-form.ejs in the set: this scan reported 87 + 43 + 202 across
  *  the three templates — 202 for invoice-form.ejs — written down after the
- *  run, never before. */
-const VIEW_START_TAGS = 87 + 43 + 202;
+ *  run, never before. Re-measured again at AS-46's review cycle 1: the client
+ *  error slot in the add-new branch (a div and a span, open and close) moved
+ *  invoice-form.ejs to 206; the scan reported 336 and this line followed it. */
+const VIEW_START_TAGS = 87 + 43 + 206;
 
 const lineAt = (text, index) => text.slice(0, index).split('\n').length;
 

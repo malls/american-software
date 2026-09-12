@@ -358,6 +358,47 @@ test('S4-ERROR-VALIDATION re-renders every submitted value as typed and marks ea
   });
 });
 
+test('in add-new picker mode a save or send without a client marks exactly the field the banner counts', async () => {
+  // Review cycle 1, D1: the picker in add-new mode has no <select>, so the
+  // client-required error needs its own slot — the banner's number and the
+  // page's markers must agree, in both ways into that mode (zero clients, and
+  // one client with the picker toggled) and for both persisting intents.
+  const bannerCount = (html) => {
+    const match = html.match(/(\d+) fields? needs? attention/);
+    return match === null ? null : Number(match[1]);
+  };
+  const markers = (html) => occurrences(html, 'class="field field--invalid"');
+  const valid = { daysUntilDue: '30', ...itemFields([{ description: 'Work', quantity: '1', unitPrice: '10.00' }]) };
+  for (const clients of [0, 1]) {
+    await withScreenApp({ clients }, async ({ post, repos, freelancer }) => {
+      for (const intent of ['save', 'send']) {
+        const res = await post(NEW, { intent, pickerMode: 'new', ...valid });
+        const label = `${clients} client(s), intent=${intent}`;
+        assert.equal(res.status, 400, label);
+        const html = await res.text();
+        assert.equal(stateOf(html), 'S4-ERROR-VALIDATION', label);
+        assert.equal(occurrences(html, '<select'), 0, `${label}: still add-new mode`);
+        assert.equal(bannerCount(html), 1, `${label}: the banner counts one field`);
+        assert.equal(markers(html), bannerCount(html), `${label}: the page marks what the banner counts`);
+        assert.equal(occurrences(html, 'Add the client first.'), 1, `${label}: the add-new copy, once`);
+        assert.equal(occurrences(html, 'Select a client.'), 0, `${label}: nothing to select from`);
+        assert.equal(occurrences(html, 'name="clientName"'), 1, `${label}: the sub-form still renders`);
+        assert.equal(repos.invoices.listByFreelancer(freelancer.id).length, 0, `${label}: nothing persisted`);
+      }
+      // The select-mode copy is unchanged: the same valid form with the picker
+      // in select mode and no client chosen marks the select.
+      if (clients === 1) {
+        const res = await post(NEW, { intent: 'save', pickerMode: 'select', clientId: '', ...valid });
+        const html = await res.text();
+        assert.equal(res.status, 400);
+        assert.equal(markers(html), 1);
+        assert.equal(occurrences(html, 'Select a client.'), 1);
+        assert.equal(occurrences(html, 'Add the client first.'), 0);
+      }
+    });
+  }
+});
+
 test('line items are accepted in both shapes qs produces, and 25 rows survive a re-render in order', async () => {
   // Pure first: the parser takes the array qs yields below its limit and the
   // index-keyed object it yields above it.

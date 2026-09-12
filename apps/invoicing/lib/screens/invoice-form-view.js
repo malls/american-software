@@ -102,6 +102,9 @@ const FIELD_MESSAGE = Object.freeze({
   unitPrice: 'Enter a price like 1200.00.',
   daysUntilDue: 'Enter at least 1 day.',
   client: 'Select a client.',
+  // The same error with the picker in add-new mode, where there is nothing to
+  // select from (review cycle 1, D1). The wireframe supplies no copy for it.
+  clientAddFirst: 'Add the client first.',
   noRows: 'Add at least one line item.',
   tooManyRows: `At most ${MAX_LINE_ITEMS} line items.`,
 });
@@ -319,9 +322,12 @@ export function invoiceFormLocals(input = {}) {
   else if (draft !== null) selectedClientId = draft.clientId;
 
   // Field errors show only on a save/send that failed; an unknown intent gets
-  // the dispatch banner and its values back, unmarked.
+  // the dispatch banner and its values back, unmarked. The client error's copy
+  // follows the picker's mode: in add-new mode there is no select, so the
+  // template renders it in the sub-form's own slot with its own sentence.
   const showErrors = state === 'S4-ERROR-VALIDATION' && persisting;
-  const clientError = showErrors ? clientIdError : null;
+  let clientError = null;
+  if (showErrors && clientIdError !== null) clientError = pickerMode === 'new' ? FIELD_MESSAGE.clientAddFirst : clientIdError;
 
   // --- rows -----------------------------------------------------------------
   let rows;
