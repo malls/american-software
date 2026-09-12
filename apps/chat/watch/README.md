@@ -114,7 +114,11 @@ not decide the company is finished.
   `advance-loop.json`. When it elapses the next poll arms a **fresh loop**:
   `ticks` 0, a new `startedAt` (the cap counts from the re-arm), the same
   `armedBy`. Its first tick is a loop tick like any other — same lock wait,
-  same deploy yield, `LOOP-FIRE tick 1`.
+  same deploy yield, `LOOP-FIRE tick 1` — and, like a resumed loop's first
+  tick, it waits out a lock younger than the tick timeout before firing
+  (AS-132): a cooldown entered from `resume()` may be sitting beside the dead
+  watcher's orphaned tick, whose lock carries a dead pid the steal rule would
+  otherwise take.
 - **What does not:** a `cap-hit` on a dry board (`rearmAt` stays null), and
   every other stop — `dry`, `no-progress`, `tick-failed-twice`,
   `lock-unavailable`, `error` end a loop for good. A new board message is not
