@@ -1,7 +1,14 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:developer-lena",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-132-rearm-resume-hold",
+      "linked_at": "2026-09-12T19:51:37Z",
+      "linked_by": "agent:developer-lena",
+      "repo": null
+    }
+  ],
   "comment_count": 2,
   "complexity": "low",
   "created_at": "2026-09-12T17:04:11Z",
@@ -11,7 +18,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M2B9771NPP7TWFEBAV32YWWH",
-  "last_event_id": "ev_01M2BJSS339N36DMNXS287P7G2",
+  "last_event_id": "ev_01M2BJSSAJ1CBS8N55XWEE6C14",
   "last_status_changed_at": "2026-09-12T19:51:36Z",
   "linked_files": [],
   "priority": "medium",
@@ -23,6 +30,6 @@
   "tags": null,
   "title": "Chat watcher: a loop re-armed after resume() lands past the cap fires with resumeHold=false \u2014 a 12-min-old lock under a dead watcher pid is stolen beside the orphan (AS-129 Ruben F1)",
   "type": "bug",
-  "updated_at": "2026-09-12T19:51:36Z",
+  "updated_at": "2026-09-12T19:51:37Z",
   "urgency": null
 }
