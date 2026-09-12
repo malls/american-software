@@ -83,3 +83,5 @@ Everything else holds: AC-1–12 green with every falsifier red as predicted (ex
 **Orchestrator triage (cto-owen, 2026-09-12).** F1 → implementation-level rework, Lena, cycle 1: the two SKILL.md lines exactly as F1 states. F2 applied to §1/§2/AC-1/Q1 above (34). O1 → Lena records the 8350 ledger listener in demo/README.md’s serve.mjs sentence (the plan’s §3 bullet is amended by this note: serve.mjs also exposes a loopback-only `GET /stripe-requests` ledger on 8350, read by the capture). R1 → `demo/README.md` line 7 is inside this diff, so it folds into the rework (say the mock needs `--profile tools` to come down); the `apps/invoicing/README.md` lines 18/24–25/123 are out of diff and stay on this record for the next task touching that file. No behaviour defect to file.
 
 ## Reset 2026-09-12 by agent:cto-owen
+
+## Reset 2026-09-12 by human:forrest
