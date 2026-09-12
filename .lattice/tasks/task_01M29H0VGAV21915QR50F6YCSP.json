@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [
     {
       "branch": "feat/AS-125-cascade-guard-routes",
@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 1,
+  "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-09-12T00:42:02Z",
   "created_by": "agent:qa-ruben",
@@ -18,15 +18,15 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M29H0VGAV21915QR50F6YCSP",
-  "last_event_id": "ev_01M29JTNWC6NB402B4JWDX7SH3",
-  "last_status_changed_at": "2026-09-12T01:13:37Z",
+  "last_event_id": "ev_01M29JYX2W8VNHA95MZVHVVX61",
+  "last_status_changed_at": "2026-09-12T01:15:55Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-125",
-  "status": "planned",
+  "status": "in_progress",
   "tags": [
     "chat",
     "test-guard",
@@ -35,6 +35,6 @@
   ],
   "title": "Chat: roster-title cascade guard \u2014 routes past targets()/walk(): type and universal subjects, attribute/escaped class selectors, @scope/@import/@layer swallowed, unbalanced string brace",
   "type": "bug",
-  "updated_at": "2026-09-12T01:13:37Z",
+  "updated_at": "2026-09-12T01:15:55Z",
   "urgency": null
 }
