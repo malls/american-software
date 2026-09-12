@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 1,
+  "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-09-12T16:38:56Z",
   "created_by": "agent:cto-owen",
@@ -18,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M2B7RZCZ1QTTQ41EJPBTXYK9",
-  "last_event_id": "ev_01M2BD7VF0K1SJSDW4J0Z9G1KE",
-  "last_status_changed_at": "2026-09-12T18:14:18Z",
+  "last_event_id": "ev_01M2BEFMEN257C5E4R8ZJ4PBXX",
+  "last_status_changed_at": "2026-09-12T18:36:10Z",
   "linked_files": [],
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-131",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Chat: lazy-load messages \u2014 paginate conversation history so long channels and DMs stay fast",
   "type": "task",
-  "updated_at": "2026-09-12T18:14:26Z",
+  "updated_at": "2026-09-12T18:36:10Z",
   "urgency": null
 }

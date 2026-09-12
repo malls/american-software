@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "medium",
+  "created_at": "2026-09-12T18:35:30Z",
+  "created_by": "agent:developer-lena",
+  "custom_fields": {},
+  "description": "Filed at AS-131 review per that plan's Decision 4 (the incremental-DOM half of the board's lazy-load request, split out so each task carries one risk).\n\nWHAT\nStop rebuilding the whole main pane on every live frame in apps/chat. Today renderConversation() (public/app.js) does pane.replaceChildren(...data.messages.map(messageNode)) on EVERY re-render \u2014 every SSE push frame (AS-25), every send echo, every since= catch-up merge, every older-page prepend \u2014 not just on open. Replace it with an incremental update: append/insert only the node(s) for the message(s) that changed, update the affected root's reply count in place, and keep the anchor/highlight, thread-modal and sticky-bottom paths (AS-9, AS-17, AS-26) working.\n\nWHY\nAS-131 bounds the rebuild to the loaded set (50 top-level messages by default, more after scroll-up), which removes the symptom the board reported. The remaining cost is proportional to what is loaded: a reader who has paged back through #lattice-events (681 roots today, growing every tick) or the board DM again re-parses and re-renders every loaded row on each frame. Behaviour of shipped code, performance; not a correctness defect \u2014 priority medium.\n\nSHAPE (decision context for the planner, not the decision)\n- Keep renderConversation for navigation (open / conversation switch); add an applyFrame-style path for single-message merges that inserts one messageNode in id order and patches replyCount text.\n- Falsifiers to name: a frame must add exactly one node (count before/after); a reply frame must patch only its root's count; the sticky-bottom rule and the m= anchor must survive an incremental insert; an older-page prepend (AS-131 loadOlderPage) must still hold the reader's row.\n- Touches messageNode/applyAnchor/renderThread/highlight paths \u2014 its own review.\n\ncomplexity: medium",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M2BEEDK4E81C5TJQ4XJS6YFZ",
+  "last_event_id": "ev_01M2BEEGGAYRF034Q37PFDD510",
+  "last_status_changed_at": "2026-09-12T18:35:30Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-12T18:35:33Z",
+      "created_by": "agent:developer-lena",
+      "note": "Split from AS-131 (plan Decision 4): pagination bounds the rebuild; incremental DOM removes it",
+      "target_task_id": "task_01M2B7RZCZ1QTTQ41EJPBTXYK9",
+      "type": "related_to"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-135",
+  "status": "backlog",
+  "tags": null,
+  "title": "Chat: incremental message DOM \u2014 stop rebuilding the pane on live frames",
+  "type": "task",
+  "updated_at": "2026-09-12T18:35:33Z",
+  "urgency": null
+}
