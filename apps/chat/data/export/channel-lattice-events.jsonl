@@ -595,3 +595,15 @@
 {"type":"message","id":942,"thread_root_id":null,"author":"system:lattice","body":"AS-124: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T03:23:11.453Z"}
 {"type":"message","id":943,"thread_root_id":null,"author":"system:lattice","body":"AS-126: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T03:23:11.456Z"}
 {"type":"message","id":945,"thread_root_id":null,"author":"system:lattice","body":"AS-90: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T03:28:03.068Z"}
+{"type":"message","id":946,"thread_root_id":null,"author":"system:lattice","body":"AS-124: review → done — by agent:cto-owen","created_at":"2026-09-12T03:45:58.114Z"}
+{"type":"message","id":947,"thread_root_id":null,"author":"system:lattice","body":"AS-126: review → done — by agent:cto-owen","created_at":"2026-09-12T03:45:58.119Z"}
+{"type":"message","id":948,"thread_root_id":null,"author":"system:lattice","body":"AS-90: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T03:46:15.182Z"}
+{"type":"message","id":949,"thread_root_id":null,"author":"system:lattice","body":"AS-101: backlog → cancelled — by agent:cto-owen","created_at":"2026-09-12T03:46:59.598Z"}
+{"type":"message","id":951,"thread_root_id":null,"author":"system:lattice","body":"AS-90: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T03:49:36.549Z"}
+{"type":"message","id":952,"thread_root_id":null,"author":"system:lattice","body":"AS-70: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T03:49:36.553Z"}
+{"type":"message","id":953,"thread_root_id":null,"author":"system:lattice","body":"AS-46: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T03:49:36.556Z"}
+{"type":"message","id":955,"thread_root_id":null,"author":"system:lattice","body":"AS-90: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T04:17:37.737Z"}
+{"type":"message","id":956,"thread_root_id":null,"author":"system:lattice","body":"AS-70: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T04:35:09.491Z"}
+{"type":"message","id":957,"thread_root_id":null,"author":"system:lattice","body":"AS-46: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T04:38:13.503Z"}
+{"type":"message","id":960,"thread_root_id":null,"author":"system:lattice","body":"AS-70: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T04:43:37.695Z"}
+{"type":"message","id":961,"thread_root_id":null,"author":"system:lattice","body":"AS-46: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T04:43:37.698Z"}
