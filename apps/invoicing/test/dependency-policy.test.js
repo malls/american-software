@@ -307,8 +307,12 @@ const UNSCANNED = new Set(['package-lock.json', 'README.md', '.dockerignore']);
  *  loopback listener; vendor/ is not ours and exists only inside the image
  *  (including it would make the file set differ between host and container —
  *  what lands there is bounded by VENDOR_ASSETS, pinned by assets.test.js);
- *  node_modules/ is the lockfile's job. */
-const SKIPPED_DIRS = new Set(['node_modules', 'test', 'vendor']);
+ *  node_modules/ is the lockfile's job. demo/ (AS-90) is the board's
+ *  walkthrough: like test/ it drives its own loopback listener with `fetch`
+ *  and is never imported by app code — which the closed-world case below
+ *  asserts rather than assumes, so skipping the directory cannot quietly make
+ *  it an import path for lib/ or routes/. */
+const SKIPPED_DIRS = new Set(['node_modules', 'test', 'vendor', 'demo']);
 
 /** Walk `dir` and bucket every file by basename. */
 function classifyTree(dir) {
@@ -429,6 +433,18 @@ test('the scan examines exactly the files it is supposed to — source, manifest
   for (const path of SCANNED) {
     assert.ok(strippedText(path).trim().length > 0, `${relative(APP_DIR, path)} stripped to nothing — the stripper is broken`);
   }
+
+  // 5. A SKIPPED directory is not an import path for app code (AS-90). demo/
+  // is skipped like test/, so nothing above scans it — which is exactly why
+  // this is asserted: a `demo/` import from lib/ or routes/ would pull unscanned
+  // code (a second `fetch` user) into the runtime through a door the walker
+  // deliberately does not look behind. Whole-text on the STRIPPED source so a
+  // comment naming the directory (the Dockerfile's, this file's) is not a hit;
+  // the specifier form (`from '…demo/…'`, `import('…demo/…')`) is what is
+  // matched. Cardinality first: the set examined is the closed world above.
+  assert.equal(SCANNED.length, source.length + manifest.length);
+  const demoImports = SCANNED.filter((path) => /(from|import\s*\()\s*['"][^'"]*\bdemo\/[^'"]*['"]/.test(strippedText(path)));
+  assert.deepEqual(demoImports.map((p) => relative(APP_DIR, p)), [], 'app source imports from demo/ — the walkthrough is not runtime code');
 });
 
 // --- outbound HTTP clients, and the one hit that is allowed ------------------
