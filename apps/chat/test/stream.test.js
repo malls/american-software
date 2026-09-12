@@ -992,6 +992,52 @@ test('stream-lanes-liveness-change-only: a stage event earns a lanes frame; elap
   );
 });
 
+test('stream-lanes-no-frame-for-laneless-event: an event that touches no lane earns a company frame but no lanes frame; a junk line earns neither', async (t) => {
+  const dataDir = loopDataDir(t);
+  const path = eventsFile(dataDir);
+  writeFileSync(path, '');
+  writeFileSync(join(dataDir, 'worktrees.json'), laneSnapshot(new Date().toISOString(), {
+    worktrees: [
+      { relPath: '.', main: true, head: 'f6717b8', branch: 'master', detached: false, ahead: null, behind: null,
+        dirtyCount: null, dirtyLattice: null, merged: null, lastCommit: null, errors: [] },
+      { relPath: '.worktrees/AS-7', main: false, head: 'abc1234', branch: 'feat/AS-7-thing', detached: false,
+        ahead: 1, behind: 0, dirtyCount: 0, dirtyLattice: false, merged: false, lastCommit: null, errors: [] },
+    ],
+  }));
+  const { base } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS, eventsPollMs: FAST_POLL_MS,
+  });
+
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  // A tick starts. It is a real event (one `company` frame) but it belongs to
+  // no lane and moves nothing the pane draws — so no `lanes` frame. Under the
+  // AS-100 key (`events.lastId` in the block) every such event bought a frame
+  // with a payload that had not changed (AS-111 F2).
+  appendFileSync(path, eventLine('tick_started', {
+    source: 'watcher', pid: 5285, startedAt: new Date().toISOString(), messageId: 651, loopTick: 3,
+  }));
+  const framesA = await drain(stream, FAST_POLL_MS * 8 + 300);
+  assert.equal(framesA.filter((f) => f.event === 'company').length, 1, 'one tick event, one company frame');
+  assert.equal(framesA.filter((f) => f.event === 'lanes').length, 0, 'a laneless event earns no lanes frame');
+
+  // A hand-appended junk line: counted as malformed, rendered nowhere, and
+  // therefore worth neither kind of frame.
+  appendFileSync(path, 'not json\n');
+  const framesB = await drain(stream, FAST_POLL_MS * 8 + 300);
+  assert.equal(framesB.filter((f) => f.event === 'company').length, 0, 'junk is not an event');
+  assert.equal(framesB.filter((f) => f.event === 'lanes').length, 0, 'and malformed alone earns no lanes frame');
+
+  // The control: a stage event for a listed lane still moves the key — the
+  // frame is withheld for the payload that did not change, not for every event.
+  appendFileSync(path, stageStarted('AS-7'));
+  const framesC = await drain(stream, FAST_POLL_MS * 8 + 300);
+  const lanesC = framesC.filter((f) => f.event === 'lanes');
+  assert.equal(lanesC.length, 1, 'a real lane change still earns exactly one lanes frame');
+  assert.ok(lanesC[0].data.lanes.lanes.some((l) => l.subAgent && l.subAgent.alive), 'and the lane it belongs to is live');
+});
+
 test('stream: AS-99 — lanes frames reach every viewer identically (no visibility gate)', async (t) => {
   const dataDir = loopDataDir(t);
   const { base } = await bootServer(t, FIXTURE_ROOT, {

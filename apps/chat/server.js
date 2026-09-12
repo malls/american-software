@@ -566,10 +566,17 @@ export function createChatServer({
             lastEventId: lane.subAgent.lastEvent && lane.subAgent.lastEvent.id,
           },
         })),
+      // AS-111 F2: `reason` is the one field of this block the pane reads, and
+      // `open` is a liveness fact that can move on an event for a lane the
+      // pane does not list — and only on real state change. `lastId` and
+      // `malformed` are deliberately OUT: every event that touches a lane
+      // already earns its frame through the lane fields above, so keying on
+      // `lastId` bought a frame per tick_started/tick_ended and per event for
+      // a task the pane does not show, and `malformed` one per junk line —
+      // none of it rendered. The per-event liveness signal is the `company`
+      // frame on the same connection.
       events: p.events && {
         reason: p.events.reason,
-        lastId: p.events.lastId,
-        malformed: p.events.malformed,
         open: p.events.open,
       },
     });
