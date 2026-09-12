@@ -288,8 +288,8 @@ const SOURCE_EXT = /\.(js|mjs|cjs|ejs|css)$/;
 const MANIFEST_NAME = /^(Dockerfile(\..+)?|.+\.ya?ml|.+\.json)$/;
 
 /** Files the walker accounts for but never reads. ALLOWED-IF-PRESENT, not an
- *  expected list: .dockerignore exists only in the image (COPY'd from the repo
- *  root), and the suite must pass in both places.
+ *  expected list: none of these can execute, so an absent one is no finding
+ *  and an exact list would be a second list to maintain for no coverage.
  *   - package-lock.json: generated, no executable content, and guarded by the
  *     right tool for its shape — LOCK_ENTRIES plus exact-name matching above.
  *     A regex over 898 lines adds noise and no coverage.
@@ -300,16 +300,18 @@ const MANIFEST_NAME = /^(Dockerfile(\..+)?|.+\.ya?ml|.+\.json)$/;
 const UNSCANNED = new Set(['package-lock.json', 'README.md', '.dockerignore']);
 
 /** Not walked at all, as before AS-53: test/ legitimately fetches its own
- *  loopback listener; vendor/ is not ours and exists only inside the image
- *  (including it would make the file set differ between host and container —
- *  what lands there is bounded by VENDOR_ASSETS, pinned by assets.test.js);
- *  node_modules/ is the lockfile's job. demo/ (AS-90) is the board's
- *  walkthrough: like test/ it drives its own loopback listener with `fetch`
- *  and is never imported by app code — which the closed-world case below
- *  asserts rather than assumes, so skipping the directory cannot quietly make
- *  it an import path for lib/ or routes/. TOP LEVEL ONLY (AS-57): a nested
- *  `lib/vendor/` or `routes/test/` is walked like any other directory AND
- *  reported in `nestedSkipped` — skip-by-name at every depth was a hiding place. */
+ *  loopback listener; node_modules/ is the lockfile's job; vendor/ is not ours
+ *  — it is where the Dockerfile's two cross-directory COPYs land, and since the
+ *  whole app directory is COPY'd (AS-57) a host-side vendor/ would land there
+ *  too, unscanned, so assets.test.js pins /app/vendor to exactly the two
+ *  registered files (VENDOR_ASSETS + VENDOR_DOCUMENTS). demo/ (AS-90) is the
+ *  board's walkthrough: like test/ it drives its own loopback listener with
+ *  `fetch`. None of the four is an import path for app code — the closed-world
+ *  case below asserts that for every name here rather than assumes it, so
+ *  skipping a directory cannot quietly make it runtime code. TOP LEVEL ONLY
+ *  (AS-57): a nested `lib/vendor/` or `routes/test/` is walked like any other
+ *  directory AND reported in `nestedSkipped` — skip-by-name at every depth was
+ *  a hiding place. */
 const SKIPPED_DIRS = new Set(['node_modules', 'test', 'vendor', 'demo']);
 
 /** Walk `dir` and bucket every file by basename; SKIPPED_DIRS at depth 0 only. */
@@ -457,17 +459,18 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     assert.ok(strippedText(path).trim().length > 0, `${relative(APP_DIR, path)} stripped to nothing — the stripper is broken`);
   }
 
-  // 5. A SKIPPED directory is not an import path for app code (AS-90). demo/
-  // is skipped like test/, so nothing above scans it — which is exactly why
-  // this is asserted: a `demo/` import from lib/ or routes/ would pull unscanned
-  // code (a second `fetch` user) into the runtime through a door the walker
-  // deliberately does not look behind. Whole-text on the STRIPPED source so a
-  // comment naming the directory (the Dockerfile's, this file's) is not a hit;
-  // the specifier form (`from '…demo/…'`, `import('…demo/…')`) is what is
-  // matched. Cardinality first: the set examined is the closed world above.
+  // 5. No SKIPPED directory is an import path for app code (AS-90 for demo/;
+  // every SKIPPED_DIRS name since AS-57). Nothing above scans them — which is
+  // exactly why this is asserted: a `demo/`, `vendor/` or `test/` import from
+  // lib/ or routes/ would pull unscanned code (a second `fetch` user) into the
+  // runtime through a door the walker deliberately does not look behind.
+  // Whole-text on the STRIPPED source so a comment naming a directory (the
+  // Dockerfile's, this file's) is not a hit; the specifier form (`from '…demo/…'`,
+  // `import('…vendor/…')`) is. Cardinality first: the set is the closed world above.
   assert.equal(SCANNED.length, source.length + manifest.length);
-  const demoImports = SCANNED.filter((path) => /(from|import\s*\()\s*['"][^'"]*\bdemo\/[^'"]*['"]/.test(strippedText(path)));
-  assert.deepEqual(demoImports.map((p) => relative(APP_DIR, p)), [], 'app source imports from demo/ — the walkthrough is not runtime code');
+  const skippedSpecifier = new RegExp(String.raw`(from|import\s*\()\s*['"][^'"]*\b(${[...SKIPPED_DIRS].join('|')})\/[^'"]*['"]`);
+  const skippedImports = SCANNED.filter((path) => skippedSpecifier.test(strippedText(path)));
+  assert.deepEqual(skippedImports.map((p) => relative(APP_DIR, p)), [], 'app source imports from a SKIPPED_DIRS directory — skipped code is not runtime code');
 });
 
 // --- outbound HTTP clients, and the one hit that is allowed ------------------
