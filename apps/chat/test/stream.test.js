@@ -1121,12 +1121,17 @@ test('stream-company-replaced-new-inode: a file renamed over the stream (new ino
   assert.ok(laneOf(lanes1, 'AS-8').subAgent, 'the fold was rebuilt from the new content: AS-8 is now the live lane');
   assert.equal(laneOf(lanes1, 'AS-7').subAgent, null, 'and AS-7, which the new file never opens, has no signal');
 
-  // The next append clears it, exactly as truncated does.
-  appendFileSync(path, eventLine('stage_ended', {
-    task: 'AS-8', stage: 'implement', actor: 'agent:developer-lena', outcome: 'completed',
-    reason: null, closedBy: 'orchestrator', startedId: null, durationS: 30,
+  // The next append clears it, exactly as truncated does. The line is a
+  // LANELESS one on purpose: it moves no lane field and no open count, so the
+  // one lanes frame it earns is earned by `events.reason` alone — the push-side
+  // proof that the reason is in the key (it survived a mutant that dropped it
+  // while the swap above was still moving a lane).
+  appendFileSync(path, eventLine('tick_started', {
+    source: 'watcher', pid: 5286, startedAt: new Date().toISOString(), messageId: 652, loopTick: 4,
   }));
-  await drain(stream, FAST_POLL_MS * 6 + 300);
+  const cleared = (await drain(stream, FAST_POLL_MS * 6 + 300)).filter((f) => f.event === 'lanes');
+  assert.equal(cleared.length, 1, 'reason replaced → ok, no lane moved: exactly one lanes frame, for the reason alone');
+  assert.equal(cleared[0].data.lanes.events.reason, 'ok');
   assert.equal((await get('/api/lanes')).data.lanes.events.reason, 'ok', 'the next append clears the reason');
 });
 
@@ -1170,6 +1175,14 @@ test('stream-company-replaced-same-inode: a file rewritten in place (same inode,
   assert.equal(lanes.lanes.events.reason, 'replaced');
   assert.equal(lanes.lanes.events.malformed, 0, 'no mid-line fragment counted as malformed');
   assert.ok(laneOf(lanes, 'AS-8').subAgent, 'the fold was rebuilt: the third line opened AS-8');
+
+  // Same reason-only clear as the new-inode case: a laneless line, one frame.
+  appendFileSync(path, eventLine('tick_started', {
+    source: 'watcher', pid: 5286, startedAt: new Date().toISOString(), messageId: 652, loopTick: 4,
+  }));
+  const cleared = (await drain(stream, FAST_POLL_MS * 6 + 300)).filter((f) => f.event === 'lanes');
+  assert.equal(cleared.length, 1, 'reason replaced → ok, no lane moved: exactly one lanes frame, for the reason alone');
+  assert.equal(cleared[0].data.lanes.events.reason, 'ok');
 });
 
 test('stream: AS-99 — lanes frames reach every viewer identically (no visibility gate)', async (t) => {
