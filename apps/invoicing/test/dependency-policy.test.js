@@ -795,7 +795,6 @@ const VIEW_FILES = /^views\//;
  *  — two fewer than its first measurement (60) after the "New contract" nav
  *  anchor moved to AS-127 with its route: the scan counts the open AND the
  *  close tag, so one removed anchor moves it by 2.
-<<<<<<< HEAD
  *
  *  RE-MEASURED 2026-09-12 (AS-48, at the rebase onto AS-47's merge) with
  *  views/dashboard.ejs and views/invoice-detail.ejs in the set, and the nav
