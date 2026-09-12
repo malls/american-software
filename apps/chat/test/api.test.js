@@ -1541,6 +1541,23 @@ test('api: AS-109 — the favicon carries no SMIL animation element', async (t) 
   assert.ok(!smil, `the artwork carries no SMIL animation element, found <${smil && smil[1]}>`);
 });
 
+test('api: AS-126 — the favicon carries no filter element or filter= attribute', async (t) => {
+  const { base } = await bootServer(t);
+  const svg = await (await fetch(base + '/favicon.svg')).text();
+
+  // AS-109 review N4: filter="drop-shadow(0 0 1px red)" is a presentation
+  // attribute — not a paint, not a style — so neither guard above reads it,
+  // and a <filter> element behind filter="url(#f)" can recolour the artwork
+  // (feColorMatrix) with no paint attribute at all. BRANDING.md §7.A.5 forbids
+  // shadows and glows outright, so both spellings are banned. Only the name is
+  // matched, never the value, so quote style around the value cannot matter;
+  // the trailing [\s\/>] mirrors the SMIL ban so <filter/> is read too.
+  const artwork = svg.replace(/<!--[\s\S]*?-->/g, '');
+  assert.ok(artwork.includes('<svg'), 'the body is an SVG document (cardinality before absence)');
+  const door = /<filter[\s\/>]|\sfilter\s*=/i.exec(artwork);
+  assert.ok(!door, `the artwork carries no filter element or filter= attribute, found "${door && door[0].trim()}"`);
+});
+
 // --- AS-27: the advance-loop status endpoint --------------------------------
 
 /** A scratch data dir standing in for apps/chat/data — the two files the host
