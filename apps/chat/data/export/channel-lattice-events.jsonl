@@ -612,3 +612,14 @@
 {"type":"message","id":964,"thread_root_id":null,"author":"system:lattice","body":"AS-46: in_progress → blocked — by agent:cto-owen","created_at":"2026-09-12T05:21:19.203Z"}
 {"type":"message","id":966,"thread_root_id":null,"author":"system:lattice","body":"AS-47: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T05:24:23.410Z"}
 {"type":"message","id":969,"thread_root_id":null,"author":"system:lattice","body":"AS-47: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T05:44:25.072Z"}
+{"type":"message","id":970,"thread_root_id":null,"author":"system:lattice","body":"AS-70: review → done — by agent:cto-owen","created_at":"2026-09-12T05:45:25.659Z"}
+{"type":"message","id":971,"thread_root_id":null,"author":"system:lattice","body":"AS-46: blocked → in_progress — by agent:cto-owen","created_at":"2026-09-12T05:45:37.977Z"}
+{"type":"message","id":973,"thread_root_id":null,"author":"system:lattice","body":"AS-46: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T05:55:25.766Z"}
+{"type":"message","id":976,"thread_root_id":null,"author":"system:lattice","body":"AS-47: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T05:59:16.399Z"}
+{"type":"message","id":977,"thread_root_id":null,"author":"system:lattice","body":"AS-69: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T05:59:16.403Z"}
+{"type":"message","id":978,"thread_root_id":null,"author":"system:lattice","body":"AS-69: in_planning → planned — by agent:developer-lena","created_at":"2026-09-12T06:03:52.655Z"}
+{"type":"message","id":979,"thread_root_id":null,"author":"system:lattice","body":"AS-69: planned → in_progress — by agent:developer-lena","created_at":"2026-09-12T06:03:52.659Z"}
+{"type":"message","id":980,"thread_root_id":null,"author":"system:lattice","body":"AS-69: in_progress → review — by agent:developer-lena","created_at":"2026-09-12T06:07:58.771Z"}
+{"type":"message","id":981,"thread_root_id":null,"author":"system:lattice","body":"AS-127 created by agent:developer-marcus — \"D1 v1 UI: contract create screen (screen 6) — AS-47b\" [backlog]","created_at":"2026-09-12T06:14:26.955Z"}
+{"type":"message","id":982,"thread_root_id":null,"author":"system:lattice","body":"AS-46: review → in_progress — by agent:cto-owen","created_at":"2026-09-12T06:34:27.964Z"}
+{"type":"message","id":988,"thread_root_id":null,"author":"system:lattice","body":"AS-46: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T07:06:01.644Z"}
