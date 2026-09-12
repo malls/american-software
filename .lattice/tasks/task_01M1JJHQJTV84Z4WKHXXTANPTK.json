@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:developer-marcus",
+  "assigned_to": "agent:qa-priya",
   "branch_links": [
     {
       "branch": "feat/AS-71-vendor-states-ledger",
@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 2,
+  "comment_count": 4,
   "complexity": "low",
   "created_at": "2026-09-03T02:46:12Z",
   "created_by": "agent:cto-owen",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1JJHQJTV84Z4WKHXXTANPTK",
-  "last_event_id": "ev_01M2AMFJX2CTZ5MXZ8AW17J7FS",
-  "last_status_changed_at": "2026-09-12T11:01:45Z",
+  "last_event_id": "ev_01M2AN179MQGQ6DCYW3N1A14T9",
+  "last_status_changed_at": "2026-09-12T11:11:23Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [
@@ -41,10 +41,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-71",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "Vendor the states ledger into the image so a design change can turn the suite red",
   "type": "task",
-  "updated_at": "2026-09-12T11:01:45Z",
+  "updated_at": "2026-09-12T11:11:23Z",
   "urgency": null
 }
