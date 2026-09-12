@@ -935,15 +935,28 @@ is no Print control: `window.print()` needs a script and this app has none, so
 the page carries one sentence pointing at the browser's Print command. A
 missing id and another freelancer's id are one 404 page, byte for byte (the
 repository throws the same `NotFoundError` for both). **Screen 6 —
-`/contracts/new` — is AS-127's** (split out of AS-47 at its plan's pre-agreed
-line): it will own `POST /contracts/new` and dispatch on `intent`, calling the
-same `generate` this API calls, with the screen and the API validating through
-one exported `validateFormValue`. The nav's "New contract" entry — on screen
-7 and on screen 4 (`views/invoice-form.ejs`) — lands with that route, not
-ahead of it: a nav link to a route nothing serves is a shipped path ending on
-a 404, the defect the split order was chosen to avoid, and screen 7's link
-check (`test/contract-screens.test.js`) drives every link at the built app.
-There is still no `POST /contracts/:id`.
+`/contracts/new` — is the contract create screen (AS-127**, split out of AS-47
+at its plan's pre-agreed line): it owns `POST /contracts/new` and dispatches
+on `intent` (`generate`, the two picker toggles, and `add-client`, which
+creates a client inline through the same repository call `POST /clients`
+uses); `POST /contracts` remains the programmatic path; both call the one
+`generate`. The screen and the API validate with the same exported
+`validateFormValue` (`lib/contracts/generation.js`), so the screen marks every
+failing field in one round trip and cannot accept what the API refuses. The
+form's fields come from the template declaration, `templateId` is passed to
+`generate` explicitly, and only declared form names are read from the body —
+a record-sourced name posted to the screen is simply not read. The nav's "New
+contract" entry sits on screens 4, 6 and 7 and landed in the same change as
+the route it points at; screen 7's link check (`test/contract-screens.test.js`)
+drives every link in both contract templates at the built app. There is still
+no `POST /contracts/:id`. The downloaded file is unstyled by construction, so
+a description typed with paragraph breaks — shown on screen 7 with
+`white-space: pre-wrap` — reads as one run of text when opened from disk.
+Recorded as a v1 limitation of the freelancer-mediated delivery artifact
+(AS-47 review R1, decided on AS-127): carrying the breaks into the stored
+document is a change to `render.js`'s frozen output and to the reproduction
+invariant of every stored row, and is a follow-up with its own record if
+AS-49's run or the board's walkthrough reports the file inadequate in writing.
 
 **A template is code.** `lib/contracts/templates/` holds frozen declarations
 that ship in the image; there is no user-supplied template path, and no
@@ -1037,6 +1050,8 @@ lib/views.js     the template registry + the health check's render probe
 lib/screens/     one PURE view model per screen (ledger transcription, state
                  selection, locals — no I/O), the shape § The view layer fixes:
   signin-view.js (1), connect-view.js (2), invoice-form-view.js (4),
+                 contract-form-view.js (6; also parseContractForm, the pure
+                 parser that reads only the declared form names),
                  contract-detail-view.js (7), dashboard-view.js (3; also
                  UUID_SHAPE, the one id shape a row emits and a redirector
                  accepts), invoice-detail-view.js (5; also the one
@@ -1245,20 +1260,20 @@ declaration count are committed literals. Update them in the same commit.
   return land on the connect handler as a signed-in freelancer, or bounce to
   `/signin`?), one real sign-in's wall-clock on the deploy target, and whether
   14 days is the right lifetime.
-- **AS-47 landed screen 7 (contract detail); three hand-offs are open.** See
-  § Contracts above. **AS-127 (screen 6, the contract create screen):** it
-  adds the "New contract" nav entry (`/contracts/new`) to screen 7
-  (`views/contract-detail.ejs`) and screen 4 (`views/invoice-form.ejs`) in the
-  same change as the route — neither carries the link until it is served —
-  and takes over `test/contract-screens.test.js` (cases 1–19 of AS-47's plan
-  §7) and the `validateFormValue` export. **AS-48's share is DISCHARGED:** the
-  Dashboard nav entry on screens 4 and 7 (screen 6's lands with AS-127), and
-  the "Back to Dashboard" link on screen 7's not-found page (a constant `href`
+- **AS-47 landed screen 7 (contract detail) and AS-127 screen 6 (contract
+  create); AS-47's hand-offs are DISCHARGED.** See § Contracts above.
+  **AS-127's share:** the "New contract" nav entry (`/contracts/new`) on screen
+  7 (`views/contract-detail.ejs`) and screen 4 (`views/invoice-form.ejs`)
+  landed in the same change as the route — neither carried the link until it
+  was served — with cases 1–19 of AS-47's plan §7 in
+  `test/contract-screens.test.js` and the `validateFormValue` export.
+  **AS-48's share:** the Dashboard nav entry on screens 4, 6 and 7, and the
+  "Back to Dashboard" link on screen 7's not-found page (a constant `href`
   to `/`, followed to a 200 Dashboard in `test/contract-screens.test.js`'s
   not-found case). **The next screen task touching the
   client picker:** the picker logic is carried twice (`invoice-form-view.js`,
-  and screen 6's view model when AS-127 lands) by lane discipline; the third
-  consumer extracts `lib/screens/client-picker.js`.
+  `contract-form-view.js`) by lane discipline; the third consumer extracts
+  `lib/screens/client-picker.js`.
 - **Adding a route is a two-file change, deliberately.** `test/route-surface.test.js`
   walks the built app's router tree and compares it to a committed
   `(method, path)` list; a new route turns that red until its author adds it and
