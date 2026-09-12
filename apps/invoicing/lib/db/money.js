@@ -9,11 +9,27 @@
 // to this file, the DDL, the invoices repository and lib/stripe/custody.js.
 //
 // Amounts are integer minor units (cents for usd) — never a float, never a
-// decimal string. Stripe speaks minor units too, so nothing is ever converted.
+// decimal string. Stripe speaks minor units too, so nothing is converted ON THE
+// WIRE; the ONE conversion in the app is at the human boundary — a freelancer
+// types "1200.00" and reads "19.99" — and it lives here, in formatMinorUnits
+// and parseMajorUnits (AS-46, plan §4.3). Their only caller is screen 4's view
+// model, lib/screens/invoice-form-view.js, which is on the money-words row for
+// exactly that reason.
 import { ValidationError } from './errors.js';
 
 export const SUPPORTED_CURRENCIES = Object.freeze(['usd']);
 export const DEFAULT_CURRENCY = 'usd';
+
+/** How many minor-unit digits the default currency carries — a fact about the
+ *  currency, kept beside it so a second currency moves the exponent with it.
+ *  `10 ** MINOR_DIGITS` is the only place the 100 is written. */
+export const MINOR_DIGITS = 2;
+const MINOR_PER_MAJOR = 10 ** MINOR_DIGITS;
+
+/** A typed major-units string, exactly: digits, optionally a point and one or
+ *  two fraction digits. No sign, no thousands separator, no currency symbol, no
+ *  exponent, no leading or trailing point. */
+const MAJOR_UNITS = /^(\d+)(?:\.(\d{1,2}))?$/;
 
 /** The code must be one of SUPPORTED_CURRENCIES, exactly as written there. */
 export function assertSupportedCurrency(code) {
@@ -38,4 +54,36 @@ export function assertPositiveInteger(value, field) {
     throw new ValidationError(field, 'must be a positive integer');
   }
   return value;
+}
+
+/**
+ * Minor units -> the string a person reads: 120000 -> '1200.00', 5 -> '0.05'.
+ * Integer division and remainder only — no toFixed, no division by a float —
+ * so the output is exact for every safe integer. Refuses exactly what
+ * assertMinorUnits refuses.
+ */
+export function formatMinorUnits(minor) {
+  assertMinorUnits(minor, 'minor');
+  const whole = Math.trunc(minor / MINOR_PER_MAJOR);
+  const cents = minor - whole * MINOR_PER_MAJOR;
+  return `${whole}.${String(cents).padStart(MINOR_DIGITS, '0')}`;
+}
+
+/**
+ * The string a person typed -> minor units, or null when it is not a price.
+ * '1200.00' -> 120000, '12.5' -> 1250, '0' -> 0. Built from the digit strings
+ * (whole * 100 + cents), never from Number(text) * 100: 0.1 + 0.2 is why the
+ * app stores integers at all, and this is the one place that rule could be
+ * lost. Refuses '', '.50', '12.', '1,200', '$12', '-1', '1e3', '12.345', and
+ * anything whose result is not a safe integer.
+ */
+export function parseMajorUnits(text) {
+  if (typeof text !== 'string') return null;
+  const match = MAJOR_UNITS.exec(text.trim());
+  if (match === null) return null;
+  const [, wholeDigits, fraction = ''] = match;
+  const whole = Number(wholeDigits);
+  const cents = Number(fraction.padEnd(MINOR_DIGITS, '0'));
+  const minor = whole * MINOR_PER_MAJOR + cents;
+  return Number.isSafeInteger(minor) ? minor : null;
 }

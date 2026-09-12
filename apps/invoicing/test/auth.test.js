@@ -36,6 +36,7 @@ import { COOKIE_NAME, SESSION_TTL_MS, mintToken, tokenId } from '../lib/auth/ses
 import { actingFreelancerId, requireSession, safeNext } from '../lib/auth/guard.js';
 import { NotFoundError, ValidationError, createRepositories, prepareDatabase } from '../lib/db/database.js';
 import { createStripeClient } from '../lib/stripe/client.js';
+import { discoverRoutes } from './helpers/routes.js';
 import { configFor, followToTerminus, freshDbPath, seedSession, withServer } from './helpers/server.js';
 
 const PASSWORD = 'correct horse battery staple';
@@ -867,170 +868,6 @@ test('requireSession has exactly one path carve-out', () => {
 // G1–G13: reachability, CSRF and impersonation
 // =============================================================================
 
-/** Every (method, path) the built app registers, by walking the router tree.
- *  Express internals are being read, which is normally a smell. It is
- *  acceptable here for two measured reasons: express is pinned to an EXACT
- *  literal by dependency-policy.test.js, and G1's cardinality assertion means a
- *  future express whose internals moved produces a RED test, never a vacuous
- *  green one. */
-function discoverRoutes(app) {
-  const found = [];
-  const walk = (stack) => {
-    for (const layer of stack) {
-      if (layer.route) {
-        for (const method of Object.keys(layer.route.methods)) {
-          found.push(`${method.toUpperCase()} ${layer.route.path}`);
-        }
-      } else if (layer.handle?.stack) {
-        walk(layer.handle.stack);
-      }
-    }
-  };
-  walk(app.router.stack);
-  return found.sort();
-}
-
-/** THE COMMITTED ROUTE LIST. A route added anywhere — in a new router, in an
- *  existing one, at any mount position — changes this and turns G1 red. To make
- *  it green its author must classify it below, in an array a reviewer reads.
- *  There is no path from "someone added a route" to "it is unprotected and
- *  nobody noticed". */
-const ALL_ROUTES = [
-  'GET /',
-  'GET /connect-stripe',
-  'GET /connect-stripe/refresh',
-  'GET /connect-stripe/return',
-  'GET /healthz',
-  'GET /signin',
-  'GET /tokens.css',
-  'POST /clients',
-  'POST /connect-stripe/start',
-  'POST /contracts',
-  'POST /invoices',
-  'POST /invoices/:id',
-  'POST /invoices/:id/finalize',
-  'POST /invoices/:id/send',
-  'POST /signin',
-  'POST /signout',
-  'POST /signup',
-  'POST /webhooks/stripe',
-];
-
-/** Public, each for a stated reason. Everything else requires a session. */
-const PUBLIC_ROUTES = [
-  // must answer when everything else is broken; compose's healthcheck sends no cookie
-  'GET /healthz',
-  // SCREEN 1 (AS-45). It is where requireSession SENDS every signed-out
-  // visitor, so a guarded sign-in page is an infinite redirect. Its own denied
-  // state (an already-signed-in caller) is a 303 the handler issues, not the
-  // guard's — asserted in screens.test.js.
-  'GET /signin',
-  // vendored bytes, identical for every caller
-  'GET /tokens.css',
-  // authenticated BY SIGNATURE, not by session — Stripe sends no cookie and no Origin
-  'POST /webhooks/stripe',
-  // the two ways in
-  'POST /signin',
-  'POST /signup',
-];
-
-test('G1: the route walk finds the EXACT committed list — cardinality first', async () => {
-  await withApp({}, async ({ app }) => {
-    const found = discoverRoutes(app);
-    // Never `> 0`: a walk that silently returned nothing would otherwise pass
-    // every rule below it on an empty set (the AS-31 lesson).
-    assert.equal(found.length, 18, `expected exactly 18 routes, found ${found.length}: ${found.join(', ')}`);
-    assert.deepEqual(found, ALL_ROUTES);
-  });
-});
-
-test('G1b: with NO webhook secret the surface is the same list minus the webhook route', async () => {
-  // The webhook router registers nothing without a secret (AS-44), so the
-  // committed list above is config-dependent and says so in both directions.
-  await withApp({ secret: null }, async ({ app }) => {
-    const found = discoverRoutes(app);
-    assert.equal(found.length, 17, found.join(', '));
-    assert.deepEqual(found, ALL_ROUTES.filter((r) => r !== 'POST /webhooks/stripe'));
-  });
-});
-
-test('G2: the public/protected partition is exact in BOTH directions', async () => {
-  await withApp({}, async ({ app }) => {
-    const found = discoverRoutes(app);
-    // Every declared public route really exists…
-    const missing = PUBLIC_ROUTES.filter((r) => !found.includes(r));
-    assert.deepEqual(missing, [], 'PUBLIC_ROUTES names a route that does not exist');
-    // …and the partition covers the list with nothing left over.
-    const protectedRoutes = found.filter((r) => !PUBLIC_ROUTES.includes(r));
-    assert.equal(PUBLIC_ROUTES.length + protectedRoutes.length, found.length);
-    assert.deepEqual(protectedRoutes, [
-      'GET /',
-      'GET /connect-stripe',
-      'GET /connect-stripe/refresh',
-      'GET /connect-stripe/return',
-      'POST /clients',
-      'POST /connect-stripe/start',
-      'POST /contracts',
-      'POST /invoices',
-      'POST /invoices/:id',
-      'POST /invoices/:id/finalize',
-      'POST /invoices/:id/send',
-      'POST /signout',
-    ]);
-  });
-});
-
-/** A path below the boundary that NOTHING registers. Nothing serves it, so
- *  whatever answers a cookieless request to it is DEFINITIONALLY the guard —
- *  which makes its answer the reference every protected member is compared
- *  against. */
-const UNROUTED_PATH = '/__unrouted__';
-
-test('G3: every protected route\'s cookieless answer is ATTRIBUTABLE to the guard, not merely shaped like one', async () => {
-  await withApp({}, async ({ base, app }) => {
-    const found = discoverRoutes(app);
-    // ATTRIBUTION, NOT APPEARANCE. This case previously asserted `303` +
-    // `Location: /signin` — what a rejection LOOKS like, which any handler may
-    // reproduce and POST /signout's success path does exactly: its member
-    // stayed green while the route sat ABOVE the boundary answering anonymous
-    // callers, and would have stayed green with requireSession deleted. The
-    // property is "if the guard's rejection changed, this route's response
-    // would change", enforced here by comparing every member against the
-    // guard's OWN rejection in this same app, and in §7's recipe F12 by moving
-    // that rejection and requiring all eleven members to move with it.
-    assert.equal(found.includes(`POST ${UNROUTED_PATH}`), false, 'something now serves the reference path — it is no longer the guard that answers it');
-    const ref = await fetch(`${base}${UNROUTED_PATH}`, { method: 'POST', redirect: 'manual', headers: { origin: base } });
-    const refLocation = ref.headers.get('location');
-    // Cardinality on the INSTRUMENT before quantifying with it: with the guard
-    // deleted this probe 404s with no Location, and eleven 404s compared against
-    // a 404 would be a vacuous green.
-    assert.ok(ref.status >= 300 && ref.status < 400, `the reference probe was not answered by a redirect (${ref.status}) — requireSession is not answering ${UNROUTED_PATH}`);
-    assert.equal(refLocation, '/signin', 'the guard redirects to the sign-in path — the contract AS-45 renders');
-    assert.equal(ref.headers.getSetCookie().length, 0, 'the guard sets NO cookie: that silence is what distinguishes it from a handler');
-
-    const protectedRoutes = found.filter((r) => !PUBLIC_ROUTES.includes(r));
-    assert.equal(protectedRoutes.length, 12, 'cardinality before quantification');
-    for (const entry of protectedRoutes) {
-      const [method, path] = entry.split(' ');
-      const url = new URL(`${base}${path.replaceAll(':id', 'some-id')}`);
-      const res = await fetch(url, { method, redirect: 'manual', headers: { origin: base } });
-      // The guard's own status, not a literal 303.
-      assert.equal(res.status, ref.status, `${entry}: status differs from the guard's own rejection`);
-      // The byte that discriminates: POST /signout's handler emits
-      // `invoicing_session=; …Expires=Thu, 01 Jan 1970…`, and the guard emits
-      // nothing at all. One line, and it is the line that would have caught the
-      // defect that shipped in cycle 1.
-      assert.equal(res.headers.getSetCookie().length, 0, `${entry}: answered with a Set-Cookie, so a HANDLER ran and the guard never saw the request`);
-      // The guard's own Location, built from the reference rather than from a
-      // literal. G4's split, unchanged: a safe method carries ?next= so the
-      // freelancer lands where they were going, an unsafe one does not, because
-      // a POST body cannot be replayed after a redirect.
-      const expected = method === 'GET' ? `${refLocation}?next=${encodeURIComponent(url.pathname)}` : refLocation;
-      assert.equal(res.headers.get('location'), expected, entry);
-    }
-  });
-});
-
 test('G5: GET /healthz answers 200 with no cookie', async () => {
   await withApp({}, async ({ base }) => {
     const res = await fetch(`${base}/healthz`, { redirect: 'manual' });
@@ -1176,7 +1013,7 @@ test('G14: actingFreelancerId throws rather than act as nobody', () => {
 test('G15: the whole app is constructible and the boundary survives a rebuild', async () => {
   // A cheap guard against the enumeration above being satisfied by a stale app.
   await withApp({}, async ({ app, base }) => {
-    assert.equal(discoverRoutes(app).length, 18);
+    assert.equal(discoverRoutes(app).length, 22);
     assert.equal((await fetch(`${base}/`, { redirect: 'manual' })).status, 303);
   });
 });

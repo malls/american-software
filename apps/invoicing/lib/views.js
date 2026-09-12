@@ -20,6 +20,7 @@
 // row are gone (AS-45).
 import { signinLocals } from './screens/signin-view.js';
 import { connectLocals } from './screens/connect-view.js';
+import { invoiceFormLocals } from './screens/invoice-form-view.js';
 
 export const VIEWS = Object.freeze([
   Object.freeze({
@@ -32,5 +33,13 @@ export const VIEWS = Object.freeze([
     name: 'connect-stripe',
     file: 'connect-stripe.ejs',
     sampleLocals: connectLocals(),
+  }),
+  // Screen 4 (AS-46). The default input has no account row, so the probe
+  // renders the gated state — a real render of the template's chrome, banner
+  // and refusal branch, decided by the same function the route calls.
+  Object.freeze({
+    name: 'invoice-form',
+    file: 'invoice-form.ejs',
+    sampleLocals: invoiceFormLocals(),
   }),
 ]);

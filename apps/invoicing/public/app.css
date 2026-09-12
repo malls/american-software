@@ -101,6 +101,35 @@ main {
   color: var(--color-text-primary);
 }
 
+/* The nav, from screen 4 on (AS-46): constant markup, stacked at the 375px
+   floor and a row from --breakpoint-md. Sign out is a one-button form styled
+   as a link, pushed to the end of the row. */
+.site-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  border-top: var(--border-width-hairline) solid var(--color-border-hairline);
+}
+
+@media (min-width: 768px) { /* --breakpoint-md */
+  .site-nav {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-6);
+  }
+}
+
+.site-nav__link {
+  color: var(--color-link);
+  text-decoration: underline;
+  font-size: var(--font-size-sm);
+}
+
+.site-nav__signout {
+  margin-inline-start: auto;
+}
+
 /* ---------------------------------------------------------------------------
  * Typography
  * ------------------------------------------------------------------------ */
@@ -135,6 +164,22 @@ main {
  * Forms
  * ------------------------------------------------------------------------ */
 
+fieldset {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: 0 0 var(--space-5) 0;
+  /* The browser default is min-width: min-content, which lets a fieldset force
+     horizontal overflow at 375px; 0 lets it shrink like any other box. */
+  min-width: 0;
+}
+
+legend {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  padding-inline: var(--space-2);
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -149,7 +194,8 @@ main {
   color: var(--color-text-primary);
 }
 
-.field input {
+.field input,
+.field select {
   font: inherit;
   color: var(--color-text-primary);
   background: var(--color-bg-surface);
@@ -157,13 +203,21 @@ main {
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-3);
   /* No width literal anywhere: the field is a flex column, so the input fills
-     its own measure and can never force horizontal overflow at 375px. */
+     its own measure and can never force horizontal overflow at 375px. A select
+     gets the same treatment so a long option label cannot force width. */
   min-width: 0;
+  max-width: 100%;
 }
 
-.field--invalid input {
+.field--invalid input,
+.field--invalid select {
   border-color: var(--color-danger-solid);
   border-width: var(--focus-ring-width);
+}
+
+.field-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
 }
 
 .field-error {
@@ -173,6 +227,7 @@ main {
 }
 
 input:focus,
+select:focus,
 button:focus,
 a:focus {
   outline: var(--focus-ring-width) solid var(--color-focus-ring);
@@ -211,6 +266,12 @@ a:focus {
 .btn-primary {
   background: var(--color-accent-solid);
   color: var(--color-text-on-accent);
+}
+
+.btn-secondary {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-interactive);
 }
 
 /* The wireframes' treatment for a control that reads as a link — the sign-out
@@ -257,6 +318,11 @@ a:focus {
   color: var(--color-success-text-on-subtle);
 }
 
+.banner-info {
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-accent-text-on-subtle);
+}
+
 .banner__title {
   font-weight: var(--font-weight-semibold);
   margin: 0 0 var(--space-1) 0;
@@ -268,4 +334,58 @@ a:focus {
 
 .banner p + p {
   margin-block-start: var(--space-2);
+}
+
+/* ---------------------------------------------------------------------------
+ * Line items (screen 4, AS-46). Mobile-first: one field per line at the 375px
+ * floor, side by side from --breakpoint-sm. The flex values are structural
+ * (unitless), not design values.
+ * ------------------------------------------------------------------------ */
+
+.line-items {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.line-item-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  border-bottom: var(--border-width-hairline) solid var(--color-border-hairline);
+}
+
+.line-item-row:last-of-type {
+  border-bottom: none;
+}
+
+.line-item-row .field {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+@media (min-width: 480px) { /* --breakpoint-sm */
+  .line-item-row .field {
+    flex: 1 1 0;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Client picker (the shared inline-client-creation sub-pattern, 00-flows.md
+ * Flow 3): select-or-add-new, with a mode toggle that is a submit button.
+ * ------------------------------------------------------------------------ */
+
+.client-picker {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: 0 0 var(--space-5) 0;
+  background: var(--color-bg-surface);
+}
+
+.client-picker__mode-toggle {
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-3) 0;
 }

@@ -1,13 +1,17 @@
 // routes/clients.js — the one way a client comes into existence (AS-65, plan
 // §3.1, §3.7).
 //
-// EXACTLY ONE ROUTE, AND IT IS SHARED. Two screens create clients inline — the
-// invoice draft (AS-46) and the contract form (AS-47) — and both post HERE.
-// There is no POST /invoices/:id/clients and no nested create inside either of
-// those handlers: a nested create makes a client a side effect of a different
-// resource, so a parent that fails validation after its client was written
-// leaves a row the freelancer never asked for and cannot see (the screen budget
-// cut the Clients screen, so there is nowhere to see it).
+// EXACTLY ONE ROUTE: the programmatic creation path (the demo, the acceptance
+// driver). The two screens that create clients inline — the invoice form
+// (AS-46) and the contract form (AS-47) — create through the SAME repository
+// call from their own handlers (AS-46 plan §3.3): a form that posted straight
+// here could not re-render its values on a text/plain 400 and could not warn
+// about a duplicate before the row exists. What this file was protecting
+// against still holds there: a screen's add-client intent writes one client
+// row and nothing else, so a client is never a side effect of a different
+// resource, and a parent that fails validation never leaves a row the
+// freelancer did not ask for and cannot see (the screen budget cut the Clients
+// screen, so there is nowhere to see it).
 //
 // A REPEAT SUBMISSION CREATES A SECOND ROW. This endpoint never converges on an
 // existing client and has no upsert mode. The schema declined to make email

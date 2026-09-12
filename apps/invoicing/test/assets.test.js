@@ -36,9 +36,9 @@ const TOKEN_NAMES = 127;
 /** Files in public/. */
 const PUBLIC_FILES = ['app.css'];
 /** Declarations in public/app.css, measured when the file was finished. */
-const APP_CSS_DECLARATIONS = 98;
+const APP_CSS_DECLARATIONS = 146;
 /** var(--…) references in public/app.css, measured at the same moment. */
-const APP_CSS_VAR_REFERENCES = 76;
+const APP_CSS_VAR_REFERENCES = 115;
 
 const countDeclarations = (css) => (css.match(/^[ \t]*--[A-Za-z0-9_-]+[ \t]*:/gm) ?? []).length;
 
