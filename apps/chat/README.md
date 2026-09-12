@@ -951,6 +951,23 @@ service is now `network_mode: none` (pinned by `test/deploy-shape.test.js`),
 so a bare `docker compose run --rm --build test` no longer leaks a network
 either — but only the script tears down the image and proves it.
 
+**Signals (AS-121).** From the moment `compose … run --build` starts until the
+receipt is reported (run, `down`, leak check) the script catches `SIGINT` and
+`SIGTERM` instead of dying of them: the compose child ends (killed with the
+process group, as under Ctrl-C, or run to completion when only the script was
+signalled), `down` runs, the leak check runs, and the receipt prints with an
+extra stderr line `compose-run: interrupted by <SIG> during the run — teardown
+ran; this run is not a receipt`. An interrupted run never exits 0: it exits
+`128 + signal` (130 / 143) unless the run itself already produced a non-zero
+exit (1, 4, 5), which is kept. The handler is armed only when the run call is
+made: a signal before it (the guard, the pre-flight `network ls` / `compose
+ls`) and any signal under `--check` keeps the default disposition — the script
+dies of the signal and the build never starts, because there is nothing to
+tear down. `SIGKILL` cannot be caught; a run killed that way is cleaned up by
+hand (`--check` names it as a leftover). The script does not forward the
+signal to the compose child, so a parent-only `SIGTERM` waits for the
+container to finish before tearing down.
+
 Runs `node --test` inside the image against the COPY'd `test/` and fixtures.
 The test service mounts no volumes — passing with zero mounts is itself
 evidence the suite touches no real state. Docker is resolved by absolute path
