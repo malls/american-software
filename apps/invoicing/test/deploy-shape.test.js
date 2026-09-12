@@ -30,6 +30,7 @@ import { dirname, join, resolve } from 'node:path';
 import { SCHEMA } from '../lib/config.js';
 import { VENDOR_ASSETS, VENDOR_DOCUMENTS } from '../lib/vendor.js';
 import { APP_DIR } from './helpers/server.js';
+import { stripTrailingHashComment as stripComment } from './helpers/hash-comment.js';
 
 const COMPOSE_TEXT = readFileSync(join(APP_DIR, 'compose.yaml'), 'utf8');
 const DOCKERFILE = readFileSync(join(APP_DIR, 'Dockerfile'), 'utf8');
@@ -44,22 +45,9 @@ const CHECKOUT = '/checkout';
 const COMPOSE_DIR = join(CHECKOUT, 'apps', 'invoicing');
 
 // --- a strict YAML-subset parser --------------------------------------------
-
-/** Strip a trailing `# comment`, respecting quotes. */
-function stripComment(line) {
-  let quote = null;
-  for (let i = 0; i < line.length; i += 1) {
-    const ch = line[i];
-    if (quote) {
-      if (ch === quote) quote = null;
-    } else if (ch === '"' || ch === "'") {
-      quote = ch;
-    } else if (ch === '#' && (i === 0 || /\s/.test(line[i - 1]))) {
-      return line.slice(0, i);
-    }
-  }
-  return line;
-}
+//
+// The trailing-comment stripper (`stripComment`, imported above) is shared
+// with dependency-policy.test.js since AS-57: one loop, one escape rule.
 
 /** A scalar: a JSON flow sequence, a quoted string, or a bare string. */
 function scalar(raw) {
@@ -179,6 +167,9 @@ test('deploy-shape: the parser rejects shapes it does not understand', () => {
   assert.throws(() => parseYamlSubset('services:\n   web:\n'), /odd indentation/);
   assert.throws(() => parseYamlSubset('a: 1\na: 2\n'), /duplicate key/);
   assert.throws(() => parseYamlSubset('cmd: [not, json]\n'), /unparseable flow sequence/);
+  // AS-57: an escaped quote inside "…" does not close the string, so the ` #`
+  // after it is data, not a comment — the whole scalar survives to the value.
+  assert.equal(parseYamlSubset('k: "a \\" # b"\n').k, 'a \\" # b');
   // ...and it does understand the real file, which the assertions above rely on.
   assert.equal(parseYamlSubset(COMPOSE_TEXT).name, 'asc-invoicing');
 });

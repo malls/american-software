@@ -30,6 +30,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
 import { APP_DIR } from './helpers/server.js';
+import { stripTrailingHashComment } from './helpers/hash-comment.js';
 
 const PACKAGE = JSON.parse(readFileSync(join(APP_DIR, 'package.json'), 'utf8'));
 const LOCK = JSON.parse(readFileSync(join(APP_DIR, 'package-lock.json'), 'utf8'));
@@ -213,25 +214,15 @@ test('the comment stripper works, in both directions', () => {
  *  may we — deploy-shape.test.js makes the same choice in DOCKERFILE_CODE);
  *  .json → not stripped at all, JSON has no comment syntax and a `#` inside a
  *  JSON string is data. Line-preserving, like stripComments: a removed comment
- *  leaves its (empty) line behind. */
+ *  leaves its (empty) line behind. The per-line loop is the shared helper
+ *  (AS-57): deploy-shape.test.js runs the same bytes, so an escape-handling
+ *  fix lands in both scans at once. */
 function stripHashComments(text, { trailing = false } = {}) {
   return text
     .split('\n')
     .map((line) => {
       if (/^\s*#/.test(line)) return '';
-      if (!trailing) return line;
-      let quote = null;
-      for (let i = 0; i < line.length; i += 1) {
-        const ch = line[i];
-        if (quote) {
-          if (ch === quote) quote = null;
-        } else if (ch === '"' || ch === "'") {
-          quote = ch;
-        } else if (ch === '#' && (i === 0 || /\s/.test(line[i - 1]))) {
-          return line.slice(0, i);
-        }
-      }
-      return line;
+      return trailing ? stripTrailingHashComment(line) : line;
     })
     .join('\n');
 }
@@ -248,6 +239,15 @@ test('the manifest comment stripper works, in both directions', () => {
   assert.equal(stripHashComments('k: "a # b"', { trailing: true }), 'k: "a # b"');
   assert.equal(stripHashComments("k: 'a # b'", { trailing: true }), "k: 'a # b'");
   assert.equal(stripHashComments('k: "a # b"', { trailing: false }), 'k: "a # b"');
+  // Keeps: an ESCAPED quote inside "…" does not close the string (AS-57 item 3),
+  // so the ` #` after it — and the call site behind it — is still data.
+  assert.equal(stripHashComments('k: "a \\" # fetch("', { trailing: true }), 'k: "a \\" # fetch("');
+  // ...but an escaped backslash is consumed as a pair, so the quote after it
+  // really closes and the tail IS a comment.
+  assert.equal(stripHashComments('k: "a\\\\" # c"', { trailing: true }), 'k: "a\\\\" ');
+  // ...and '…' has no escape at all in YAML: `\'` is a literal backslash then
+  // the closing quote, so the tail is a comment.
+  assert.equal(stripHashComments("k: 'a\\' # c'", { trailing: true }), "k: 'a\\' ");
   // Keeps: code before the comment; `a#b` is not a comment in YAML either.
   assert.equal(stripHashComments('x: fetch( # c', { trailing: true }), 'x: fetch( ');
   assert.equal(stripHashComments('x: a#b', { trailing: true }), 'x: a#b');
