@@ -100,6 +100,33 @@ const auth = { headers: {} };
 const post = (url) => fetch(url, { method: 'POST', redirect: 'manual', headers: auth.headers });
 const get = (url) => fetch(url, { redirect: 'manual', headers: auth.headers });
 
+/** OCCURRENCE counting, never a boolean `includes` — the screens.test.js
+ *  convention: "present" is satisfied by a body that also carries what must be
+ *  absent, and the claim below is about exact counts. */
+const occurrences = (haystack, needle) => haystack.split(needle).length - 1;
+
+/** A FAILED START LANDS ON SCREEN 2's ERROR STATE, STATUS KEPT (AS-69). The
+ *  status is statusFor's — unchanged by AS-69 — and the body is the Connect
+ *  screen in S2-ERROR-SYSTEM: the sentinel once, the error banner once, the
+ *  "Try again" control once, posting back to start. What AS-41's one-line body
+ *  carried — the error class and the step — appears ZERO times: the screen
+ *  renders renderer-authored constants, never error material. `absent` names
+ *  the class and step this failure would have printed. */
+async function expectErrorScreen(res, status, absent) {
+  assert.equal(res.status, status);
+  assert.match(res.headers.get('content-type') ?? '', /text\/html/, 'the screen, not a one-line body');
+  const html = await res.text();
+  assert.equal(occurrences(html, 'data-state="S2-ERROR-SYSTEM"'), 1, 'exactly the error state');
+  assert.equal(occurrences(html, 'data-state='), 1, 'and no other state');
+  assert.equal(occurrences(html, 'banner-error'), 1);
+  assert.equal(occurrences(html, 'Try again'), 1, 'the retry affordance the ledger gives S2-ERROR-SYSTEM');
+  assert.equal(occurrences(html, 'action="/connect-stripe/start"'), 1, 'try again posts to start');
+  for (const needle of [...absent, 'text/plain']) {
+    assert.equal(occurrences(html, needle), 0, `${needle} reached the page`);
+  }
+  return html;
+}
+
 // --- composition (plan §3.7, AC 10) --------------------------------------------
 
 test('createApp refuses a missing deps pair with a TypeError', () => {
@@ -348,7 +375,10 @@ test('R9b: refresh for an already-ready row short-circuits to the screen — no 
   });
 });
 
-test('R10: a Stripe 4xx on account create is 502 naming the step, and NO row is created — Stripe first, row after', async () => {
+test('R10: a Stripe 4xx on account create is 502 rendering the error screen, and NO row is created — Stripe first, row after', async () => {
+  // AS-69 moved the BODY, not the status: the 502 stands, and what was
+  // `StripeApiError: create-account` in one line of text/plain is now screen 2
+  // in S2-ERROR-SYSTEM, with neither the class nor the step on the page.
   const intercept = (record) => {
     if (record.method === 'POST' && record.path === '/v1/accounts') {
       return json({ error: { type: 'invalid_request_error', message: 'synthetic refusal' } }, 400);
@@ -357,20 +387,16 @@ test('R10: a Stripe 4xx on account create is 502 naming the step, and NO row is 
   };
   await withConnectApp({ fixture: { intercept } }, async ({ base, repos, freelancer, calls }) => {
     const res = await post(`${base}/connect-stripe/start`);
-    assert.equal(res.status, 502);
-    const body = await res.text();
-    assert.match(body, /StripeApiError/);
-    assert.match(body, /create-account/);
+    await expectErrorScreen(res, 502, ['StripeApiError', 'create-account']);
     assert.equal(calls.length, 1, 'the create was attempted and nothing after it');
     assert.equal(repos.connectedAccounts.getByFreelancer(freelancer.id), null, 'no row left behind');
   });
 });
 
-test('R11: start with no key configured is 503, zero transport calls — a deploy problem, not an upstream one', async () => {
+test('R11: start with no key configured is 503 rendering the error screen, zero transport calls — a deploy problem, not an upstream one', async () => {
   await withConnectApp({ apiKey: null }, async ({ base, freelancer, calls }) => {
     const res = await post(`${base}/connect-stripe/start`);
-    assert.equal(res.status, 503);
-    assert.match(await res.text(), /ConfigError/);
+    await expectErrorScreen(res, 503, ['ConfigError']);
     assert.equal(calls.length, 0, 'requireKey fires after the guard, before the transport');
   });
 });
@@ -426,6 +452,40 @@ test('R13: all three routes redirect to sign-in without a session, and touch not
       );
     }
     assert.equal(calls.length, 0);
+  });
+});
+
+test('R14: a failed start lands on the Connect screen in S2-ERROR-SYSTEM with its retry affordance, for every row state, and return/refresh failures stay text/plain (AS-69)', async () => {
+  // THE ACCEPTANCE CASE. The third failure class the description names —
+  // Stripe unreachable — through a transport that throws, which the client
+  // wraps as StripeTransportError('network') and statusFor maps to 502. Driven
+  // with no row and then with a not-ready row: the error flag outranks the row
+  // in the view model, so both land on the same state, and the "Try again"
+  // control on it is a POST back to this route.
+  const unreachable = () => {
+    throw Object.assign(new Error('synthetic: connection refused'), { code: 'ECONNREFUSED' });
+  };
+  await withConnectApp({ fixture: { intercept: unreachable } }, async ({ base, repos, freelancer, calls }) => {
+    const noRow = await post(`${base}/connect-stripe/start`);
+    await expectErrorScreen(noRow, 502, ['StripeTransportError', 'create-account', 'ECONNREFUSED']);
+    assert.equal(calls.length, 1, 'the create was attempted');
+    assert.equal(repos.connectedAccounts.getByFreelancer(freelancer.id), null, 'no row left behind');
+
+    repos.connectedAccounts.create({ freelancerId: freelancer.id, stripeAccountId: ACCT });
+    const withRow = await post(`${base}/connect-stripe/start`);
+    const html = await expectErrorScreen(withRow, 502, ['StripeTransportError', 'mint-onboarding-link', 'ECONNREFUSED']);
+    assert.equal(calls.length, 2, 'the mint was attempted; no second create');
+    assert.equal(occurrences(html, ACCT), 0, 'the row is read for the locals, and nothing of it reaches the page');
+
+    // The revision is start's alone: return's and refresh's failures keep
+    // AS-41's one-line body. (screens.test.js pins refresh's negative half
+    // independently; this is the same fact from this suite's side.)
+    for (const path of ['/connect-stripe/return', '/connect-stripe/refresh']) {
+      const res = await get(`${base}${path}`);
+      assert.equal(res.status, 502, path);
+      assert.match(res.headers.get('content-type') ?? '', /text\/plain/, path);
+      assert.equal(occurrences(await res.text(), 'data-state'), 0, `${path} renders no screen`);
+    }
   });
 });
 
