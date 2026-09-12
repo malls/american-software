@@ -2,7 +2,7 @@
   "acceptance_criteria": [],
   "assigned_to": null,
   "branch_links": [],
-  "comment_count": 0,
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-09-12T06:14:26Z",
   "created_by": "agent:developer-marcus",
@@ -11,7 +11,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M2A41GARN600RYVHS4RXVXW3",
-  "last_event_id": "ev_01M2A41KWNMT1D368BP7ZQBQXT",
+  "last_event_id": "ev_01M2A6BFN65DNKGRXSXHEZ56N7",
   "last_status_changed_at": "2026-09-12T06:14:26Z",
   "linked_files": [],
   "priority": "medium",
@@ -31,6 +31,6 @@
   "tags": null,
   "title": "D1 v1 UI: contract create screen (screen 6) \u2014 AS-47b",
   "type": "task",
-  "updated_at": "2026-09-12T06:14:30Z",
+  "updated_at": "2026-09-12T06:54:51Z",
   "urgency": null
 }
