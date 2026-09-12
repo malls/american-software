@@ -11,8 +11,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1JJHQJTV84Z4WKHXXTANPTK",
-  "last_event_id": "ev_01M2AM406ET2P0TNNR8EWYJDK7",
-  "last_status_changed_at": "2026-09-12T10:55:25Z",
+  "last_event_id": "ev_01M2AMFDYHEWFX4FD0Y7ZFE796",
+  "last_status_changed_at": "2026-09-12T11:01:40Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-71",
-  "status": "in_planning",
+  "status": "planned",
   "tags": null,
   "title": "Vendor the states ledger into the image so a design change can turn the suite red",
   "type": "task",
-  "updated_at": "2026-09-12T10:55:25Z",
+  "updated_at": "2026-09-12T11:01:40Z",
   "urgency": null
 }
