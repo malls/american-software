@@ -616,8 +616,9 @@ the log; `?task=AS-<n>` and `?limit=<n>` filter. Every event is projected
 through the whitelist, so a line that grew a field never reaches a browser.
 `stream.path` is deliberately `null` — a host path is no more a browser's
 business than the lock nonce is. `stream.reason` is one of `ok`, `no-stream`,
-`unreadable-stream`, `truncated`, and every one of those has a sentence in
-`public/lanes.js` (key-set asserted, so a new code cannot ship as a bare word).
+`unreadable-stream`, `truncated`, `replaced`, and every one of those has a
+sentence in `public/lanes.js` (key-set asserted, so a new code cannot ship as a
+bare word).
 
 **SSE: two names, one channel.** `event: company` frames carry the persisted
 AS-100 events as they are appended (the server tails the file by byte offset
@@ -625,7 +626,21 @@ every `EVENTS_POLL_MS` = 2 s and pushes one frame per new event, in file order);
 it has a read-back door at `/api/events`. `event: activity` is reserved for
 AS-103's tool-level frames, which are strictly ephemeral, are written to no file
 or store, and have no read-back. If the file **shrinks** under the server the
-tail resets and reports `truncated` until a new line arrives.
+tail resets and reports `truncated` until a new line arrives. If the file is
+**replaced** under the server — `mv` of a longer file over the path, `cp` or a
+restored backup written over it, an editor save — the tail notices by one of
+two checks (AS-111): the **inode changed** (checked on every poll, before the
+size rule, so a rotation to a shorter new file and a same-size swap are both
+caught), or the **bytes just before its cursor** are not the last ≤ 64 bytes it
+consumed (checked only on a poll that has new bytes to read anyway — one extra
+small read on the same descriptor). Either way it re-reads the whole new file
+from the start, re-folds, pushes every line as a `company` frame again (to this
+process they are all arrivals — a consumer that must not double-count dedupes
+by `id`), and reports `replaced` until a new line arrives. `replaced` is a
+different word from `truncated` on purpose: nothing is missing after a
+replacement. Residual, by design: same inode, same size, and an edit *before*
+the last 64 bytes is not noticed until a later mismatch — nothing edits the
+file, and the check that would see it is a full re-read per poll.
 
 **Liveness** is decided from events alone and bounded by the tick clock:
 `alive = open ∧ (tickLive ∨ ageMs < tickTimeoutMs)`. While a tick holds its lock

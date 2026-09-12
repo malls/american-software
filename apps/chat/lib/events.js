@@ -78,6 +78,7 @@ export const EVENTS_REASON_CODES = Object.freeze([
   'no-stream',
   'unreadable-stream',
   'truncated',
+  'replaced', // AS-111 F3: the file was swapped out (new inode, or the bytes before the cursor changed) and re-read
 ]);
 
 export const ACTOR_RE = /^(agent|human|system):[a-z0-9-]+$/;

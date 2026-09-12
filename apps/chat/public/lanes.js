@@ -94,6 +94,11 @@ export const EVENTS_REASONS = Object.freeze({
   truncated:
     'the company event stream shrank underneath the server — it was rotated or rewritten — so anything before ' +
     'the cut is missing from this view until the server is restarted',
+  // AS-111 F3. Deliberately a different word from `truncated`: nothing is
+  // missing after a swap, because the whole new file was re-read.
+  replaced:
+    'the company event stream file was swapped out underneath the server — rotated or restored — and has been ' +
+    're-read from the start; nothing is missing, but the live frames from before the swap may repeat',
 });
 
 /** Same sanity check as SNAPSHOT_REASON_CODES, one table over (AC-18). */

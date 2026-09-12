@@ -358,6 +358,10 @@ export function createChatServer({
   // three things a stateful reader of an append-only file needs and nothing
   // else. `reason` is the same enum /api/events reports, so the pane says the
   // same word whichever door it came through.
+  // AS-111 F3 adds two facts that let the tail notice the file was REPLACED
+  // rather than appended to: the inode it last read from, and the last few
+  // bytes it consumed. Neither is served anywhere.
+  const TAIL_WINDOW_BYTES = 64;
   const eventsTail = {
     offset: 0,
     partial: Buffer.alloc(0),
@@ -366,6 +370,8 @@ export function createChatServer({
     lastId: null,
     lastTs: null,
     malformed: 0,
+    ino: null,
+    lastBytes: Buffer.alloc(0),
   };
   function resetTail(reason) {
     eventsTail.offset = 0;
@@ -374,6 +380,8 @@ export function createChatServer({
     eventsTail.reason = reason;
     eventsTail.lastId = null;
     eventsTail.lastTs = null;
+    eventsTail.ino = null;
+    eventsTail.lastBytes = Buffer.alloc(0);
   }
 
   /** Read whatever has been appended since the last call and fold it in.
@@ -381,11 +389,29 @@ export function createChatServer({
    *  poll below turns each into one `company` frame. A file shorter than the
    *  offset is a truncation: the reader starts over and SAYS so (AC-14); it
    *  never throws, because a rotated or hand-edited log is a fact about the
-   *  host, not a reason to take the chat server down. */
+   *  host, not a reason to take the chat server down.
+   *
+   *  AS-111 F3: a file REPLACED by one at least as long (`mv` of a longer file
+   *  over the path, `cp`/writeFileSync of a restored backup, an editor save)
+   *  used to carry the old offset into the new content — one malformed
+   *  fragment, everything before the offset never folded, and `ok` on the
+   *  caption. Two cheap checks catch it, in this order after the stat:
+   *  (1) the inode changed — checked before the size rule, because a rotation
+   *  to a shorter new file is a replacement, not a truncation, and on every
+   *  poll, so a same-size swap is caught too; (2) the bytes just before the
+   *  cursor are not the bytes the tail consumed — checked only on a poll that
+   *  has new bytes to read anyway, one extra small pread on the same fd. Either
+   *  → `replaced`, then the whole new file is re-read from 0 exactly as the
+   *  truncation path does. In-place truncateSync keeps the inode, so
+   *  `truncated` is unchanged. Residual, by design: same inode, same size, an
+   *  edit before the last 64 bytes goes unnoticed until a later mismatch —
+   *  nothing edits the file, and the check that would see it is a full re-read
+   *  per poll. */
   function tailEvents() {
     let size;
+    let ino;
     try {
-      size = statSync(EVENTS_PATH).size;
+      ({ size, ino } = statSync(EVENTS_PATH));
     } catch (err) {
       if (err && err.code === 'ENOENT') {
         resetTail('no-stream');
@@ -394,23 +420,41 @@ export function createChatServer({
       eventsTail.reason = 'unreadable-stream';
       return [];
     }
-    let truncated = false;
+    let restarted = null;
+    if (eventsTail.ino !== null && ino !== eventsTail.ino) {
+      resetTail('replaced');
+      restarted = 'replaced';
+    }
+    eventsTail.ino = ino;
     if (size < eventsTail.offset) {
       resetTail('truncated');
-      truncated = true;
+      restarted = 'truncated';
+      eventsTail.ino = ino;
     }
     if (size === eventsTail.offset) {
-      if (!truncated && eventsTail.reason !== 'truncated') eventsTail.reason = 'ok';
+      if (!restarted && eventsTail.reason !== 'truncated' && eventsTail.reason !== 'replaced') eventsTail.reason = 'ok';
       return [];
     }
     let chunk;
     try {
       const fd = openSync(EVENTS_PATH, 'r');
       try {
+        const window = eventsTail.lastBytes;
+        if (window.length > 0 && eventsTail.offset >= window.length) {
+          const seen = Buffer.alloc(window.length);
+          const got = readSync(fd, seen, 0, window.length, eventsTail.offset - window.length);
+          if (got !== window.length || !seen.equals(window)) {
+            resetTail('replaced');
+            restarted = 'replaced';
+            eventsTail.ino = ino;
+          }
+        }
         const buf = Buffer.alloc(size - eventsTail.offset);
         const read = readSync(fd, buf, 0, buf.length, eventsTail.offset);
         chunk = buf.subarray(0, read);
         eventsTail.offset += read;
+        // After a reset the window is empty, so this is uniform across both paths.
+        eventsTail.lastBytes = Buffer.concat([eventsTail.lastBytes, chunk]).subarray(-TAIL_WINDOW_BYTES);
       } finally {
         closeSync(fd);
       }
@@ -440,10 +484,11 @@ export function createChatServer({
       const projected = projectEvent(ev);
       if (projected) out.push(projected);
     }
-    if (truncated) {
-      // stays 'truncated' until the NEXT append: one poll cannot both report
-      // the loss and pretend it is over.
-    } else if (eventsTail.reason === 'truncated') {
+    if (restarted) {
+      // stays 'truncated' / 'replaced' until the NEXT append: one poll cannot
+      // both report the restart and pretend it is over. One lifecycle for
+      // both words (AS-111 plan §8.1).
+    } else if (eventsTail.reason === 'truncated' || eventsTail.reason === 'replaced') {
       if (events.length) eventsTail.reason = 'ok';
     } else {
       eventsTail.reason = 'ok';
