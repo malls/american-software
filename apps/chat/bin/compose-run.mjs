@@ -61,6 +61,28 @@ const exec = (argv, opts = {}) => {
   return { status: r.status, stdout: r.stdout, stderr: r.stderr };
 };
 
+// AS-121: from the moment `compose … run` starts until the counted run reports,
+// SIGINT/SIGTERM must not end this process — with no handler node dies before
+// any JS runs, `down` never happens, and the project's image (and, off the
+// network_mode: none pin, its network) survives. The handler only records the
+// signal; spawnSync defers the callback, so the process survives, the compose
+// child ends (killed with the process group, or run to completion on
+// parent-only delivery), and runCounted's always-down path runs as it would for
+// any other run outcome. It is armed *inside* the exec wrapper, on the run
+// recipe only (review cycle 1, F1): a signal during the guard or pre-flight has
+// nothing to tear down and keeps the default disposition, so the build never
+// starts. The caller disarms after runCounted returns.
+function armedExec(onSignal) {
+  let armed = false;
+  return (argv, opts) => {
+    if (!armed && argv.includes('run')) {
+      armed = true;
+      for (const sig of RUN_SIGNALS) process.on(sig, onSignal);
+    }
+    return exec(argv, opts);
+  };
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const docker = resolveDockerBin(process.env, existsSync);
@@ -79,22 +101,17 @@ async function main() {
 
   if (!opts.project || !opts.cwd) { console.error('usage: compose-run.mjs --project asc-<stage>-as<n> --cwd <dir> [--log <file>] | --check'); process.exit(2); }
   const ceiling = Number(process.env.ASC_NETWORK_CEILING) || DEFAULT_CEILING;
-  // AS-121: for the duration of the counted run, SIGINT/SIGTERM must not end
-  // this process — with no handler node dies before any JS runs, `down` never
-  // happens, and the project's image (and, off the network_mode: none pin, its
-  // network) survives. The handler only records the signal; spawnSync defers
-  // the callback, so the process survives, the compose child ends (killed with
-  // the process group, or run to completion on parent-only delivery), and
-  // runCounted's always-down path runs as it would for any other run outcome.
+  // AS-121: the handler (see armedExec) records the first signal caught once
+  // the run has started; nothing is armed before then.
   let interrupted = null;
   const onSignal = (sig) => { interrupted = interrupted || sig; };
-  for (const sig of RUN_SIGNALS) process.on(sig, onSignal);
-  const result = runCounted(exec, {
+  const result = runCounted(armedExec(onSignal), {
     docker: docker.bin, project: opts.project, cwd: opts.cwd, productionNames, env: process.env, ceiling,
     onOutput: (out) => { if (opts.log) writeFileSync(opts.log, out); },
   });
   // One turn of the loop so a signal caught during spawnSync reaches onSignal
-  // before the report; then the default disposition is back.
+  // before the report; then the default disposition is back (a no-op when the
+  // run was refused and nothing was ever armed).
   await new Promise((r) => setImmediate(r));
   for (const sig of RUN_SIGNALS) process.off(sig, onSignal);
   if (result.refused) {
