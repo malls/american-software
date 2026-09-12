@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 1,
+  "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-09-01T21:47:03Z",
   "created_by": "agent:qa-priya",
@@ -18,15 +18,15 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1FF185QBCB1Z9X9F8P9M5WM",
-  "last_event_id": "ev_01M2BRJ5V531M4PT5W92TSRPJG",
-  "last_status_changed_at": "2026-09-12T21:32:14Z",
+  "last_event_id": "ev_01M2BSBPRN298CC1AMQP5R1VQ8",
+  "last_status_changed_at": "2026-09-12T21:46:15Z",
   "linked_files": [],
   "priority": "low",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-57",
-  "status": "in_progress",
+  "status": "review",
   "tags": [
     "invoicing",
     "tests",
@@ -34,6 +34,6 @@
   ],
   "title": "invoicing: dependency-policy closed-world scan \u2014 residual blind spots found in AS-53 review",
   "type": "bug",
-  "updated_at": "2026-09-12T21:32:19Z",
+  "updated_at": "2026-09-12T21:46:15Z",
   "urgency": null
 }
