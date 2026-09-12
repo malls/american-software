@@ -158,10 +158,10 @@ test('deploy-shape: the parsers read the manifests they are about to assert on',
   // "passed" every rule on an empty corpus. Exact counts, not `> 0`.
   assert.equal(COMPOSE.name, 'asc-invoicing', 'distinct project name so `compose down` cannot take asc-chat with it');
   assert.deepEqual(Object.keys(COMPOSE), ['name', 'services', 'networks', 'volumes']);
-  assert.deepEqual(Object.keys(SERVICES), ['web', 'test', 'stripe-mock', 'contract']);
+  assert.deepEqual(Object.keys(SERVICES), ['web', 'test', 'stripe-mock', 'contract', 'demo']);
   assert.deepEqual(Object.keys(COMPOSE.networks), ['stripe-mock']);
   assert.deepEqual(Object.keys(COMPOSE.volumes), ['invoicing-data']);
-  assert.equal(COPIES.length, 9, `expected 9 COPY instructions, found ${COPIES.length}`);
+  assert.equal(COPIES.length, 10, `expected 10 COPY instructions, found ${COPIES.length}`);
   assert.equal(IGNORE_PATTERNS.length, 6, `expected 6 .dockerignore patterns, found ${IGNORE_PATTERNS.length}`);
   assert.match(DOCKERFILE_CODE, /^FROM /m);
   // The comment stripper must not have eaten the instructions it is filtering
@@ -189,7 +189,7 @@ test('deploy-shape: the parser rejects shapes it does not understand', () => {
 const BUILT = Object.entries(SERVICES).filter(([, service]) => service.build !== undefined);
 
 test('deploy-shape: every built service builds from the REPO ROOT with this app Dockerfile', () => {
-  assert.deepEqual(BUILT.map(([name]) => name), ['web', 'test', 'contract']);
+  assert.deepEqual(BUILT.map(([name]) => name), ['web', 'test', 'contract', 'demo']);
   assert.equal(SERVICES['stripe-mock'].build, undefined, 'stripe-mock is pulled, not built');
   assert.equal(typeof SERVICES['stripe-mock'].image, 'string');
   for (const [name, service] of BUILT) {
@@ -297,10 +297,11 @@ test('deploy-shape: no credential VALUE appears in compose.yaml, and every secre
     'INVOICING_STRIPE_WEBHOOK_SECRET=${INVOICING_STRIPE_WEBHOOK_SECRET:-}',
   ]);
   assert.deepEqual(SERVICES.contract.environment, ['ASC_STRIPE_MOCK_URL=http://stripe-mock:12111']);
+  assert.deepEqual(SERVICES.demo.environment, ['ASC_STRIPE_MOCK_URL=http://stripe-mock:12111'], 'the demo (AS-90) sets exactly what contract sets — the mock URL and nothing key-shaped');
   assert.equal(SERVICES.test.environment, undefined, 'the test service sets nothing — the offline half stays offline');
   assert.equal(SERVICES['stripe-mock'].environment, undefined);
   const env = Object.values(SERVICES).flatMap((s) => s.environment ?? []);
-  assert.equal(env.length, 5, `expected exactly 5 environment entries, found ${env.length}: ${env.join(', ')}`);
+  assert.equal(env.length, 6, `expected exactly 6 environment entries, found ${env.length}: ${env.join(', ')}`);
   // Any variable whose NAME looks like a credential must be an interpolated
   // pass-through of the same name with an empty default: `${NAME:-}` and
   // nothing else. A literal value here would be a committed secret.
@@ -330,14 +331,14 @@ test('deploy-shape: the amd64 platform pin is set where it actually takes effect
   // silently ignored it, and the image then differs from the deploy target.
   // `build.platforms` is what makes it take, and it works under both
   // DOCKER_BUILDKIT=1 and DOCKER_BUILDKIT=0. Both are asserted so a future edit
-  // cannot drop the half that does the work. The runtime pin is on all four
-  // services (the pulled stripe-mock included); the BUILD pin on the three that
-  // build.
-  assert.equal(Object.keys(SERVICES).length, 4);
+  // cannot drop the half that does the work. The runtime pin is on all five
+  // services (the pulled stripe-mock included); the BUILD pin on the four that
+  // build (demo joined at AS-90).
+  assert.equal(Object.keys(SERVICES).length, 5);
   for (const [name, service] of Object.entries(SERVICES)) {
     assert.equal(service.platform, 'linux/amd64', `${name}: runtime platform pin`);
   }
-  assert.equal(BUILT.length, 3);
+  assert.equal(BUILT.length, 4);
   for (const [name, service] of BUILT) {
     assert.deepEqual(service.build.platforms, ['linux/amd64'], `${name}: BUILD platform pin`);
   }
@@ -370,6 +371,33 @@ test('deploy-shape: the contract service is the test service attached to stripe-
   assert.equal(svc.volumes, undefined);
   assert.equal(svc.network_mode, undefined, 'the contract service is on a network — the internal one');
   assert.equal(svc.restart, undefined);
+});
+
+test('deploy-shape: the demo service is the contract service with a different command, and web is still not on the mock network', () => {
+  // AS-90: the board's walkthrough runs INSIDE the image, next to stripe-mock,
+  // because the app cannot be pointed at a mock by configuration (client.js:
+  // baseUrl is an option, never configuration) and the demo must not be the
+  // thing that changes that. So its shape is contract's, exactly — same image,
+  // same profile, same internal network with no egress, same single environment
+  // entry — and only the command differs. The last two lines re-pin what this
+  // service must NOT have moved: `web` on the mock network would be the AS-38
+  // decision reversed for a demo.
+  const svc = SERVICES.demo;
+  assert.deepEqual(svc.build, SERVICES.test.build, 'same image as the test service');
+  assert.deepEqual(svc.profiles, ['tools'], '`compose up` must not run the demo');
+  assert.deepEqual(svc.depends_on, ['stripe-mock']);
+  assert.deepEqual(svc.networks, ['stripe-mock']);
+  assert.deepEqual(svc.environment, ['ASC_STRIPE_MOCK_URL=http://stripe-mock:12111']);
+  assert.deepEqual(svc.command, ['node', 'demo/run.mjs'], 'the walkthrough, from the COPY\'d demo directory');
+  assert.equal(svc.ports, undefined, 'the demo publishes nothing to the host');
+  assert.equal(svc.volumes, undefined, 'a fresh database file per run, nothing persisted');
+  assert.equal(svc.network_mode, undefined);
+  assert.equal(svc.restart, undefined);
+  assert.equal(SERVICES.web.networks, undefined, 'web stays off the mock network');
+  assert.equal(SERVICES.web.depends_on, undefined);
+  // The Dockerfile ships the directory the command names — the AS-26 lesson:
+  // the demo runs the exact bits the image ships.
+  assert.equal(COPIES.filter((c) => c.sources.includes('apps/invoicing/demo') && c.dest === './demo').length, 1, 'apps/invoicing/demo is COPY\'d to ./demo exactly once');
 });
 
 test('deploy-shape: the stripe-mock network has no egress and web is not on it', () => {

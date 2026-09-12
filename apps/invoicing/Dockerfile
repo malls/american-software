@@ -33,6 +33,11 @@ COPY apps/invoicing/public ./public
 # Tests ship in the image deliberately: the test service runs the exact bits the
 # image ships, which is the AS-26 lesson generalised.
 COPY apps/invoicing/test ./test
+# The board's demo walkthrough (AS-90) ships so the demo runs the exact bits
+# the image ships (the AS-26 lesson), not for the runtime: server.js never
+# imports it, and test/dependency-policy.test.js asserts nothing under lib/ or
+# routes/ does either.
+COPY apps/invoicing/demo ./demo
 
 # The one asset consumed from outside apps/invoicing/. Single source of visual
 # truth (AS-29); this app is a consumer and never an owner, which is what the

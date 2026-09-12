@@ -22,7 +22,9 @@ DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose run --rm --build con
 cases report as *skipped*, never as passed). `contract` runs the same suite
 with the stripe-mock cases live — see [The contract half](#the-contract-half-stripe-mock);
 the trailing `down` stops the mock that `depends_on` started (`--rm` removes only
-the run container). Plain `docker compose down` after `up` is unchanged.
+the run container). Plain `docker compose down` after `up` is unchanged. A
+fourth, `demo`, prints a narrated walkthrough of the core loop for a human
+reader — see [Demo](#demo).
 
 `web` serves on **http://127.0.0.1:8348** — `/signin` (screen 1, AS-45),
 `/` (an interim one-line `text/plain` response until AS-70; see § The view
@@ -108,6 +110,56 @@ service-level key alone silently produced a `linux/arm64` image against a
 There are **no source bind-mounts**, so the running container is always the
 shipped image. `--build` is what makes an edit take effect; `npm ci` is
 layer-cached, so a rebuild is seconds.
+
+## Demo
+
+A fourth command, for a human reader rather than a verdict (AS-90, the board's
+"can you make me a demo?"):
+
+```bash
+# from apps/invoicing/
+DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose run --rm --build demo && docker compose down
+```
+
+It prints a narrated transcript of the v1 core loop to stdout: sign up →
+session → Connect onboarding start and return → readiness → client → contract
+(the rendered document is printed in full) → invoice draft → finalize → send →
+paid → read back, twelve steps plus one redelivery. The `demo` service is the
+`contract` service with a different command (`demo/run.mjs`): the same shipped
+image, next to stripe-mock on the internal network, no ports, no volumes, no
+route to the internet, a fresh database file per run. It is **not** `web`
+driven from the host, because the app cannot be pointed at a mock by
+configuration (`lib/stripe/client.js`: `baseUrl` is an option, never
+configuration) and a demo must not be the thing that changes that.
+
+Every step is labelled with one of three fixed strings, so the reader never
+has to guess which is which:
+
+- `REAL APP BEHAVIOUR` — the app's own code did this; it would do the same
+  against real Stripe.
+- `STRIPE-MOCK STAND-IN` — Stripe's request validator answered with a fixture;
+  real Stripe would answer with real data, and the step says what would differ
+  (the account is never ready, `amount_due` is a constant 1000, status never
+  advances, the onboarding link is a fixture URL).
+- `SYNTHESIZED EVENT` — the demo built and signed this webhook itself, with the
+  same scheme Stripe uses; it proves our receiver and state machine, not
+  Stripe's delivery.
+
+The transcript opens with a verbatim "what this demo can / cannot show" block
+and ends with every Stripe request the app made, in order — none of which
+touches a charge, a payment intent or a transfer. The script holds no
+assertion and no verdict: a broken chain prints `STOPPED at step N` and exits 1
+(control flow, not a check); the automated end-to-end loop is AS-49, whose
+planner lifts the `SEQUENCE` array from `demo/run.mjs`. The invoice is $10.00
+because stripe-mock's invoice fixture always answers `amount_due 1000` and the
+app refuses to finalize an invoice whose total disagrees with Stripe.
+
+The committed capture of one run — `transcript.txt`, five screenshots of screen
+1 at 375 px and 1280 px, and `capture.json` naming the commits it was taken at —
+is `docs/demo/d1/`. The page the board views is built from that directory by
+`.claude/skills/d1-demo-artifact/` (`SKILL.md` is the capture-and-publish
+procedure; `capture.mjs` takes the screenshots with the host's Chrome against a
+running `web`, and enters neither the image nor the lockfile).
 
 ## The suite
 

@@ -114,6 +114,31 @@ services:
       - ASC_STRIPE_MOCK_URL=http://stripe-mock:12111
     command: ["node", "--test"]
 
+  # demo (AS-90): the board's narrated walkthrough of the core loop, printed to
+  # stdout. The contract service's shape with a different command, and NOT
+  # `web` on purpose: the app cannot be pointed at a mock by configuration
+  # (lib/stripe/client.js — `baseUrl` is an option, never configuration, so a
+  # secret key can never be sent wherever the environment says), and `web` is
+  # deliberately not on the stripe-mock network. So the demo boots the same
+  # shipped app code in-process, on loopback, inside a container that sits
+  # next to the mock and has no route to the internet. No ports, no volumes:
+  # each run uses a fresh database file and leaves nothing behind.
+  demo:
+    build:
+      context: ../..
+      dockerfile: apps/invoicing/Dockerfile
+      platforms:
+        - linux/amd64
+    platform: linux/amd64
+    profiles: ["tools"]
+    depends_on:
+      - stripe-mock
+    networks:
+      - stripe-mock
+    environment:
+      - ASC_STRIPE_MOCK_URL=http://stripe-mock:12111
+    command: ["node", "demo/run.mjs"]
+
 networks:
   # internal: no default gateway — nothing attached can reach the internet.
   stripe-mock:
