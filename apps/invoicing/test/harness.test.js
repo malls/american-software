@@ -79,6 +79,7 @@ const EXPECTED_TEST_FILES = [
   'repositories.test.js',
   'route-surface.test.js',
   'screens.test.js',
+  'states-ledger.test.js',
   'stripe-client.test.js',
   'stripe-mock.test.js',
   'webhooks.test.js',
@@ -87,7 +88,7 @@ const EXPECTED_TEST_FILES = [
 test('V2: the suite is exactly the files it is supposed to be', () => {
   const found = discoverTestFiles();
   // Cardinality FIRST, against a committed number — never `length > 0`.
-  assert.equal(found.length, 22, `expected exactly 22 test files, found ${found.length}: ${found.join(', ')}`);
+  assert.equal(found.length, 23, `expected exactly 23 test files, found ${found.length}: ${found.join(', ')}`);
   assert.deepEqual(found, EXPECTED_TEST_FILES);
 });
 
@@ -95,7 +96,7 @@ test('V2: this file is one of the discovered files, and the runner is running it
   // Closes the remaining gap in the check above: the disk enumeration proves
   // the files EXIST, and this proves the runner actually loaded at least this
   // one. Together with V1 (a failure here really exits 1), a green suite means
-  // these twenty-two files ran and could have failed.
+  // these twenty-three files ran and could have failed.
   assert.ok(EXPECTED_TEST_FILES.includes('harness.test.js'));
   assert.ok(
     import.meta.url.endsWith('/test/harness.test.js'),

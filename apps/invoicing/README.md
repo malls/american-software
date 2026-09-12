@@ -800,24 +800,29 @@ things, in this order: "every state is reachable" becomes mechanical; the
 properties above stay auditable by eye as well as by grep; and the state machine
 is unit-testable without HTTP, exhaustively, in microseconds.
 
-**What the state guarantee claims, and what it does not.** The frozen list and a
-table in `test/screens.test.js` are **two independent hand transcriptions of the
-ledger, compared against each other** by exact set equality and cardinality, and
-every `data-state` a template can stamp is a member of that closed set. So a
-change to either copy alone is red, a render can never leave the set, and a state
-cannot be quietly dropped from the module. What is **not** true, and used to be
-written here: that a row appearing or vanishing *in
-`docs/design/wireframes/02-states-ledger.md`* turns the suite red. It does not —
-both copies would have to be hand-edited, and it is the *second* edit the test
-detects. Nothing in the suite reads that document and nothing in it can: the
-`test` service is mountless by design and the Dockerfile vendors exactly one file
-from outside the app, `docs/design/tokens/tokens.css`. **The join to the design
-document is a dated review act:** all eight screen-1 rows checked by hand against
-§1 on 2026-09-03 by `agent:qa-priya`; all nine screen-2 rows transcribed from §2
-on 2026-09-12 by `agent:developer-marcus`, with the reviewer's own check recorded
-on AS-70. Closing it mechanically means vendoring the ledger into the image the
-way `tokens.css` already is — AS-71, which depends on AS-70's second
-transcription now existing.
+**What the state guarantee claims.** The frozen list and a table in each
+screen's test file are **two independent hand transcriptions of the ledger,
+compared against each other** by exact set equality and cardinality, and every
+`data-state` a template can stamp is a member of that closed set. So a change to
+either copy alone is red, a render can never leave the set, and a state cannot be
+quietly dropped from the module. Those two copies pin *dispositions* — what this
+app does about each row — which the design document does not state.
+
+**And the design document itself is read (AS-71).** The Dockerfile vendors
+`docs/design/wireframes/02-states-ledger.md` into the image as
+`/app/vendor/states-ledger.md`, beside `tokens.css`, and
+`test/states-ledger.test.js` parses it with a strict table reader
+(`test/helpers/states-ledger.js` — throws on any shape it does not recognise, and
+on a document that yields zero rows) and joins every screen's frozen ledger to
+it: 7 screens, 65 rows against the document's own §8 count, and per screen the
+id set both directions, the n/a rows, and the `LOADING` rows — which are exactly
+the rows the modules record as `unrenderable — browser-supplied`, so their
+absence is asserted against the document rather than left as a gap. A row that
+appears, vanishes, is renamed, or changes category in the ledger turns that
+screen's case red; that is verified by mutation on the task record, not by
+review. Before AS-71 the join was a dated review act (screen 1 by
+`agent:qa-priya` on 2026-09-03, screen 2 by `agent:developer-marcus` on
+2026-09-12); those acts stand as the record of the first transcriptions.
 
 A row whose disposition is not `rendered` is **accounted for, never silently
 skipped**: `redirect-answered` (the response is a 303, so no markup exists),
@@ -1096,6 +1101,15 @@ named route registered **before** `express.static` — so a stray
 `public/tokens.css` can never shadow it. Exactly one copy of those bytes exists
 in version control. A second checked-in copy is what "no copy" forbids, because
 it would drift silently.
+
+The same mechanism carries one more file, and only one (AS-71): the states
+ledger, `docs/design/wireframes/02-states-ledger.md`, lands as
+`/app/vendor/states-ledger.md` so the test suite can read the design document
+the screens are built from. It is registered in `lib/vendor.js` as
+`VENDOR_DOCUMENTS`, deliberately apart from `VENDOR_ASSETS`: it is never served
+and never health-checked — a design document is not public surface, and the
+health check should not take the app down over one. `test/deploy-shape.test.js`
+pins both COPYs to both registries.
 
 The repo-root context is why **`/.dockerignore` at the repo root exists** and is
 not optional: without it the build context of this product image includes

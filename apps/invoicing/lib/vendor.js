@@ -26,3 +26,22 @@ export const VENDOR_ASSETS = Object.freeze([
     contentType: 'text/css; charset=utf-8',
   }),
 ]);
+
+/** Vendored DOCUMENTS (AS-71): files this app consumes from outside its own
+ *  directory that are NOT served and NOT health-checked — the test suite is
+ *  their only reader. Kept apart from VENDOR_ASSETS on purpose: adding a design
+ *  document to that list would register a public route for it and make the
+ *  health check take the app down over a doc.
+ *
+ *  `source` is the repo-relative path the Dockerfile COPYs from; `file` is the
+ *  name under config.vendorDir it lands as. test/deploy-shape.test.js joins the
+ *  Dockerfile's COPY to this entry, and test/states-ledger.test.js reads the
+ *  file by it — so the three agree or the suite is red. */
+export const VENDOR_DOCUMENTS = Object.freeze([
+  Object.freeze({
+    // docs/design/wireframes/02-states-ledger.md — the states each screen must
+    // render (AS-30). Every lib/screens/*-view.js ledger is joined to it.
+    file: 'states-ledger.md',
+    source: 'docs/design/wireframes/02-states-ledger.md',
+  }),
+]);

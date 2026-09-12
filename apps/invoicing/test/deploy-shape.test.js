@@ -28,6 +28,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { SCHEMA } from '../lib/config.js';
+import { VENDOR_ASSETS, VENDOR_DOCUMENTS } from '../lib/vendor.js';
 import { APP_DIR } from './helpers/server.js';
 
 const COMPOSE_TEXT = readFileSync(join(APP_DIR, 'compose.yaml'), 'utf8');
@@ -161,7 +162,7 @@ test('deploy-shape: the parsers read the manifests they are about to assert on',
   assert.deepEqual(Object.keys(SERVICES), ['web', 'test', 'stripe-mock', 'contract', 'demo']);
   assert.deepEqual(Object.keys(COMPOSE.networks), ['stripe-mock']);
   assert.deepEqual(Object.keys(COMPOSE.volumes), ['invoicing-data']);
-  assert.equal(COPIES.length, 10, `expected 10 COPY instructions, found ${COPIES.length}`);
+  assert.equal(COPIES.length, 11, `expected 11 COPY instructions, found ${COPIES.length}`);
   assert.equal(IGNORE_PATTERNS.length, 6, `expected 6 .dockerignore patterns, found ${IGNORE_PATTERNS.length}`);
   assert.match(DOCKERFILE_CODE, /^FROM /m);
   // The comment stripper must not have eaten the instructions it is filtering
@@ -214,9 +215,33 @@ test('deploy-shape: the tokens COPY is present with the exact source path', () =
   assert.ok(!tokens[0].dest.includes('public'), 'vendored assets do not land in public/');
 });
 
-test('deploy-shape: the image carries no second copy of the tokens file', () => {
+test('deploy-shape: the states-ledger COPY is present with the exact source path, and matches the registry', () => {
+  // AS-71: the second and last file vendored from outside apps/invoicing/. The
+  // test suite is its only reader (test/states-ledger.test.js), so the join
+  // pinned here is Dockerfile <-> lib/vendor.js VENDOR_DOCUMENTS <-> the file
+  // name that test reads — the three agree or the suite is red.
+  assert.equal(VENDOR_DOCUMENTS.length, 1, 'exactly one vendored document is registered');
+  const [doc] = VENDOR_DOCUMENTS;
+  assert.deepEqual(doc, { file: 'states-ledger.md', source: 'docs/design/wireframes/02-states-ledger.md' });
+  const ledger = COPIES.filter((c) => c.sources.some((s) => s.endsWith('states-ledger.md')));
+  assert.equal(ledger.length, 1, 'exactly one COPY brings the states ledger into the image');
+  assert.deepEqual(ledger[0].sources, [doc.source]);
+  assert.equal(ledger[0].dest, `./vendor/${doc.file}`);
+  assert.ok(!ledger[0].dest.includes('public'), 'vendored documents do not land in public/ — never served');
+  // Not a served asset: VENDOR_ASSETS is what routes/assets.js registers routes
+  // for and health.js checks, and a design document belongs in neither.
+  assert.equal(VENDOR_ASSETS.some((a) => a.file === doc.file), false, 'the ledger is not in VENDOR_ASSETS');
+});
+
+test('deploy-shape: vendor/ is populated by exactly the two registered COPYs, one file each', () => {
+  // No second copy of the tokens file, no unregistered file: the vendor
+  // namespace is exactly the union of the two registries.
   const intoVendor = COPIES.filter((c) => c.dest.startsWith('./vendor'));
-  assert.equal(intoVendor.length, 1, 'vendor/ is populated by exactly one COPY');
+  assert.equal(intoVendor.length, 2, 'vendor/ is populated by exactly two COPYs');
+  const registered = [...VENDOR_ASSETS, ...VENDOR_DOCUMENTS].map((entry) => `./vendor/${entry.file}`).sort();
+  assert.deepEqual(intoVendor.map((c) => c.dest).sort(), registered);
+  assert.deepEqual(registered, ['./vendor/states-ledger.md', './vendor/tokens.css']);
+  for (const c of intoVendor) assert.equal(c.sources.length, 1, `${c.dest}: one source file per vendored COPY`);
 });
 
 // --- the test service is the proof of gate (c) ------------------------------
