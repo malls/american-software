@@ -970,12 +970,23 @@ test('every href and form action in the two contract templates names a route the
     // is never hidden behind the first: under F8 on a tip without AS-46 the
     // seam's /invoices/new and the mutant's /contracts/nwe are both reported
     // (a first-failure assert masked the mutant — measured, tick 7).
+    // DRIVING THE SIGN-OUT ACTION ENDS THE SESSION, so it goes LAST: with it
+    // in document order, every link after it was driven cookieless and the
+    // guard's 303 to /signin read as "served" — F-nav (a) on contract-form.ejs
+    // survived that way in the AS-127 battery while (b) on contract-detail.ejs
+    // (whose dead link sat before the form) was caught. The redirect-to-signin
+    // check below is the tripwire for the same masking by any other route.
+    const ordered = [...links.filter((l) => l.path !== '/signout'), ...links.filter((l) => l.path === '/signout')];
+    assert.equal(ordered.length, links.length);
     const unserved = [];
-    for (const link of links) {
+    for (const link of ordered) {
       assert.ok(link.path.startsWith('/') && !link.path.includes('<%'), `${link.file}: ${link.path} is a constant app-relative path`);
       const res = await fetch(`${base}${link.path}`, { method: link.method, redirect: 'manual', headers });
       if (res.status === 404) unserved.push(`${link.file}: ${link.method} ${link.path} is served by nothing`);
       else if (res.status >= 500) unserved.push(`${link.file}: ${link.method} ${link.path} answered ${res.status}`);
+      else if (link.path !== '/signout' && res.status === 303 && (res.headers.get('location') ?? '').startsWith('/signin')) {
+        unserved.push(`${link.file}: ${link.method} ${link.path} was answered by the guard — the session was lost mid-drive`);
+      }
     }
     assert.deepEqual(unserved, [], `${unserved.length} of ${links.length} links unserved: ${unserved.join('; ')}`);
   });
