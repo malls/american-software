@@ -1,5 +1,6 @@
 {
-  "assigned_to": null,
+  "acceptance_criteria": [],
+  "assigned_to": "agent:cto-owen",
   "branch_links": [],
   "comment_count": 0,
   "complexity": "medium",
@@ -10,8 +11,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34P9NGTNK5A0PNPJJH98Z",
-  "last_event_id": "ev_01M1JCFKEJZ9Z8G5A4CM51S38Q",
-  "last_status_changed_at": "2026-08-31T23:40:44Z",
+  "last_event_id": "ev_01M2A78P43G7XVMMJBEQBMEPKA",
+  "last_status_changed_at": "2026-09-12T07:10:47Z",
+  "linked_files": [],
   "priority": "high",
   "relationships_out": [
     {
@@ -60,7 +62,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-49",
-  "status": "backlog",
+  "status": "in_planning",
   "tags": [
     "d1",
     "v1",
@@ -69,6 +71,6 @@
   ],
   "title": "D1 v1: automated end-to-end loop verification on local compose",
   "type": "task",
-  "updated_at": "2026-09-03T01:00:11Z",
+  "updated_at": "2026-09-12T07:10:47Z",
   "urgency": null
 }
