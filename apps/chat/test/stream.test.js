@@ -1280,6 +1280,65 @@ test('stream-company-swap-identical-prefix-with-partial: the hash covers a held 
   assert.equal(lanes.lanes.events.reason, 'ok');
 });
 
+test('stream-company-replaced-then-identical-swap-adopts: after a genuine replacement, an identical-content swap is still adopted — the reset started the hash over', async (t) => {
+  const dataDir = loopDataDir(t);
+  const path = eventsFile(dataDir);
+  writeFileSync(path, '');
+  plantTwoLaneSnapshot(dataDir);
+  const { base, get } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS, eventsPollMs: FAST_POLL_MS,
+  });
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  const { second } = appendTwoLines(path);
+  const before = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(before.length, 2, 'two planted lines, two frames');
+
+  // A genuine rotation: a LONGER file whose first line differs, renamed over
+  // the path (new inode). The prefix compare mismatches → reset → replay.
+  const oldSize = statSync(path).size;
+  const longer = stageStarted('AS-7', { branch: 'feat/AS-7-a-noticeably-longer-branch-name' });
+  const third = stageStarted('AS-8', { actor: 'agent:qa-priya', stage: 'review' });
+  const newBuf = Buffer.from(longer + second + third);
+  assert.ok(newBuf.length > oldSize, 'precondition: longer than the old file');
+  assert.ok(
+    !newBuf.subarray(0, oldSize).equals(readFileSync(path)),
+    'precondition: the consumed prefix differs — this is a replacement the compare CAN see'
+  );
+  const inoBefore = statSync(path).ino;
+  writeFileSync(`${path}.next`, newBuf);
+  renameSync(`${path}.next`, path);
+  assert.notEqual(statSync(path).ino, inoBefore, 'precondition: the rename landed a new inode');
+  const replaced = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(replaced.length, 3, 'the whole new file is re-read: three lines, three frames');
+  assert.equal((await get('/api/lanes')).data.lanes.events.reason, 'replaced');
+
+  // Now the transient-inode flap the deployed mount produces right after a
+  // rotation: the same bytes at yet another inode. The reset must have started
+  // the running hash over, so it now covers exactly the replayed file's
+  // `[0, offset)`. A hash the reset left alone still holds the DEAD file's
+  // bytes plus the new ones — the compare mismatches and the file is replayed
+  // a second time (the N1 double replay, back through the reset path).
+  swapIdentical(path);
+  const after = await drain(stream, FAST_POLL_MS * 8 + 300);
+  assert.equal(after.filter((f) => f.event === 'company').length, 0, 'an identical-content swap after a reset replays nothing');
+  const lanes = (await get('/api/lanes')).data;
+  assert.equal(lanes.lanes.events.reason, 'replaced', 'reason untouched by the adoption: still the rotation, until the next append');
+  assert.equal(lanes.lanes.events.malformed, 0);
+
+  // The cursor was carried into the adopted file: one append, one frame, and
+  // the append is what clears the reason.
+  const next = eventLine('tick_started', {
+    source: 'watcher', pid: 5286, startedAt: new Date().toISOString(), messageId: 652, loopTick: 4,
+  });
+  appendFileSync(path, next);
+  const gained = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(gained.length, 1, 'one line appended after the adoption, one frame (a reset would have given four)');
+  assert.equal(gained[0].data.id, JSON.parse(next).id);
+  assert.equal((await get('/api/lanes')).data.lanes.events.reason, 'ok', 'the next append clears the reason');
+});
+
 test('stream-company-replaced-shorter-new-inode: a rotation to a SHORTER file at a new inode is replaced, not truncated — the inode is checked before the size rule', async (t) => {
   const dataDir = loopDataDir(t);
   const path = eventsFile(dataDir);
