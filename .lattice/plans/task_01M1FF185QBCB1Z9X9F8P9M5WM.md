@@ -107,3 +107,16 @@ Q1 Should `README.md` be kept out of the image by a `.dockerignore` line? **Defa
 whose only job is to shrink the world adds a second list to maintain; `UNSCANNED` already accounts for it.
 Q2 Should `nestedSkipped` also fail on an *empty* nested `vendor/`? **Default: it does** (the bucket collects
 directories, not files) — git cannot commit one, so the case is theoretical. Both close at review.
+
+## Review Cycle 1 Findings (Ruben, 2026-09-12 — implementation-level rework; battery in scratchpad/agent-qa-ruben/AS-57/)
+F1 DEFECT (regression vs master): the whole-directory COPY ships a host `apps/invoicing/vendor/` into `/app/vendor`,
+   and depth-0 `SKIPPED_DIRS` skips it — `vendor/probe.js` with `fetch(...)`, imported from `lib/vendor.js`, runs and the
+   suite stays green (531/512/0/19); on master the same plant fails loudly (module not found). Fix: pin `/app/vendor` as an
+   exact two-file closed world (cardinality first; `assets.test.js` is the natural home — `dependency-policy.test.js` is at
+   1,195/1,200), widen test #3 assertion 5's specifier regex from `\bdemo\/` to every `SKIPPED_DIRS` name, correct the
+   `SKIPPED_DIRS` comment (`vendor/` is no longer image-only nor bounded by `VENDOR_ASSETS`), add the plant as a mutant
+   with its observed red set. F2 (closed by F1's regex): `lib/` → `../test/helpers/…` is the same unguarded import path.
+F3 prediction miss, not a defect: node's `**/test/**/*.js` glob runs the new helper as a file-level test → 531/512, not 530/511;
+   update the plan's predicted counts. F4 nit: the `UNSCANNED` comment (~line 292) still says "must pass in both places".
+
+## Reset 2026-09-12 by agent:cto-owen
