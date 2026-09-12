@@ -1484,8 +1484,10 @@ test('api: AS-28 — the favicon uses only palette hex values', async (t) => {
   assert.ok(!/<style[\s>]/i.test(artwork), 'the artwork declares no <style> element');
   assert.ok(!/\sstyle\s*=/i.test(artwork), 'the artwork declares no style="" attribute');
 
+  // AS-109 F4: XML allows either quote style, so a paint written fill='red'
+  // must be read, not skipped — an unread value is an unexamined one.
   const paints = [...artwork.matchAll(
-    /\b(fill|stroke|stop-color|flood-color|lighting-color)\s*=\s*"([^"]*)"/g
+    /\b(fill|stroke|stop-color|flood-color|lighting-color)\s*=\s*(?:"([^"]*)"|'([^']*)')/g
   )];
 
   // Cardinality before quantification: this artwork paints one path and three
@@ -1493,7 +1495,8 @@ test('api: AS-28 — the favicon uses only palette hex values', async (t) => {
   // at the wrong set (or the artwork lost its colour) — red, never a pass.
   assert.ok(paints.length >= 4,
     `${paints.length} paint attributes examined, expected at least 4`);
-  for (const [, attr, value] of paints) {
+  for (const [, attr, dq, sq] of paints) {
+    const value = dq ?? sq;
     // Whole value, not a substring: `#1C41E3FF`, `#F00`, `red`, `rgb(...)` are
     // all non-tokens and all fail here.
     assert.ok(
@@ -1502,6 +1505,40 @@ test('api: AS-28 — the favicon uses only palette hex values', async (t) => {
         'palette token (#1C41E3 --color-accent-500, #FFFFFF --color-ink-white)'
     );
   }
+
+  // AS-109 cycle-1 F1: a shape with no paint attribute at all — a <circle>
+  // added with fill= forgotten — renders in SVG's initial fill (black) and
+  // hands the loop above nothing to read; the paint floor is one-directional
+  // and cannot see a fifth shape. So every shape carries its own fill=. Kept
+  // after the paint loop so a paintless file still reports the paint floor.
+  const shapes = [...artwork.matchAll(
+    /<(path|circle|ellipse|rect|line|polyline|polygon|text)\b([^>]*)>/g
+  )];
+  assert.ok(shapes.length >= 4,
+    `${shapes.length} shape elements examined, expected at least 4`);
+  for (const [, tag, attrs] of shapes) {
+    assert.ok(
+      /\sfill\s*=/.test(attrs),
+      `${shapes.length} shape elements examined: <${tag}> carries no fill= attribute ` +
+        'of its own (an unpainted shape renders black, not a palette token)'
+    );
+  }
+});
+
+test('api: AS-109 — the favicon carries no SMIL animation element', async (t) => {
+  const { base } = await bootServer(t);
+  const svg = await (await fetch(base + '/favicon.svg')).text();
+
+  // AS-109 F5: <set attributeName="fill" to="red"/> is neither a paint
+  // attribute nor a style, so the palette guard above never reads it. A tab
+  // marker has no business animating, so the whole closed set of SVG animation
+  // elements (SVG 1.1's five plus SVG 2's discard) is banned outright.
+  const artwork = svg.replace(/<!--[\s\S]*?-->/g, '');
+  // Cycle-1 N2: a negative assertion over an empty body is vacuous, so the
+  // test proves it is looking at artwork before it says what is absent.
+  assert.ok(artwork.includes('<svg'), 'the body is an SVG document (cardinality before absence)');
+  const smil = /<(set|animate|animateColor|animateMotion|animateTransform|discard)[\s\/>]/i.exec(artwork);
+  assert.ok(!smil, `the artwork carries no SMIL animation element, found <${smil && smil[1]}>`);
 });
 
 // --- AS-27: the advance-loop status endpoint --------------------------------
