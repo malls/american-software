@@ -9,13 +9,13 @@
       "repo": null
     }
   ],
-  "comment_count": 8,
+  "comment_count": 9,
   "complexity": "medium",
   "created_at": "2026-09-12T15:27:52Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": "BOARD REQUEST (DM msg 1040, 2026-09-12 11:21, \"what happened overnight? can we update the demo?\"). Filed by the CTO on the board's behalf.\n\nWHY. The demo page docs/demo/d1/index.html (AS-90, merged 449abb3 at 01:20 today) was captured at 2026-09-12T04:10Z against screen 1 only (capture.json: five PNGs, all S1-*). Overnight every remaining screen merged: screen 2 Connect Stripe (AS-70, 46eea90), screen 4 invoice create/edit (AS-46, 7e680f8), screen 7 contract detail (AS-47, 45ab932), screens 3+5 dashboard and invoice detail (AS-48, 4f4ef1b), screen 6 contract create (AS-127, 944c2ac), plus the Connect failure landing (AS-69) and the danger-colour token retune (AS-56, ae797e9). The demo's CAN/CANNOT block in apps/invoicing/demo/run.mjs still says \"Screens 2-7. They are not built.\" and several SEQUENCE step narrations say a redirect target 404s \"until screen N is built\" or that a record is read from the database \"because the screen that would show it is not built yet\" \u2014 all now false. run.mjs has not been touched since AS-90 (last commit 4990d9d); AS-49 did not lift the SEQUENCE. The page's first block is the honest-scope statement the board reads first, so a stale one is worse than none. The SKILL (.claude/skills/d1-demo-artifact/SKILL.md) already prescribes the cadence: \"each screen task re-runs steps 1-5 at its merge and appends its screenshots\" \u2014 none of the six merges did, so this task does it once for all of them.\n\nWHAT (in scope):\n1. Extend .claude/skills/d1-demo-artifact/capture.mjs to reach the signed-in screens. It currently drives host Chrome over CDP against a running `web` and captures only /signin states. The demo run (run.mjs) already seeds a freelancer (Dana Reyes, dana@demo.example) and walks connect -> client -> contract -> invoice -> paid against stripe-mock; capture follows the same path: sign up via the real form, then drive the app through the same POSTs so each screen has real data to render. Keep the existing refusal rules (origin, exact path \u2014 a redirect is refused \u2014 and the expected data-state stamped on the root) for every new capture.\n2. Capture, at 375 and 1280 px, the designed states the ledger (docs/design/wireframes/02-states-ledger.md) names and the merged views actually stamp, reachable without a real Stripe: screen 2 S2-DEFAULT-NOTSTARTED and S2-RETURN-NOTREADY (the mock's account fixture is not ready \u2014 that is the honest post-return state; S2-RETURN-READY only if reachable by posting the self-signed account.updated event the demo already builds); screen 3 S3-EMPTY-FIRSTRUN, S3-GATED-STRIPENOTREADY and S3-DEFAULT-POPULATED; screen 4 S4-DEFAULT-CREATE, S4-DEFAULT-EDIT and S4-ERROR-VALIDATION (POST-only, 375 px, like the S1 validation capture); screen 5 S5-DEFAULT-DRAFT, S5-DEFAULT-OPEN and S5-DEFAULT-PAID; screen 6 S6-DEFAULT and S6-ERROR-VALIDATION; screen 7 S7-DEFAULT (print is a CSS media variant of S7-DEFAULT, not a state \u2014 capturing it under emulated print media at 1280 is optional and, if taken, must be labelled as such). The planner trims this list to what is reachable and says why for anything dropped; a state that cannot be reached honestly is named in the CANNOT block, not faked. Keep the five existing S1 captures.\n3. Re-run the transcript: `DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose run --rm --build demo` from apps/invoicing, cut at the walkthrough banner line, save as docs/demo/d1/transcript.txt. One run's stdout, never spliced.\n4. Correct the wording in run.mjs: the CAN/CANNOT block (CAN now includes the seven screens in a real browser; CANNOT drops the \"Screens 2-7\" line and keeps the Stripe-account / email / self-signed-paid caveats) and the step narrations that say a screen is not built or a redirect target 404s. Prose only \u2014 no change to the SEQUENCE's requests, order, fixed values, or labels (e2e-loop.test.js copies the fixed values from run.mjs; deploy-shape.test.js pins the demo service; both must stay green untouched). Update BLOCK_SHA256 in .claude/skills/d1-demo-artifact/build.mjs in the same commit as the block (the SKILL says so; build.mjs throws otherwise).\n5. Rebuild the page with build.mjs (extend it to lay out the new screenshots grouped by screen with alt text naming state and width, as it does for S1), verify it builds from the committed docs/demo/d1/ with every cardinality check printing, and commit docs/demo/d1/ (PNGs, transcript.txt, capture.json, index.html) plus the skill scripts and run.mjs under this task. Update capture.json's commit fields to the master commit captured against.\n6. Update the SKILL.md description and derivation chain so it no longer says \"screenshots of screen 1\"; state that publishing is still pending (see below).\n\nSCOPE OUT:\n- Publishing. The page has never been published: .claude/skills/d1-demo-artifact/artifact-url.txt does not exist (brand and wireframe skills have one). The Artifact tool is reachable only from a live session, not from sub-agents or headless ticks (AS-90 implementer's note, commit 54574ea). The merge tick for this task reports that publishing is still pending; the board runs the d1-demo-artifact skill (and brand-artifact and wireframe-artifact, which still embed the pre-AS-56 danger colour) from a live session.\n- Any change to apps/invoicing routes, lib, views, or tests beyond what capture needs (expected: none \u2014 capture drives the app from outside).\n- Any new screen states beyond the ledger's; any change to the demo's mechanics or its labels.\n\nDEPENDENCIES: none in flight. AS-71 (states ledger vendored into the image) and AS-113 are in review and do not touch the demo, the views, or capture. AS-128 (add-client validation state on screens 4/6) is backlog; if it lands first the S4/S6-CLIENT-ERROR-VALIDATION states become capturable and the planner may add them, but this task does not wait for it.\n\nPROOF (medium): the counted --build compose suite green untouched; build.mjs observed to throw on a scratch copy with the CAN/CANNOT block altered and with one PNG removed (the two falsifiers the SKILL names); capture.mjs observed to refuse a PNG on a scratch run that lands on a redirect (the existing refusal, re-proven against a signed-in path); one observed red per falsifier the plan names.\n\nPriority high (board request). Complexity medium: three scripts, a seeded browser walk, and the honest-scope wording all in one change; a low-complexity two-stage path would skip the falsifiers above.",
-  "done_at": null,
+  "done_at": "2026-09-12T23:17:24Z",
   "evidence_refs": [
     {
       "id": "ev_01M2B939P86A2Y556XM9TRM8SM",
@@ -29,21 +29,21 @@
     }
   ],
   "id": "task_01M2B3PVWXKVZCNKADEM7JGY6K",
-  "last_event_id": "ev_01M2BYFX5DYP1N2TJC4ZG4J896",
-  "last_status_changed_at": "2026-09-12T22:43:50Z",
+  "last_event_id": "ev_01M2BYJKHFDNN44YEFARPD35FY",
+  "last_status_changed_at": "2026-09-12T23:17:24Z",
   "linked_files": [],
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-130",
-  "status": "review",
+  "status": "done",
   "tags": [
     "d1",
     "demo"
   ],
   "title": "D1 demo: re-capture the board demo against the seven merged screens and correct its CAN/CANNOT wording (AS-90 follow-up)",
   "type": "task",
-  "updated_at": "2026-09-12T23:15:56Z",
+  "updated_at": "2026-09-12T23:17:24Z",
   "urgency": null
 }
