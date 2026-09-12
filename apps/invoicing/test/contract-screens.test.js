@@ -399,7 +399,9 @@ test('every href and form action in the two contract templates names a route the
   // Red on /invoices/new while AS-46 is not in this branch's history — the
   // merge-order ruling (plan §10) made mechanical.
   const links = templateLinks('contract-detail.ejs');
-  assert.equal(links.length, 4, `cardinality first: ${links.length} links examined in contract-detail.ejs (${links.map((l) => `${l.method} ${l.path}`).join(', ')}), expected 4`);
+  // 4 at AS-47's merge; 6 once AS-48 landed the nav's Dashboard anchor and
+  // NOTFOUND's Back to Dashboard — both `GET /`, both driven below.
+  assert.equal(links.length, 6, `cardinality first: ${links.length} links examined in contract-detail.ejs (${links.map((l) => `${l.method} ${l.path}`).join(', ')}), expected 6`);
   await withScreenApp(async ({ base, headers }) => {
     // EVERY link is driven and EVERY failure is named, so a second dead link
     // is never hidden behind the first: under F8 on a tip without AS-46 the
