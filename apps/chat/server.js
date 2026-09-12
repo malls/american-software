@@ -1028,6 +1028,23 @@ export function createChatServer({
           messages: messages.map(annotate),
         };
       }
+      // AS-131: ?before=<id> selects page mode — the `limit` (default 50, max
+      // 200) newest top-level messages with id < before (before=0 = newest
+      // page), their threads only, plus hasMore/nextBefore. Same structured
+      // shape as the cold load, so the client keeps one payload type. Without
+      // before, ?limit= keeps its AS-24 meaning below (CLI parity, untouched).
+      if (q('before') != null) {
+        const { conversation: conv, messages, threads, hasMore, nextBefore } = store.getMessagesPage(
+          conversation, me, { before: q('before'), limit: q('limit') ?? undefined }
+        );
+        return {
+          conversation: { ...conv, members: conv.type === 'dm' ? store.dmMembers(conv.id) : undefined },
+          messages: messages.map(annotate),
+          threads: Object.fromEntries(Object.entries(threads).map(([k, v]) => [k, v.map(annotate)])),
+          hasMore,
+          nextBefore,
+        };
+      }
       // AS-24 parity: optional ?limit= mirrors CLI `history --limit N` (same
       // bare Number() coercion as the CLI; the store ignores non-numeric).
       const limit = q('limit') != null ? Number(q('limit')) : undefined;

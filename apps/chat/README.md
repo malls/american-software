@@ -100,6 +100,31 @@ with one identical neutral message — the API 404s are byte-identical by
 design. The tokenizer is the pure module `public/msg-refs.js`
 (`test/msg-refs.test.js`).
 
+## Lazy-loaded history (AS-131)
+
+Opening a conversation loads only its newest **page** — 50 top-level messages
+with the complete reply list of each — and older pages load as you scroll
+near the top (or via the **Load earlier messages** button when the first page
+is too short to scroll). A prepended page never moves the row you were
+reading (`prependPreservingScroll`, `public/scroll.js`). Live frames, the
+`since=` catch-up and the read watermark are unchanged: the open-time
+`POST /api/read` carries no `upTo`, so a partial page leaves no unread residue.
+A permalink or thread link whose target is older than the newest page pages
+back until it is loaded — at most 20 pages (1,000 top-level messages); past
+that the anchor drops exactly like a dead id.
+
+| `GET /api/messages?conversation=&me=` + | Returns |
+|---|---|
+| `before=<id>` [`&limit=<n>`] | **page mode** — the `limit` (default 50, max 200; else 400) newest top-level messages with `id < before` (`before=0` = the newest page), ascending; `threads` holds every reply of those roots and nothing else; `hasMore` (an older page exists) and `nextBefore` (pass back as `before`; `null` when the page is empty) |
+| `limit=<n>` (no `before`) | unchanged AS-24 shape — newest `n` top-level messages with **every** thread of the conversation (CLI `history --limit` parity), no cursor keys |
+| `since=<id>` | unchanged AS-25 flat delta |
+| neither | unchanged full cold load (CLI / export path) |
+
+Visibility gating runs before cursor validation in every mode: a hidden
+channel with `before=abc` 404s byte-identically to a nonexistent id. Pure
+client pieces: `mergeOlderPage` / `ensureLoaded` in `public/live.js`
+(`test/live.test.js`); store: `getMessagesPage` (`test/store.test.js`).
+
 ## Copy chips for hashes and branch names (AS-115)
 
 A lowercase commit hash (7–40 hex, word-fenced; all-digit only at length 7,

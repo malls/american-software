@@ -551,13 +551,21 @@ test('api: AS-24 — GET /api/messages honors ?limit= (CLI history --limit parit
   const { get, post } = await bootServer(t);
   const ch = await post('/api/channels', { name: 'lim', actor: 'human:forrest' });
   const convId = ch.data.conversation.id;
+  const ids = [];
   for (const body of ['m1', 'm2', 'm3']) {
-    await post('/api/messages', { conversation: convId, author: 'human:forrest', body });
+    ids.push((await post('/api/messages', { conversation: convId, author: 'human:forrest', body })).data.message.id);
   }
+  // A reply on m1 — OUTSIDE the limit=2 window. The CLI contract (bin/chat.js
+  // history --limit) prints every thread of the conversation regardless.
+  await post('/api/messages', { conversation: convId, author: 'human:forrest', body: 'r1', threadRoot: ids[0] });
   const all = await get(`/api/messages?conversation=${convId}&me=human:forrest`);
   assert.equal(all.data.messages.length, 3);
   const last2 = await get(`/api/messages?conversation=${convId}&me=human:forrest&limit=2`);
   assert.deepEqual(last2.data.messages.map((m) => m.body), ['m2', 'm3'], 'keeps the newest, like the CLI');
+  // AS-131: ?limit= alone is NOT page mode — threads stay conversation-wide
+  // and no cursor keys appear (byte-identical to pre-AS-131).
+  assert.deepEqual(Object.keys(last2.data.threads), [String(ids[0])], 'threads of a sliced-off root still ship');
+  assert.deepEqual(Object.keys(last2.data).sort(), ['conversation', 'messages', 'threads']);
 });
 
 test('api: AS-24 — GET /api/dump and /api/export are byte-faithful to the store', async (t) => {
@@ -649,6 +657,161 @@ test('api: AS-25 — GET /api/messages?since= returns the flat delta; hidden-cha
     assert.equal(missing.status, 404);
     assert.equal(norm(hidden.data, board.id), norm(missing.data, 99999));
   }
+});
+
+// --- AS-131: page mode — GET /api/messages?before=<id>&limit=<n> -------------
+
+/** Post n top-level messages over HTTP, returning ids in insert order. */
+async function seedRootsHttp(post, convId, n, author = 'human:forrest') {
+  const ids = [];
+  for (let i = 1; i <= n; i++) {
+    ids.push((await post('/api/messages', { conversation: convId, author, body: `root ${i}` })).data.message.id);
+  }
+  return ids;
+}
+
+test('api: AS-131 — ?before=&limit= walks a 5-root conversation newest-first with hasMore/nextBefore; empty conversation terminal shape', async (t) => {
+  const { get, post } = await bootServer(t);
+  const ch = await post('/api/channels', { name: 'pages', actor: 'human:forrest' });
+  const convId = ch.data.conversation.id;
+  const me = 'human:forrest';
+  const [r1, r2, r3, r4, r5] = await seedRootsHttp(post, convId, 5);
+  const page = (before, limit) => get(`/api/messages?conversation=${convId}&me=${me}&before=${before}&limit=${limit}`);
+
+  const p1 = await page(0, 2);
+  assert.equal(p1.status, 200);
+  assert.deepEqual(p1.data.messages.map((m) => m.id), [r4, r5], 'newest page, ascending');
+  assert.equal(p1.data.hasMore, true);
+  assert.equal(p1.data.nextBefore, r4);
+  assert.deepEqual(Object.keys(p1.data).sort(), ['conversation', 'hasMore', 'messages', 'nextBefore', 'threads']);
+  assert.ok(p1.data.messages.every((m) => Array.isArray(m.refs) && m.replyCount === 0), 'page rows are annotated like the cold load');
+  assert.equal(p1.data.conversation.id, convId);
+
+  const p2 = await page(p1.data.nextBefore, 2);
+  assert.deepEqual(p2.data.messages.map((m) => m.id), [r2, r3], 'id < before, strictly');
+  assert.equal(p2.data.hasMore, true);
+  assert.equal(p2.data.nextBefore, r2);
+
+  const p3 = await page(p2.data.nextBefore, 2);
+  assert.deepEqual(p3.data.messages.map((m) => m.id), [r1]);
+  assert.equal(p3.data.hasMore, false);
+  assert.equal(p3.data.nextBefore, r1);
+
+  // Boundary: exactly `limit` left -> false; limit+1 left -> true.
+  const exact = await page(r4, 3);
+  assert.deepEqual(exact.data.messages.map((m) => m.id), [r1, r2, r3]);
+  assert.equal(exact.data.hasMore, false);
+  const plusOne = await page(r5, 3);
+  assert.deepEqual(plusOne.data.messages.map((m) => m.id), [r2, r3, r4]);
+  assert.equal(plusOne.data.hasMore, true);
+
+  // Empty conversation.
+  const empty = await post('/api/channels', { name: 'empty', actor: 'human:forrest' });
+  const e = await get(`/api/messages?conversation=${empty.data.conversation.id}&me=${me}&before=0&limit=2`);
+  assert.deepEqual(e.data.messages, []);
+  assert.deepEqual(e.data.threads, {});
+  assert.equal(e.data.hasMore, false);
+  assert.equal(e.data.nextBefore, null);
+
+  // before alone (no limit) uses the server default of 50 — all five roots here.
+  const dflt = await get(`/api/messages?conversation=${convId}&me=${me}&before=0`);
+  assert.deepEqual(dflt.data.messages.map((m) => m.id), [r1, r2, r3, r4, r5]);
+  assert.equal(dflt.data.hasMore, false);
+});
+
+test('api: AS-131 — page threads are scoped to the page roots; limit/before validation is 400 on a visible channel', async (t) => {
+  const { get, post } = await bootServer(t);
+  const ch = await post('/api/channels', { name: 'scoped', actor: 'human:forrest' });
+  const convId = ch.data.conversation.id;
+  const me = 'human:forrest';
+  const [r1, r2, r3] = await seedRootsHttp(post, convId, 3);
+  const reply = async (root, body) =>
+    (await post('/api/messages', { conversation: convId, author: 'agent:cto-owen', body, threadRoot: root })).data.message.id;
+  const a1 = await reply(r1, 'a1');
+  const c1 = await reply(r3, 'c1');
+  const a2 = await reply(r1, 'a2'); // conversation max is a reply to a root outside the newest page
+  const c2 = await reply(r3, 'c2');
+
+  const p1 = await get(`/api/messages?conversation=${convId}&me=${me}&before=0&limit=2`);
+  assert.deepEqual(p1.data.messages.map((m) => m.id), [r2, r3]);
+  assert.deepEqual(Object.keys(p1.data.threads), [String(r3)], 'only the page roots key the threads map');
+  assert.deepEqual(p1.data.threads[r3].map((m) => m.id), [c1, c2], 'every reply of a page root, id-ordered');
+  assert.ok(p1.data.threads[r3].every((m) => Array.isArray(m.refs)), 'thread rows annotated');
+  assert.equal(p1.data.messages[1].replyCount, 2);
+
+  const p2 = await get(`/api/messages?conversation=${convId}&me=${me}&before=${p1.data.nextBefore}&limit=2`);
+  assert.deepEqual(p2.data.messages.map((m) => m.id), [r1]);
+  assert.deepEqual(Object.keys(p2.data.threads), [String(r1)]);
+  assert.deepEqual(p2.data.threads[r1].map((m) => m.id), [a1, a2]);
+
+  // Visible channel: malformed cursor / out-of-range limit -> 400 with the
+  // store's message (bare Number() coercion, like ?since=).
+  const bad = await get(`/api/messages?conversation=${convId}&me=${me}&before=abc`);
+  assert.equal(bad.status, 400);
+  assert.match(bad.data.error, /Invalid before/);
+  for (const limit of ['0', '201', 'x']) {
+    const res = await get(`/api/messages?conversation=${convId}&me=${me}&before=0&limit=${limit}`);
+    assert.equal(res.status, 400, `limit=${limit} is 400`);
+    assert.match(res.data.error, /Invalid limit/);
+  }
+  const cap = await get(`/api/messages?conversation=${convId}&me=${me}&before=0&limit=200`);
+  assert.equal(cap.status, 200, 'the cap itself is accepted');
+});
+
+test('api: AS-131 — hidden channel in page mode 404s byte-identically to a nonexistent id, even with a malformed cursor', async (t) => {
+  const { get, post } = await bootServer(t);
+  await post('/api/identities', {
+    id: 'agent:developer-marcus', displayName: 'Marcus Webb (Engineer)', kind: 'agent',
+  });
+  const N = 'agent:developer-marcus';
+  const convs = await get('/api/conversations?me=human:forrest');
+  const board = convs.data.conversations.find((c) => c.name === 'board');
+  const norm = (body, id) => JSON.stringify(body).replaceAll(`'${id}'`, "'<id>'");
+  for (const qs of ['before=0', 'before=abc', 'before=0&limit=0', 'before=0&limit=201', 'before=0&limit=x']) {
+    const hidden = await get(`/api/messages?conversation=${board.id}&me=${encodeURIComponent(N)}&${qs}`);
+    const missing = await get(`/api/messages?conversation=99999&me=${encodeURIComponent(N)}&${qs}`);
+    assert.equal(hidden.status, 404, `${qs}: never 400/403 for the hidden channel`);
+    assert.equal(missing.status, 404);
+    assert.equal(norm(hidden.data, board.id), norm(missing.data, 99999));
+  }
+});
+
+test('api: AS-131 — the read watermark is conversation-wide: a page-mode open + POST /api/read without upTo leaves zero unread', async (t) => {
+  const { get, post, base } = await bootServer(t);
+  const ch = await post('/api/channels', { name: 'wm', actor: 'human:forrest' });
+  const convId = ch.data.conversation.id;
+  const me = 'human:forrest';
+  const other = 'agent:cto-owen';
+  const [r1, r2, r3] = await seedRootsHttp(post, convId, 3, other);
+  // The conversation max is a reply to r1 — a root OUTSIDE the newest page.
+  const late = (await post('/api/messages', { conversation: convId, author: other, body: 'late', threadRoot: r1 })).data.message.id;
+  assert.ok(late > r3);
+
+  const page = await get(`/api/messages?conversation=${convId}&me=${me}&before=0&limit=2`);
+  assert.deepEqual(page.data.messages.map((m) => m.id), [r2, r3]);
+  const maxLoaded = Math.max(...page.data.messages.map((m) => m.id), ...Object.values(page.data.threads).flat().map((m) => m.id));
+  assert.ok(maxLoaded < late, 'the page does not contain the conversation max');
+  const before = await get(`/api/unread?me=${me}`);
+  assert.equal(before.data.unread.find((g) => g.conversationId === convId)?.messages.length, 4, 'all four unread before the open');
+
+  // What selectConversation does: mark read with NO upTo -> server marks the max.
+  const read = await post('/api/read', { me, conversation: convId });
+  assert.equal(read.status, 200);
+  assert.equal(read.data.read.lastReadId, late);
+  const unread = await get(`/api/unread?me=${me}`);
+  assert.ok(!unread.data.unread.some((g) => g.conversationId === convId), 'no unread residue for the paged conversation');
+
+  // The served client sends the open-time mark exactly that way: the
+  // selectConversation POST carries no upTo (a partial page must never pin the
+  // watermark below the max). noteRead's per-frame upTo is a separate call.
+  const app = await (await fetch(base + '/app.js')).text();
+  const fnAt = app.indexOf('async function selectConversation(');
+  assert.ok(fnAt !== -1);
+  const fnEnd = app.indexOf('\n}\n', fnAt);
+  const body = app.slice(fnAt, fnEnd);
+  const reads = [...body.matchAll(/post\('\/api\/read',\s*\{([^}]*)\}/g)].map((m) => m[1]);
+  assert.equal(reads.length, 1, 'selectConversation marks read exactly once');
+  assert.ok(!/upTo/.test(reads[0]), `open-time /api/read carries no upTo (got {${reads[0].trim()}})`);
 });
 
 test('api: AS-25 — live.js is served (app.js module graph must not 404); the 5s poll is retired', async (t) => {

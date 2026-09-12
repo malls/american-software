@@ -4,7 +4,7 @@
 // scroll metrics, so a fake pane is a faithful double).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { isAtBottom, renderPreservingScroll } from '../public/scroll.js';
+import { isAtBottom, renderPreservingScroll, prependPreservingScroll } from '../public/scroll.js';
 
 // --- isAtBottom -------------------------------------------------------------
 
@@ -87,4 +87,32 @@ test('scroll: renderPreservingScroll — empty/hidden pane is a safe no-op-to-bo
   const pane = fakePane({ scrollTop: 0, scrollHeight: 0, clientHeight: 0 });
   renderPreservingScroll(pane, () => {});
   assert.equal(pane.scrollTop, 0, 'zero metrics: at-bottom write lands on 0');
+});
+
+// --- prependPreservingScroll (AS-131) ----------------------------------------
+
+test('scroll: prependPreservingScroll — scrollTop moves by exactly the height delta (300 -> 900, 0 -> 600)', () => {
+  // Reader mid-history at 300; an older page grows the pane 1000 -> 1600.
+  const pane = fakePane({ scrollTop: 300, scrollHeight: 1000 });
+  const calls = { count: 0 };
+  prependPreservingScroll(pane, growingRender(pane, 600, calls));
+  assert.equal(calls.count, 1);
+  assert.equal(pane.scrollTop, 900, 'savedTop + (1600 - 1000): the row under the reader did not move');
+  // Reader at the very top (the scroll-up trigger): same delta, from 0.
+  const top = fakePane({ scrollTop: 0, scrollHeight: 1000 });
+  prependPreservingScroll(top, growingRender(top, 600, calls));
+  assert.equal(top.scrollTop, 600);
+});
+
+test('scroll: prependPreservingScroll — never consults the sticky-bottom rule, and no growth means no movement', () => {
+  // At-bottom metrics (delta 0) would make renderPreservingScroll follow to
+  // the new bottom; a prepend must still hold the reader's row instead.
+  const pane = fakePane({ scrollTop: 500, scrollHeight: 1000 }); // delta 0: "at bottom"
+  const calls = { count: 0 };
+  prependPreservingScroll(pane, growingRender(pane, 400, calls));
+  assert.equal(pane.scrollTop, 900, 'not 1400 (the new bottom)');
+  // Dedupe-only merge: content replaced at the same height, position restored.
+  const same = fakePane({ scrollTop: 137, scrollHeight: 1000 });
+  prependPreservingScroll(same, () => { same.scrollTop = 0; });
+  assert.equal(same.scrollTop, 137);
 });

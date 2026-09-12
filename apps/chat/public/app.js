@@ -2,9 +2,9 @@
 // Rendering rule: ALL user content goes through textContent (never innerHTML).
 
 import { parseChatUrl, serializeChatUrl, resolveConversation } from './url-state.js';
-import { renderPreservingScroll } from './scroll.js';
+import { renderPreservingScroll, prependPreservingScroll } from './scroll.js';
 import { shouldCloseOnEscape, shouldCloseOnBackdropGesture } from './thread-modal.js';
-import { applyMessage, maxLoadedId } from './live.js';
+import { applyMessage, maxLoadedId, mergeOlderPage, ensureLoaded, findLoaded } from './live.js';
 import { rosterOrder, dmOrder, togglePin, sanitizePins } from './dm-sort.js';
 import { BOARD_ROOT, buildOrgTree } from './org-chart.js';
 import { tokenizeInline, parseBlocks } from './markdown.js';
@@ -21,13 +21,22 @@ const $ = (sel) => document.querySelector(sel);
 // Seeded in lib/store.js; if ever absent, degrades to the first option.
 const DEFAULT_IDENTITY = 'human:forrest';
 
+// AS-131: top-level messages per page. The cold load is the newest page
+// (?before=0); older pages load on scroll-up / "Load earlier messages".
+const PAGE_SIZE = 50;
+// Scroll-up trigger: an older page loads once the reader is within this many
+// px of the top of #messages. A page of 50 is far taller than this, so one
+// prepend never re-triggers itself.
+const LOAD_OLDER_THRESHOLD_PX = 200;
+
 const state = {
   me: null,
   conversations: [],
   roster: [], // AS-8: active employees from /api/roster (empty on degradation)
   currentConv: null, // conversation object
   currentThreadRoot: null, // message id
-  lastData: null, // last /api/messages payload for current conversation
+  lastData: null, // last /api/messages payload for current conversation (page mode since AS-131: carries hasMore/nextBefore)
+  loadingOlder: false, // AS-131: one older-page fetch in flight at a time (serializes scroll-up)
   anchorMsg: null, // m= message anchor currently reflected in the URL (AS-9)
   anchorApplied: false, // one-shot: a push re-render must never re-scroll/re-highlight
   lastReadSent: 0, // AS-25: highest read watermark POSTed for currentConv (keeps /api/read cheap)
@@ -630,20 +639,63 @@ function renderConversation({ scroll = 'preserve' } = {}) {
   // AS-17: navigation (scroll:'bottom') always lands at the newest message;
   // push/send re-renders (scroll:'preserve') are sticky-bottom — follow new
   // messages only when the reader was already at the bottom.
-  renderPreservingScroll(
-    pane,
-    () =>
-      pane.replaceChildren(
-        ...(data.messages.length
-          ? data.messages.map((m) => messageNode(m))
-          : [el('div', 'empty-note', 'No messages yet.')])
-      ),
-    { forceBottom: scroll === 'bottom' }
-  );
+  renderPreservingScroll(pane, () => pane.replaceChildren(...paneChildren(data)), {
+    forceBottom: scroll === 'bottom',
+  });
   // Render the open thread BEFORE applying the anchor (AS-26): a reply
   // anchor's node exists only inside the thread pane.
   if (state.currentThreadRoot != null) renderThread();
   applyAnchor();
+}
+
+/**
+ * The main pane's children for a payload: the "Load earlier messages"
+ * control (AS-131; only while the server reports an older page — it covers a
+ * first page too short to scroll), then the loaded top-level messages.
+ */
+function paneChildren(data) {
+  const nodes = [];
+  if (data.hasMore) {
+    const btn = el('button', 'load-earlier', 'Load earlier messages');
+    btn.type = 'button';
+    btn.addEventListener('click', () => loadOlderPage());
+    nodes.push(btn);
+  }
+  if (data.messages.length) nodes.push(...data.messages.map((m) => messageNode(m)));
+  else nodes.push(el('div', 'empty-note', 'No messages yet.'));
+  return nodes;
+}
+
+/** GET one page older than `before` (0 = the newest page) for `conv` (default: the open conversation). */
+function fetchPage(before, conv = state.currentConv) {
+  return api(
+    `/api/messages?conversation=${conv.id}&me=${encodeURIComponent(state.me)}&before=${before ?? 0}&limit=${PAGE_SIZE}`
+  );
+}
+
+/**
+ * AS-131: merge the next older page in front of the loaded set and re-render
+ * without moving the reader's row. Guarded: one fetch in flight, only while
+ * the server reported hasMore, and dropped if the conversation changed while
+ * the fetch was out (state.lastData is a fresh object per selectConversation).
+ */
+async function loadOlderPage() {
+  const data = state.lastData;
+  if (!data || !data.hasMore || state.loadingOlder) return;
+  state.loadingOlder = true;
+  try {
+    const page = await fetchPage(data.nextBefore);
+    if (state.lastData !== data) return;
+    const added = mergeOlderPage(data, page);
+    if (added || !data.hasMore) {
+      const pane = $('#messages');
+      prependPreservingScroll(pane, () => pane.replaceChildren(...paneChildren(data)));
+    }
+  } catch {
+    // Transient failure: nothing merged; the next scroll-up / click retries.
+  } finally {
+    state.loadingOlder = false;
+  }
 }
 
 /**
@@ -668,7 +720,12 @@ function applyAnchor() {
   node.classList.add('anchored');
 }
 
-async function selectConversation(conv, { keepThread = false, url = 'push', scroll = 'bottom' } = {}) {
+/**
+ * Open a conversation: fetch its newest page (AS-131), optionally page back
+ * until `ensure` (a root or reply id a permalink / thread-open / msg-ref is
+ * about to anchor on) is loaded, render, mark read.
+ */
+async function selectConversation(conv, { keepThread = false, url = 'push', scroll = 'bottom', ensure = null } = {}) {
   // AS-23: picking a conversation closes the drawer. Every user pick (sidebar
   // li, roster row, DM typeahead, new-channel) reaches here as url:'push';
   // URL restore comes in as url:'none' and must NOT slam a drawer the user
@@ -677,13 +734,24 @@ async function selectConversation(conv, { keepThread = false, url = 'push', scro
   if (url === 'push') state.anchorMsg = null; // user navigation drops the m= anchor
   state.currentConv = conv;
   state.lastReadSent = 0; // new conversation, new watermark bookkeeping
+  state.loadingOlder = false;
   if (!keepThread) closeThread({ url: 'none' });
-  const data = await api(`/api/messages?conversation=${conv.id}&me=${encodeURIComponent(state.me)}`);
+  const data = await fetchPage(0, conv);
+  // Decision 7: one direction of paging, one code path — page back for the
+  // target BEFORE the first render, so applyAnchor / the t= root check see it.
+  // A target past the 20-page cap simply is not loaded: the anchor drops as a
+  // dead id does (AS-9).
+  if (ensure != null) await ensureLoaded(data, ensure, (before) => fetchPage(before, conv));
+  // The reader moved on while the pages were in flight: a stale open must
+  // not overwrite the newer conversation's payload.
+  if (state.currentConv !== conv) return;
   state.lastData = data;
   state.lastReadSent = maxLoadedId(data);
   renderConversation({ scroll });
   syncUrl(url);
-  // Viewing marks read (advances the watermark to the newest message).
+  // Viewing marks read (advances the watermark to the newest message). No
+  // upTo, deliberately: the server marks the conversation max, so a partial
+  // page never leaves unread residue (AS-131 Decision 6).
   await post('/api/read', { me: state.me, conversation: conv.id }).catch(() => {});
   refreshSidebar().catch(() => {});
 }
@@ -755,17 +823,14 @@ async function showTaskPanel(shortId) {
 // loaded, one /api/message/<id> call otherwise. Every failure — nonexistent,
 // hidden, transient — collapses to the one neutral MSG_UNAVAILABLE wording.
 
-/** The loaded message with this id (top-level or thread reply), or null. */
+/**
+ * The loaded message with this id (top-level, or a reply whose root is a
+ * loaded top-level row), or null. Same rule as ensureLoaded's stop condition
+ * (live.js findLoaded): a live reply on a root outside the loaded pages is
+ * not "loaded" — step 2 pages its root in before the thread opens.
+ */
 function findLoadedMessage(id) {
-  const data = state.lastData;
-  if (!data) return null;
-  const top = data.messages.find((m) => m.id === id);
-  if (top) return top;
-  for (const arr of Object.values(data.threads || {})) {
-    const hit = arr.find((m) => m.id === id);
-    if (hit) return hit;
-  }
-  return null;
+  return findLoaded(state.lastData, id);
 }
 
 async function goToMessage(id) {
@@ -804,7 +869,8 @@ async function goToMessage(id) {
   }
   state.anchorMsg = resolved.threadRootId == null ? id : null;
   state.anchorApplied = false;
-  await selectConversation(conv, { url: 'none' });
+  // AS-131: the target may sit past the newest page — page back to its root.
+  await selectConversation(conv, { url: 'none', ensure: resolved.threadRootId ?? id });
   if (resolved.threadRootId != null) {
     state.anchorMsg = id;
     state.anchorApplied = false;
@@ -1231,6 +1297,7 @@ function resetMainPane(note) {
   state.lastData = null;
   state.anchorMsg = null;
   state.lastReadSent = 0;
+  state.loadingOlder = false;
   closeThread({ url: 'none' });
   $('#conv-title').textContent = 'Select a conversation';
   $('#conv-purpose').textContent = '';
@@ -1271,7 +1338,9 @@ async function restoreFromUrl(mode) {
   state.anchorMsg = parsed.thread != null ? null : parsed.msg;
   state.anchorApplied = false;
   try {
-    await selectConversation(conv, { url: 'none' });
+    // AS-131: a t= root or m= message older than the newest page is paged
+    // in before the first render (bounded; a miss strips like a dead id).
+    await selectConversation(conv, { url: 'none', ensure: parsed.thread ?? parsed.msg ?? null });
   } catch {
     // Listed a moment ago but gone now (e.g. deleted DB row): same fail-soft.
     resetMainPane("That conversation isn't available.");
@@ -1468,6 +1537,15 @@ async function init() {
   });
 
   wireDmTypeahead();
+
+  // AS-131: scrolling near the top of the conversation loads the next older
+  // page; loadOlderPage's own guards (hasMore, one in flight) make a debounce
+  // unnecessary. The "Load earlier messages" button covers a first page too
+  // short to scroll.
+  const messagesPane = $('#messages');
+  messagesPane.addEventListener('scroll', () => {
+    if (messagesPane.scrollTop < LOAD_OLDER_THRESHOLD_PX) loadOlderPage();
+  });
 
   $('#thread-close').addEventListener('click', () => closeThread());
   // AS-19: backdrop click closes — only when the click lands on the overlay
