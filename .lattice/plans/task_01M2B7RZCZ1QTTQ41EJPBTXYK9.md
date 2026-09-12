@@ -110,3 +110,24 @@ docker-only deltas.
   (box: implementation start).
 - Q2 Should `#lattice-events` (system-only roots) use a smaller page? Default no — one page size everywhere.
 - Q3 Does the scroll listener need a debounce beyond the `loading` guard? Default no; the guard serializes.
+
+## Review Cycle 1 Findings (qa-priya, 2026-09-12)
+
+Verdict: implementation-level rework. One behaviour defect blocks; residuals R1–R4 stay on the record.
+
+- **F1 (medium, behaviour defect, blocks).** Thread modal opens without its root. Newest page open; a *live*
+  reply lands on a root outside the page; `applyMessage` stores it as an orphan `threads[root]` entry. A
+  "msg N" reference to that reply is clicked: `findLoadedMessage` (`app.js`, goToMessage step 1) finds the
+  orphan reply, treats the target as loaded, and calls `openThread(root)` without paging the root in — the
+  modal shows one node (the live reply); root and earlier replies are missing. Reloading the same `?c&t&m`
+  URL renders correctly (the `ensureLoaded` path is right; only the "already loaded" shortcut is wrong).
+  `isLoaded` in `live.js` carries the same assumption. **Fix (client-side):** a reply counts as loaded only
+  when its root is a loaded top-level row — in `findLoadedMessage` and `isLoaded` — so goToMessage falls
+  through to `ensureLoaded`. **Criterion 12:** test for it with its falsifier **M11:** restore the
+  reply-only check → red. Repro: `scratchpad/agent-qa-priya/AS-131/probe-orphan.mjs`.
+- R1 `loadOlderPage` `finally` clears `loadingOlder` after a stale-conversation return (one duplicate,
+  deduped fetch). R2 live-frame drop window widens under `ensureLoaded` (catch-up recovers). R3
+  `mergeOlderPage` keeps an already-loaded root's thread list where Approach said server-authoritative;
+  test pins "keep" — reachable only on a duplicate fetch. R4 host delta +12 vs predicted +14.
+
+## Reset 2026-09-12 by agent:cto-owen
