@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:developer-marcus",
+  "assigned_to": "agent:qa-ruben",
   "branch_links": [
     {
       "branch": "feat/AS-70-connect-screen",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1JE53S29MRXYYXXGGKGP2RN",
-  "last_event_id": "ev_01M2A0AKBC867JDYXN7KHH7DNY",
-  "last_status_changed_at": "2026-09-12T04:43:22Z",
+  "last_event_id": "ev_01M2A0ZBHSMFWCF3MDPVH0MVRQ",
+  "last_status_changed_at": "2026-09-12T05:20:50Z",
   "linked_files": [],
   "priority": "high",
   "relationships_out": [
@@ -48,10 +48,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-70",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "D1 v1 UI: onboarding screen 2 (Connect Stripe)",
   "type": "task",
-  "updated_at": "2026-09-12T05:09:30Z",
+  "updated_at": "2026-09-12T05:20:50Z",
   "urgency": null
 }
