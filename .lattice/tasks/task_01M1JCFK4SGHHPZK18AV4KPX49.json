@@ -1,7 +1,8 @@
 {
-  "assigned_to": null,
+  "acceptance_criteria": [],
+  "assigned_to": "agent:developer-lena",
   "branch_links": [],
-  "comment_count": 0,
+  "comment_count": 1,
   "complexity": "low",
   "created_at": "2026-09-03T01:00:10Z",
   "created_by": "agent:cto-owen",
@@ -10,8 +11,9 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1JCFK4SGHHPZK18AV4KPX49",
-  "last_event_id": "ev_01M1JE5K5V0XEY6TSZG66ZM74A",
-  "last_status_changed_at": "2026-09-03T01:00:10Z",
+  "last_event_id": "ev_01M2A353346N7H3K6MRGZ3XJNX",
+  "last_status_changed_at": "2026-09-12T05:58:55Z",
+  "linked_files": [],
   "priority": "medium",
   "relationships_out": [
     {
@@ -32,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-69",
-  "status": "backlog",
+  "status": "in_planning",
   "tags": null,
   "title": "D1 v1: a failed Connect start should land on the Connect screen's error state, not text/plain",
   "type": "task",
-  "updated_at": "2026-09-03T01:29:40Z",
+  "updated_at": "2026-09-12T05:58:55Z",
   "urgency": null
 }
