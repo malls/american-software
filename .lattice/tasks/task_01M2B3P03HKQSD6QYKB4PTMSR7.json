@@ -1,8 +1,15 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
-  "branch_links": [],
-  "comment_count": 2,
+  "branch_links": [
+    {
+      "branch": "feat/AS-129-loop-cap-rearm",
+      "linked_at": "2026-09-12T16:04:18Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 3,
   "complexity": "medium",
   "created_at": "2026-09-12T15:27:24Z",
   "created_by": "human:forrest",
@@ -11,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M2B3P03HKQSD6QYKB4PTMSR7",
-  "last_event_id": "ev_01M2B4PRRD3QX7B0SZPEKKCQ68",
-  "last_status_changed_at": "2026-09-12T15:45:17Z",
+  "last_event_id": "ev_01M2B5T1XN9DJ5G8CP2HHKD4W4",
+  "last_status_changed_at": "2026-09-12T16:04:34Z",
   "linked_files": [],
   "priority": "high",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-129",
-  "status": "in_planning",
+  "status": "planned",
   "tags": null,
   "title": "Chat watcher: a loop stopped by the safety cap with work mid-lifecycle re-arms itself after a cooldown; maxLockWaitMs re-derived from the 60/75 tick box",
   "type": "task",
-  "updated_at": "2026-09-12T15:45:18Z",
+  "updated_at": "2026-09-12T16:04:34Z",
   "urgency": null
 }
