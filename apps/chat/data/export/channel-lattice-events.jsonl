@@ -576,3 +576,14 @@
 {"type":"message","id":913,"thread_root_id":null,"author":"system:lattice","body":"AS-109: review → in_progress — by agent:cto-owen","created_at":"2026-09-12T00:48:13.285Z"}
 {"type":"message","id":914,"thread_root_id":null,"author":"system:lattice","body":"AS-111: review → done — by agent:cto-owen","created_at":"2026-09-12T00:49:14.667Z"}
 {"type":"message","id":915,"thread_root_id":null,"author":"system:lattice","body":"AS-112: review → done — by agent:cto-owen","created_at":"2026-09-12T00:49:14.669Z"}
+{"type":"message","id":917,"thread_root_id":null,"author":"system:lattice","body":"AS-124: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T00:52:23.113Z"}
+{"type":"message","id":918,"thread_root_id":null,"author":"system:lattice","body":"AS-125: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T00:52:23.118Z"}
+{"type":"message","id":920,"thread_root_id":null,"author":"system:lattice","body":"AS-109: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T01:13:40.089Z"}
+{"type":"message","id":921,"thread_root_id":null,"author":"system:lattice","body":"AS-124: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T01:13:40.092Z"}
+{"type":"message","id":922,"thread_root_id":null,"author":"system:lattice","body":"AS-125: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T01:13:40.093Z"}
+{"type":"message","id":925,"thread_root_id":null,"author":"system:lattice","body":"AS-124: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T01:16:13.513Z"}
+{"type":"message","id":926,"thread_root_id":null,"author":"system:lattice","body":"AS-125: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T01:16:13.516Z"}
+{"type":"message","id":930,"thread_root_id":null,"author":"system:lattice","body":"AS-109: review → done — by agent:cto-owen","created_at":"2026-09-12T01:43:15.468Z"}
+{"type":"message","id":931,"thread_root_id":null,"author":"system:lattice","body":"AS-126 created by agent:cto-owen — \"Chat: favicon guard — a filter= presentation attribute (dro…\" [backlog]","created_at":"2026-09-12T01:43:15.471Z"}
+{"type":"message","id":932,"thread_root_id":null,"author":"system:lattice","body":"AS-124: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T01:43:42.349Z"}
+{"type":"message","id":933,"thread_root_id":null,"author":"system:lattice","body":"AS-125: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T01:43:42.352Z"}
