@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [
     {
       "branch": "feat/AS-48-read-views",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34P63WC2P2CYJ3N65W5H1",
-  "last_event_id": "ev_01M2AAZ5TN3XAG3M07G0V6R3JG",
-  "last_status_changed_at": "2026-09-12T08:15:30Z",
+  "last_event_id": "ev_01M2AB32QS5937WJ9Q50DNRCWR",
+  "last_status_changed_at": "2026-09-12T08:17:38Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [
@@ -55,7 +55,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-48",
-  "status": "planned",
+  "status": "in_progress",
   "tags": [
     "d1",
     "v1",
@@ -64,6 +64,6 @@
   ],
   "title": "D1 v1 UI: read views, screens 3 and 5 (dashboard, invoice detail)",
   "type": "task",
-  "updated_at": "2026-09-12T08:15:30Z",
+  "updated_at": "2026-09-12T08:17:38Z",
   "urgency": null
 }
