@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   shouldContinue, readyBacklog, readBoard, headOf, LOOP_DEFAULTS, MID_LIFECYCLE, makeLockOps, makeLoopOps, DEFAULTS,
-  nextPollAction, makeDeployOps,
+  nextPollAction, makeDeployOps, loopLimits,
 } from '../watch/advance-watcher.mjs';
 
 const T0 = Date.parse('2026-09-10T12:00:00.000Z');
@@ -593,8 +593,17 @@ test('f1-abort-outside-a-loop: an aborted message fire arms nothing and stops no
   assert.deepEqual(h.saved, []);
 });
 
-test('f1-limit-default: the lock wait outlives both the tick timeout and the lock staleness rule', () => {
-  assert.equal(LOOP_DEFAULTS.maxLockWaitMs, 60 * 60 * 1000);
+// AS-129 T10 (replaces f1-limit-default). The old 60-min literal was shorter
+// than the host's 75-min staleness rule alone once the plist moved to 60/75:
+// the wait is DERIVED from the config it has to outlive, never a literal.
+test('as129-t10-limits-derived: maxLockWaitMs is the tick timeout plus the lock staleness, from config, never a literal', () => {
+  const host = loopLimits({ tickTimeoutMin: 60, lockStaleMin: 75, loopRearmMin: 10 });
+  assert.equal(host.maxLockWaitMs, 8_100_000, '135 min on the host\'s 60/75');
+  assert.equal(host.rearmMs, 600_000);
+  assert.equal(host.maxTicks, LOOP_DEFAULTS.maxTicks, 'everything else is the base');
+  assert.equal(loopLimits(DEFAULTS).maxLockWaitMs, 4_500_000, '75 min on the 30/45 defaults');
+  assert.equal(LOOP_DEFAULTS.maxLockWaitMs, (DEFAULTS.tickTimeoutMin + DEFAULTS.lockStaleMin) * 60_000);
+  assert.equal(LOOP_DEFAULTS.rearmMs, DEFAULTS.loopRearmMin * 60_000);
   assert.ok(LOOP_DEFAULTS.maxLockWaitMs > DEFAULTS.tickTimeoutMin * 60 * 1000);
   assert.ok(LOOP_DEFAULTS.maxLockWaitMs > DEFAULTS.lockStaleMin * 60 * 1000);
 });
@@ -723,4 +732,212 @@ test('f3-mirror-outside-a-loop: a tick with no loop still refreshes lastTick', (
   assert.equal(h.saved[0].active, false);
   assert.equal(h.saved[0].lastTick.headMoved, false);
   assert.equal(h.lines('LOOP-EVAL').length, 0, 'no loop, no evaluation');
+});
+
+// --- AS-129: the cap is a runaway guard, not a stop rule ---------------------
+//
+// The live loop stopped `cap-hit` at 11:21Z on 2026-09-12 after 15 ticks with
+// work mid-lifecycle, and the company sat idle until the board spoke again.
+// The cap still stops THAT loop (stop() stays the only way to clear `loop`);
+// with work remaining the stop is followed by a cooldown, and a fresh loop
+// fires when it elapses. Test ids are the plan's T1–T9; the mutant table in
+// the plan names which of these each mutant reddens.
+
+const TEN_MIN = 10 * 60 * 1000;
+const iso = (ms) => new Date(ms).toISOString();
+
+/** A loop-ops with a two-tick cap and a ten-minute cooldown, one task in review. */
+function capHarness(over = {}) {
+  return loopHarness({
+    loadBoard: () => ({ tasks: [task({ status: 'review' })] }),
+    limits: { ...LOOP_DEFAULTS, maxTicks: 2, rearmMs: TEN_MIN },
+    ...over,
+  });
+}
+
+/** Arm a loop and settle it into the cap: two ticks against maxTicks 2. */
+function driveToCap(h, messageId = 5) {
+  h.ops.start({ messageId });
+  h.ops.takeFire();
+  h.ops.settle(okTick());
+  h.ops.takeFire();
+  h.ops.settle(okTick());
+}
+
+test('as129-t1-cap-with-mid-lifecycle: the cap-hit detail says to re-arm when a task is in flight', () => {
+  const r = run({ board: { tasks: [task({ status: 'review' })] }, loop: loopAt({ ticks: 23 }) });
+  assert.equal(r.continue, false);
+  assert.equal(r.reason, 'cap-hit');
+  assert.equal(r.detail.rearm, true);
+  assert.equal(r.detail.ticks, 24);
+});
+
+test('as129-t2-cap-with-ready-backlog: a ready backlog task alone is enough to re-arm', () => {
+  const r = run({ board: { tasks: [task({ status: 'backlog' })] }, loop: loopAt({ ticks: 23 }) });
+  assert.equal(r.reason, 'cap-hit');
+  assert.equal(r.detail.rearm, true);
+  // Elapsed cap, same answer.
+  const e = run({ board: { tasks: [task({ status: 'backlog' })] }, now: T0 + LOOP_DEFAULTS.maxMs });
+  assert.equal(e.reason, 'cap-hit');
+  assert.equal(e.detail.rearm, true);
+});
+
+test('as129-t3-cap-on-a-dry-board: no work means no re-arm — needs_human is waiting on the board, not work', () => {
+  const empty = run({ board: { tasks: [] }, loop: loopAt({ ticks: 23 }) });
+  assert.equal(empty.reason, 'cap-hit');
+  assert.equal(empty.detail.rearm, false);
+  const waiting = run({ board: { tasks: [task({ status: 'needs_human' }), task({ id: 't2', status: 'done' })] }, loop: loopAt({ ticks: 23 }) });
+  assert.equal(waiting.reason, 'cap-hit');
+  assert.equal(waiting.detail.rearm, false);
+  // A blocked backlog task is not ready either.
+  const blocked = run({ board: { tasks: [task({ dependsOn: ['nope'] })] }, loop: loopAt({ ticks: 23 }) });
+  assert.equal(blocked.detail.rearm, false);
+});
+
+test('as129-t4-settle-enters-the-cooldown: cap-hit with work stops the loop, logs the cooldown, and mirrors rearmAt', () => {
+  const h = capHarness();
+  driveToCap(h, 5);
+  assert.equal(h.ops.active(), false, 'the cap DID stop the loop');
+  assert.equal(h.ops.pending(), false);
+  const stops = h.lines('LOOP-STOP');
+  assert.equal(stops.length, 1);
+  assert.match(stops[0], /reason=cap-hit after 2 ticks/);
+  assert.match(stops[0], /"rearm":true/);
+  assert.deepEqual(h.lines('LOOP-COOLDOWN'), [
+    `LOOP-COOLDOWN until ${iso(T0 + TEN_MIN)} armedBy messageId 5 (cap-hit with work remaining)`,
+  ]);
+  const mirror = h.saved.at(-1);
+  assert.equal(mirror.active, false);
+  assert.equal(mirror.rearmAt, iso(T0 + TEN_MIN));
+  assert.equal(mirror.armedBy, 5, 'the message stays on the file while cooling');
+  assert.equal(mirror.lastLoop.reason, 'cap-hit');
+  assert.equal(mirror.lastLoop.ticks, 2);
+  assert.equal(h.ops.snapshot().rearmAt, iso(T0 + TEN_MIN));
+});
+
+test('as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed', () => {
+  const h = capHarness();
+  driveToCap(h, 5);
+  h.advance(TEN_MIN - 1000);
+  assert.equal(h.ops.rearmIfDue(), false, '9 min 59 s: not yet');
+  assert.equal(h.ops.active(), false);
+  assert.equal(h.lines('LOOP-REARM').length, 0);
+  h.advance(1000);
+  assert.equal(h.ops.rearmIfDue(), true, '10 min: due');
+  assert.equal(h.ops.active(), true);
+  assert.equal(h.ops.pending(), true, 'the re-armed loop owes its first tick');
+  assert.equal(h.ops.snapshot().ticks, 0, 'a fresh loop, not the capped one continued');
+  assert.equal(h.ops.snapshot().rearmAt, null);
+  assert.deepEqual(h.lines('LOOP-REARM'), ['LOOP-REARM armedBy messageId 5 after cap-hit cooldown']);
+  const mirror = h.saved.at(-1);
+  assert.equal(mirror.active, true);
+  assert.equal(mirror.ticks, 0);
+  assert.equal(mirror.startedAt, iso(T0 + TEN_MIN), 'the cap counts from the re-arm, not the original message');
+  assert.equal(mirror.armedBy, 5);
+  assert.equal(mirror.rearmAt, null);
+  assert.equal(mirror.lastLoop.reason, 'cap-hit', 'the previous loop\'s stop is still on record');
+  h.ops.takeFire();
+  assert.deepEqual(h.lines('LOOP-FIRE'), ['LOOP-FIRE tick 1', 'LOOP-FIRE tick 2', 'LOOP-FIRE tick 1'], 'the new loop fires tick 1');
+  assert.equal(h.ops.rearmIfDue(), false, 'once');
+});
+
+test('as129-t6-no-work-no-rearm: a cap-hit on a dry board stops for good — no cooldown, nothing ever re-arms', () => {
+  // Stop rules run before work rules, so a dry board with a two-tick cap
+  // would stop `dry` at tick 1; a one-tick cap makes the cap the reason.
+  const h = capHarness({ loadBoard: () => ({ tasks: [] }), limits: { ...LOOP_DEFAULTS, maxTicks: 1, rearmMs: TEN_MIN } });
+  h.ops.start({ messageId: 5 });
+  h.ops.takeFire();
+  h.ops.settle(okTick());
+  assert.match(h.lines('LOOP-STOP')[0], /reason=cap-hit/);
+  assert.match(h.lines('LOOP-STOP')[0], /"rearm":false/);
+  assert.equal(h.lines('LOOP-COOLDOWN').length, 0);
+  assert.equal(h.saved.at(-1).rearmAt, null);
+  assert.equal(h.saved.at(-1).armedBy, null);
+  assert.equal(h.ops.snapshot().rearmAt, null);
+  h.advance(TEN_MIN);
+  assert.equal(h.ops.rearmIfDue(), false);
+  h.advance(8 * 60 * 60 * 1000);
+  assert.equal(h.ops.rearmIfDue(), false);
+  assert.equal(h.ops.active(), false);
+  assert.equal(h.lines('LOOP-REARM').length, 0);
+});
+
+test('as129-t7-message-during-cooldown-wins: a board message arms a loop and cancels the pending re-arm', () => {
+  const h = capHarness();
+  driveToCap(h, 5);
+  h.advance(60_000);
+  h.ops.start({ messageId: 9 }); // fire() got the lock for message 9
+  assert.equal(h.ops.active(), true);
+  assert.equal(h.ops.snapshot().rearmAt, null);
+  const mirror = h.saved.at(-1);
+  assert.equal(mirror.active, true);
+  assert.equal(mirror.armedBy, 9);
+  assert.equal(mirror.rearmAt, null);
+  h.advance(TEN_MIN);
+  assert.equal(h.ops.rearmIfDue(), false, 'the cooldown is gone, not merely masked by the live loop');
+  assert.equal(h.lines('LOOP-REARM').length, 0);
+  // ... and it stays gone after that loop ends.
+  h.ops.takeFire();
+  h.ops.settle(okTick());
+  h.ops.takeFire();
+  h.ops.settle(okTick());
+  assert.equal(h.ops.active(), false, 'message 9\'s loop hit the cap too');
+  assert.equal(h.saved.at(-1).armedBy, 9, 'and ITS cooldown belongs to message 9');
+});
+
+test('as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown', () => {
+  const mirror = {
+    active: false, startedAt: null, ticks: 0, armedBy: 3, rearmAt: iso(T0 + 5 * 60 * 1000),
+    lastTick: null, lastLoop: { stoppedAt: iso(T0), reason: 'cap-hit', ticks: 24, detail: { rearm: true } },
+  };
+  const h = capHarness({ loadState: () => mirror });
+  h.ops.resume();
+  assert.equal(h.ops.active(), false);
+  assert.equal(h.ops.pending(), false, 'a cooldown owes nothing yet');
+  assert.deepEqual(h.lines('LOOP-RESUME'), [`LOOP-RESUME reason=cooldown until ${iso(T0 + 5 * 60 * 1000)} armedBy 3`]);
+  assert.equal(h.ops.snapshot().rearmAt, iso(T0 + 5 * 60 * 1000));
+  assert.equal(h.ops.snapshot().lastLoop.reason, 'cap-hit');
+  assert.equal(h.ops.rearmIfDue(), false, 'T0: not due');
+  h.advance(5 * 60 * 1000);
+  assert.equal(h.ops.rearmIfDue(), true, 'T0+5 min: the file\'s deadline, not a fresh ten minutes');
+  assert.equal(h.ops.pending(), true);
+  assert.equal(h.saved.at(-1).armedBy, 3);
+  assert.equal(h.saved.at(-1).ticks, 0);
+});
+
+// AS-104, subsumed: resume() used to re-enter an active mirror past the cap
+// and owe a tick, so settle() stopped cap-hit one tick LATE.
+const cappedMirror = { active: true, ticks: 24, startedAt: iso(T0 - 60 * 60 * 1000), armedBy: 3 };
+
+test('as129-t9a-resume-past-the-cap-with-work: no tick is owed; the cap is logged and the cooldown starts now', () => {
+  const h = capHarness({ loadState: () => cappedMirror });
+  h.ops.resume();
+  assert.equal(h.ops.pending(), false, 'AS-104: not one extra tick');
+  assert.equal(h.ops.active(), false);
+  assert.equal(h.ops.snapshot().resumeHold, false);
+  const stops = h.lines('LOOP-STOP');
+  assert.equal(stops.length, 1);
+  assert.match(stops[0], /reason=cap-hit after 24 ticks/);
+  assert.equal(h.lines('LOOP-RESUME').length, 0, 'nothing was resumed');
+  assert.equal(h.ops.snapshot().rearmAt, iso(T0 + TEN_MIN));
+  assert.equal(h.lines('LOOP-COOLDOWN').length, 1);
+  const mirror = h.saved.at(-1);
+  assert.equal(mirror.active, false, 'the file stops claiming the dead loop');
+  assert.equal(mirror.rearmAt, iso(T0 + TEN_MIN));
+  assert.equal(mirror.armedBy, 3);
+  assert.equal(mirror.lastLoop.reason, 'cap-hit');
+});
+
+test('as129-t9b-resume-past-the-cap-dry: no tick is owed and nothing re-arms', () => {
+  const h = capHarness({ loadState: () => cappedMirror, loadBoard: () => ({ tasks: [] }) });
+  h.ops.resume();
+  assert.equal(h.ops.pending(), false);
+  assert.equal(h.ops.active(), false);
+  assert.match(h.lines('LOOP-STOP')[0], /reason=cap-hit/);
+  assert.equal(h.ops.snapshot().rearmAt, null);
+  assert.equal(h.lines('LOOP-COOLDOWN').length, 0);
+  assert.equal(h.saved.at(-1).active, false);
+  assert.equal(h.saved.at(-1).rearmAt, null);
+  h.advance(TEN_MIN);
+  assert.equal(h.ops.rearmIfDue(), false);
 });
