@@ -1,0 +1,17 @@
+# AS-125: Chat: roster-title cascade guard — routes past targets()/walk(): type and universal subjects, attribute/escaped class selectors, @scope/@import/@layer swallowed, unbalanced string brace
+
+Filed from the AS-112 review (qa-ruben, 2026-09-11) under M6: eight invented cascade routes to .roster-title that re-enable wrapping in a browser while T1 (test/roster-truncation.test.js) stays green at 606/604/0/2. None is used by style.css today (verified: 0 div/* subject rules declaring a watched property can match the title div; 0 @scope/@layer/@import; 0 true content: decls; 0 [class] or escaped selectors) — future hazards of the AS-45 shape (T1's English 'no later or stronger rule re-enables wrapping' is wider than its algorithm), same class as P6/P7/P10 were at the AS-74 merge. Each was appended to a scratch copy of style.css on the AS-112 branch (9d70ae6), applied-at-site asserted, whole suite run, restored, porcelain proven empty.
+
+GROUP A — parsed, but targets() says false (class-literal subject match only; .roster-title is a div, app.js L506):
+ A1 '#roster-list li.roster-row div { white-space: normal; }' — spec (1,2,1) beats (0,1,0) in a browser.
+ A2 '#roster-list * { white-space: normal; }' — spec (1,0,0) beats (0,1,0).
+ A3 '[class~="roster-title"] { white-space: normal; }' — same element, later order wins.
+ A4 '.roster\-title { white-space: normal; }' — CSS escape resolves to the same class; later order wins.
+GROUP B — never parsed (walk() ignores every non-flattened at-rule wholesale; a statement at-rule with no block is glued into the NEXT rule's prelude):
+ B1 '@scope (#roster-list) { .roster-title { white-space: normal; } }' — 0 rules from it; Chrome 118+/Safari 17.4+/Firefox 128+ apply it.
+ B2 '@import url("x.css");' followed by '.roster-title { white-space: normal; }' — prelude becomes '@import …;\n.roster-title', starts with @, both dropped; a browser drops the misplaced @import and applies the rule.
+ B3 '@layer x { .roster-title { white-space: normal !important; } }' — layered !important beats unlayered !important; already a RECORDED omission (AS-74 plan §3, AS-112 plan §1) — listed for completeness, not new.
+GROUP C — parseBlocks collapses:
+ C1 '.roster-status::after { content: "{"; }' then '.roster-title { white-space: normal; }' — unbalanced brace inside a string; depth never returns to 0, parseBlocks returns 0 blocks for both, guard green. (Balanced '"{}"' DOES throw via the AS-112 nesting check — AS-112 plan §1.2's 'would also throw' holds only for the balanced case.)
+
+Suggested shape (planner's call; all cheap, all in the same doctrine as AS-112's H6 — loud instead of silent): (1) parseBlocks throws when depth != 0 at EOF (C1); (2) walk() throws on any @-prelude that is neither FLATTENED_AT nor an explicit IGNORED list (@keyframes|@font-face), and on a prelude containing ';' (B1, B2; B3 becomes loud too); (3) targets() treats a subject compound that is '*' or 'div' as targeting the title (conservative — 0 such rules declare a watched property today, so it passes; A1, A2), and recognises '[class~=roster-title]' with or without quotes and the '\-' escape (A3, A4). Each fix names its falsifier as a numbered criterion (M4); the observed red sets are in the AS-112 review comment and scratchpad/agent-qa-ruben/AS-112/mutants.log. Not filed alongside: row.className= / setAttribute('class') in orgNodeItem — probed, survive by design (AS-112 §1), judged not task-worthy: neither idiom appears in orgNodeItem, and either would replace the class set and break the visible org-node-row styling.

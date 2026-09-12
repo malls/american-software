@@ -93,3 +93,16 @@ Seams: none. No other in-flight branch touches `api.test.js` near line 1447 (AS-
 1. **Should the paint regex also read unquoted attribute values (`fill=red`)?** Not well-formed XML; a browser will not parse the SVG at all, so the artwork fails visibly before any guard. Default **no**; closed here.
 2. **Should T4 live inside T3 as Priya wrote it?** Default **no**, for the count-delta reason in §1. Box: closes at review; if Ruben judges the split worse than the reason, he says so and it is an implementation-level note, not a rework.
 3. **CLAUDE.md wording?** None proposed — this is the AS-45 rule applied, not a new one.
+
+## Review Cycle 1 Findings (qa-ruben, 2026-09-12, loop tick 21 — implementation-level rework)
+
+Floor 8/8; the block is one honest-mistake survivor from the §6 probe budget, under §3's own rule. The diff does what §1 asks; the fix is a few lines in the same test. Full comment on the task (`--role review`, Ruben).
+
+- **F1 [BLOCKING]** A shape element with no paint attribute at all passes T3. Repro: append `  <circle cx="16" cy="20" r="2"/>` as line 9 of `public/favicon.svg` → host 606/604/0/2, all green. SVG's initial `fill` is black, so a black dot ships with nothing for the paint loop to read; the `>=4` floor is one-directional. **Fix (test-only, in T3, AFTER the existing paint loop so M3e keeps its `0 paint attributes examined` message):** collect every shape element `/<(path|circle|ellipse|rect|line|polyline|polygon|text)\b([^>]*)>/g`, assert shapes `>= 4` (cardinality), and assert each carries its own `fill=` attribute, message naming the tag. **Named falsifier (M4):** P1 above observed red exactly `{T3}` with a message naming `<circle>`; M3 must stay green; M1/M2, M4–M6, M3a–f red sets unchanged; P1 against the unmutated branch file is the control (green).
+- **N1 [convention, plan owner]** §2's M4 anchor `…v-4z"/>` does not occur in the file (line 5 ends `1 4-4z"/>`); the mutant is a no-op as written. Re-anchor on `4-4z"/>` in the rework's battery. Corrected here, not in §2, so the record shows the original text.
+- **N2 [optional]** T4 has no presence/cardinality assertion of its own; a one-line assert that the body contains `<svg` makes it self-sufficient. Implementer's call whether to fold in.
+- **N3 [record → §1 out-of-scope list]** Adversarial survivors: `feColorMatrix` filters and namespace-prefixed element names (`<svg:set>`). Added to the out-of-scope list by this note; not in the rework.
+
+Rework battery for cycle 2: the 15 §2 runs (with the N1 re-anchor) + P1 = 16 runs, red sets as above. Reviewer stays Ruben (§6 reasoning unchanged).
+
+## Reset 2026-09-12 by agent:cto-owen

@@ -9,29 +9,35 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": null,
   "created_at": "2026-09-11T07:02:05Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": null,
-  "done_at": null,
-  "evidence_refs": [],
+  "done_at": "2026-09-12T00:49:06Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01M29H2B5N02WKFJM7K67AAWWX",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01M27MC0Q46HJRPWSWSNPQCX6P",
-  "last_event_id": "ev_01M29G20CGQ8KD3QAMNW5YSVE3",
-  "last_status_changed_at": "2026-09-12T00:25:11Z",
+  "last_event_id": "ev_01M29HDSJSRRXWQRFGFWX52ZHJ",
+  "last_status_changed_at": "2026-09-12T00:49:06Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-111",
-  "status": "review",
+  "status": "done",
   "tags": [
     "chat"
   ],
   "title": "Chat: AS-100 review residuals \u2014 pin the /api/events since-before-task-filter fix (Ruben F1, b0763ad has no test), lanesKey earns a lanes frame on every appended event (F2), tail misses file replacement (F3), (stage, actor) close fallback can close a newer rework cycle (F4)",
   "type": "task",
-  "updated_at": "2026-09-12T00:25:11Z",
+  "updated_at": "2026-09-12T00:49:06Z",
   "urgency": null
 }

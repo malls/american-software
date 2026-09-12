@@ -1,0 +1,1 @@
+# AS-124: Chat: AS-111 review residuals — a rename on the Docker Desktop bind mount replays the event stream twice (transient inode on the first stat), malformed counter survives resetTail after a re-read, and the watcher cut-close cycle (AC-7) has no red-capable test
