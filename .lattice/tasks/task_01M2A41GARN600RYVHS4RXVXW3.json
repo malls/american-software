@@ -1,8 +1,15 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
-  "branch_links": [],
-  "comment_count": 2,
+  "branch_links": [
+    {
+      "branch": "feat/AS-127-contract-create",
+      "linked_at": "2026-09-12T09:21:34Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 3,
   "complexity": "medium",
   "created_at": "2026-09-12T06:14:26Z",
   "created_by": "agent:developer-marcus",
@@ -11,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M2A41GARN600RYVHS4RXVXW3",
-  "last_event_id": "ev_01M2ADQEDHJE8GEP36WS5HCV63",
-  "last_status_changed_at": "2026-09-12T09:03:43Z",
+  "last_event_id": "ev_01M2AEWJP5BHZPM0ESHFWFPEN0",
+  "last_status_changed_at": "2026-09-12T09:23:59Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [
@@ -27,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-127",
-  "status": "in_planning",
+  "status": "planned",
   "tags": null,
   "title": "D1 v1 UI: contract create screen (screen 6) \u2014 AS-47b",
   "type": "task",
-  "updated_at": "2026-09-12T09:03:43Z",
+  "updated_at": "2026-09-12T09:23:59Z",
   "urgency": null
 }
