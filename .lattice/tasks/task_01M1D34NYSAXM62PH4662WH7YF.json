@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-lena",
   "branch_links": [
     {
       "branch": "feat/AS-46-invoice-screen",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34NYSAXM62PH4662WH7YF",
-  "last_event_id": "ev_01M29YKJ1S1KKGT5VFC0CTSH2W",
-  "last_status_changed_at": "2026-09-12T04:37:56Z",
+  "last_event_id": "ev_01M29YTRA7W6JQQBC2VSG8D6Q9",
+  "last_status_changed_at": "2026-09-12T04:43:22Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [
@@ -48,7 +48,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-46",
-  "status": "planned",
+  "status": "in_progress",
   "tags": [
     "d1",
     "v1",
@@ -57,6 +57,6 @@
   ],
   "title": "D1 v1 UI: invoice create/edit screen (screen 4)",
   "type": "task",
-  "updated_at": "2026-09-12T04:39:27Z",
+  "updated_at": "2026-09-12T04:43:22Z",
   "urgency": null
 }

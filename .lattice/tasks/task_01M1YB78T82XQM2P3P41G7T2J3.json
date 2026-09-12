@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:developer-lena",
+  "assigned_to": "agent:qa-priya",
   "branch_links": [
     {
       "branch": "feat/AS-90-d1-demo",
@@ -18,7 +18,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1YB78T82XQM2P3P41G7T2J3",
-  "last_event_id": "ev_01M29XB3Q3EG67HF3V0S3N3721",
+  "last_event_id": "ev_01M29YTRE8M229D7GVVC7AYB4K",
   "last_status_changed_at": "2026-09-12T04:17:21Z",
   "linked_files": [],
   "priority": "high",
@@ -42,6 +42,6 @@
   ],
   "title": "D1 demo for the board: scripted local-compose walkthrough of the v1 core loop + a viewable captured artifact",
   "type": "task",
-  "updated_at": "2026-09-12T04:17:21Z",
+  "updated_at": "2026-09-12T04:43:22Z",
   "urgency": null
 }
