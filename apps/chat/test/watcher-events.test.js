@@ -21,10 +21,10 @@ function tickStartedEv(atMs = T0) {
   return ev('tick_started', { source: 'watcher', pid: 4242, startedAt: new Date(atMs).toISOString(), messageId: 7, loopTick: 1 }, atMs);
 }
 
-function stageStartedEv({ task = 'AS-95', stage = 'implement', actor = 'agent:developer-marcus', atMs = T0 + 1000 } = {}) {
+function stageStartedEv({ task = 'AS-95', stage = 'implement', actor = 'agent:developer-marcus', atMs = T0 + 1000, cycle = null } = {}) {
   return ev(
     'stage_started',
-    { task, stage, actor, worktree: `.worktrees/${task}`, branch: `feat/${task}-slug`, cycle: null },
+    { task, stage, actor, worktree: `.worktrees/${task}`, branch: `feat/${task}-slug`, cycle },
     atMs,
     'agent:cto-owen'
   );
@@ -126,6 +126,31 @@ test('watcher-events-timeout-closes-as-cut', () => {
   assert.equal(tickEnded.data.tickId, started.id);
   assert.equal(tickEnded.data.timedOut, true);
   assert.equal(tickEnded.data.headMoved, false);
+});
+
+// AS-124 N3: the cut close CARRIES the cycle the start stated (AS-111 F4's
+// `cycle: stage.cycle ?? null` in closeOpen). The test above plants cycle null,
+// so deleting that line — or hard-coding null — left it green; this one plants
+// a stated cycle and reads it back, and a second null-cycle stage in the same
+// file pins the `?? null` half.
+test('watcher-events-cut-close-carries-cycle', () => {
+  const started = tickStartedEv();
+  const stage = stageStartedEv({ cycle: 3 });
+  const other = stageStartedEv({ task: 'AS-61', actor: 'agent:developer-lena', atMs: T0 + 1500 });
+  const h = harness({ file: plant(started, stage, other), nowMs: T0 + TICK_BOX });
+
+  h.ops.tickEnded({ timedOut: true, code: null, signal: 'SIGTERM', headBefore: 'a', headAfter: 'a' });
+
+  const gained = h.gained();
+  assert.deepEqual(gained.map((e) => e.type), ['stage_ended', 'stage_ended', 'tick_ended']);
+  const ended = gained.find((e) => e.type === 'stage_ended' && e.data.startedId === stage.id);
+  assert.ok(ended, 'the cycle-3 stage was closed by startedId');
+  assert.equal(ended.data.outcome, 'cut_by_timeout');
+  assert.equal(ended.data.cycle, 3, 'the close carries the cycle the start stated, not null');
+
+  const otherEnded = gained.find((e) => e.type === 'stage_ended' && e.data.startedId === other.id);
+  assert.ok(otherEnded, 'the null-cycle stage was closed too');
+  assert.equal(otherEnded.data.cycle, null, 'a start that stated no cycle closes with null (the ?? null half)');
 });
 
 test('watcher-events-close-before-tick-ended', () => {
