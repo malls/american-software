@@ -53,8 +53,9 @@ count and gains a membership assertion) and `.DS_Store` to the repo-root `.gitig
 ## 4. Proof burden
 No host suite exists; the receipt is `node apps/chat/bin/compose-run.mjs --project asc-impl-as57-<x> --cwd
 <worktree>/apps/invoicing` — counts as `tests/pass/fail/skipped` plus the `Image asc-impl-as57-<x>-test Built`
-line. **Predicted: master 530/511/0/19 → branch 530/511/0/19** (new assertions live inside existing tests; no
-new `test()`); a different count is a finding to explain, not to absorb. Every mutation below follows the
+line. **Predicted: master 530/511/0/19 → branch 532/513/0/19** (corrected at review cycle 1, F3: node's default
+`**/test/**/*.js` glob runs `test/helpers/hash-comment.js` as a file-level pass, +1/+1; cycle 2's `/app/vendor` pin
+is a new `test()` in `assets.test.js`, +1/+1); a different count is a finding to explain, not to absorb. Every mutation below follows the
 *recipes* template (trap, assert-applied, observe, restore, `git status --porcelain` clean, restored run green).
 
 ## 5. Acceptance criteria (Ruben reads plan and diff cold; findings first, then this list as a floor)
@@ -66,13 +67,13 @@ contract service…`; DS-ride `…the manifests ride along as data…`; DS-ign `
    image is still whole is the suite itself green on the built image (`assets.test.js` and
    `states-ledger.test.js` prove the vendored files landed); no `web` container needs to be started.
 2. **M1** (*recipes*): plant `compose.override.yaml` with the record's outbound healthcheck → red exactly
-   {DP#3 "found 4 manifests", DP#5 `compose.override.yaml:4: fetch — not sanctioned`}, 530/509/2/19.
+   {DP#3 "found 4 manifests", DP#5 `compose.override.yaml:4: fetch — not sanctioned`}, 532/511/2/19.
    Also recorded: the same plant on **master** is green 530/511/0/19 — the before picture.
 3. **M1b**: reintroduce the eight-line explicit COPY list in place of the whole-directory COPY → red exactly
-   {DS-1, DS-demo, DS-ride}, 530/508/3/19; dependency-policy green (README.md left the image; allowed-if-present).
+   {DS-1, DS-demo, DS-ride}, 532/510/3/19; dependency-policy green (README.md left the image; allowed-if-present).
 4. `classifyTree` skips `SKIPPED_DIRS` names at depth 0 only; test #3 asserts `nestedSkipped` empty first.
 5. **M2**: plant `lib/vendor/probe.js` containing `fetch('https://example.invalid/')` → red exactly
-   {DP#3 with the assertion-0 message naming `lib/vendor`, DP#5 `lib/vendor/probe.js:1: fetch`}, 530/509/2/19.
+   {DP#3 with the assertion-0 message naming `lib/vendor`, DP#5 `lib/vendor/probe.js:1: fetch`}, 532/511/2/19.
    {DP#3} alone means the directory is still skipped — a finding.
 6. `test/helpers/hash-comment.js` exports `stripTrailingHashComment`; both test files import it and neither
    keeps a private copy of the loop (`grep -c "quote = null"` is 0 in both test files).
@@ -80,19 +81,22 @@ contract service…`; DS-ride `…the manifests ride along as data…`; DS-ign `
    (escaped backslash, the quote really closes); `k: 'a\' # c'` → `k: 'a\' ` (no escape in single quotes).
    DS-parse gains `parseYamlSubset('k: "a \\" # b"\n').k === 'a \\" # b'`.
 8. **M3** (*recipes*): the record's `container_name: "asc-inv \" # fetch('https://example.invalid/')"` under
-   `web` → red exactly {DP#5 `compose.yaml:32: fetch — not sanctioned`}, 530/510/1/19; deploy-shape green.
-9. **M5**: delete the helper's escape line → red exactly {DP#2, DS-parse}, 530/509/2/19.
+   `web` → red exactly {DP#5 `compose.yaml:32: fetch — not sanctioned`}, 532/512/1/19; deploy-shape green.
+9. **M5**: delete the helper's escape line → red exactly {DP#2, DS-parse}, 532/511/2/19.
 10. `.dockerignore` has `**/.DS_Store`; `.gitignore` has `.DS_Store`; DS-1 pins 7 patterns; DS-ign asserts
-    the member. **M4(i)**: plant `lib/.DS_Store` → green 530/511/0/19 and `git check-ignore -q` exits 0.
+    the member. **M4(i)**: plant `lib/.DS_Store` → green 532/513/0/19 and `git check-ignore -q` exits 0.
     **M4(ii)**: same plant with the `.dockerignore` line removed → red exactly {DS-1, DS-ign, DP#3
-    `lib/.DS_Store is neither app source…`}, 530/508/3/19.
+    `lib/.DS_Store is neither app source…`}, 532/510/3/19.
 11. `wc -l apps/invoicing/test/dependency-policy.test.js` ≤ 1,200 and test #7 green; `harness.test.js`'s
     committed test-file list is unchanged (no new `*.test.js`).
-12. Final counted run on the branch tip: 530/511/0/19 with a `Built` receipt; every mutation's restored run
+12. Final counted run on the branch tip: 532/513/0/19 with a `Built` receipt; every mutation's restored run
     is the same; `git status --porcelain` clean after each; no `.lattice/` path on the branch; `package.json`
     and product code untouched (`git diff --stat master...<branch> -- apps/invoicing/{app.js,server.js,lib,routes,views,public,package.json}` empty).
 13. The Dockerfile's comments and the README row no longer describe an explicit list; the `UNSCANNED` comment
     no longer claims `README.md` exists only on the host.
+14. **M6** (cycle 2, F1): plant host-side `vendor/probe.js` with `fetch` and import it from `lib/vendor.js` → red exactly
+    {assets `vendor/ in the image holds exactly the two registered files…`, DP#3 assertion 5 naming `lib/vendor.js`}, 532/511/2/19;
+    the same plant on master is loud (`ERR_MODULE_NOT_FOUND`), on the cycle-1 tip green — the before pictures.
 
 ## 6. Implementation order (each step ends resumable; commit early on the branch)
 1. Baseline run on the worktree (predict 530/511/0/19). Record M1's plant green on this baseline (AC 2's
