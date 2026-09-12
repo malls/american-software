@@ -1,0 +1,291 @@
+/*
+ * tokens.css — The American Software Company
+ * Framework-neutral design tokens derived from BRANDING.md.
+ *
+ * Source of truth: BRANDING.md §3–§6 (repo root). This file, tokens.json,
+ * and BRANDING.md's own tables are kept in parity by
+ * docs/design/tokens/tokens.test.mjs — do not hand-edit a value here
+ * without editing BRANDING.md (or vice versa) in the same commit.
+ *
+ * Consumed by: docs/design/style-reference/index.html (the style reference)
+ * and, eventually, a real front-end app (path will move then — see
+ * .lattice/plans/task_01M1C5EK9EP82NFSS9DZF43V7T.md §3).
+ *
+ * Zero dependencies. No build step. Safe to link directly over file:// or
+ * http://.
+ *
+ * ============================================================================
+ * BLOCK 1 — PRIMITIVES. Scheme-independent. Raw hex/px/rem values live ONLY
+ * here; every other block references these via var(), never a re-typed
+ * literal. Also holds every non-color scale (type, spacing, radius, shadow,
+ * breakpoints) — none of those vary by light/dark, so they need no semantic
+ * aliasing layer.
+ * ============================================================================
+ */
+:root {
+  color-scheme: light dark;
+
+  /* --- color primitives — ink (neutral, hue 222°, sat 16%) — BRANDING.md §3.1 --- */
+  --color-ink-50: #F8F8FA;
+  --color-ink-100: #F1F2F5;
+  --color-ink-200: #E1E3E9;
+  --color-ink-300: #C9CDD8;
+  --color-ink-400: #A0A8BA;
+  --color-ink-500: #78839D;
+  --color-ink-600: #5C667F;
+  --color-ink-700: #454D60;
+  --color-ink-800: #2F3441;
+  --color-ink-900: #1F232B;
+  --color-ink-950: #121519;
+  --color-ink-white: #FFFFFF;
+
+  /* --- color primitives — accent (hue 229°, sat 78%) — BRANDING.md §3.1 --- */
+  /* accent-100 / accent-200 are unbound to a semantic role by design (BRANDING.md §3.1) — ramp completeness for future use, not a gap. */
+  --color-accent-50: #EFF2FD;
+  --color-accent-100: #DDE2FB;
+  --color-accent-200: #B6C2F6;
+  --color-accent-300: #8498F0;
+  --color-accent-400: #4E6AE9;
+  --color-accent-500: #1C41E3;
+  --color-accent-600: #1836BF;
+  --color-accent-700: #132C9A;
+  --color-accent-800: #0F2276;
+  --color-accent-900: #0B1956;
+
+  /* --- color primitives — success (hue 152°, sat 48%) — BRANDING.md §3.1 --- */
+  --color-success-50: #EEF9F4;
+  --color-success-100: #D9F2E6;
+  --color-success-300: #86D5B0;
+  --color-success-600: #2D8059;
+  --color-success-700: #246647;
+  --color-success-800: #1C4F37;
+  --color-success-900: #153C2A;
+
+  /* --- color primitives — warning (hue 38°, sat 92%) — BRANDING.md §3.1 --- */
+  --color-warning-50: #FEF7EB;
+  --color-warning-100: #FDEED3;
+  --color-warning-300: #F8BC54;
+  --color-warning-700: #A26907;
+  --color-warning-800: #845606;
+  --color-warning-900: #6C4604;
+
+  /* --- color primitives — danger (hue 355°, sat 68%) — BRANDING.md §3.1 --- */
+  --color-danger-50: #FCEEEF;
+  --color-danger-100: #F8D8DB;
+  --color-danger-300: #E5767F;
+  --color-danger-500: #CE2735;
+  --color-danger-600: #AB212C;
+  --color-danger-700: #891A23;
+  --color-danger-800: #6B141C;
+  --color-danger-900: #511015;
+
+  /* --- typefaces — BRANDING.md §4.1. Verbatim stacks; no @font-face, no CDN, no binaries (F1). --- */
+  --font-family-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* --- type scale — BRANDING.md §4.2. rem is canonical (root font-size is never overridden). --- */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+  --font-size-5xl: 3rem;
+
+  --line-height-xs: 1rem;
+  --line-height-sm: 1.25rem;
+  --line-height-base: 1.5rem;
+  --line-height-lg: 1.75rem;
+  --line-height-xl: 1.75rem;
+  --line-height-2xl: 2rem;
+  --line-height-3xl: 2.25rem;
+  --line-height-4xl: 2.5rem;
+  --line-height-5xl: 3.25rem;
+  --line-height-relaxed: 1.6;
+
+  /* --- weights — BRANDING.md §4.3. Only these four ship (§7.B). --- */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* --- letter-spacing — BRANDING.md §4.4 --- */
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.08em;
+
+  /* --- spacing scale — BRANDING.md §6.1. Base unit 4px. --- */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* --- radius — BRANDING.md §6.2 --- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+
+  /* --- elevation (shadow) — BRANDING.md §6.3. Built from ink-950 at low opacity; no new color. --- */
+  --shadow-sm: 0 1px 2px rgba(18,21,25,0.06), 0 1px 1px rgba(18,21,25,0.04);
+  --shadow-md: 0 4px 8px rgba(18,21,25,0.10), 0 2px 4px rgba(18,21,25,0.06);
+
+  /* --- breakpoints & containers — BRANDING.md §6.4 --- */
+  /* NOTE: var() is invalid inside an @media condition. These custom properties
+     are the source of truth for tokens.json / JS (matchMedia); every @media
+     rule in this file and in reference.css hardcodes the matching px value
+     with a comment naming the token it stands in for — see §6.4's gotcha. */
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --content-measure: 45rem;
+  --layout-max: 75rem;
+
+  /*
+   * === AS-29 ADDITIONS — pending brand ratification ===
+   * Not in BRANDING.md. Three values only (plan §4.4); a fourth requires a
+   * deliberate, reviewed edit to tokens.test.mjs's ADDITIONS allowlist.
+   */
+  --border-width-hairline: 1px;   /* F5: spacing scale starts at 4px; a 1px rule has no token. */
+  --focus-ring-width: 2px;        /* F5: WCAG 2.1 §2.4.7 needs a visible focus indicator. */
+  --focus-ring-offset: 2px;       /* F5: separates the ring from the control fill. */
+}
+
+/*
+ * ============================================================================
+ * BLOCK 2 — LIGHT SEMANTICS. Unguarded default (:root) + explicitly-scoped
+ * light ([data-theme="light"]), so a nested <div data-theme="light"> can
+ * re-scope locally even inside a dark page. BRANDING.md §3.2.
+ * ============================================================================
+ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg-canvas: var(--color-ink-50);
+  --color-bg-surface: var(--color-ink-white);
+  --color-bg-surface-sunken: var(--color-ink-100);
+  --color-text-primary: var(--color-ink-900);
+  --color-text-secondary: var(--color-ink-700);
+  --color-text-muted: var(--color-ink-600);
+  --color-text-disabled: var(--color-ink-400);
+  --color-text-on-accent: var(--color-ink-white);
+  --color-text-on-danger: var(--color-ink-white);
+  --color-border-hairline: var(--color-ink-200);
+  --color-border-interactive: var(--color-ink-500);
+  --color-link: var(--color-accent-700);
+  --color-accent-solid: var(--color-accent-600);
+  --color-accent-solid-hover: var(--color-accent-700);
+  --color-accent-bg-subtle: var(--color-accent-50);
+  --color-accent-text-on-subtle: var(--color-accent-800);
+  --color-focus-ring: var(--color-accent-solid);
+  --color-success-text: var(--color-success-700);
+  --color-success-bg-subtle: var(--color-success-50);
+  --color-success-text-on-subtle: var(--color-success-800);
+  --color-warning-text: var(--color-warning-800);
+  --color-warning-bg-subtle: var(--color-warning-50);
+  --color-warning-text-on-subtle: var(--color-warning-900);
+  --color-danger-text: var(--color-danger-700);
+  --color-danger-bg-subtle: var(--color-danger-50);
+  --color-danger-text-on-subtle: var(--color-danger-800);
+  --color-danger-solid: var(--color-danger-600);
+  --color-danger-solid-hover: var(--color-danger-700);
+}
+
+/*
+ * ============================================================================
+ * BLOCK 3 — DARK SEMANTICS UNDER SYSTEM PREFERENCE, unless explicitly
+ * overridden light. BRANDING.md §3.3. `:root:not([data-theme="light"])` is
+ * 0-2-0 specificity — outranks block 2's `:root` (0-1-0) only where both
+ * match (the real root), and there they set identical values anyway.
+ * ============================================================================
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --color-bg-canvas: var(--color-ink-950);
+    --color-bg-surface: var(--color-ink-900);
+    --color-bg-surface-sunken: var(--color-ink-800);
+    --color-text-primary: var(--color-ink-50);
+    --color-text-secondary: var(--color-ink-300);
+    --color-text-muted: var(--color-ink-400);
+    --color-text-disabled: var(--color-ink-600);
+    --color-text-on-accent: var(--color-ink-white);
+    --color-text-on-danger: var(--color-ink-white);
+    --color-border-hairline: var(--color-ink-800);
+    --color-border-interactive: var(--color-ink-500);
+    --color-link: var(--color-accent-300);
+    --color-accent-solid: var(--color-accent-400);
+    --color-accent-solid-hover: var(--color-accent-500);
+    --color-accent-bg-subtle: var(--color-accent-900);
+    --color-accent-text-on-subtle: var(--color-accent-300);
+    --color-focus-ring: var(--color-accent-solid);
+    --color-success-text: var(--color-success-300);
+    --color-success-bg-subtle: var(--color-success-900);
+    --color-success-text-on-subtle: var(--color-success-300);
+    --color-warning-text: var(--color-warning-300);
+    --color-warning-bg-subtle: var(--color-warning-900);
+    --color-warning-text-on-subtle: var(--color-warning-300);
+    --color-danger-text: var(--color-danger-300);
+    --color-danger-bg-subtle: var(--color-danger-900);
+    --color-danger-text-on-subtle: var(--color-danger-300);
+    --color-danger-solid: var(--color-danger-500);
+    --color-danger-solid-hover: var(--color-danger-600);
+  }
+}
+
+/*
+ * ============================================================================
+ * BLOCK 4 — EXPLICIT DARK. Wins everywhere, nests on any element (not just
+ * :root), which is what lets the style reference show light and dark side by
+ * side on one page. Same 28 declarations as block 3, deliberately duplicated
+ * (§4.2 of the plan) — CSS has no way to avoid this without a build step, and
+ * build steps are banned. Do NOT "DRY" this with a preprocessor; the
+ * duplication is checked by tokens.test.mjs, not hidden.
+ * ============================================================================
+ */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg-canvas: var(--color-ink-950);
+  --color-bg-surface: var(--color-ink-900);
+  --color-bg-surface-sunken: var(--color-ink-800);
+  --color-text-primary: var(--color-ink-50);
+  --color-text-secondary: var(--color-ink-300);
+  --color-text-muted: var(--color-ink-400);
+  --color-text-disabled: var(--color-ink-600);
+  --color-text-on-accent: var(--color-ink-white);
+  --color-text-on-danger: var(--color-ink-white);
+  --color-border-hairline: var(--color-ink-800);
+  --color-border-interactive: var(--color-ink-500);
+  --color-link: var(--color-accent-300);
+  --color-accent-solid: var(--color-accent-400);
+  --color-accent-solid-hover: var(--color-accent-500);
+  --color-accent-bg-subtle: var(--color-accent-900);
+  --color-accent-text-on-subtle: var(--color-accent-300);
+  --color-focus-ring: var(--color-accent-solid);
+  --color-success-text: var(--color-success-300);
+  --color-success-bg-subtle: var(--color-success-900);
+  --color-success-text-on-subtle: var(--color-success-300);
+  --color-warning-text: var(--color-warning-300);
+  --color-warning-bg-subtle: var(--color-warning-900);
+  --color-warning-text-on-subtle: var(--color-warning-300);
+  --color-danger-text: var(--color-danger-300);
+  --color-danger-bg-subtle: var(--color-danger-900);
+  --color-danger-text-on-subtle: var(--color-danger-300);
+  --color-danger-solid: var(--color-danger-500);
+  --color-danger-solid-hover: var(--color-danger-600);
+}

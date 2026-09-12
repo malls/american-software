@@ -1,0 +1,11 @@
+Review cycle 2 (qa-priya, cold read at a4ee15c). Verdict: PASS, no inline fixes. Battery: scratchpad/agent-qa-priya/AS-121/cycle2/.
+
+Findings first — 0 blocking, 3 outside the list, none violates a stated criterion:
+- Cycle-1 F1 CLOSED: the handler arms inside the exec wrapper on the run recipe only. My P1 re-run (SIGTERM during pre-flight network ls) now dies of SIGTERM with only `network ls` logged — no run, down, RECEIPT or interrupted line. Same for SIGINT, compose ls, ceiling refusal, --check, ~60 ms after spawn.
+- O1 (test environment): T11/T13 under AS106_REAL=1 red today on `FROM alpine` -> BuildKit `load metadata ... DeadlineExceeded` (registry unreachable; node:24-slim failed identically after my counted run had resolved it). T11 is pre-existing AS-106, not this branch; under the failed build the branch still ran down, leak clean, exit 5. Substitute evidence, offline T13 shape (local image, no build): fix — real container up, SIGTERM, script survives, down 0, network gone, interrupted line, exit 5 kept; M1 — dies of SIGTERM, network survives. AC-5's image half rests on cycle 1's T13 green + M1 red.
+- O2 (wording): a signal during down/leak check reads "during the run"; README defines that window, so documented and conservative; unchanged.
+- O3 (backlog): SIGHUP mid-run dies by default; `argv.includes('run')` also matches argv[0]. Fold into the next task touching the file.
+
+Probes past the list: 23, all as expected — every window (pre-docker, network ls, compose ls, run, down, images) x INT/TERM x parent-only/group; repeated signals; second signal during teardown; lib exit 1/5 kept; clean run 0.
+
+Floor check AC-1..AC-6: 6/6 (AC-5 via O1). Mutants (scratch worktree at a4ee15c, site asserted, restored clean): M1 {T12a,T12b}, M2 {T12a}, M3 {T12a,T12b}, M4 {T12c} — exact; M4's T12c log reproduces F1 verbatim. Host 628/625/0/3; `Image asc-review-as121-c2-test Built` 628/619/0/9, down 0, leak clean, exit 0.

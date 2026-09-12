@@ -1,0 +1,177 @@
+[
+  {
+    "name": "(a) mv+cp rotation, identical bytes, new inode",
+    "beforeSwap": {
+      "company": 2,
+      "lanes": 1,
+      "lanesReasons": [
+        "ok"
+      ]
+    },
+    "afterSwap": {
+      "company": 2,
+      "lanes": 1,
+      "lanesReasons": [
+        "replaced"
+      ]
+    },
+    "reasonAfterSwap": "replaced",
+    "malformed": 0,
+    "afterNextAppend": {
+      "company": 1,
+      "lanes": 1,
+      "lanesReasons": [
+        "ok"
+      ]
+    },
+    "reasonAfterAppend": "ok"
+  },
+  {
+    "name": "(b) shorter replacement, new inode",
+    "oldSize": 822,
+    "newSize": 291,
+    "beforeSwap": {
+      "company": 3,
+      "lanes": 1,
+      "lanesReasons": [
+        "ok"
+      ]
+    },
+    "afterSwap": {
+      "company": 1,
+      "lanes": 1,
+      "lanesReasons": [
+        "replaced"
+      ]
+    },
+    "reason": "replaced",
+    "open": {
+      "stages": 1,
+      "subagents": 0
+    },
+    "as7Live": false,
+    "as8Live": true
+  },
+  {
+    "name": "(b2) shorter rewrite, SAME inode",
+    "sameIno": true,
+    "beforeSwap": {
+      "company": 3,
+      "lanes": 1,
+      "lanesReasons": [
+        "ok"
+      ]
+    },
+    "afterSwap": {
+      "company": 1,
+      "lanes": 1,
+      "lanesReasons": [
+        "truncated"
+      ]
+    },
+    "reason": "truncated",
+    "open": {
+      "stages": 1,
+      "subagents": 0
+    }
+  },
+  {
+    "name": "(c) cycle lenience",
+    "start(null),start(2),close(1) -> open": [
+      [
+        "S2",
+        2
+      ]
+    ],
+    "start(null),start(null),close(1) -> open count": 0,
+    "start(1),start(null),close(1) -> open count": 0
+  },
+  {
+    "name": "(d) since around malformed lines",
+    "parsed": 3,
+    "malformed": 2,
+    "task=AS-7&since=A": [
+      "C"
+    ],
+    "task=AS-7&since=B(adjacent to malformed)": [
+      "C"
+    ],
+    "since=B": [
+      "C"
+    ],
+    "since=<ghost id inside malformed line>": [],
+    "task=AS-7&since=<ghost>": [],
+    "since=\"\"": [
+      "A",
+      "B",
+      "C"
+    ],
+    "task=AS-7&since=A&limit=0": [
+      "C"
+    ]
+  },
+  {
+    "name": "(e) replay ids",
+    "before": [
+      "cev_01M29GQCRT1ESW74K1E6W01FSN",
+      "cev_01M29GQDR3NW7GX7YWNWZP07NH"
+    ],
+    "after": [
+      "cev_01M29GQCRT1ESW74K1E6W01FSN",
+      "cev_01M29GQDR3NW7GX7YWNWZP07NH"
+    ],
+    "identical": true
+  },
+  {
+    "name": "(g) unlink+recreate inside one poll gap",
+    "after": {
+      "company": 2,
+      "lanes": 1,
+      "lanesReasons": [
+        "replaced"
+      ]
+    },
+    "reason": "replaced"
+  },
+  {
+    "name": "(h) truncate+regrow longer in one gap, same inode",
+    "after": {
+      "company": 1,
+      "lanes": 1,
+      "lanesReasons": [
+        "replaced"
+      ]
+    },
+    "reason": "replaced",
+    "malformed": 0,
+    "open": {
+      "stages": 1,
+      "subagents": 0
+    }
+  },
+  {
+    "name": "(i) short-prefix window (<64 bytes consumed) then in-place rewrite",
+    "after": {
+      "company": 1,
+      "lanes": 1,
+      "lanesReasons": [
+        "replaced"
+      ]
+    },
+    "reason": "replaced",
+    "malformed": 2
+  },
+  {
+    "name": "(j) replace while a partial line is pending",
+    "reasonBefore": "ok",
+    "after": {
+      "company": 2,
+      "lanes": 1,
+      "lanesReasons": [
+        "replaced"
+      ]
+    },
+    "reason": "replaced",
+    "malformed": 0
+  }
+]

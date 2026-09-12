@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en" data-state="S4-GATED-STRIPENOTREADY">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoicing — Connect Stripe before invoicing</title>
+    <link rel="stylesheet" href="http://127.0.0.1:8361/tokens.css" />
+    <link rel="stylesheet" href="http://127.0.0.1:8361/app.css" />
+  </head>
+  <body>
+    
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <span class="app-label">Invoicing</span>
+      </div>
+      <div class="container">
+        <nav class="site-nav" aria-label="Primary">
+          <a class="site-nav__link" href="/">Dashboard</a>
+          <a class="site-nav__link" href="/invoices/new">New invoice</a>
+          <a class="site-nav__link" href="/contracts/new">New contract</a>
+          <form class="site-nav__signout" method="post" action="/signout">
+            <button type="submit" class="btn-link">Sign out</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1 class="page-title">Connect Stripe before invoicing</h1>
+
+      
+        
+          <div class="banner banner-warning">
+        
+          
+          
+            <p>You need to finish connecting Stripe before you can create an invoice.</p>
+          
+        </div>
+      
+
+      
+        
+        <div class="form-actions">
+          <a href="/connect-stripe" class="btn btn-primary">Finish setup on Stripe</a>
+        </div>
+      
+    </main>
+  </body>
+</html>

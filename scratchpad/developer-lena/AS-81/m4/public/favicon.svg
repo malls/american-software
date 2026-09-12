@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="ASC Chat">
+  <!-- AS-28 tab marker, not a brand mark (BRANDING.md 5: v1 is wordmark-only).
+       Palette tokens, hard-coded because a standalone SVG reads no CSS vars:
+       #1C41E3 = --color-accent-500, #FFFFFF = --color-ink-white. -->
+  <path fill="#1C41E3" d="M6 3h20a4 4 0 0 1 4 4v13a4 4 0 0 1-4 4H14l-7 6v-6H6a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4z"/>
+  <circle fill="#FFFFFF" cx="9" cy="13" r="2.5"/>
+  <circle fill="#FFFFFF" cx="16" cy="13" r="2.5"/>
+  <circle fill="#FFFFFF" cx="23" cy="13" r="2.5"/>
+</svg>

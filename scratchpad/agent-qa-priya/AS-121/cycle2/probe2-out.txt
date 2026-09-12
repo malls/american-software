@@ -1,0 +1,161 @@
+
+== W0 SIGTERM ~60 ms after spawn (before/at first docker call)
+   expect: dies of SIGTERM, no run, no receipt
+   code=null signal=SIGTERM
+   log: 
+   stdout: 
+   stderr: 
+
+== P1 (cycle-1 verbatim) SIGTERM during preflight network ls
+   expect: dies of SIGTERM, no run/down, no receipt, no interrupted line
+   code=null signal=SIGTERM
+   log: network ls
+   stdout: 
+   stderr: 
+
+== P1i SIGINT during preflight network ls
+   expect: dies of SIGINT, no run
+   code=null signal=SIGINT
+   log: network ls
+   stdout: 
+   stderr: 
+
+== P1c SIGTERM during guard compose ls
+   expect: dies of SIGTERM, no run
+   code=null signal=SIGTERM
+   log: network ls | compose ls
+   stdout: 
+   stderr: 
+
+== P1m SIGTERM during network ls that would refuse at the ceiling
+   expect: dies of SIGTERM
+   code=null signal=SIGTERM
+   log: network ls
+   stdout: 
+   stderr: 
+
+== P1m0 ceiling refusal, no signal (off() with nothing armed)
+   expect: exit 3, refusing line, no crash
+   code=3 signal=null
+   log: network ls | compose ls
+   stdout: 
+   stderr: compose-run: refusing (exit 3): 25 asc-* networks >= ceiling 20; leftovers: asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown), asc-fake (unknown)
+
+== P2t SIGTERM mid-run (parent only)
+   expect: survives; run|down|network|images; receipt; interrupted SIGTERM; exit 143
+   code=143 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=0 /   down exit=0 /   leak check: clean (0 networks, 0 images for this project) /   exit=143
+   stderr: compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt
+
+== P2i SIGINT mid-run (parent only)
+   expect: survives; exit 130
+   code=130 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=0 /   down exit=0 /   leak check: clean (0 networks, 0 images for this project) /   exit=130
+   stderr: compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt
+
+== P2 SIGINT,SIGINT,SIGTERM mid-run
+   expect: survives; first wins; exit 130
+   code=130 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=0 /   down exit=0 /   leak check: clean (0 networks, 0 images for this project) /   exit=130
+   stderr: compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt
+
+== P2gt SIGTERM to the group mid-run
+   expect: survives; run exit=null; exit 5 (NO_BUILD kept); interrupted SIGTERM
+   code=5 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=null /   down exit=0 /   leak check: clean (0 networks, 0 images for this project) /   exit=5
+   stderr: compose-run: no `Built` line — this run is not a receipt (CLAUDE.md --build corollary) // compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt
+
+== P2gi SIGINT to the group mid-run
+   expect: survives; run exit=null; exit 5; interrupted SIGINT
+   code=5 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=null /   down exit=0 /   leak check: clean (0 networks, 0 images for this project) /   exit=5
+   stderr: compose-run: no `Built` line — this run is not a receipt (CLAUDE.md --build corollary) // compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt
+
+== P4t SIGTERM during down (parent only)
+   expect: survives; down completes; leak check runs; exit 143; interrupted SIGTERM
+   code=143 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=0 /   down exit=0 /   leak check: clean (0 networks, 0 images for this project) /   exit=143
+   stderr: compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt
+
+== P4i SIGINT during down (parent only)
+   expect: survives; exit 130
+   code=130 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=0 /   down exit=0 /   leak check: clean (0 networks, 0 images for this project) /   exit=130
+   stderr: compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt
+
+== P4g SIGINT to the group during down
+   expect: survives; down exit=null; leak check still runs; exit 130 (stub reports no leak)
+   code=130 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=0 /   down exit=null /   leak check: clean (0 networks, 0 images for this project) /   exit=130
+   stderr: compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt
+
+== P5 SIGTERM during leak-check images
+   expect: survives; exit 143; interrupted SIGTERM
+   code=143 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=0 /   down exit=0 /   leak check: clean (0 networks, 0 images for this project) /   exit=143
+   stderr: compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt
+
+== P6 SIGTERM mid-run then SIGINT during down
+   expect: survives both; first wins: exit 143, interrupted SIGTERM
+   code=143 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=0 /   down exit=0 /   leak check: clean (0 networks, 0 images for this project) /   exit=143
+   stderr: compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt
+
+== P6g SIGINT mid-run then group SIGTERM during down
+   expect: survives; down exit=null; first wins: exit 130
+   code=130 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=0 /   down exit=null /   leak check: clean (0 networks, 0 images for this project) /   exit=130
+   stderr: compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt
+
+== P10 SIGTERM mid-run, run exits 1 (fail 1)
+   expect: exit 1 kept; interrupted line present
+   code=1 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=1 /   down exit=0 /   leak check: clean (0 networks, 0 images for this project) /   exit=1
+   stderr: compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt
+
+== P11 SIGTERM mid-run, run prints no Built line
+   expect: exit 5 kept; no-Built line + interrupted line
+   code=5 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=0 /   down exit=0 /   leak check: clean (0 networks, 0 images for this project) /   exit=5
+   stderr: compose-run: no `Built` line — this run is not a receipt (CLAUDE.md --build corollary) // compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt
+
+== P7 SIGHUP mid-run (out of scope, observation only)
+   expect: dies of SIGHUP, no down (documented non-goal? README names only INT/TERM)
+   code=null signal=SIGHUP
+   log: network ls | compose ls | compose run
+   stdout: 
+   stderr: 
+
+== P3 --check, SIGTERM during network ls
+   expect: dies of SIGTERM
+   code=null signal=SIGTERM
+   log: network ls
+   stdout: 
+   stderr: 
+
+== P3i --check, SIGINT during compose ls
+   expect: dies of SIGINT
+   code=null signal=SIGINT
+   log: network ls | compose ls
+   stdout: 
+   stderr: 
+
+== P8 clean run, no signal
+   expect: exit 0, receipt, no interrupted line
+   code=0 signal=null
+   log: network ls | compose ls | compose run | compose down | network ls | images
+   stdout: RECEIPT project=asc-probe-c2 /   run exit=0 /   down exit=0 /   leak check: clean (0 networks, 0 images for this project) /   exit=0
+   stderr: 

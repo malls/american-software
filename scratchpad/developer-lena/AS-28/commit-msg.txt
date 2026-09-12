@@ -1,0 +1,18 @@
+AS-28: harden the AC-3 palette guard to whole paint values
+
+Cycle-1 F1: the guard matched /#[0-9a-fA-F]{6}/g over the whole served SVG, so
+the two hex strings in the file's XML comment satisfied the cardinality floor on
+their own (artwork repainted red/lime passed with zero palette colours) and any
+6-hex prefix passed (#1C41E3FF). Now: strip XML comments, collect whole
+paint-attribute values (fill/stroke/stop-color/flood-color/lighting-color), floor
+on paint attributes examined (>= 4 — one path, three circles), and require each
+whole value to be a palette token. Two assertions keep the other doors shut: no
+<style> element, no style="" attribute.
+
+Test-only; the SVG, the STATIC_FILES entry and the <link> line are unchanged.
+Observed red on scratch copies (never the worktree), each site-asserted: M3c
+(red/lime, comment intact) and M3d (#1C41E3FF) — the cycle-1 survivors — plus
+M3e (zero paint attributes) and M3f (style="fill:red") for the new assertions,
+alongside M1/M2/M3a/M3b. 8 mutants, 0 survivors; host 370/370.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

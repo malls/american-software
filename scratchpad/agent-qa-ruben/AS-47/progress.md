@@ -1,0 +1,3 @@
+- step 2: plan/diff read at 08:55Z; next M6 probes
+- scratch root built at scratchpad/agent-qa-ruben/AS-47/root (context ../.. needs docs + .dockerignore); baseline receipt running
+- 08:59Z REVIEW RECORDED: PASS (merge). Receipts base 461/443/0/18 Built; F-raw(a) 5 red (wider by case 20, classified); F-dl(a) 1 red. Not run: F-raw b/c, F-raw-b, F-print, F-sys, F11b, contract receipt, live probes.

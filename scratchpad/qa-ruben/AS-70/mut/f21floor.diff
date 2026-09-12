@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/pristine/apps/invoicing/test/dependency-policy.test.js	2026-09-12 01:29:08
++++ /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/f21floor/apps/invoicing/test/dependency-policy.test.js	2026-09-12 01:31:32
+@@ -1045,7 +1045,7 @@
+   // none of the five characters EJS escapes, so the escape is a no-op against
+   // it. P2c three lines below always carried `/i`; the omission here and on P2a
+   // was an oversight, not a decision. Re-measured baseline after the flag: ZERO.
+-  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^(views|public)\//, expectFiles: 3 });
++  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^views\//, expectFiles: 2 });
+   // P2c — THE NO-CLIENT-SIDE-JAVASCRIPT ASSUMPTION, MADE MECHANICAL. Two ledger
+   // rows (S1-LOADING, S2-LOADING) are unimplementable under it and are recorded
+   // as `unrenderable — browser-supplied` rather than silently skipped. This row

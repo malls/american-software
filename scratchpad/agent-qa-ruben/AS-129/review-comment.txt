@@ -1,0 +1,12 @@
+PASS (qa-ruben, tick watcher:79108 loop 2 tick 4). Plan and diff read cold; implementer's comment read last — it matches.
+
+Findings outside the list (4, none blocking):
+F1 non-blocking, behaviour residual: after resume() lands an active mirror past the cap and the cooldown re-arms, the fresh loop fires with resumeHold=false, so blockedByLock() does not gate it — a 12-min-old lock under a dead watcher pid is stolen and the tick fires beside the orphan (probe P5; an ordinary resume holds). Same exposure as the message path; needs crash mid-tick + past cap + orphan alive > 10 min. Suggest rearmIfDue() sets resumeHold=true.
+F2 non-blocking, hardening: a stale past-due rearmAt after long downtime re-arms without re-checking workRemains; one tick spent, then `dry` (P4c).
+F3 non-blocking, plan table: M1 red {T3,T6,T9b,T12}, M3 red {T5,T8,T11} — one wider each; T9b resumes past the cap via workRemains, T8 asserts not-due at T0, so both are correct reds the table omitted.
+F4 trivia, fixed inline: plist comment "135 min with the values above" sat under the 30/45 listing; now names 60/75 and the 30/45 result. Commit 5df0094 (qa-ruben); launchd-plist + deploy-shape 17/17.
+Observation: re-arm due in the same poll as a new message → old armedBy kept, message fires once (P3).
+
+Floor check (M5): 12/12 criteria met. Host 643/641/0/2. Compose scratch project asc-review-as129: "Image asc-review-as129-test Built", 643/635/0/8, down clean, 0 leaks. Mutants: 17 planned, 17 applied at the intended site (1 match asserted each; scratch copy /tmp/as129-mut, pristine hash restored); 15 exact, M1/M3 per F3. Crit 3 grep: no lock-wait 60*60*1000 literal. Crit 12: worktree data/ has no advance-loop.json; tests use temp dirs, compose is mountless. Probes P1–P8 (ceiling boundaries, junk/Infinity/negative, env-override derivation, stale mirror shapes, cooldown boundaries, second cap, no-progress after re-arm) all as designed.
+
+Battery: scratchpad/agent-qa-ruben/AS-129/ (host-*.log, compose-receipt.txt, mutants-summary.txt, mut-M*.log, probes.log).

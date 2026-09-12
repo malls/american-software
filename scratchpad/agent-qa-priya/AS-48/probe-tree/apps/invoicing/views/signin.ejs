@@ -1,0 +1,146 @@
+<%#
+  signin.ejs — Screen 1, sign up / sign in (AS-45).
+
+  Built to docs/design/wireframes/screen-1-signin.html and its ledger,
+  02-states-ledger.md §1. Every element the wireframe marks `data-wf-note` is
+  wireframe annotation and is deliberately NOT built (01-screens.md §6) — that
+  is why the password field carries no "no reset flow" hint here.
+
+  PRESENTATION ONLY. Every decision was made in lib/screens/signin-view.js; this
+  file branches on precomputed booleans and reads properties. Three properties
+  hold over it, each a concept row in test/dependency-policy.test.js rather than
+  a convention (README.md § The view layer):
+
+    P1  no raw-output tag anywhere — every interpolation is escaped by EJS
+    P2  no interpolation in an href/src/action/formaction/style attribute, no
+        event-handler attribute, no script or style element
+    P3  every attribute value carrying data is DOUBLE-quoted, because escaping
+        the double quote only helps if the double quote is the delimiter
+
+  NO PARTIALS, deliberately: an include is a raw-output tag and would make P1
+  conditional (plan §3.1). The duplicated head block is the price, and the
+  assertion that every template links both stylesheets and carries the viewport
+  meta is what protects it.
+
+  NOTE FOR ANYONE EDITING THIS COMMENT: do not spell the raw-output tag or a
+  closing EJS tag inside it. The dependency-policy scanner strips an EJS comment
+  up to its FIRST closing tag, so a spelled-out example would both truncate the
+  strip and plant a P1 hit in a file whose whole job is not to have one.
+
+  There is no `password` local. It is not omitted from the markup — it does not
+  exist in the view model, which is the strongest way to say that a submitted
+  password is never re-rendered (00-flows.md Flow 6 step 2).
+-%>
+<!doctype html>
+<html lang="en" data-state="<%= state %>">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoicing — <%= title %></title>
+    <%# The vendored single source of visual truth, served byte-identical by
+        routes/assets.js. Never a local copy. %>
+    <link rel="stylesheet" href="/tokens.css" />
+    <%# App-owned styles, served from public/ by express.static. %>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <%# Reduced chrome: no nav. Screen 1 is reachable signed-out and there is
+        nowhere authenticated to navigate to yet (01-screens.md §3). %>
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <span class="app-label">Invoicing</span>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1 class="page-title"><%= title %></h1>
+      <% if (reason !== null) { %>
+        <p class="page-meta"><%= reason %></p>
+      <% } %>
+
+      <% if (banner !== null) { %>
+        <div class="banner banner-error">
+          <% if (banner.title !== null) { %>
+            <p class="banner__title"><%= banner.title %></p>
+          <% } %>
+          <% if (banner.email !== null) { %>
+            <p><%= banner.emailBefore %><strong><%= banner.email %></strong><%= banner.emailAfter %></p>
+          <% } %>
+          <% if (banner.message !== null) { %>
+            <p><%= banner.message %></p>
+          <% } %>
+        </div>
+      <% } %>
+
+      <%# The action is a CONSTANT per mode rather than an interpolation: P2a
+          forbids data in an action= without exception, and the two ways in are
+          two paths (routes/auth.js). %>
+      <% if (isSignUp) { %>
+        <form method="post" action="/signup">
+      <% } else { %>
+        <form method="post" action="/signin">
+      <% } %>
+        <%# `next` travels in a hidden input and NEVER in a URL (plan §3.3.3). %>
+        <input type="hidden" name="next" value="<%= next %>" />
+
+        <% if (isSignUp) { %>
+          <% if (displayNameError !== null) { %>
+            <div class="field field--invalid">
+              <label for="displayName">Name</label>
+              <input type="text" id="displayName" name="displayName" autocomplete="name" value="<%= displayName %>" aria-invalid="true" aria-describedby="displayName-error" />
+              <span class="field-error" id="displayName-error"><%= displayNameError %></span>
+            </div>
+          <% } else { %>
+            <div class="field">
+              <label for="displayName">Name</label>
+              <input type="text" id="displayName" name="displayName" autocomplete="name" value="<%= displayName %>" />
+            </div>
+          <% } %>
+        <% } %>
+
+        <% if (emailError !== null) { %>
+          <div class="field field--invalid">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" autocomplete="email" value="<%= email %>" aria-invalid="true" aria-describedby="email-error" />
+            <span class="field-error" id="email-error"><%= emailError %></span>
+          </div>
+        <% } else { %>
+          <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" autocomplete="email" value="<%= email %>" />
+          </div>
+        <% } %>
+
+        <%# NO value= on this input, in any branch, in any state. %>
+        <% if (passwordError !== null) { %>
+          <div class="field field--invalid">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" autocomplete="<%= passwordAutocomplete %>" aria-invalid="true" aria-describedby="password-error" />
+            <span class="field-error" id="password-error"><%= passwordError %></span>
+          </div>
+        <% } else { %>
+          <div class="field">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" autocomplete="<%= passwordAutocomplete %>" />
+          </div>
+        <% } %>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary"><%= submitLabel %></button>
+        </div>
+      </form>
+
+      <%# The mode switch is a BUTTON in a GET form, not an anchor: an anchor
+          that preserved `next` would need it in a query string, which is a URL
+          position (P2a). This produces the identical URL with a plain full-page
+          navigation and no JavaScript. %>
+      <form method="get" action="/signin" class="mode-switch">
+        <input type="hidden" name="mode" value="<%= switchMode %>" />
+        <input type="hidden" name="next" value="<%= next %>" />
+        <p class="page-meta"><%= switchPrompt %>
+          <button type="submit" class="btn-link"><%= switchLabel %></button>
+        </p>
+      </form>
+    </main>
+  </body>
+</html>

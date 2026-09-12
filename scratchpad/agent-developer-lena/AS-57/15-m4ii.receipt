@@ -1,0 +1,8 @@
+RECEIPT project=asc-impl-as57-15-m4ii
+  built: Image asc-impl-as57-15-m4ii-test Built
+  tests=531 pass=509 fail=3 skipped=19
+  run exit=1
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=1
+RUN_EXIT=1

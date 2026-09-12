@@ -1,0 +1,299 @@
+{
+  "baseline": {
+    "code": 0,
+    "failed": [],
+    "tests": 416,
+    "pass": 416,
+    "fail": 0
+  },
+  "results": [
+    {
+      "id": "M1-AC1-parser-drops-detached",
+      "file": "watch/advance-watcher.mjs",
+      "line": 1485,
+      "status": "RED",
+      "predict": [
+        "lanes-parse-detached"
+      ],
+      "failed": [
+        "lanes-parse-detached: main + linked + detached rows parse to three rows",
+        "watcher-lanes-detached: a worktree with no branch is still measured, off its HEAD"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 414,
+      "fail": 2
+    },
+    {
+      "id": "M2-AC2-skip-write-when-unchanged",
+      "file": "watch/advance-watcher.mjs",
+      "line": 1573,
+      "status": "RED",
+      "predict": [
+        "watcher-lanes-generatedAt-advances"
+      ],
+      "failed": [
+        "watcher-lanes-generatedAt-advances: every poll writes, even with byte-identical git output"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 415,
+      "fail": 1
+    },
+    {
+      "id": "M3a-AC3-git-down-writes-nothing",
+      "file": "watch/advance-watcher.mjs",
+      "line": 1603,
+      "status": "RED",
+      "predict": [
+        "watcher-lanes-git-down"
+      ],
+      "failed": [
+        "watcher-lanes-git-down: a failed worktree list is a timestamped fact, not a crash"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 415,
+      "fail": 1
+    },
+    {
+      "id": "M3b-AC3-evaluate-rethrows",
+      "file": "watch/advance-watcher.mjs",
+      "line": 1685,
+      "status": "RED",
+      "predict": [
+        "watcher-lanes-* (any test that drives the catch path)"
+      ],
+      "failed": [
+        "watcher-lanes-never-rejects: a git runner that THROWS is still a timestamped fact",
+        "watcher-lanes-never-rejects-midway: a throw inside the row loop degrades to the error shape, never a partial list"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 414,
+      "fail": 2
+    },
+    {
+      "id": "M4-AC4-abort-snapshot-on-row-error",
+      "file": "watch/advance-watcher.mjs",
+      "line": 1665,
+      "status": "RED",
+      "predict": [
+        "watcher-lanes-row-isolation"
+      ],
+      "failed": [
+        "watcher-lanes-row-isolation: one broken worktree never blanks its neighbours"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 415,
+      "fail": 1
+    },
+    {
+      "id": "M5-AC5-drop-no-optional-locks",
+      "file": "watch/advance-watcher.mjs",
+      "line": 1659,
+      "status": "RED",
+      "predict": [
+        "watcher-lanes-argv-pin"
+      ],
+      "failed": [
+        "watcher-lanes-argv-pin: the status call carries --no-optional-locks, always"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 415,
+      "fail": 1
+    },
+    {
+      "id": "M6-AC6-drop-first-parent-check",
+      "file": "watch/advance-watcher.mjs",
+      "line": 1508,
+      "status": "RED",
+      "predict": [
+        "lanes-merged-fresh-branch-is-not-merged"
+      ],
+      "failed": [
+        "lanes-merged-fresh-branch-is-not-merged: all three facts are needed",
+        "watcher-lanes-merged: an ancestor tip off master's first-parent chain is merged"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 414,
+      "fail": 2
+    },
+    {
+      "id": "M7a-AC7-filter-unjoined-rows",
+      "file": "lib/lanes.js",
+      "line": 165,
+      "status": "RED",
+      "predict": [
+        "lanes-compose-unknown-task-kept"
+      ],
+      "failed": [
+        "lanes-label-dirty-lattice-and-errors: the two-plane violation and a failed git call are said out loud",
+        "lanes-label-unknown-task-and-detached: a lane with no join still renders a card",
+        "lanes-compose-unknown-task-kept: N worktree rows in, N worktree lanes out",
+        "lanes-compose-branch-name-fallback: no link, so the short code in the name joins",
+        "lanes-compose-order: worktree lanes by path, then task-only lanes by short id",
+        "lanes-stale-boundary: the boundary is LANES_STALE_MS, taken from generatedAt",
+        "lanes-compose-tolerant: hostile and half-written rows never throw"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 409,
+      "fail": 7
+    },
+    {
+      "id": "M7b-AC7-branch-name-beats-link",
+      "file": "lib/lanes.js",
+      "line": 154,
+      "status": "RED",
+      "predict": [
+        "lanes-compose-link-beats-name"
+      ],
+      "failed": [
+        "lanes-compose-link-beats-name: an explicit branch-link wins over a parsed short code"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 415,
+      "fail": 1
+    },
+    {
+      "id": "M8-AC8-wrong-membership-set",
+      "file": "lib/lanes.js",
+      "line": 194,
+      "status": "RED",
+      "predict": [
+        "lanes-compose-task-only-membership"
+      ],
+      "failed": [
+        "api: AS-99 — GET /api/lanes joins the watcher snapshot to the live board",
+        "lanes-compose-task-only-membership: mid-lifecycle without a worktree is a lane; a queue is not"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 414,
+      "fail": 2
+    },
+    {
+      "id": "M9-AC9-stale-flags-on-ahead-zero",
+      "file": "lib/lanes.js",
+      "line": 89,
+      "status": "RED",
+      "predict": [
+        "lanes-stale-reasons"
+      ],
+      "failed": [
+        "lanes-stale-reasons: done, cancelled and merged each flag; a live lane does not"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 415,
+      "fail": 1
+    },
+    {
+      "id": "M10-AC10-coalesce-employee",
+      "file": "lib/lanes.js",
+      "line": 172,
+      "status": "RED",
+      "predict": [
+        "lanes-employee-both-fields"
+      ],
+      "failed": [
+        "lanes-label-employee-disagreement-is-shown: two identities, assignee first",
+        "lanes-employee-both-fields: assignee and git author are never merged"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 414,
+      "fail": 2
+    },
+    {
+      "id": "M11a-AC11-double-the-stale-window",
+      "file": "lib/lanes.js",
+      "line": 125,
+      "status": "RED",
+      "predict": [
+        "api-lanes-stale-boundary",
+        "lanes-stale-boundary"
+      ],
+      "failed": [
+        "api: AS-99 — api-lanes-stale-boundary: age comes from generatedAt, never the file mtime",
+        "lanes-label-stale-caption: a stale snapshot says so, in age and in words",
+        "lanes-stale-boundary: the boundary is LANES_STALE_MS, taken from generatedAt"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 413,
+      "fail": 3
+    },
+    {
+      "id": "M11b-AC11-age-from-file-mtime",
+      "file": "server.js",
+      "line": 306,
+      "status": "RED",
+      "predict": [
+        "api-lanes-stale-boundary"
+      ],
+      "failed": [
+        "api: AS-99 — api-lanes-stale-boundary: age comes from generatedAt, never the file mtime"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 415,
+      "fail": 1
+    },
+    {
+      "id": "M12-AC12-push-every-poll",
+      "file": "server.js",
+      "line": 431,
+      "status": "RED",
+      "predict": [
+        "stream-lanes-change-only"
+      ],
+      "failed": [
+        "stream-lanes-change-only: a rewritten snapshot pushes exactly one lanes frame; an untouched one pushes none over ten polls"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 415,
+      "fail": 1
+    },
+    {
+      "id": "M13-AC13-spread-the-snapshot-row",
+      "file": "lib/lanes.js",
+      "line": 78,
+      "status": "RED",
+      "predict": [
+        "api-lanes-key-whitelist",
+        "lanes-compose-shape"
+      ],
+      "failed": [
+        "api: AS-99 — api-lanes-key-whitelist: the payload carries no field the contract does not name",
+        "lanes-compose-shape: a joined lane carries exactly the projection keys"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 414,
+      "fail": 2
+    },
+    {
+      "id": "M14-AC14-null-payload-reads-zero",
+      "file": "public/lanes.js",
+      "line": 74,
+      "status": "RED",
+      "predict": [
+        "lanes-label-null-is-dash"
+      ],
+      "failed": [
+        "lanes-label-null-is-dash: an unanswered fetch is a dash, never a zero"
+      ],
+      "code": 1,
+      "tests": 416,
+      "pass": 415,
+      "fail": 1
+    }
+  ]
+}

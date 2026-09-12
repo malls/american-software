@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en" data-state="S6-DEFAULT">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoicing — New contract</title>
+    <link rel="stylesheet" href="http://127.0.0.1:8361/tokens.css" />
+    <link rel="stylesheet" href="http://127.0.0.1:8361/app.css" />
+  </head>
+  <body>
+    
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <span class="app-label">Invoicing</span>
+      </div>
+      <div class="container">
+        <nav class="site-nav" aria-label="Primary">
+          <a class="site-nav__link" href="/">Dashboard</a>
+          <a class="site-nav__link" href="/invoices/new">New invoice</a>
+          <a class="site-nav__link" href="/contracts/new">New contract</a>
+          <form class="site-nav__signout" method="post" action="/signout">
+            <button type="submit" class="btn-link">Sign out</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1 class="page-title">New contract</h1>
+
+      
+      <div class="banner banner-warning">
+        <p class="banner__title">Placeholder contract text — not legal advice</p>
+        <p>This contract&#39;s body is placeholder text. It is not legal advice — do not send this to a client as a binding contract.</p>
+      </div>
+
+      
+
+      <form method="post">
+        <div class="client-picker">
+          
+            
+              <p class="client-picker__mode-toggle">Client:
+                <button type="submit" name="intent" value="new-client" class="btn-link">add a new client instead</button>
+              </p>
+            
+            <input type="hidden" name="pickerMode" value="select" />
+            
+              <div class="field">
+                <label for="clientId">Client</label>
+                <select id="clientId" name="clientId">
+                  <option value="">Select a client…</option>
+                  
+                    
+                      <option value="16903e59-68a6-4b91-8a8d-62c57210fcb4">A Client With A Really Quite Long Name Indeed (a-client-with-a-long-address@example-domain.test)</option>
+                    
+                  
+                </select>
+              </div>
+            
+          
+        </div>
+
+        
+        
+          
+            
+              <div class="field">
+                <label for="projectDescription">Project description</label>
+                <textarea id="projectDescription" name="projectDescription" rows="3">
+</textarea>
+              </div>
+            
+          
+        
+          
+            
+              <div class="field">
+                <label for="startDate">Start date</label>
+                <input type="date" id="startDate" name="startDate" value="" />
+              </div>
+            
+          
+        
+
+        <div class="form-actions">
+          
+            <button type="submit" name="intent" value="generate" class="btn btn-primary">Generate contract</button>
+          
+        </div>
+      </form>
+    </main>
+  <script>window.addEventListener('load',()=>{document.title='W:'+window.innerWidth+' SW:'+document.documentElement.scrollWidth+' MAIN:'+document.querySelector('main').getBoundingClientRect().width+' TA:'+(document.querySelector('textarea')?.getBoundingClientRect().width??'-')+' DATE:'+(document.querySelector('input[type=date]')?.getBoundingClientRect().width??'-')+' H1:'+document.querySelector('h1').getBoundingClientRect().width})</script></body>
+</html>

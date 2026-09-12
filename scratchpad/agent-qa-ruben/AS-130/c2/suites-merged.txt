@@ -1,0 +1,4 @@
+asc-c2-merged test: exit 0; receipt Image asc-c2-merged-test Built; 532/513/0/19
+asc-c2-merged contract: exit 0; receipt Image asc-c2-merged-contract Built; 532/532/0/0
+asc-c2-merged teardown exit 0; containers left: none
+asc-c2-merged images removed: asc-c2-merged-contract, asc-c2-merged-test

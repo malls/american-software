@@ -1,0 +1,44 @@
+[
+  {
+    "name": "AC-1 one word of the block changed",
+    "red": true,
+    "status": 1,
+    "err": "CAN/CANNOT block digest mismatch: got 4b725595f0acdd380f7a50e55d062a7ebde991705acbd40c78dbb45e4a6cf06b, expected 4021fa1c3d7ee56321c0b1e7acfb5406904e3e3c8c9964bd97596b2848cb3f3f — the block in transcript.txt differs from the one this script was pinned to; fix run.mjs or update BLOCK_SHA256 deliberately"
+  },
+  {
+    "name": "AC-2 bullet appended after the last line (new build.mjs)",
+    "red": true,
+    "status": 1,
+    "err": "CAN/CANNOT block digest mismatch: got 3b4f89f163b52288a27cf1d0746a17305f8d785b085ee80c9f47576635fe8523, expected 4021fa1c3d7ee56321c0b1e7acfb5406904e3e3c8c9964bd97596b2848cb3f3f — the block in transcript.txt differs from the one this script was pinned to; fix run.mjs or update BLOCK_SHA256 deliberately"
+  },
+  {
+    "name": "AC-2 before: same mutant through master build.mjs on master transcript",
+    "survivor": true,
+    "status": 0,
+    "stdout": "CAN/CANNOT block: 16 lines, 8 bullets, digest ok"
+  },
+  {
+    "name": "AC-3a one PNG removed",
+    "red": true,
+    "status": 1,
+    "err": "missing screenshot /Users/forrest/Code/american-software-company/scratchpad/agent-developer-lena/AS-130/scratch-build-ac3a/docs/demo/d1/screen-5-default-paid-1280.png"
+  },
+  {
+    "name": "AC-3b one state renamed in capture.json",
+    "red": true,
+    "status": 1,
+    "err": "capture.json does not record screen-5-default-paid-375.png as S5-DEFAULT-PAID at 375px — re-run capture.mjs"
+  },
+  {
+    "name": "extra: layer renamed in capture.json",
+    "red": true,
+    "status": 1,
+    "err": "capture.json does not record screen-3-empty-firstrun-375.png as S3-EMPTY-FIRSTRUN at 375px with layer S3-GATED-STRIPENOTREADY — re-run capture.mjs"
+  },
+  {
+    "name": "control: untouched record",
+    "status": 0,
+    "identicalToCommitted": true,
+    "stdout": "CAN/CANNOT block: 17 lines, 7 bullets, digest ok\nsteps: 13 headers, 13 labels, each header labelled\nscreenshots: 34 of 34, 1447710 bytes total, 7 screens\nwrote /Users/forrest/Code/american-software-company/scratchpad/agent-developer-lena/AS-130/scratch-build-control/out.html\n  tokens.css : 12.0kB\n  transcript : 171 lines\n  images     : 1885.8kB as data URIs\n  total      : 1927.0kB"
+  }
+]

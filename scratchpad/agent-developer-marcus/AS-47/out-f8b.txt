@@ -1,0 +1,12 @@
+assert-applied nwe href: 0 -> 1 (expected 0 -> 1)
+RECEIPT project=asc-as47-f8b
+  built: Image asc-as47-f8b-test Built
+  tests=430 pass=410 fail=2 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=1
+
+RED SET (2):
+  ✖ S7-DEFAULT embeds the stored document byte-for-byte inside the document region, with the notice first and the attribution last
+  ✖ every href and form action in the two contract templates names a route the app registers

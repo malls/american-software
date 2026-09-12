@@ -1,0 +1,37 @@
+// test/helpers/routes.js — the ONE router-tree walker (AS-46, plan §3.6).
+//
+// MOVED VERBATIM from test/auth.test.js, where it lived from AS-40 until
+// auth.test.js reached 1,199 lines against the 1,200-line cap
+// (test/dependency-policy.test.js's last case) and could not take the four
+// routes screen 4 adds. Exported so auth.test.js (G7, G15) and
+// route-surface.test.js (G1–G3) share one walker rather than two copies that
+// can stop one layer short in different ways. The function body below is
+// byte-identical to the one it replaces; only this header and the `export` are
+// new.
+//
+// clients.test.js and contracts.test.js carry their own private copies
+// filtering on their own prefixes; they are not this task's files and neither
+// prefix collides with /invoices/… — left alone.
+
+/** Every (method, path) the built app registers, by walking the router tree.
+ *  Express internals are being read, which is normally a smell. It is
+ *  acceptable here for two measured reasons: express is pinned to an EXACT
+ *  literal by dependency-policy.test.js, and G1's cardinality assertion means a
+ *  future express whose internals moved produces a RED test, never a vacuous
+ *  green one. */
+export function discoverRoutes(app) {
+  const found = [];
+  const walk = (stack) => {
+    for (const layer of stack) {
+      if (layer.route) {
+        for (const method of Object.keys(layer.route.methods)) {
+          found.push(`${method.toUpperCase()} ${layer.route.path}`);
+        }
+      } else if (layer.handle?.stack) {
+        walk(layer.handle.stack);
+      }
+    }
+  };
+  walk(app.router.stack);
+  return found.sort();
+}

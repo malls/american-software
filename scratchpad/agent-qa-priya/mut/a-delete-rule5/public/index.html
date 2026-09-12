@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ASC Chat</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <header id="brand">ASC Chat</header>
+      <!-- AS-27: advance-loop status. Answers "is the company running right
+           now, or waiting on me?" at a glance. role="status" + aria-live so a
+           screen reader announces the transition without stealing focus; the
+           full evidence (ages, stale locks, watcher reason) rides in the
+           title attribute. Both spans are filled by textContent in app.js. -->
+      <div id="loop-status" role="status" aria-live="polite"><span class="loop-dot"></span><span id="loop-label"></span></div>
+      <section id="identity-box">
+        <label for="identity-picker">I am</label>
+        <select id="identity-picker"></select>
+        <button id="add-identity" title="Register a new identity">+ identity</button>
+      </section>
+      <section>
+        <h2>Channels <button id="new-channel" title="Create a channel">+</button></h2>
+        <ul id="channel-list"></ul>
+      </section>
+      <section>
+        <h2>Direct messages <button id="new-dm" title="Start a DM">+</button></h2>
+        <div id="dm-typeahead" hidden>
+          <input id="dm-search" type="text" placeholder="Search identities…"
+            autocomplete="off" role="combobox" aria-expanded="false"
+            aria-controls="dm-options" aria-autocomplete="list"
+            aria-label="Search identities to start a DM">
+          <ul id="dm-options" role="listbox" aria-label="Matching identities"></ul>
+        </div>
+        <!-- AS-33: opens the derived org chart. Text label, not a glyph, and
+             it sits immediately above the roster it explains. -->
+        <button id="org-chart-open" type="button">Org chart</button>
+        <ul id="roster-list" aria-label="Company roster"></ul>
+        <ul id="dm-list" aria-label="Other direct messages"></ul>
+      </section>
+    </aside>
+
+    <!-- AS-23: scrim behind the off-canvas sidebar drawer at <=700px. Static
+         markup, no user content; display:none above 700px regardless of the
+         hidden attr (see style.css). z-order: scrim 25 < drawer 26. -->
+    <div id="sidebar-scrim" hidden></div>
+
+    <main id="main">
+      <header id="conv-header">
+        <!-- AS-23: hamburger opens the sidebar drawer; display:none above 700px.
+             Glyph is static markup text, not user content. -->
+        <button id="sidebar-toggle" aria-label="Conversations" type="button">☰</button>
+        <div id="conv-title">Select a conversation</div>
+        <div id="conv-purpose"></div>
+      </header>
+      <div id="messages" aria-live="polite"></div>
+      <form id="composer">
+        <textarea id="composer-input" rows="2"
+          placeholder="Message… (Enter to send, Shift+Enter for newline)"></textarea>
+        <button type="submit">Send</button>
+      </form>
+    </main>
+
+    <!-- AS-19: thread modal (replaces the narrow thread sidebar). The outer
+         #thread-modal is the dimmed backdrop; a click landing on it (not on
+         the dialog) closes. Inner ids are unchanged from the old panel so
+         renderThread/wireComposer and the AS-9 t= restore work verbatim. -->
+    <div id="thread-modal" hidden>
+      <div id="thread-dialog" role="dialog" aria-modal="true"
+           aria-labelledby="thread-title" tabindex="-1">
+        <header>
+          <span id="thread-title">Thread</span>
+          <button id="thread-close" title="Close thread">×</button>
+        </header>
+        <div id="thread-messages"></div>
+        <form id="thread-composer">
+          <textarea id="thread-input" rows="2" placeholder="Reply in thread…"></textarea>
+          <button type="submit">Reply</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- AS-26 §5: in-app file viewer, patterned on the thread modal. Title
+         bar shows the repo-relative path; close button + Esc dismiss. Body
+         content is rendered by the safe block renderer in app.js — headings,
+         fenced code, inline styles, everything via textContent. -->
+    <div id="file-modal" hidden>
+      <div id="file-dialog" role="dialog" aria-modal="true"
+           aria-labelledby="file-title" tabindex="-1">
+        <header>
+          <span id="file-title"></span>
+          <button id="file-close" title="Close file">×</button>
+        </header>
+        <div id="file-body"></div>
+      </div>
+    </div>
+
+    <!-- AS-33: org chart modal, patterned on the file viewer. The tree is
+         derived live from /api/org on every open — never a cached artifact and
+         never a committed generated file, which is the hand-maintained-chart
+         drift the CLAUDE.md org section exists to prevent. Close button + Esc
+         dismiss; every node is built by el()/textContent in app.js. -->
+    <div id="org-modal" hidden>
+      <div id="org-dialog" role="dialog" aria-modal="true"
+           aria-labelledby="org-title" tabindex="-1">
+        <header>
+          <span id="org-title">Org chart</span>
+          <button id="org-close" title="Close org chart">×</button>
+        </header>
+        <div id="org-body"></div>
+      </div>
+    </div>
+
+    <div id="task-panel" hidden>
+      <header>
+        <span id="task-panel-code"></span>
+        <button id="task-panel-close" title="Close">×</button>
+      </header>
+      <div id="task-panel-body"></div>
+    </div>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

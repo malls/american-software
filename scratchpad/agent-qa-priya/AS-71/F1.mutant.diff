@@ -1,0 +1,13 @@
+diff --git a/docs/design/wireframes/02-states-ledger.md b/docs/design/wireframes/02-states-ledger.md
+index d31a0b0..c2fb86a 100644
+--- a/docs/design/wireframes/02-states-ledger.md
++++ b/docs/design/wireframes/02-states-ledger.md
+@@ -66,7 +66,7 @@ Full branch detail: `00-flows.md` Flow 2. Connection status lives here **permane
+ | `S2-RETURN-NOTREADY` | GATED | Stripe return redirect; requirements still outstanding (C-11) | Names that the account cannot yet accept payments; invoicing is blocked; "Finish setup on Stripe" re-enters the hosted flow |
+ | `S2-DENIED-SIGNEDOUT` | GATED | No session | Redirect to Screen 1 per `00-flows.md` Flow 4 |
+ | `S2-REFRESH` | ABANDON | Stripe invalidates the onboarding link before completion (its own timeout, not our action) | Transient — mints a fresh account link, immediately redirects back into Stripe's flow. If minting fails the refresh handler answers a plain-text error status and never renders this screen (`S2-ERROR-SYSTEM` is reached from the start path only; routing a refresh failure into the screen is a later product decision). *Amended AS-71 from the AS-69 review, to match what shipped.* |
+-| `S2-ABANDON` | ABANDON | Freelancer closes the tab mid-Stripe-KYC, later returns directly (not via a Stripe redirect) | Renders whichever state the stored row implies. **Since AS-41 creates the connected-account row at *start*, before the first link is minted, that is `S2-RETURN-NOTREADY` in practice** — Stripe holds whatever partial progress was made, and "Finish setup on Stripe" resumes them there. `S2-DEFAULT-NOTSTARTED` renders only when no row exists at all, i.e. the click never reached account creation. This row is a reachability path into an existing render, not a render of its own. *Amended AS-71 per the AS-45 plan §9 Q3 wording, carried through AS-70.* |
++| `S2-ABANDONED` | ABANDON | Freelancer closes the tab mid-Stripe-KYC, later returns directly (not via a Stripe redirect) | Renders whichever state the stored row implies. **Since AS-41 creates the connected-account row at *start*, before the first link is minted, that is `S2-RETURN-NOTREADY` in practice** — Stripe holds whatever partial progress was made, and "Finish setup on Stripe" resumes them there. `S2-DEFAULT-NOTSTARTED` renders only when no row exists at all, i.e. the click never reached account creation. This row is a reachability path into an existing render, not a render of its own. *Amended AS-71 per the AS-45 plan §9 Q3 wording, carried through AS-70.* |
+ 
+ ## 3. Screen 3 — Dashboard / list
+ 

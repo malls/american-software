@@ -1,0 +1,27 @@
+AS-99: stop rendering a refused git enumeration as a measured zero
+
+Review cycle 1, F1 (blocking). On snapshot.reason 'git-error' the watcher
+reached git and git refused: zero worktrees were ENUMERATED, not zero
+worktrees COUNTED. The badge said 'Lanes - 0' and the pane said "No lanes
+in flight." — the exact collapse of "nothing is running" into "we cannot
+see what is running" that Flow 1a and AC-14 exist to prevent.
+
+- public/lanes.js: UNMEASURED_REASONS (no-snapshot, unreadable-snapshot,
+  git-error) take the dash badge and the "Lane data unavailable" caption,
+  with the snapshot's age appended when it has one: a failed poll is still
+  a fact with a timestamp, and it tells the board the watcher is alive and
+  git is what failed. A stale snapshot is deliberately NOT in that set —
+  it is a real measurement, just an old one, so it keeps its count (the
+  plan's M6 probe expects that).
+- public/lanes.js: EMPTY_STATES, one sentence per reason code, asserted
+  key-for-key against LANES_REASON_CODES like the reason table beside it.
+- public/app.js: renderLanes takes that sentence from the view instead of
+  comparing the rendered badge string — the comparison was the mechanism
+  by which the two states became one.
+
+Tests: lanes-label-git-error-is-not-a-measured-zero,
+lanes-label-empty-state-table, api-lanes-git-error-badge (the server's own
+payload through the real label module, plus a static check that app.js
+never goes back to the badge-string comparison).
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

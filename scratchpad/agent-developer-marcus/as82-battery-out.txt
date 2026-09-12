@@ -1,0 +1,24 @@
+M1 @2196 poll() pred {2,10} obs {2,10} | ℹ tests 10 ℹ pass 8 ℹ fail 2
+M2 ANCHOR 0x
+M3 @2067 fire() pred {3,7} obs {3,4,7,8} | ℹ tests 10 ℹ pass 6 ℹ fail 4
+M4 @2166 settle() pred {5,9} obs {5,6,9} | ℹ tests 10 ℹ pass 7 ℹ fail 3
+M5 @2140 fire() spawn site pred {4} obs {4} | ℹ tests 10 ℹ pass 9 ℹ fail 1
+M6 @2082 fire() pred {2,3} obs {3,7} | ℹ tests 10 ℹ pass 8 ℹ fail 2
+M7 ANCHOR 2x
+M8 @2282 shutdown() pred {8,10} obs {8,10} | ℹ tests 10 ℹ pass 8 ℹ fail 2
+M9 @2171 settle() pred {5} obs {5} | ℹ tests 10 ℹ pass 9 ℹ fail 1
+M10 @2171 settle() pred {5,6,9} obs {5,6,9} | ℹ tests 10 ℹ pass 7 ℹ fail 3
+
+=== BATTERY TABLE ===
+M1	line 2196	poll()	pred {2,10}	obs {2,10}	MATCH	delete the writeWatcherPid heartbeat call in poll() (AC-1, the headline)
+M2	ERROR anchor matched 0x, expected exactly 1 — move the heartbeat below the `if (child) return` gate (AC-2)
+M3	line 2067	fire()	pred {3,7}	obs {3,4,7,8}	DIFFERS	fire() proceeds without taking the lock (AC-3)
+M4	line 2166	settle()	pred {5,9}	obs {5,6,9}	DIFFERS	delete releaseLock() in settle() (AC-4)
+M5	line 2140	fire() spawn site	pred {4}	obs {4}	MATCH	spawn passes literal 'plan' instead of config.permissionMode (AC-5)
+M6	line 2082	fire()	pred {2,3}	obs {3,7}	DIFFERS	delete the highwater write + rename in fire() (AC-6)
+M7	ERROR anchor matched 2x, expected exactly 1 — delete proc.kill('SIGTERM') inside the tick box (AC-7)
+M8	line 2282	shutdown()	pred {8,10}	obs {8,10}	MATCH	delete unlinkSync(paths.pid) in shutdown() (AC-8)
+M9	line 2171	settle()	pred {5}	obs {5}	MATCH	swap eventsOps.tickEnded() and loopOps.settle() (AC-9)
+M10	line 2171	settle()	pred {5,6,9}	obs {5,6,9}	MATCH	delete the eventsOps.tickEnded() line in settle() (AC-9)
+
+HASH_BEFORE 77b71a100c452c28c750566e25701bf3e77a07d2b5d047718e30aca8df123866

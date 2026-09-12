@@ -1,0 +1,14 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/pristine/docs/design/tokens/tokens.css	2026-09-12 17:14:48
++++ /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/p2b-block2-odd-spacing/docs/design/tokens/tokens.css	2026-09-12 17:14:49
+@@ -171,8 +171,9 @@
+  * re-scope locally even inside a dark page. BRANDING.md §3.2.
+  * ============================================================================
+  */
+-:root,
+-[data-theme="light"] {
++:root ,
++
++	[data-theme="light"]   {
+   color-scheme: light;
+ 
+   --color-bg-canvas: var(--color-ink-50);

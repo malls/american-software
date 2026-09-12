@@ -1,0 +1,31 @@
+AS-81: openStream() aborts on a broken on-connect contract instead of wedging the runner
+
+stream.test.js asserts the AS-27/AS-99 on-connect contract inside openStream(),
+which means a stream regression makes the helper throw BEFORE it has returned
+the `api` whose close() aborts the fetch. Every caller then leaked a live
+connection on the red path, and the two tests that own their server never
+reached their inline close() — so a listening socket plus the server's ref'd
+heartbeat interval outlived the file, every test still went red, and the runner
+could not exit. That is the wedge that needed --test-force-exit.
+
+Three changes, all harness-only (server.js untouched):
+
+- openStream() wraps the on-connect consumption and calls ctrl.abort() before
+  rethrowing. Its errors now name the contract ("AS-27 on-connect contract: no
+  loop frame within Nms", "AS-27/AS-99 on-connect contract: expected loop then
+  lanes, got X") so the red reads as a defect report. The bound is the new
+  FRAME_MS/CONNECT_MS constant — the same 5000 that nextFrame()/waitEnd()
+  already defaulted to, now named once — and is overridable per call via
+  { connectMs }.
+- The two server-owning tests register a guarded t.after(close) before opening
+  a stream. They still own and assert their inline close(); the hook only fires
+  when the test dies before reaching it, and the flag keeps close() — which is
+  not idempotent — from running twice.
+- Two guard tests drive a bare node:http upstream that answers the SSE headers
+  and then either goes silent or sends the lanes frame first. The upstream
+  never ends the response, so only a client-side abort can close the request:
+  asserting that close fires is what makes the abort non-vacuous.
+
+Host suite: 470 tests, 470 pass, 0 fail (468 before, +2 guards).
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>

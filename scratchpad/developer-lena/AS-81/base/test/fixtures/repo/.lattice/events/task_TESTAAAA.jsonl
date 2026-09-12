@@ -1,0 +1,4 @@
+{"actor":"human:forrest","data":{"short_id":"AS-7","status":"backlog","title":"Fixture task seven"},"id":"ev_A1","schema_version":1,"task_id":"task_TESTAAAA","ts":"2026-08-30T10:00:00Z","type":"task_created"}
+{"actor":"human:forrest","data":{"body":"a comment that must NOT be ingested"},"id":"ev_A2","schema_version":1,"task_id":"task_TESTAAAA","ts":"2026-08-30T10:01:00Z","type":"comment_added"}
+not valid json — ingestion must skip this line without crashing
+{"actor":"agent:cto-owen","data":{"from":"backlog","to":"in_planning"},"id":"ev_A3","schema_version":1,"task_id":"task_TESTAAAA","ts":"2026-08-30T10:03:00Z","type":"status_changed"}

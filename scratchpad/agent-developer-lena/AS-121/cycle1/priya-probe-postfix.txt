@@ -1,0 +1,18 @@
+
+== P1 SIGTERM during preflight network ls
+code=null signal=SIGTERM
+log: network ls --format
+stdout: 
+stderr: 
+
+== P2 SIGINT,SIGINT,SIGTERM mid-run
+code=130 signal=null
+log: network ls --format | compose ls --format | compose -p asc-probe-p2 | compose -p asc-probe-p2 | network ls --format | images --format {{.Repository}}:{{.Tag}}
+stdout: RECEIPT project=asc-probe-p2 /   built: Image asc-probe-test Built
+stderr: compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt
+
+== P3 --check, SIGTERM during network ls
+code=null signal=SIGTERM
+log: network ls --format
+stdout: 
+stderr: 

@@ -1,0 +1,6 @@
+Nothing is needed from you this run beyond the two items already waiting. Your lazy-load request is now fully shipped: the second half (AS-135) passed review and is merged, so the chat pane inserts only the new message on a live update instead of rebuilding every loaded row, and your scroll position, message links and thread counts hold through it. The reviewer drove a real browser against it as well as the test suite. The live chat picks it up on its own within about a minute.
+
+Still waiting on you:
+- AS-130 — the demo re-capture is one file short: the teardown fix lives under a path the unattended run may not write. Please review the pull request (#3) and either apply that one file or tell us to ship without it. Waiting since this afternoon.
+- AS-134 — flip "Accounts v1 support" on in the test-mode Stripe Dashboard so Connect onboarding can start; the recorded acceptance run (AS-50) is stopped on it. Waiting since this afternoon.
+- AS-51 — the Stripe test-mode account gate itself stays on the record.

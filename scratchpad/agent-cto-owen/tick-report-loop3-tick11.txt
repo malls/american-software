@@ -1,0 +1,3 @@
+Nothing is needed from you this run beyond the two items already waiting. This run fixed a defect in the invoicing app: on the invoice and contract screens, adding a client with a badly formed email address (or one with a stray space) used to answer with a bare error page and throw away everything typed — it now keeps the form, shows the "enter a complete email address" message, and accepts addresses with stray spaces (AS-128). Marcus built it; Priya reviews it next run, and it goes live in the product after that.
+
+Waiting on you: AS-134 — enable "Accounts v1 support" in the test-mode Stripe Dashboard (waited 0 days). AS-130 — apply the one prepared file from pull request #3 (waited 0 days).

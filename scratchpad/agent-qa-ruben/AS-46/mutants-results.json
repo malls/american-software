@@ -1,0 +1,35 @@
+[
+  {
+    "id": "F2",
+    "applied": true,
+    "built": true,
+    "failing": [],
+    "sum": {
+      "tests": 449,
+      "pass": 429,
+      "fail": 2,
+      "skipped": 18
+    },
+    "exit": 1,
+    "predicted": [
+      "a value containing markup in a line-item description is rendered as text, not as markup",
+      "(dependency-policy concept-row case)"
+    ]
+  },
+  {
+    "id": "F3b",
+    "applied": true,
+    "built": true,
+    "failing": [],
+    "sum": {
+      "tests": 449,
+      "pass": 430,
+      "fail": 1,
+      "skipped": 18
+    },
+    "exit": 1,
+    "predicted": [
+      "(concept-row case: view model unexpected member)"
+    ]
+  }
+]

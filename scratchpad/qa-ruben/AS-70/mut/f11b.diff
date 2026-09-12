@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/pristine/apps/invoicing/lib/screens/connect-view.js	2026-09-12 01:29:08
++++ /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/f11b/apps/invoicing/lib/screens/connect-view.js	2026-09-12 01:31:49
+@@ -70,7 +70,7 @@
+   Object.freeze({ id: 'S2-ERROR-SYSTEM', disposition: 'rendered' }),
+   Object.freeze({ id: 'S2-RETURN-NOTREADY', disposition: 'rendered' }),
+   Object.freeze({ id: 'S2-DENIED-SIGNEDOUT', disposition: 'redirect-answered' }),
+-  Object.freeze({ id: 'S2-REFRESH', disposition: 'redirect-answered' }),
++  Object.freeze({ id: 'S2-REFRESH', disposition: 'rendered' }),
+   Object.freeze({ id: 'S2-ABANDON', disposition: 'path-into-render' }),
+ ]);
+ 

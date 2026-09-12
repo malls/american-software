@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en" data-state="S4-CLIENT-EMPTY">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoicing — New invoice — no clients yet</title>
+    <style>
+/*
+ * tokens.css — The American Software Company
+ * Framework-neutral design tokens derived from BRANDING.md.
+ *
+ * Source of truth: BRANDING.md §3–§6 (repo root). This file, tokens.json,
+ * and BRANDING.md's own tables are kept in parity by
+ * docs/design/tokens/tokens.test.mjs — do not hand-edit a value here
+ * without editing BRANDING.md (or vice versa) in the same commit.
+ *
+ * Consumed by: docs/design/style-reference/index.html (the style reference)
+ * and, eventually, a real front-end app (path will move then — see
+ * .lattice/plans/task_01M1C5EK9EP82NFSS9DZF43V7T.md §3).
+ *
+ * Zero dependencies. No build step. Safe to link directly over file:// or
+ * http://.
+ *
+ * ============================================================================
+ * BLOCK 1 — PRIMITIVES. Scheme-independent. Raw hex/px/rem values live ONLY
+ * here; every other block references these via var(), never a re-typed
+ * literal. Also holds every non-color scale (type, spacing, radius, shadow,
+ * breakpoints) — none of those vary by light/dark, so they need no semantic
+ * aliasing layer.
+ * ============================================================================
+ */
+:root {
+  color-scheme: light dark;
+
+  /* --- color primitives — ink (neutral, hue 222°, sat 16%) — BRANDING.md §3.1 --- */
+  --color-ink-50: #F8F8FA;
+  --color-ink-100: #F1F2F5;
+  --color-ink-200: #E1E3E9;
+  --color-ink-300: #C9CDD8;
+  --color-ink-400: #A0A8BA;
+  --color-ink-500: #78839D;
+  --color-ink-600: #5C667F;
+  --color-ink-700: #454D60;
+  --color-ink-800: #2F3441;
+  --color-ink-900: #1F232B;
+  --color-ink-950: #121519;
+  --color-ink-white: #FFFFFF;
+
+  /* --- color primitives — accent (hue 229°, sat 78%) — BRANDING.md §3.1 --- */
+  /* accent-100 / accent-200 are unbound to a semantic role by design (BRANDING.md §3.1) — ramp completeness for future use, not a gap. */
+  --color-accent-50: #EFF2FD;
+  --color-accent-100: #DDE2FB;
+  --color-accent-200: #B6C2F6;
+  --color-accent-300: #8498F0;
+  --color-accent-400: #4E6AE9;
+  --color-accent-500: #1C41E3;
+  --color-accent-600: #1836BF;
+  --color-accent-700: #132C9A;
+  --color-accent-800: #0F2276;
+  --color-accent-900: #0B1956;
+
+  /* --- color primitives — success (hue 152°, sat 48%) — BRANDING.md §3.1 --- */
+  --color-success-50: #EEF9F4;
+  --color-success-100: #D9F2E6;
+  --color-success-300: #86D5B0;
+  --color-success-600: #2D8059;
+  --color-success-700: #246647;
+  --color-success-800: #1C4F37;
+  --color-success-900: #153C2A;
+
+  /* --- color primitives — warning (hue 38°, sat 92%) — BRANDING.md §3.1 --- */
+  --color-warning-50: #FEF7EB;
+  --color-warning-100: #FDEED3;
+  --color-warning-300: #F8BC54;
+  --color-warning-700: #A26907;
+  --color-warning-800: #845606;
+  --color-warning-900: #6C4604;
+
+  /* --- color primitives — danger (hue 355°, sat 68%) — BRANDING.md §3.1 --- */
+  --color-danger-50: #FCEEEF;
+  --color-danger-100: #F8D8DB;
+  --color-danger-300: #E5767F;
+  --color-danger-500: #CE2735;
+  --color-danger-600: #AB212C;
+  --color-danger-700: #891A23;
+  --color-danger-800: #6B141C;
+  --color-danger-900: #511015;
+
+  /* --- typefaces — BRANDING.md §4.1. Verbatim stacks; no @font-face, no CDN, no binaries (F1). --- */
+  --font-family-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-family-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* --- type scale — BRANDING.md §4.2. rem is canonical (root font-size is never overridden). --- */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+  --font-size-5xl: 3rem;
+
+  --line-height-xs: 1rem;
+  --line-height-sm: 1.25rem;
+  --line-height-base: 1.5rem;
+  --line-height-lg: 1.75rem;
+  --line-height-xl: 1.75rem;
+  --line-height-2xl: 2rem;
+  --line-height-3xl: 2.25rem;
+  --line-height-4xl: 2.5rem;
+  --line-height-5xl: 3.25rem;
+  --line-height-relaxed: 1.6;
+
+  /* --- weights — BRANDING.md §4.3. Only these four ship (§7.B). --- */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* --- letter-spacing — BRANDING.md §4.4 --- */
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.08em;
+
+  /* --- spacing scale — BRANDING.md §6.1. Base unit 4px. --- */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
+
+  /* --- radius — BRANDING.md §6.2 --- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+
+  /* --- elevation (shadow) — BRANDING.md §6.3. Built from ink-950 at low opacity; no new color. --- */
+  --shadow-sm: 0 1px 2px rgba(18,21,25,0.06), 0 1px 1px rgba(18,21,25,0.04);
+  --shadow-md: 0 4px 8px rgba(18,21,25,0.10), 0 2px 4px rgba(18,21,25,0.06);
+
+  /* --- breakpoints & containers — BRANDING.md §6.4 --- */
+  /* NOTE: var() is invalid inside an @media condition. These custom properties
+     are the source of truth for tokens.json / JS (matchMedia); every @media
+     rule in this file and in reference.css hardcodes the matching px value
+     with a comment naming the token it stands in for — see §6.4's gotcha. */
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --content-measure: 45rem;
+  --layout-max: 75rem;
+
+  /*
+   * === AS-29 ADDITIONS — pending brand ratification ===
+   * Not in BRANDING.md. Three values only (plan §4.4); a fourth requires a
+   * deliberate, reviewed edit to tokens.test.mjs's ADDITIONS allowlist.
+   */
+  --border-width-hairline: 1px;   /* F5: spacing scale starts at 4px; a 1px rule has no token. */
+  --focus-ring-width: 2px;        /* F5: WCAG 2.1 §2.4.7 needs a visible focus indicator. */
+  --focus-ring-offset: 2px;       /* F5: separates the ring from the control fill. */
+}
+
+/*
+ * ============================================================================
+ * BLOCK 2 — LIGHT SEMANTICS. Unguarded default (:root) + explicitly-scoped
+ * light ([data-theme="light"]), so a nested <div data-theme="light"> can
+ * re-scope locally even inside a dark page. BRANDING.md §3.2.
+ * ============================================================================
+ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg-canvas: var(--color-ink-50);
+  --color-bg-surface: var(--color-ink-white);
+  --color-bg-surface-sunken: var(--color-ink-100);
+  --color-text-primary: var(--color-ink-900);
+  --color-text-secondary: var(--color-ink-700);
+  --color-text-muted: var(--color-ink-600);
+  --color-text-disabled: var(--color-ink-400);
+  --color-text-on-accent: var(--color-ink-white);
+  --color-text-on-danger: var(--color-ink-white);
+  --color-border-hairline: var(--color-ink-200);
+  --color-border-interactive: var(--color-ink-500);
+  --color-link: var(--color-accent-700);
+  --color-accent-solid: var(--color-accent-600);
+  --color-accent-solid-hover: var(--color-accent-700);
+  --color-accent-bg-subtle: var(--color-accent-50);
+  --color-accent-text-on-subtle: var(--color-accent-800);
+  --color-focus-ring: var(--color-accent-solid);
+  --color-success-text: var(--color-success-700);
+  --color-success-bg-subtle: var(--color-success-50);
+  --color-success-text-on-subtle: var(--color-success-800);
+  --color-warning-text: var(--color-warning-800);
+  --color-warning-bg-subtle: var(--color-warning-50);
+  --color-warning-text-on-subtle: var(--color-warning-900);
+  --color-danger-text: var(--color-danger-700);
+  --color-danger-bg-subtle: var(--color-danger-50);
+  --color-danger-text-on-subtle: var(--color-danger-800);
+  --color-danger-solid: var(--color-danger-600);
+  --color-danger-solid-hover: var(--color-danger-700);
+}
+
+/*
+ * ============================================================================
+ * BLOCK 3 — DARK SEMANTICS UNDER SYSTEM PREFERENCE, unless explicitly
+ * overridden light. BRANDING.md §3.3. `:root:not([data-theme="light"])` is
+ * 0-2-0 specificity — outranks block 2's `:root` (0-1-0) only where both
+ * match (the real root), and there they set identical values anyway.
+ * ============================================================================
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --color-bg-canvas: var(--color-ink-950);
+    --color-bg-surface: var(--color-ink-900);
+    --color-bg-surface-sunken: var(--color-ink-800);
+    --color-text-primary: var(--color-ink-50);
+    --color-text-secondary: var(--color-ink-300);
+    --color-text-muted: var(--color-ink-400);
+    --color-text-disabled: var(--color-ink-600);
+    --color-text-on-accent: var(--color-ink-white);
+    --color-text-on-danger: var(--color-ink-white);
+    --color-border-hairline: var(--color-ink-800);
+    --color-border-interactive: var(--color-ink-500);
+    --color-link: var(--color-accent-300);
+    --color-accent-solid: var(--color-accent-400);
+    --color-accent-solid-hover: var(--color-accent-500);
+    --color-accent-bg-subtle: var(--color-accent-900);
+    --color-accent-text-on-subtle: var(--color-accent-300);
+    --color-focus-ring: var(--color-accent-solid);
+    --color-success-text: var(--color-success-300);
+    --color-success-bg-subtle: var(--color-success-900);
+    --color-success-text-on-subtle: var(--color-success-300);
+    --color-warning-text: var(--color-warning-300);
+    --color-warning-bg-subtle: var(--color-warning-900);
+    --color-warning-text-on-subtle: var(--color-warning-300);
+    --color-danger-text: var(--color-danger-300);
+    --color-danger-bg-subtle: var(--color-danger-900);
+    --color-danger-text-on-subtle: var(--color-danger-300);
+    --color-danger-solid: var(--color-danger-500);
+    --color-danger-solid-hover: var(--color-danger-600);
+  }
+}
+
+/*
+ * ============================================================================
+ * BLOCK 4 — EXPLICIT DARK. Wins everywhere, nests on any element (not just
+ * :root), which is what lets the style reference show light and dark side by
+ * side on one page. Same 28 declarations as block 3, deliberately duplicated
+ * (§4.2 of the plan) — CSS has no way to avoid this without a build step, and
+ * build steps are banned. Do NOT "DRY" this with a preprocessor; the
+ * duplication is checked by tokens.test.mjs, not hidden.
+ * ============================================================================
+ */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg-canvas: var(--color-ink-950);
+  --color-bg-surface: var(--color-ink-900);
+  --color-bg-surface-sunken: var(--color-ink-800);
+  --color-text-primary: var(--color-ink-50);
+  --color-text-secondary: var(--color-ink-300);
+  --color-text-muted: var(--color-ink-400);
+  --color-text-disabled: var(--color-ink-600);
+  --color-text-on-accent: var(--color-ink-white);
+  --color-text-on-danger: var(--color-ink-white);
+  --color-border-hairline: var(--color-ink-800);
+  --color-border-interactive: var(--color-ink-500);
+  --color-link: var(--color-accent-300);
+  --color-accent-solid: var(--color-accent-400);
+  --color-accent-solid-hover: var(--color-accent-500);
+  --color-accent-bg-subtle: var(--color-accent-900);
+  --color-accent-text-on-subtle: var(--color-accent-300);
+  --color-focus-ring: var(--color-accent-solid);
+  --color-success-text: var(--color-success-300);
+  --color-success-bg-subtle: var(--color-success-900);
+  --color-success-text-on-subtle: var(--color-success-300);
+  --color-warning-text: var(--color-warning-300);
+  --color-warning-bg-subtle: var(--color-warning-900);
+  --color-warning-text-on-subtle: var(--color-warning-300);
+  --color-danger-text: var(--color-danger-300);
+  --color-danger-bg-subtle: var(--color-danger-900);
+  --color-danger-text-on-subtle: var(--color-danger-300);
+  --color-danger-solid: var(--color-danger-500);
+  --color-danger-solid-hover: var(--color-danger-600);
+}
+
+</style>
+    <style>
+/*
+ * app.css — the app's ONE stylesheet (AS-45). Replaces scaffold.css.
+ *
+ * APP-OWNED, unlike vendor/tokens.css. Derived from
+ * docs/design/wireframes/wireframe.css: the classes here are the classes the
+ * wireframes draw, minus the wireframe-only furniture (.state, .state-label,
+ * .state-toc, .wireframe-notice) which is documentation chrome and not product.
+ *
+ * TWO PROPERTIES HOLD OVER THIS FILE, both enforced by
+ * test/assets.test.js's case "every visual value in public/ CSS traces to a
+ * token that exists":
+ *
+ *   1. Every visual value is a var(--token) reference to a custom property that
+ *      EXISTS in the vendored tokens.css. Not merely "no hex literals" — the
+ *      check resolves each name against the token file, because CSS ignores an
+ *      unknown custom property silently and a typo renders unstyled while
+ *      passing any no-literals check ever written.
+ *   2. No dimensional literal (12px, 1rem) and no colour literal. Structural
+ *      values — flex/grid keywords, percentages, unitless numbers, 0 — are not
+ *      design values and are deliberately not policed.
+ *
+ * THE ONE EXCEPTION IS A MEDIA-QUERY PRELUDE, because var() is invalid inside
+ * a media condition (tokens.css §breakpoints says so). A px literal there must
+ * carry a trailing comment naming the token it stands in for, spelled
+ * "--breakpoint-<name>", AND must equal that token's value as read from
+ * tokens.css — the check resolves it rather than taking the comment on faith.
+ *
+ * SCOPE NOTE, and the two guards hold each other up: this check covers the
+ * stylesheets in public/ and nothing else. That is sound BECAUSE the view
+ * layer's P2c bans style elements and P2a bans style= interpolation in views/
+ * — so there is nowhere else in this app a visual value can hide.
+ *
+ * MOBILE-FIRST, and it is asserted rather than intended: every media condition
+ * is min-width and none is below --breakpoint-sm, so the base ruleset below IS
+ * the ruleset at 375px (plan §3.7 — the lesson of AS-23).
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+}
+
+/* ---------------------------------------------------------------------------
+ * Layout primitives
+ * ------------------------------------------------------------------------ */
+
+.container {
+  max-width: var(--layout-max);
+  margin-inline: auto;
+  padding-inline: var(--space-4);
+}
+
+@media (min-width: 480px) { /* --breakpoint-sm */
+  .container {
+    padding-inline: var(--space-6);
+  }
+}
+
+main {
+  padding-block: var(--space-8);
+}
+
+/* ---------------------------------------------------------------------------
+ * Chrome. Screens 1 and 2 carry REDUCED chrome — a plain-text app label and no
+ * nav, because they are pre/mid-onboarding and there is nowhere authenticated
+ * to navigate to yet (01-screens.md §3). Screens 3-7 add the nav.
+ * ------------------------------------------------------------------------ */
+
+.site-header {
+  border-bottom: var(--border-width-hairline) solid var(--color-border-hairline);
+  background: var(--color-bg-surface);
+}
+
+.site-header__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+}
+
+/* Plain text, deliberately NOT the company wordmark (01-screens.md §4.1). */
+.app-label {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+/* The nav, from screen 4 on (AS-46): constant markup, stacked at the 375px
+   floor and a row from --breakpoint-md. Sign out is a one-button form styled
+   as a link, pushed to the end of the row. */
+.site-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  border-top: var(--border-width-hairline) solid var(--color-border-hairline);
+}
+
+@media (min-width: 768px) { /* --breakpoint-md */
+  .site-nav {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-6);
+  }
+}
+
+.site-nav__link {
+  color: var(--color-link);
+  text-decoration: underline;
+  font-size: var(--font-size-sm);
+}
+
+.site-nav__signout {
+  margin-inline-start: auto;
+}
+
+/* ---------------------------------------------------------------------------
+ * Typography
+ * ------------------------------------------------------------------------ */
+
+.page-title {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+  margin: 0 0 var(--space-2) 0;
+}
+
+@media (min-width: 768px) { /* --breakpoint-md */
+  .page-title {
+    font-size: var(--font-size-4xl);
+  }
+}
+
+.page-meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  max-width: var(--content-measure);
+  margin: 0 0 var(--space-6) 0;
+}
+
+.lede {
+  color: var(--color-text-secondary);
+  max-width: var(--content-measure);
+  margin: 0 0 var(--space-6) 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Forms
+ * ------------------------------------------------------------------------ */
+
+fieldset {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: 0 0 var(--space-5) 0;
+  /* The browser default is min-width: min-content, which lets a fieldset force
+     horizontal overflow at 375px; 0 lets it shrink like any other box. */
+  min-width: 0;
+}
+
+legend {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  padding-inline: var(--space-2);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-4) 0;
+  max-width: var(--content-measure);
+}
+
+.field label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.field input,
+.field select {
+  font: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  border: var(--border-width-hairline) solid var(--color-border-interactive);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  /* No width literal anywhere: the field is a flex column, so the input fills
+     its own measure and can never force horizontal overflow at 375px. A select
+     gets the same treatment so a long option label cannot force width. */
+  min-width: 0;
+  max-width: 100%;
+}
+
+.field--invalid input,
+.field--invalid select {
+  border-color: var(--color-danger-solid);
+  border-width: var(--focus-ring-width);
+}
+
+.field-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.field-error {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-text);
+  font-weight: var(--font-weight-medium);
+}
+
+input:focus,
+select:focus,
+button:focus,
+a:focus {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-block-start: var(--space-6);
+  margin-block-end: var(--space-6);
+}
+
+/* The mode switch is a GET form wrapping one link-styled button (plan §3.3.3);
+   it must not inherit the block spacing a normal form gets. */
+.mode-switch {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Buttons
+ * ------------------------------------------------------------------------ */
+
+.btn {
+  display: inline-block;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-width-hairline) solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--color-accent-solid);
+  color: var(--color-text-on-accent);
+}
+
+.btn-secondary {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-interactive);
+}
+
+/* The wireframes' treatment for a control that reads as a link — the sign-out
+   precedent (01-screens.md §3 item 4), reused by this screen's mode switch. */
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-link);
+  text-decoration: underline;
+  font: inherit;
+  font-weight: var(--font-weight-regular);
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------------
+ * Banners. bg-subtle + text-on-subtle pairs only — every pairing below is a
+ * PASS row in BRANDING.md §3.4 in both colour schemes (wireframe.css's note).
+ * ------------------------------------------------------------------------ */
+
+.banner {
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: 0 0 var(--space-5) 0;
+  font-size: var(--font-size-sm);
+  max-width: var(--content-measure);
+  /* A long unbroken string — an email address in a conflict banner — wraps
+     rather than widening the box past the viewport. */
+  overflow-wrap: break-word;
+}
+
+.banner-error {
+  background: var(--color-danger-bg-subtle);
+  color: var(--color-danger-text-on-subtle);
+}
+
+.banner-warning {
+  background: var(--color-warning-bg-subtle);
+  color: var(--color-warning-text-on-subtle);
+}
+
+.banner-success {
+  background: var(--color-success-bg-subtle);
+  color: var(--color-success-text-on-subtle);
+}
+
+.banner-info {
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-accent-text-on-subtle);
+}
+
+.banner__title {
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--space-1) 0;
+}
+
+.banner p {
+  margin: 0;
+}
+
+.banner p + p {
+  margin-block-start: var(--space-2);
+}
+
+/* ---------------------------------------------------------------------------
+ * Line items (screen 4, AS-46). Mobile-first: one field per line at the 375px
+ * floor, side by side from --breakpoint-sm. The flex values are structural
+ * (unitless), not design values.
+ * ------------------------------------------------------------------------ */
+
+.line-items {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.line-item-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  border-bottom: var(--border-width-hairline) solid var(--color-border-hairline);
+}
+
+.line-item-row:last-of-type {
+  border-bottom: none;
+}
+
+.line-item-row .field {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+@media (min-width: 480px) { /* --breakpoint-sm */
+  .line-item-row .field {
+    flex: 1 1 0;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Client picker (the shared inline-client-creation sub-pattern, 00-flows.md
+ * Flow 3): select-or-add-new, with a mode toggle that is a submit button.
+ * ------------------------------------------------------------------------ */
+
+.client-picker {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: 0 0 var(--space-5) 0;
+  background: var(--color-bg-surface);
+}
+
+.client-picker__mode-toggle {
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-3) 0;
+}
+
+</style>
+  </head>
+  <body>
+    
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <span class="app-label">Invoicing</span>
+      </div>
+      <div class="container">
+        <nav class="site-nav" aria-label="Primary">
+          <a class="site-nav__link" href="/invoices/new">New invoice</a>
+          <form class="site-nav__signout" method="post" action="/signout">
+            <button type="submit" class="btn-link">Sign out</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1 class="page-title">New invoice — no clients yet</h1>
+
+      
+
+      
+      <form method="post">
+        <div class="client-picker">
+          
+            
+            
+              <p>No clients yet — add one below.</p>
+            
+            <input type="hidden" name="pickerMode" value="new" />
+            
+            
+              <div class="field">
+                <label for="clientName">Client name</label>
+                <input type="text" id="clientName" name="clientName" value="" />
+              </div>
+            
+            
+              <div class="field">
+                <label for="clientEmail">Client email</label>
+                <input type="email" id="clientEmail" name="clientEmail" value="" />
+              </div>
+            
+            
+              <div class="form-actions">
+                <button type="submit" name="intent" value="add-client" class="btn btn-secondary">Add client</button>
+              </div>
+            
+          
+        </div>
+
+        <fieldset>
+          <legend>Line items</legend>
+          <div class="line-items">
+            
+              <div class="line-item-row">
+                
+                  <div class="field">
+                    <label for="lineItems-0-description">Description</label>
+                    <input type="text" id="lineItems-0-description" name="lineItems[0][description]" value="" />
+                  </div>
+                
+                
+                  <div class="field">
+                    <label for="lineItems-0-quantity">Qty</label>
+                    <input type="text" inputmode="numeric" id="lineItems-0-quantity" name="lineItems[0][quantity]" value="" />
+                  </div>
+                
+                
+                  <div class="field">
+                    <label for="lineItems-0-unitPrice">Unit price (USD)</label>
+                    <input type="text" inputmode="decimal" id="lineItems-0-unitPrice" name="lineItems[0][unitPrice]" value="" />
+                  </div>
+                
+              </div>
+            
+              <div class="line-item-row">
+                
+                  <div class="field">
+                    <label for="lineItems-1-description">Description</label>
+                    <input type="text" id="lineItems-1-description" name="lineItems[1][description]" value="" />
+                  </div>
+                
+                
+                  <div class="field">
+                    <label for="lineItems-1-quantity">Qty</label>
+                    <input type="text" inputmode="numeric" id="lineItems-1-quantity" name="lineItems[1][quantity]" value="" />
+                  </div>
+                
+                
+                  <div class="field">
+                    <label for="lineItems-1-unitPrice">Unit price (USD)</label>
+                    <input type="text" inputmode="decimal" id="lineItems-1-unitPrice" name="lineItems[1][unitPrice]" value="" />
+                  </div>
+                
+              </div>
+            
+              <div class="line-item-row">
+                
+                  <div class="field">
+                    <label for="lineItems-2-description">Description</label>
+                    <input type="text" id="lineItems-2-description" name="lineItems[2][description]" value="" />
+                  </div>
+                
+                
+                  <div class="field">
+                    <label for="lineItems-2-quantity">Qty</label>
+                    <input type="text" inputmode="numeric" id="lineItems-2-quantity" name="lineItems[2][quantity]" value="" />
+                  </div>
+                
+                
+                  <div class="field">
+                    <label for="lineItems-2-unitPrice">Unit price (USD)</label>
+                    <input type="text" inputmode="decimal" id="lineItems-2-unitPrice" name="lineItems[2][unitPrice]" value="" />
+                  </div>
+                
+              </div>
+            
+          </div>
+          
+          
+            <button type="submit" name="intent" value="add-row" class="btn btn-secondary">Add line item</button>
+          
+        </fieldset>
+
+        
+          <div class="field">
+            <label for="daysUntilDue">Due in (days)</label>
+            <input type="text" inputmode="numeric" id="daysUntilDue" name="daysUntilDue" value="30" />
+            <span class="field-hint">Client must pay within this many days of receiving the invoice.</span>
+          </div>
+        
+
+        <div class="form-actions">
+          <button type="submit" name="intent" value="save" class="btn btn-secondary">Save draft</button>
+          <button type="submit" name="intent" value="send" class="btn btn-primary">Finalize &amp; send</button>
+        </div>
+        <p class="page-meta">Finalizing sends this invoice by email — <strong>Stripe</strong> sends it directly to the client. We do not see or store that email.</p>
+      </form>
+      
+    </main>
+  </body>
+</html>

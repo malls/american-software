@@ -1,0 +1,19 @@
+AS-73: one fence predicate, an examined count, a validator that tolerates junk
+
+F1: hasLeadingFence is now the single "is this a dossier?" test — the parser
+and the unparsed-dossier classifier ask the same question, so a file whose
+fence carries a leading tab, a trailing space or a BOM can no longer be a
+dossier to one and invisible to the other.
+F2: readPersonnel returns examined (.md entries attempted); check-org prints
+it first on every non-JSON path — cardinality before quantification.
+F4a: validateOrg filters junk entries once at the top instead of guarding two
+loops out of three; it no longer throws on input buildOrgTree survives.
+F4b: the orphan detail says "whose status X is invalid" when that, not
+departure, is why the manager is outside the active set.
+
+Host suite 473 pass / 0 fail (master baseline 468 + 5). Each new case was seen
+red first: T5 as a TypeError on null .status, T6 as "who is departed", the
+three check-org amendments as a missing Examined line. F3's roster-parity
+test (plan T4) is NOT in this commit.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

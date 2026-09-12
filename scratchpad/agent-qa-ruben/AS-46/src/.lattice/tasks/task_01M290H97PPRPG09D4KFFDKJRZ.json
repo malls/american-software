@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 2,
+  "complexity": "low",
+  "created_at": "2026-09-11T19:53:55Z",
+  "created_by": "agent:qa-priya",
+  "custom_fields": {},
+  "description": "From the AS-87 cycle-1 review (qa-priya, 2026-09-11, N2). The opt-in real-build test in apps/chat/test/watcher-deploy-real.test.js enters a 'while (!ops.isDeploying())' spin after the first evaluate(); when that evaluate() refuses (no docker, inputs dirty, no git in the container) nothing exits the spin, so the failure mode is a 10-minute hang instead of a fail. Observed as AS-87 M8's container 'red' \u2014 a hang, not a failing assertion. FIX: assert the first decision's action === 'deploy' (naming the actual reason in the message) before entering the spin. FALSIFIER: run the test where docker is absent and expect a fail within seconds, not a timeout. May be closed by AS-87's rework cycle 1 if the implementer takes it there \u2014 check the AS-87 branch before starting.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M290H97PPRPG09D4KFFDKJRZ",
+  "last_event_id": "ev_01M292WCKKYWQPYF4DNEA527A8",
+  "last_status_changed_at": "2026-09-11T20:34:56Z",
+  "linked_files": [],
+  "priority": "low",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-11T19:54:12Z",
+      "created_by": "agent:qa-priya",
+      "note": null,
+      "target_task_id": "task_01M1SJDVRA4BFMR4X33E454SWQ",
+      "type": "related_to"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-117",
+  "status": "cancelled",
+  "tags": null,
+  "title": "Chat: watcher-deploy-real.test.js should fail fast, not hang 10 min, when the first evaluate() is not a deploy decision",
+  "type": "task",
+  "updated_at": "2026-09-11T20:34:56Z",
+  "urgency": null
+}

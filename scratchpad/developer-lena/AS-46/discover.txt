@@ -1,0 +1,22 @@
+/** Every (method, path) the built app registers, by walking the router tree.
+ *  Express internals are being read, which is normally a smell. It is
+ *  acceptable here for two measured reasons: express is pinned to an EXACT
+ *  literal by dependency-policy.test.js, and G1's cardinality assertion means a
+ *  future express whose internals moved produces a RED test, never a vacuous
+ *  green one. */
+function discoverRoutes(app) {
+  const found = [];
+  const walk = (stack) => {
+    for (const layer of stack) {
+      if (layer.route) {
+        for (const method of Object.keys(layer.route.methods)) {
+          found.push(`${method.toUpperCase()} ${layer.route.path}`);
+        }
+      } else if (layer.handle?.stack) {
+        walk(layer.handle.stack);
+      }
+    }
+  };
+  walk(app.router.stack);
+  return found.sort();
+}

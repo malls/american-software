@@ -1,0 +1,13 @@
+assert-applied invoice View form in dashboard.ejs: 1 -> 0 (expected 1 -> 0)
+docker compose -p asc-impl-as48-f1 run --rm --build test
+RECEIPT project=asc-impl-as48-f1
+  built: Image asc-impl-as48-f1-test Built
+  tests=475 pass=452 fail=5 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (4):
+  ✖ the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, AS-44, AS-45 and AS-46 put them
+  ✖ every href and form action in every template names a route the app registers or a file public/ serves
+  ✖ every id the dashboard emits is a hidden value= input matching UUID_SHAPE, and no id appears in any href or action
+  ✖ S3-DEFAULT-POPULATED: rows show client, formatted total, status badge and a View form; contracts show client and created date

@@ -1,0 +1,10 @@
+AC-1 branch: build exit 0; CAN/CANNOT block: 17 lines, 7 bullets, digest ok | steps: 13 headers, 13 labels, each header labelled | screenshots: 34 of 34, 1447710 bytes total, 7 screens; fresh == committed index.html: true
+AC-1 merged: build exit 0; CAN/CANNOT block: 17 lines, 7 bullets, digest ok | steps: 13 headers, 13 labels, each header labelled | screenshots: 34 of 34, 1447710 bytes total, 7 screens; fresh == committed index.html: true
+AC-6: first line "D1 core-loop walkthrough (AS-90)"; last non-empty "None of these creates a charge, a payment intent, or a trans…"; not built|404s: 0; step-2 body line: body: text/html, 1649 bytes, page state S3-EMPTY-FIRSTRUN
+AC-6 red (master's transcript): not built|404s = 7
+AC-8: run.mjs changed lines 36; matching the forbidden pattern: 0
+AC-7: surface diff master...branch (the branch's own changes): empty
+AC-7: surface diff master..branch (today's master has moved since base):  11 files changed, 102 insertions(+), 392 deletions(-)
+AC-11: screenMergeCommits 7; branchCommit 958be42; target "demo service (serve.mjs) beside stripe-mock; default network added for the host port only"; chrome Chrome/152.0.7977.83; captures 34, complete 34; layer on ["screen-3-empty-firstrun-375.png","screen-3-empty-firstrun-1280.png"]; media on ["screen-7-default-1280-print.png"]
+AC-12: urls off http://127.0.0.1:8349: 0 of 34
+AC-13: ".env.local" / "--env-file" in SKILL.md or demo/README.md: 0

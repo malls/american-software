@@ -1,0 +1,12 @@
+assert-applied selectState precedence: 1 -> 1 (expected 1 -> 1)
+assert-applied order: paid now checked before failure
+docker compose -p asc-impl-as48-f13 run --rm --build test
+RECEIPT project=asc-impl-as48-f13
+  built: Image asc-impl-as48-f13-test Built
+  tests=475 pass=455 fail=2 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (2):
+  ✖ the view models reach every rendered state, exhaustively, with no HTTP at all
+  ✖ transport: times out

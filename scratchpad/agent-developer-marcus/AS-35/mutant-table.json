@@ -1,0 +1,163 @@
+{
+  "rows": [
+    {
+      "id": "M1",
+      "ac": 2,
+      "desc": "block-4 selector [data-theme=\"dark\"] -> [data-theme=\"drak\"] (Priya R1)",
+      "summary": {
+        "tests": 39,
+        "pass": 38,
+        "fail": 1
+      },
+      "red": [
+        "B"
+      ],
+      "loadError": null,
+      "expected": [
+        "B"
+      ],
+      "exact": true,
+      "restored": true
+    },
+    {
+      "id": "M2",
+      "ac": 3,
+      "desc": "block-2 selector `:root,\\n[data-theme=\"light\"]` -> bare `:root`",
+      "summary": {
+        "tests": 39,
+        "pass": 38,
+        "fail": 1
+      },
+      "red": [
+        "B"
+      ],
+      "loadError": null,
+      "expected": [
+        "B"
+      ],
+      "exact": true,
+      "restored": true
+    },
+    {
+      "id": "M3",
+      "ac": 4,
+      "desc": "block-3 media query prefers-color-scheme: dark -> light",
+      "summary": {
+        "tests": 39,
+        "pass": 38,
+        "fail": 1
+      },
+      "red": [
+        "C"
+      ],
+      "loadError": null,
+      "expected": [
+        "C"
+      ],
+      "exact": true,
+      "restored": true
+    },
+    {
+      "id": "M4",
+      "ac": 5,
+      "desc": "block-3 guard :root:not([data-theme=\"light\"]) -> :root",
+      "summary": {
+        "tests": 39,
+        "pass": 38,
+        "fail": 1
+      },
+      "red": [
+        "C"
+      ],
+      "loadError": null,
+      "expected": [
+        "C"
+      ],
+      "exact": true,
+      "restored": true
+    },
+    {
+      "id": "M5",
+      "ac": 6,
+      "desc": "swap the rule text of blocks 3 and 4 (comment markers stay where they are)",
+      "summary": {
+        "tests": 39,
+        "pass": 36,
+        "fail": 3
+      },
+      "red": [
+        "A",
+        "B",
+        "C"
+      ],
+      "loadError": null,
+      "expected": [
+        "A",
+        "B",
+        "C"
+      ],
+      "exact": true,
+      "restored": true
+    },
+    {
+      "id": "M6",
+      "ac": 7,
+      "desc": "append a fifth top-level rule `html { }` after block 4",
+      "summary": {
+        "tests": 39,
+        "pass": 38,
+        "fail": 1
+      },
+      "red": [
+        "A"
+      ],
+      "loadError": null,
+      "expected": [
+        "A"
+      ],
+      "exact": true,
+      "restored": true
+    },
+    {
+      "id": "M7",
+      "ac": "(extra)",
+      "desc": "move the [data-theme=\"dark\"] rule above the BLOCK 4 comment header (marker join)",
+      "summary": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1
+      },
+      "red": [
+        "OTHER:docs/design/tokens/tokens.test.mjs"
+      ],
+      "loadError": "FORMAT CONTRACT BROKEN in tokens.css: block 4 parsed to zero declarations",
+      "expected": null,
+      "exact": true,
+      "restored": true
+    },
+    {
+      "id": "M8",
+      "ac": 8,
+      "desc": "parseTopLevelRules returns [] instead of throwing on zero rules",
+      "summary": {
+        "tests": 39,
+        "pass": 38,
+        "fail": 1
+      },
+      "red": [
+        "D"
+      ],
+      "loadError": null,
+      "expected": [
+        "D"
+      ],
+      "exact": true,
+      "restored": true
+    }
+  ],
+  "final": {
+    "tests": 39,
+    "pass": 39,
+    "fail": 0
+  }
+}

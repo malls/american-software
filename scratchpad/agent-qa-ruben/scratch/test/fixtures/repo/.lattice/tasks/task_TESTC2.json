@@ -1,0 +1,9 @@
+{
+  "id": "task_TESTC2",
+  "short_id": "AS-22",
+  "title": "Ada primary in-progress",
+  "status": "in_progress",
+  "assigned_to": "agent:eng-ada",
+  "last_status_changed_at": "2026-08-30T00:00:00Z",
+  "schema_version": 1
+}

@@ -1,0 +1,9 @@
+no mutation
+docker compose -p asc-as47-p8c run --rm --build test -- node
+RECEIPT project=asc-as47-p8c
+  built: Image asc-as47-p8c-test Built
+  tests=undefined pass=undefined fail=undefined skipped=undefined
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (0):

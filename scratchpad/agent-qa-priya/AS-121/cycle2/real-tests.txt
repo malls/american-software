@@ -1,0 +1,86 @@
+✔ T1 isAllowedProject rejects production names (0.758708ms)
+✔ T2 isAllowedProject rejects non-asc and malformed names (0.218708ms)
+✔ T3 isAllowedProject accepts a scratch project (0.411708ms)
+✔ T4 buildDownArgs and buildRunArgs are exactly the recipe (0.101792ms)
+✔ T5a runCounted: run exits 0 -> down runs, status 0, receipt parsed (0.618792ms)
+✔ T5b runCounted: run exits 1 -> down still runs, status 1 preserved (0.22475ms)
+✔ T5c runCounted: run throws -> down still runs, error reported (0.223542ms)
+✔ T6 runCounted: a network or image surviving down is reported as LEAK, exit 4, anchored at ^<project>_ (0.204291ms)
+✔ T7a parseReceipt: Built line verbatim, counts from TAP and spec summaries (0.182625ms)
+✔ T7b runCounted: a run with no Built line is exit 5 even when every test passes (0.206833ms)
+✔ T8 classifyNetworks: the plan §1 fixture splits 3 production / 1 live / 9 leftover (0.375625ms)
+✔ T9a runCounted refuses at exactly the ceiling: 20 asc-* networks -> exit 3, no run (0.15475ms)
+✔ T9b runCounted proceeds below the ceiling: 19 asc-* networks -> run happens (0.099ms)
+✔ T10a runCheck exits 1 with leftovers and 0 when production+live only (0.126292ms)
+✔ T10b runCheck is read-only: never down, rm, or prune (0.092459ms)
+✔ T12a SIGTERM to the script alone mid-run: it survives, down runs after run, receipt prints, interrupted line, exit 143 (2385.830208ms)
+✔ T12b SIGINT to the whole process group (script + docker child): down runs after run, run exit=null, interrupted line, exit non-zero (304.336542ms)
+✔ T12c SIGTERM during the pre-flight (before the guard): default disposition — dies of the signal, no run, no down, no receipt (434.916792ms)
+✖ T11 real run: the script leaves zero networks and zero images for its project and prints a Built line (63857.123792ms)
+✖ T13 real run, SIGTERM mid-container: zero networks and zero images survive, receipt printed, exit 143 (134755.905542ms)
+ℹ tests 20
+ℹ suites 0
+ℹ pass 18
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 201853.349334
+
+✖ failing tests:
+
+test at test/compose-run.test.js:352:1
+✖ T11 real run: the script leaves zero networks and zero images for its project and prints a Built line (63857.123792ms)
+  AssertionError [ERR_ASSERTION]: RECEIPT project=asc-as106-real-31755
+    built: missing
+    tests=null pass=null fail=null skipped=null
+    run exit=1
+    down exit=0
+    leak check: clean (0 networks, 0 images for this project)
+    exit=5
+  compose-run: no `Built` line — this run is not a receipt (CLAUDE.md --build corollary)
+  
+  
+  5 !== 0
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-121/apps/chat/test/compose-run.test.js:366:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+      at Test.postRun (node:internal/test_runner/test:1232:19)
+      at Test.run (node:internal/test_runner/test:1160:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 5,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/compose-run.test.js:378:1
+✖ T13 real run, SIGTERM mid-container: zero networks and zero images survive, receipt printed, exit 143 (134755.905542ms)
+  AssertionError [ERR_ASSERTION]: the project's container came up within 120 s: RECEIPT project=asc-as121-real-31755
+    built: missing
+    tests=null pass=null fail=null skipped=null
+    run exit=1
+    down exit=0
+    leak check: clean (0 networks, 0 images for this project)
+    exit=5
+  compose-run: no `Built` line — this run is not a receipt (CLAUDE.md --build corollary)
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-121/apps/chat/test/compose-run.test.js:394:10)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+--- stderr ---
+
+exit=1

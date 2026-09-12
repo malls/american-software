@@ -1,0 +1,13 @@
+diff --git a/apps/invoicing/lib/screens/contract-form-view.js b/apps/invoicing/lib/screens/contract-form-view.js
+index a3b1b30..2145bd7 100644
+--- a/apps/invoicing/lib/screens/contract-form-view.js
++++ b/apps/invoicing/lib/screens/contract-form-view.js
+@@ -246,7 +246,7 @@ export function contractFormLocals(input = {}) {
+   const values = submission === null ? null : submission.values;
+   const duplicate = intent === 'add-client' ? input.duplicate ?? null : null;
+   const createdClientId = intent === 'add-client' ? input.createdClientId ?? null : null;
+-  const clientEmailRefused = intent === 'add-client' && input.clientEmailRefused === true;
++  const clientEmailRefused = false;
+   const clientErrors = intent === 'add-client' ? clientFieldErrors(values, clientEmailRefused) : { clientName: null, clientEmail: null };
+   const clientInvalid = clientErrors.clientName !== null || clientErrors.clientEmail !== null;
+   // generate refusing a clientId the parser accepted (a foreign or unknown id)

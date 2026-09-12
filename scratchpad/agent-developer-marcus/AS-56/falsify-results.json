@@ -1,0 +1,110 @@
+{
+  "AC1a-css-both-dark-blocks": {
+    "summary": "35/34/1",
+    "fails": [
+      "§3.3 dark semantic tokens — value equality across BRANDING.md, tokens.css (both blocks), tokens.json"
+    ],
+    "msgs": [
+      "§3.3 dark semantic tokens — value equality across BRANDING.md, tokens.css (both blocks), tokens.json :: -"
+    ]
+  },
+  "AC1b-branding-dark-alias": {
+    "summary": "35/29/6",
+    "fails": [
+      "§3.3 dark semantic tokens — value equality across BRANDING.md, tokens.css (both blocks), tokens.json",
+      "alias parity — tokens.json records the same \"Alias of\" name BRANDING.md does (56 semantic tokens)",
+      "§3.4 contrast recomputation — every documented row recomputes to the documented ratio (2dp) and clears its threshold when PASS",
+      "generated contrast matrix — every §3.4-documented PASS row still passes in the generated matrix",
+      "style reference — every printed swatch hex matches the generated token data (44 primitive + 56 semantic)",
+      "style reference — the rendered contrast matrix is the generated matrix, row for row (114 rows, no relabelling, no omissions)"
+    ],
+    "msgs": [
+      "§3.3 dark semantic tokens — value equality across BRANDING.md, tokens.css (both blocks), tokens.json :: -",
+      "alias parity — tokens.json records the same \"Alias of\" name BRANDING.md does (56 semantic tokens) :: -",
+      "§3.4 contrast recomputation — every documented row recomputes to the documented ratio (2dp) and clears its threshold when PASS :: -",
+      "generated contrast matrix — every §3.4-documented PASS row still passes in the generated matrix :: -",
+      "style reference — every printed swatch hex matches the generated token data (44 primitive + 56 semantic) :: -",
+      "style reference — the rendered contrast matrix is the generated matrix, row for row (114 rows, no relabelling, no omissions) :: -"
+    ]
+  },
+  "AC1c-css-block3-only": {
+    "summary": "35/33/2",
+    "fails": [
+      "§3.3 dark semantic tokens — value equality across BRANDING.md, tokens.css (both blocks), tokens.json",
+      "dark-block duplication invariant — tokens.css block 3 and block 4 declare the same tokens with identical raw and resolved values"
+    ],
+    "msgs": [
+      "§3.3 dark semantic tokens — value equality across BRANDING.md, tokens.css (both blocks), tokens.json :: -",
+      "dark-block duplication invariant — tokens.css block 3 and block 4 declare the same tokens with identical raw and resolved values :: -"
+    ]
+  },
+  "AC2-branding-row-3.99": {
+    "summary": "35/34/1",
+    "fails": [
+      "§3.4 contrast recomputation — every documented row recomputes to the documented ratio (2dp) and clears its threshold when PASS"
+    ],
+    "msgs": [
+      "§3.4 contrast recomputation — every documented row recomputes to the documented ratio (2dp) and clears its threshold when PASS :: -"
+    ]
+  },
+  "AC3-branding-drop-danger-400": {
+    "summary": "35/29/6",
+    "fails": [
+      "§3.1 primitives — pinned counts (12 ink, 10 accent)",
+      "§3.1 primitives — tokens.json.primitive.color matches BRANDING.md in BOTH directions",
+      "alias integrity — every semantic token resolves to the hex its \"Alias of\" column names (light + dark)",
+      "alias parity — tokens.json records the same \"Alias of\" name BRANDING.md does (56 semantic tokens)",
+      "completeness — every color- token in tokens.css block 1 is a known primitive",
+      "style reference — every printed swatch hex matches the generated token data (44 primitive + 56 semantic)"
+    ],
+    "msgs": [
+      "§3.1 primitives — pinned counts (12 ink, 10 accent) :: -",
+      "§3.1 primitives — tokens.json.primitive.color matches BRANDING.md in BOTH directions :: tokens.json primitive.color.\"danger-400\" is not in BRANDING.md §3.1'",
+      "alias integrity — every semantic token resolves to the hex its \"Alias of\" column names (light + dark) :: dark --color-danger-solid: alias \"danger-400\" is neither a known primitive nor a known semantic token.'",
+      "alias parity — tokens.json records the same \"Alias of\" name BRANDING.md does (56 semantic tokens) :: -",
+      "completeness — every color- token in tokens.css block 1 is a known primitive :: tokens.css primitive --color-danger-400 is not in BRANDING.md §3.1'",
+      "style reference — every printed swatch hex matches the generated token data (44 primitive + 56 semantic) :: index.html swatch --color-danger-400 is not a BRANDING.md §3.1 primitive'"
+    ]
+  },
+  "AC3b-html-drop-swatch": {
+    "summary": "35/34/1",
+    "fails": [
+      "style reference — every printed swatch hex matches the generated token data (44 primitive + 56 semantic)"
+    ],
+    "msgs": [
+      "style reference — every printed swatch hex matches the generated token data (44 primitive + 56 semantic) :: -"
+    ]
+  },
+  "AC5-html-stale-fail-badge": {
+    "summary": "35/34/1",
+    "fails": [
+      "style reference — the rendered contrast matrix is the generated matrix, row for row (114 rows, no relabelling, no omissions)"
+    ],
+    "msgs": [
+      "style reference — the rendered contrast matrix is the generated matrix, row for row (114 rows, no relabelling, no omissions) :: -"
+    ]
+  },
+  "AC5b-html-callout-12": {
+    "summary": "35/35/0",
+    "fails": [],
+    "msgs": []
+  },
+  "AC6-test-fails-pin-12": {
+    "summary": "35/34/1",
+    "fails": [
+      "style reference — the rendered contrast matrix is the generated matrix, row for row (114 rows, no relabelling, no omissions)"
+    ],
+    "msgs": [
+      "style reference — the rendered contrast matrix is the generated matrix, row for row (114 rows, no relabelling, no omissions) :: -"
+    ]
+  },
+  "CHAT-copy-drift": {
+    "summary": "1/0/1",
+    "fails": [
+      "T16 AC-16: public/tokens.css is byte-identical to docs/design/tokens/tokens.css"
+    ],
+    "msgs": [
+      "T16 AC-16: public/tokens.css is byte-identical to docs/design/tokens/tokens.css :: -"
+    ]
+  }
+}

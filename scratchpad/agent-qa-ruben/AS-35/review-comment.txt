@@ -1,0 +1,12 @@
+Verdict: PASS (trivia fixed inline, df7e5c8 on the branch). Plan and diff read cold; Marcus's comment and scratchpad read last — nothing there contradicts what I observed.
+
+Findings outside the list: 3, none blocking.
+F1 guard-hardening residual, low. T-A's marker-join has no independently observable red and does not constrain marker placement: moving the BLOCK 4 comment header inside block 3's @media body (comment-only, cascade unchanged) leaves 39/39 green (p10); the zero-declaration floors pre-empt every red it could produce. Not a selector hole; folds into the next task touching this file.
+F2 convention, low. Plan preamble "no compose image's build context includes docs/" is imprecise: apps/invoicing/Dockerfile:47 COPYs tokens.css from a repo-root context. Conclusion stands — tokens.css untouched, no image copies tokens.test.mjs — no --build receipt applies.
+F3 trivia, fixed df7e5c8. parseTopLevelRules' docblock sat above normalisePrelude and described an array return; the function returns { rules, trailing }. 39/39 before and after; battery re-run identical on df7e5c8.
+
+Floor check (M5), criteria 1–8: 8/8, every red set exactly as predicted. 1: tip 39/39 (master 35/35), tree clean. 2: {T-B}, other 38 green; master's test file against the same drak mutant stays 35/35. 3: {T-B}. 4: {T-C}. 5: {T-C}. 6: {T-A,T-B,T-C} per amendment 396ddf1. 7: {T-A}. 8: {T-D}.
+
+Probes (M6): 22 examined. Red as expected: fifth rule between blocks; unquoted or spaced attribute selector (literal pin by design); second rule inside the @media; @layer/@supports wrappers; @import at top; empty prelude; extra media condition; duplicated block-4 rule; unbalanced brace in a string throws loud at load. Green only for whitespace/comment rewrites of a prelude, as intended. No selector mutation left the suite green.
+
+Battery in scratch trees; worktree proven clean after every mutant. Logs, diffs, harness, table: scratchpad/agent-qa-ruben/AS-35/. No merge seam: AS-130 and AS-50 do not touch docs/design or BRANDING.md.

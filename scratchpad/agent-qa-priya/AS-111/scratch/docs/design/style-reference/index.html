@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The American Software Company — Style Reference</title>
+  <meta name="description" content="Static rendering of every design token and component rule derived from BRANDING.md. No build step, no network, no dependencies.">
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="reference.css">
+</head>
+<body>
+  <div class="page">
+
+    <nav class="skip-nav" aria-label="Section index">
+      <a href="#intro">How to use</a>
+      <a href="#wordmark">Wordmark</a>
+      <a href="#color-primitives">Color primitives</a>
+      <a href="#semantic-tokens">Semantic tokens</a>
+      <a href="#contrast">Contrast matrix</a>
+      <a href="#type">Type</a>
+      <a href="#spacing">Spacing</a>
+      <a href="#radius">Radius</a>
+      <a href="#elevation">Elevation</a>
+      <a href="#breakpoints">Breakpoints</a>
+      <a href="#components">Components</a>
+      <a href="#refusals">Refusals</a>
+    </nav>
+
+    <header class="page-header">
+      <div>
+        <span class="wordmark" style="font-size:var(--font-size-lg)">The&nbsp;American Software&nbsp;Company</span>
+        <p class="page-header__meta">Design tokens + static style reference · derived from <code>BRANDING.md</code> · Lattice AS-29</p>
+      </div>
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle color scheme for the whole page">
+        Toggle theme: <span id="theme-toggle-state">system</span>
+      </button>
+    </header>
+
+    <main>
+      <section class="section" id="intro">
+        <h1 class="section__title">How to use this page</h1>
+        <p class="section__intro">
+          Every color, size, and rule below is a named CSS custom property in
+          <code>../tokens/tokens.css</code> (also mirrored in
+          <code>../tokens/tokens.json</code>). If a color, spacing value, or
+          font isn't here, it isn't part of the brand yet — see
+          <code>BRANDING.md</code> §0 and §9. This page opens directly from
+          <code>file://</code>: no server, no build step, no network request,
+          no JavaScript required for correctness (the theme toggle above is a
+          progressive enhancement — the page already renders correctly from
+          <code>prefers-color-scheme</code> with JS disabled).
+        </p>
+        <p class="section__intro">
+          <strong>Both color schemes are shown side by side throughout</strong>
+          this page in labeled panels, so you can review light and dark
+          without changing your OS setting. The "Toggle theme" button above
+          additionally forces the whole page (including the page chrome) into
+          light or dark, for whole-page inspection.
+        </p>
+        <div class="font-disclosure">
+          <strong>Typeface note (BRANDING.md F1):</strong> this repository
+          ships no font binaries and no <code>@font-face</code> rule (§7.D.14
+          forbids binary assets; §4.1 requires self-hosting if they ever do
+          ship — the two haven't been reconciled yet, so v1 ships fallback-only).
+          Every typographic sample on this page is rendering on the fallback
+          stack (<code>-apple-system</code> / <code>system-ui</code> equivalents),
+          <em>not</em> on Inter or JetBrains Mono, unless your system happens to
+          have those installed. <span id="font-detection">Checking locally installed fonts…</span>
+        </div>
+      </section>
+
+      <section class="section" id="wordmark">
+        <h2 class="section__title">Wordmark (BRANDING.md §5)</h2>
+        <p class="section__intro">Wordmark direction only in v1 — no icon, no monogram (§8 v2 candidates). Real text, never a raster image; it reflows rather than locking to an aspect ratio.</p>
+        <div class="theme-demo-pair">
+          <div class="theme-panel" data-theme="light">
+            <span class="theme-panel__label">Light</span>
+            <div class="wordmark-demo">
+              <span class="wordmark" style="font-size:var(--font-size-2xl)">The&nbsp;American Software&nbsp;Company</span>
+              <svg viewBox="0 0 620 32" role="img" aria-label="The American Software Company" xmlns="http://www.w3.org/2000/svg">
+                <text x="0" y="23" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="22" font-weight="500" letter-spacing="0.08em" fill="currentColor">THE AMERICAN SOFTWARE COMPANY</text>
+              </svg>
+            </div>
+          </div>
+          <div class="theme-panel" data-theme="dark">
+            <span class="theme-panel__label">Dark</span>
+            <div class="wordmark-demo">
+              <span class="wordmark" style="font-size:var(--font-size-2xl)">The&nbsp;American Software&nbsp;Company</span>
+              <svg viewBox="0 0 620 32" role="img" aria-label="The American Software Company" xmlns="http://www.w3.org/2000/svg">
+                <text x="0" y="23" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="22" font-weight="500" letter-spacing="0.08em" fill="currentColor">THE AMERICAN SOFTWARE COMPANY</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <p class="section__intro" style="margin-top:var(--space-4)">
+          <strong>Caveat (BRANDING.md §5.2):</strong> the inline SVG above
+          renders correctly only inlined in a page that already has Inter
+          loaded (or installed locally) — <code>letter-spacing</code> in
+          <code>em</code> and <code>fill="currentColor"</code> both depend on
+          CSS context a standalone, externally-referenced <code>.svg</code>
+          file won't reliably get. Use the HTML/CSS form (above it) in real
+          pages; treat the SVG as a copy-paste reference fragment, not a
+          portable image asset.
+        </p>
+      </section>
+
+      <section class="section" id="color-primitives">
+        <h2 class="section__title">Color primitives (BRANDING.md §3.1)</h2>
+        <p class="section__intro">Raw scales, no assigned meaning yet — generated from a single hue + saturation in HSL, stepped by lightness (method in §11). Scheme-independent: these values don't change between light and dark.</p>
+              <div class="prim-group">
+        <h4 class="prim-group__title">ink</h4>
+        <div class="swatch-row">
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-ink-50)"></span><code class="swatch__name">--color-ink-50</code><span class="swatch__hex">#F8F8FA</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-ink-100)"></span><code class="swatch__name">--color-ink-100</code><span class="swatch__hex">#F1F2F5</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-ink-200)"></span><code class="swatch__name">--color-ink-200</code><span class="swatch__hex">#E1E3E9</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-ink-300)"></span><code class="swatch__name">--color-ink-300</code><span class="swatch__hex">#C9CDD8</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-ink-400)"></span><code class="swatch__name">--color-ink-400</code><span class="swatch__hex">#A0A8BA</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-ink-500)"></span><code class="swatch__name">--color-ink-500</code><span class="swatch__hex">#78839D</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-ink-600)"></span><code class="swatch__name">--color-ink-600</code><span class="swatch__hex">#5C667F</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-ink-700)"></span><code class="swatch__name">--color-ink-700</code><span class="swatch__hex">#454D60</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-ink-800)"></span><code class="swatch__name">--color-ink-800</code><span class="swatch__hex">#2F3441</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-ink-900)"></span><code class="swatch__name">--color-ink-900</code><span class="swatch__hex">#1F232B</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-ink-950)"></span><code class="swatch__name">--color-ink-950</code><span class="swatch__hex">#121519</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-ink-white)"></span><code class="swatch__name">--color-ink-white</code><span class="swatch__hex">#FFFFFF</span></div>
+        </div>
+      </div>
+      <div class="prim-group">
+        <h4 class="prim-group__title">accent</h4>
+        <div class="swatch-row">
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-50)"></span><code class="swatch__name">--color-accent-50</code><span class="swatch__hex">#EFF2FD</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-100)"></span><code class="swatch__name">--color-accent-100</code><span class="swatch__hex">#DDE2FB</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-200)"></span><code class="swatch__name">--color-accent-200</code><span class="swatch__hex">#B6C2F6</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-300)"></span><code class="swatch__name">--color-accent-300</code><span class="swatch__hex">#8498F0</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-400)"></span><code class="swatch__name">--color-accent-400</code><span class="swatch__hex">#4E6AE9</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-500)"></span><code class="swatch__name">--color-accent-500</code><span class="swatch__hex">#1C41E3</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-600)"></span><code class="swatch__name">--color-accent-600</code><span class="swatch__hex">#1836BF</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-700)"></span><code class="swatch__name">--color-accent-700</code><span class="swatch__hex">#132C9A</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-800)"></span><code class="swatch__name">--color-accent-800</code><span class="swatch__hex">#0F2276</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-900)"></span><code class="swatch__name">--color-accent-900</code><span class="swatch__hex">#0B1956</span></div>
+        </div>
+      </div>
+      <div class="prim-group">
+        <h4 class="prim-group__title">success</h4>
+        <div class="swatch-row">
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-50)"></span><code class="swatch__name">--color-success-50</code><span class="swatch__hex">#EEF9F4</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-100)"></span><code class="swatch__name">--color-success-100</code><span class="swatch__hex">#D9F2E6</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-300)"></span><code class="swatch__name">--color-success-300</code><span class="swatch__hex">#86D5B0</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-600)"></span><code class="swatch__name">--color-success-600</code><span class="swatch__hex">#2D8059</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-700)"></span><code class="swatch__name">--color-success-700</code><span class="swatch__hex">#246647</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-800)"></span><code class="swatch__name">--color-success-800</code><span class="swatch__hex">#1C4F37</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-900)"></span><code class="swatch__name">--color-success-900</code><span class="swatch__hex">#153C2A</span></div>
+        </div>
+      </div>
+      <div class="prim-group">
+        <h4 class="prim-group__title">warning</h4>
+        <div class="swatch-row">
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-warning-50)"></span><code class="swatch__name">--color-warning-50</code><span class="swatch__hex">#FEF7EB</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-warning-100)"></span><code class="swatch__name">--color-warning-100</code><span class="swatch__hex">#FDEED3</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-warning-300)"></span><code class="swatch__name">--color-warning-300</code><span class="swatch__hex">#F8BC54</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-warning-700)"></span><code class="swatch__name">--color-warning-700</code><span class="swatch__hex">#A26907</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-warning-800)"></span><code class="swatch__name">--color-warning-800</code><span class="swatch__hex">#845606</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-warning-900)"></span><code class="swatch__name">--color-warning-900</code><span class="swatch__hex">#6C4604</span></div>
+        </div>
+      </div>
+      <div class="prim-group">
+        <h4 class="prim-group__title">danger</h4>
+        <div class="swatch-row">
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-50)"></span><code class="swatch__name">--color-danger-50</code><span class="swatch__hex">#FCEEEF</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-100)"></span><code class="swatch__name">--color-danger-100</code><span class="swatch__hex">#F8D8DB</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-300)"></span><code class="swatch__name">--color-danger-300</code><span class="swatch__hex">#E5767F</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-500)"></span><code class="swatch__name">--color-danger-500</code><span class="swatch__hex">#CE2735</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-600)"></span><code class="swatch__name">--color-danger-600</code><span class="swatch__hex">#AB212C</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-700)"></span><code class="swatch__name">--color-danger-700</code><span class="swatch__hex">#891A23</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-800)"></span><code class="swatch__name">--color-danger-800</code><span class="swatch__hex">#6B141C</span></div>
+          <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-900)"></span><code class="swatch__name">--color-danger-900</code><span class="swatch__hex">#511015</span></div>
+        </div>
+      </div>
+      </section>
+
+      <section class="section" id="semantic-tokens">
+        <h2 class="section__title">Semantic tokens (BRANDING.md §3.2 / §3.3)</h2>
+        <p class="section__intro">The tokens actually used in UI, aliased to a primitive per color scheme. Rendered on their intended backgrounds — a swatch's fill <em>is</em> the color it names.</p>
+        <div class="theme-demo-pair">
+          <div class="theme-panel" data-theme="light">
+            <span class="theme-panel__label">Light</span>
+                    <div class="sem-group">
+          <h4 class="sem-group__title">Backgrounds</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-bg-canvas)"></span><code class="swatch__name">--color-bg-canvas</code><span class="swatch__hex">#F8F8FA</span><span class="swatch__alias">alias of ink-50</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-bg-surface)"></span><code class="swatch__name">--color-bg-surface</code><span class="swatch__hex">#FFFFFF</span><span class="swatch__alias">alias of ink-white</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-bg-surface-sunken)"></span><code class="swatch__name">--color-bg-surface-sunken</code><span class="swatch__hex">#F1F2F5</span><span class="swatch__alias">alias of ink-100</span></div>
+          </div>
+        </div>
+        <div class="sem-group">
+          <h4 class="sem-group__title">Text</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-text-primary)"></span><code class="swatch__name">--color-text-primary</code><span class="swatch__hex">#1F232B</span><span class="swatch__alias">alias of ink-900</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-text-secondary)"></span><code class="swatch__name">--color-text-secondary</code><span class="swatch__hex">#454D60</span><span class="swatch__alias">alias of ink-700</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-text-muted)"></span><code class="swatch__name">--color-text-muted</code><span class="swatch__hex">#5C667F</span><span class="swatch__alias">alias of ink-600</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-text-disabled)"></span><code class="swatch__name">--color-text-disabled</code><span class="swatch__hex">#A0A8BA</span><span class="swatch__alias">alias of ink-400</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-text-on-accent)"></span><code class="swatch__name">--color-text-on-accent</code><span class="swatch__hex">#FFFFFF</span><span class="swatch__alias">alias of ink-white</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-text-on-danger)"></span><code class="swatch__name">--color-text-on-danger</code><span class="swatch__hex">#FFFFFF</span><span class="swatch__alias">alias of ink-white</span></div>
+          </div>
+        </div>
+        <div class="sem-group">
+          <h4 class="sem-group__title">Borders</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-border-hairline)"></span><code class="swatch__name">--color-border-hairline</code><span class="swatch__hex">#E1E3E9</span><span class="swatch__alias">alias of ink-200</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-border-interactive)"></span><code class="swatch__name">--color-border-interactive</code><span class="swatch__hex">#78839D</span><span class="swatch__alias">alias of ink-500</span></div>
+          </div>
+        </div>
+        <div class="sem-group">
+          <h4 class="sem-group__title">Accent & interactive</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-link)"></span><code class="swatch__name">--color-link</code><span class="swatch__hex">#132C9A</span><span class="swatch__alias">alias of accent-700</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-solid)"></span><code class="swatch__name">--color-accent-solid</code><span class="swatch__hex">#1836BF</span><span class="swatch__alias">alias of accent-600</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-solid-hover)"></span><code class="swatch__name">--color-accent-solid-hover</code><span class="swatch__hex">#132C9A</span><span class="swatch__alias">alias of accent-700</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-bg-subtle)"></span><code class="swatch__name">--color-accent-bg-subtle</code><span class="swatch__hex">#EFF2FD</span><span class="swatch__alias">alias of accent-50</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-text-on-subtle)"></span><code class="swatch__name">--color-accent-text-on-subtle</code><span class="swatch__hex">#0F2276</span><span class="swatch__alias">alias of accent-800</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-focus-ring)"></span><code class="swatch__name">--color-focus-ring</code><span class="swatch__hex">#1836BF</span><span class="swatch__alias">alias of accent-solid</span></div>
+          </div>
+        </div>
+        <div class="sem-group">
+          <h4 class="sem-group__title">Success</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-text)"></span><code class="swatch__name">--color-success-text</code><span class="swatch__hex">#246647</span><span class="swatch__alias">alias of success-700</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-bg-subtle)"></span><code class="swatch__name">--color-success-bg-subtle</code><span class="swatch__hex">#EEF9F4</span><span class="swatch__alias">alias of success-50</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-text-on-subtle)"></span><code class="swatch__name">--color-success-text-on-subtle</code><span class="swatch__hex">#1C4F37</span><span class="swatch__alias">alias of success-800</span></div>
+          </div>
+        </div>
+        <div class="sem-group">
+          <h4 class="sem-group__title">Warning</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-warning-text)"></span><code class="swatch__name">--color-warning-text</code><span class="swatch__hex">#845606</span><span class="swatch__alias">alias of warning-800</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-warning-bg-subtle)"></span><code class="swatch__name">--color-warning-bg-subtle</code><span class="swatch__hex">#FEF7EB</span><span class="swatch__alias">alias of warning-50</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-warning-text-on-subtle)"></span><code class="swatch__name">--color-warning-text-on-subtle</code><span class="swatch__hex">#6C4604</span><span class="swatch__alias">alias of warning-900</span></div>
+          </div>
+        </div>
+        <div class="sem-group">
+          <h4 class="sem-group__title">Danger</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-text)"></span><code class="swatch__name">--color-danger-text</code><span class="swatch__hex">#891A23</span><span class="swatch__alias">alias of danger-700</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-bg-subtle)"></span><code class="swatch__name">--color-danger-bg-subtle</code><span class="swatch__hex">#FCEEEF</span><span class="swatch__alias">alias of danger-50</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-text-on-subtle)"></span><code class="swatch__name">--color-danger-text-on-subtle</code><span class="swatch__hex">#6B141C</span><span class="swatch__alias">alias of danger-800</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-solid)"></span><code class="swatch__name">--color-danger-solid</code><span class="swatch__hex">#AB212C</span><span class="swatch__alias">alias of danger-600</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-solid-hover)"></span><code class="swatch__name">--color-danger-solid-hover</code><span class="swatch__hex">#891A23</span><span class="swatch__alias">alias of danger-700</span></div>
+          </div>
+        </div>
+          </div>
+          <div class="theme-panel" data-theme="dark">
+            <span class="theme-panel__label">Dark</span>
+                    <div class="sem-group">
+          <h4 class="sem-group__title">Backgrounds</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-bg-canvas)"></span><code class="swatch__name">--color-bg-canvas</code><span class="swatch__hex">#121519</span><span class="swatch__alias">alias of ink-950</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-bg-surface)"></span><code class="swatch__name">--color-bg-surface</code><span class="swatch__hex">#1F232B</span><span class="swatch__alias">alias of ink-900</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-bg-surface-sunken)"></span><code class="swatch__name">--color-bg-surface-sunken</code><span class="swatch__hex">#2F3441</span><span class="swatch__alias">alias of ink-800</span></div>
+          </div>
+        </div>
+        <div class="sem-group">
+          <h4 class="sem-group__title">Text</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-text-primary)"></span><code class="swatch__name">--color-text-primary</code><span class="swatch__hex">#F8F8FA</span><span class="swatch__alias">alias of ink-50</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-text-secondary)"></span><code class="swatch__name">--color-text-secondary</code><span class="swatch__hex">#C9CDD8</span><span class="swatch__alias">alias of ink-300</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-text-muted)"></span><code class="swatch__name">--color-text-muted</code><span class="swatch__hex">#A0A8BA</span><span class="swatch__alias">alias of ink-400</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-text-disabled)"></span><code class="swatch__name">--color-text-disabled</code><span class="swatch__hex">#5C667F</span><span class="swatch__alias">alias of ink-600</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-text-on-accent)"></span><code class="swatch__name">--color-text-on-accent</code><span class="swatch__hex">#FFFFFF</span><span class="swatch__alias">alias of ink-white</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-text-on-danger)"></span><code class="swatch__name">--color-text-on-danger</code><span class="swatch__hex">#FFFFFF</span><span class="swatch__alias">alias of ink-white</span></div>
+          </div>
+        </div>
+        <div class="sem-group">
+          <h4 class="sem-group__title">Borders</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-border-hairline)"></span><code class="swatch__name">--color-border-hairline</code><span class="swatch__hex">#2F3441</span><span class="swatch__alias">alias of ink-800</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-border-interactive)"></span><code class="swatch__name">--color-border-interactive</code><span class="swatch__hex">#78839D</span><span class="swatch__alias">alias of ink-500</span></div>
+          </div>
+        </div>
+        <div class="sem-group">
+          <h4 class="sem-group__title">Accent & interactive</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-link)"></span><code class="swatch__name">--color-link</code><span class="swatch__hex">#8498F0</span><span class="swatch__alias">alias of accent-300</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-solid)"></span><code class="swatch__name">--color-accent-solid</code><span class="swatch__hex">#4E6AE9</span><span class="swatch__alias">alias of accent-400</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-solid-hover)"></span><code class="swatch__name">--color-accent-solid-hover</code><span class="swatch__hex">#1C41E3</span><span class="swatch__alias">alias of accent-500</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-bg-subtle)"></span><code class="swatch__name">--color-accent-bg-subtle</code><span class="swatch__hex">#0B1956</span><span class="swatch__alias">alias of accent-900</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-accent-text-on-subtle)"></span><code class="swatch__name">--color-accent-text-on-subtle</code><span class="swatch__hex">#8498F0</span><span class="swatch__alias">alias of accent-300</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-focus-ring)"></span><code class="swatch__name">--color-focus-ring</code><span class="swatch__hex">#4E6AE9</span><span class="swatch__alias">alias of accent-solid</span></div>
+          </div>
+        </div>
+        <div class="sem-group">
+          <h4 class="sem-group__title">Success</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-text)"></span><code class="swatch__name">--color-success-text</code><span class="swatch__hex">#86D5B0</span><span class="swatch__alias">alias of success-300</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-bg-subtle)"></span><code class="swatch__name">--color-success-bg-subtle</code><span class="swatch__hex">#153C2A</span><span class="swatch__alias">alias of success-900</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-success-text-on-subtle)"></span><code class="swatch__name">--color-success-text-on-subtle</code><span class="swatch__hex">#86D5B0</span><span class="swatch__alias">alias of success-300</span></div>
+          </div>
+        </div>
+        <div class="sem-group">
+          <h4 class="sem-group__title">Warning</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-warning-text)"></span><code class="swatch__name">--color-warning-text</code><span class="swatch__hex">#F8BC54</span><span class="swatch__alias">alias of warning-300</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-warning-bg-subtle)"></span><code class="swatch__name">--color-warning-bg-subtle</code><span class="swatch__hex">#6C4604</span><span class="swatch__alias">alias of warning-900</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-warning-text-on-subtle)"></span><code class="swatch__name">--color-warning-text-on-subtle</code><span class="swatch__hex">#F8BC54</span><span class="swatch__alias">alias of warning-300</span></div>
+          </div>
+        </div>
+        <div class="sem-group">
+          <h4 class="sem-group__title">Danger</h4>
+          <div class="swatch-row">
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-text)"></span><code class="swatch__name">--color-danger-text</code><span class="swatch__hex">#E5767F</span><span class="swatch__alias">alias of danger-300</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-bg-subtle)"></span><code class="swatch__name">--color-danger-bg-subtle</code><span class="swatch__hex">#511015</span><span class="swatch__alias">alias of danger-900</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-text-on-subtle)"></span><code class="swatch__name">--color-danger-text-on-subtle</code><span class="swatch__hex">#E5767F</span><span class="swatch__alias">alias of danger-300</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-solid)"></span><code class="swatch__name">--color-danger-solid</code><span class="swatch__hex">#CE2735</span><span class="swatch__alias">alias of danger-500</span></div>
+            <div class="swatch"><span class="swatch__fill" style="background:var(--color-danger-solid-hover)"></span><code class="swatch__name">--color-danger-solid-hover</code><span class="swatch__hex">#AB212C</span><span class="swatch__alias">alias of danger-600</span></div>
+          </div>
+        </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="contrast">
+        <h2 class="section__title">Contrast matrix (generated)</h2>
+        <p class="section__intro">
+          BRANDING.md §3.4 verifies every color mostly against
+          <code>bg-canvas</code>. Real components also sit on
+          <code>bg-surface</code> and <code>bg-surface-sunken</code>, so this
+          table is the full foreground × background × mode cross-product,
+          computed mechanically by <code>tokens.test.mjs</code> from the same
+          token hexes tokens.css ships (WCAG 2.1 formula, BRANDING.md §11).
+          Failing combinations are rendered here anyway, honestly labeled —
+          hiding a known failure would be worse (BRANDING.md's own rule:
+          "change the value, don't change the claim").
+        </p>
+        <div class="matrix-callout">
+          <strong>12 combinations fail, all in dark mode, all involving a
+          solid fill (<code>accent-solid</code>/<code>-hover</code>,
+          <code>danger-solid</code>/<code>-hover</code>,
+          <code>focus-ring</code>) or error text against
+          <code>bg-surface-sunken</code>.</strong> Three were already named in
+          the CTO's acceptance read (F2); the other nine — mostly hover-state
+          fills — surfaced only once the check stopped being one person
+          manually sampling pairs. This is exactly what the generated matrix
+          is for. None of these are fixed in this task (palette amendments are
+          a v1.1 brand-doc call, not an AS-29 prerequisite); see this task's
+          Lattice comment for the full account.
+        </div>
+        <h3 class="subsection__title">Light mode</h3>
+        <div class="contrast-tables">
+                  <div class="contrast-table-wrap">
+          <h4 class="contrast-table__title">light · on <code>--color-bg-canvas</code></h4>
+          <table class="contrast-table">
+            <thead><tr><th scope="col">Foreground</th><th scope="col">Ratio</th><th scope="col">Floor</th><th scope="col">Result</th></tr></thead>
+            <tbody>
+              <tr class="result--pass"><td><code>--color-text-primary</code></td><td>14.85:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-text-secondary</code></td><td>7.97:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-text-muted</code></td><td>5.41:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--neutral"><td><code>--color-text-disabled</code></td><td>2.25:1</td><td>—</td><td><span class="result-badge result--neutral">EXEMPT</span></td></tr>
+              <tr class="result--neutral"><td><code>--color-border-hairline</code></td><td>1.21:1</td><td>—</td><td><span class="result-badge result--neutral">DECORATIVE</span></td></tr>
+              <tr class="result--pass"><td><code>--color-border-interactive</code></td><td>3.58:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-link</code></td><td>10.68:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-solid</code></td><td>8.54:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-solid-hover</code></td><td>10.68:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-text-on-subtle</code></td><td>13.11:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-focus-ring</code></td><td>8.54:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-success-text</code></td><td>6.46:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-success-text-on-subtle</code></td><td>8.91:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-warning-text</code></td><td>5.97:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-warning-text-on-subtle</code></td><td>7.87:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-text</code></td><td>8.86:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-text-on-subtle</code></td><td>11.37:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-solid</code></td><td>6.63:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-solid-hover</code></td><td>8.86:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="contrast-table-wrap">
+          <h4 class="contrast-table__title">light · on <code>--color-bg-surface</code></h4>
+          <table class="contrast-table">
+            <thead><tr><th scope="col">Foreground</th><th scope="col">Ratio</th><th scope="col">Floor</th><th scope="col">Result</th></tr></thead>
+            <tbody>
+              <tr class="result--pass"><td><code>--color-text-primary</code></td><td>15.75:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-text-secondary</code></td><td>8.46:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-text-muted</code></td><td>5.73:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--neutral"><td><code>--color-text-disabled</code></td><td>2.39:1</td><td>—</td><td><span class="result-badge result--neutral">EXEMPT</span></td></tr>
+              <tr class="result--neutral"><td><code>--color-border-hairline</code></td><td>1.28:1</td><td>—</td><td><span class="result-badge result--neutral">DECORATIVE</span></td></tr>
+              <tr class="result--pass"><td><code>--color-border-interactive</code></td><td>3.8:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-link</code></td><td>11.32:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-solid</code></td><td>9.06:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-solid-hover</code></td><td>11.32:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-text-on-subtle</code></td><td>13.9:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-focus-ring</code></td><td>9.06:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-success-text</code></td><td>6.85:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-success-text-on-subtle</code></td><td>9.45:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-warning-text</code></td><td>6.34:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-warning-text-on-subtle</code></td><td>8.35:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-text</code></td><td>9.39:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-text-on-subtle</code></td><td>12.06:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-solid</code></td><td>7.03:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-solid-hover</code></td><td>9.39:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="contrast-table-wrap">
+          <h4 class="contrast-table__title">light · on <code>--color-bg-surface-sunken</code></h4>
+          <table class="contrast-table">
+            <thead><tr><th scope="col">Foreground</th><th scope="col">Ratio</th><th scope="col">Floor</th><th scope="col">Result</th></tr></thead>
+            <tbody>
+              <tr class="result--pass"><td><code>--color-text-primary</code></td><td>14.07:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-text-secondary</code></td><td>7.55:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-text-muted</code></td><td>5.12:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--neutral"><td><code>--color-text-disabled</code></td><td>2.13:1</td><td>—</td><td><span class="result-badge result--neutral">EXEMPT</span></td></tr>
+              <tr class="result--neutral"><td><code>--color-border-hairline</code></td><td>1.15:1</td><td>—</td><td><span class="result-badge result--neutral">DECORATIVE</span></td></tr>
+              <tr class="result--pass"><td><code>--color-border-interactive</code></td><td>3.39:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-link</code></td><td>10.12:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-solid</code></td><td>8.09:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-solid-hover</code></td><td>10.12:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-text-on-subtle</code></td><td>12.42:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-focus-ring</code></td><td>8.09:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-success-text</code></td><td>6.12:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-success-text-on-subtle</code></td><td>8.44:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-warning-text</code></td><td>5.66:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-warning-text-on-subtle</code></td><td>7.46:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-text</code></td><td>8.39:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-text-on-subtle</code></td><td>10.77:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-solid</code></td><td>6.28:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-solid-hover</code></td><td>8.39:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        </div>
+        <h3 class="subsection__title">Dark mode</h3>
+        <div class="contrast-tables">
+                  <div class="contrast-table-wrap">
+          <h4 class="contrast-table__title">dark · on <code>--color-bg-canvas</code></h4>
+          <table class="contrast-table">
+            <thead><tr><th scope="col">Foreground</th><th scope="col">Ratio</th><th scope="col">Floor</th><th scope="col">Result</th></tr></thead>
+            <tbody>
+              <tr class="result--pass"><td><code>--color-text-primary</code></td><td>17.26:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-text-secondary</code></td><td>11.51:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-text-muted</code></td><td>7.68:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--neutral"><td><code>--color-text-disabled</code></td><td>3.19:1</td><td>—</td><td><span class="result-badge result--neutral">EXEMPT</span></td></tr>
+              <tr class="result--neutral"><td><code>--color-border-hairline</code></td><td>1.47:1</td><td>—</td><td><span class="result-badge result--neutral">DECORATIVE</span></td></tr>
+              <tr class="result--pass"><td><code>--color-border-interactive</code></td><td>4.82:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-link</code></td><td>6.74:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-solid</code></td><td>3.98:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--fail"><td><code>--color-accent-solid-hover</code></td><td>2.54:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-text-on-subtle</code></td><td>6.74:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-focus-ring</code></td><td>3.98:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-success-text</code></td><td>10.6:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-success-text-on-subtle</code></td><td>10.6:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-warning-text</code></td><td>10.73:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-warning-text-on-subtle</code></td><td>10.73:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-text</code></td><td>6.3:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-text-on-subtle</code></td><td>6.3:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-solid</code></td><td>3.46:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--fail"><td><code>--color-danger-solid-hover</code></td><td>2.6:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="contrast-table-wrap">
+          <h4 class="contrast-table__title">dark · on <code>--color-bg-surface</code></h4>
+          <table class="contrast-table">
+            <thead><tr><th scope="col">Foreground</th><th scope="col">Ratio</th><th scope="col">Floor</th><th scope="col">Result</th></tr></thead>
+            <tbody>
+              <tr class="result--pass"><td><code>--color-text-primary</code></td><td>14.85:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-text-secondary</code></td><td>9.9:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-text-muted</code></td><td>6.6:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--neutral"><td><code>--color-text-disabled</code></td><td>2.75:1</td><td>—</td><td><span class="result-badge result--neutral">EXEMPT</span></td></tr>
+              <tr class="result--neutral"><td><code>--color-border-hairline</code></td><td>1.27:1</td><td>—</td><td><span class="result-badge result--neutral">DECORATIVE</span></td></tr>
+              <tr class="result--pass"><td><code>--color-border-interactive</code></td><td>4.15:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-link</code></td><td>5.8:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-solid</code></td><td>3.42:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--fail"><td><code>--color-accent-solid-hover</code></td><td>2.19:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-text-on-subtle</code></td><td>5.8:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-focus-ring</code></td><td>3.42:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-success-text</code></td><td>9.12:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-success-text-on-subtle</code></td><td>9.12:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-warning-text</code></td><td>9.23:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-warning-text-on-subtle</code></td><td>9.23:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-text</code></td><td>5.42:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-danger-text-on-subtle</code></td><td>5.42:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--fail"><td><code>--color-danger-solid</code></td><td>2.97:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+              <tr class="result--fail"><td><code>--color-danger-solid-hover</code></td><td>2.24:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="contrast-table-wrap">
+          <h4 class="contrast-table__title">dark · on <code>--color-bg-surface-sunken</code></h4>
+          <table class="contrast-table">
+            <thead><tr><th scope="col">Foreground</th><th scope="col">Ratio</th><th scope="col">Floor</th><th scope="col">Result</th></tr></thead>
+            <tbody>
+              <tr class="result--pass"><td><code>--color-text-primary</code></td><td>11.73:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-text-secondary</code></td><td>7.82:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-text-muted</code></td><td>5.21:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--neutral"><td><code>--color-text-disabled</code></td><td>2.17:1</td><td>—</td><td><span class="result-badge result--neutral">EXEMPT</span></td></tr>
+              <tr class="result--neutral"><td><code>--color-border-hairline</code></td><td>1:1</td><td>—</td><td><span class="result-badge result--neutral">DECORATIVE</span></td></tr>
+              <tr class="result--pass"><td><code>--color-border-interactive</code></td><td>3.28:1</td><td>3:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-link</code></td><td>4.58:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--fail"><td><code>--color-accent-solid</code></td><td>2.7:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+              <tr class="result--fail"><td><code>--color-accent-solid-hover</code></td><td>1.73:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+              <tr class="result--pass"><td><code>--color-accent-text-on-subtle</code></td><td>4.58:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--fail"><td><code>--color-focus-ring</code></td><td>2.7:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+              <tr class="result--pass"><td><code>--color-success-text</code></td><td>7.2:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-success-text-on-subtle</code></td><td>7.2:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-warning-text</code></td><td>7.29:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--pass"><td><code>--color-warning-text-on-subtle</code></td><td>7.29:1</td><td>4.5:1</td><td><span class="result-badge result--pass">PASS</span></td></tr>
+              <tr class="result--fail"><td><code>--color-danger-text</code></td><td>4.28:1</td><td>4.5:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+              <tr class="result--fail"><td><code>--color-danger-text-on-subtle</code></td><td>4.28:1</td><td>4.5:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+              <tr class="result--fail"><td><code>--color-danger-solid</code></td><td>2.35:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+              <tr class="result--fail"><td><code>--color-danger-solid-hover</code></td><td>1.77:1</td><td>3:1</td><td><span class="result-badge result--fail">FAIL</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        </div>
+      </section>
+
+      <section class="section" id="type">
+        <h2 class="section__title">Type (BRANDING.md §4)</h2>
+        <p class="section__intro">Base 16px = 1rem; root font-size is never overridden, so rem continues to track the reader's own font-size preference.</p>
+
+        <h3 class="subsection__title">Scale</h3>
+        <div class="type-scale-table-wrap">
+        <table class="type-scale-table">
+          <thead><tr><th scope="col">Token</th><th scope="col">Size</th><th scope="col">Line-height</th><th scope="col">Typical use</th><th scope="col">Sample</th></tr></thead>
+          <tbody>
+            <tr><td><code>--font-size-xs</code></td><td>0.75rem</td><td><code>--line-height-xs</code> (1rem)</td><td>Fine print, table metadata</td><td><span style="font-size:var(--font-size-xs);line-height:var(--line-height-xs)">Aa</span></td></tr>
+            <tr><td><code>--font-size-sm</code></td><td>0.875rem</td><td><code>--line-height-sm</code> (1.25rem)</td><td>Secondary UI text, code</td><td><span style="font-size:var(--font-size-sm);line-height:var(--line-height-sm)">Aa</span></td></tr>
+            <tr><td><code>--font-size-base</code></td><td>1rem</td><td><code>--line-height-base</code> (1.5rem)</td><td>Body copy, default UI text</td><td><span style="font-size:var(--font-size-base);line-height:var(--line-height-base)">Aa</span></td></tr>
+            <tr><td><code>--font-size-lg</code></td><td>1.125rem</td><td><code>--line-height-lg</code> (1.75rem)</td><td>Lead paragraph, emphasized body</td><td><span style="font-size:var(--font-size-lg);line-height:var(--line-height-lg)">Aa</span></td></tr>
+            <tr><td><code>--font-size-xl</code></td><td>1.25rem</td><td><code>--line-height-xl</code> (1.75rem)</td><td>h4 / card titles</td><td><span style="font-size:var(--font-size-xl);line-height:var(--line-height-xl)">Aa</span></td></tr>
+            <tr><td><code>--font-size-2xl</code></td><td>1.5rem</td><td><code>--line-height-2xl</code> (2rem)</td><td>h3</td><td><span style="font-size:var(--font-size-2xl);line-height:var(--line-height-2xl)">Aa</span></td></tr>
+            <tr><td><code>--font-size-3xl</code></td><td>1.875rem</td><td><code>--line-height-3xl</code> (2.25rem)</td><td>h2</td><td><span style="font-size:var(--font-size-3xl);line-height:var(--line-height-3xl)">Aa</span></td></tr>
+            <tr><td><code>--font-size-4xl</code></td><td>2.25rem</td><td><code>--line-height-4xl</code> (2.5rem)</td><td>h1 (desktop)</td><td><span style="font-size:var(--font-size-4xl);line-height:var(--line-height-4xl)">Aa</span></td></tr>
+            <tr><td><code>--font-size-5xl</code></td><td>3rem</td><td><code>--line-height-5xl</code> (3.25rem)</td><td>Display/hero only — used sparingly</td><td><span style="font-size:var(--font-size-5xl);line-height:var(--line-height-5xl)">Aa</span></td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <h3 class="subsection__title">Heading → token map, at both breakpoints</h3>
+        <p class="section__intro">Resize the viewport past 768px (<code>--breakpoint-md</code>) to see these live headings change size — this is the actual responsive rule from BRANDING.md §4.2, not a screenshot of it.</p>
+        <div class="type-scale-table-wrap">
+        <table class="type-scale-table">
+          <thead><tr><th scope="col">Element</th><th scope="col">&lt;768px</th><th scope="col">≥768px</th><th scope="col">Weight</th></tr></thead>
+          <tbody>
+            <tr><td>h1</td><td><code>--font-size-3xl</code></td><td><code>--font-size-4xl</code></td><td><code>--font-weight-semibold</code></td></tr>
+            <tr><td>h2</td><td><code>--font-size-2xl</code></td><td><code>--font-size-3xl</code></td><td><code>--font-weight-semibold</code></td></tr>
+            <tr><td>h3</td><td><code>--font-size-xl</code></td><td><code>--font-size-2xl</code></td><td><code>--font-weight-semibold</code></td></tr>
+            <tr><td>h4</td><td><code>--font-size-lg</code></td><td><code>--font-size-xl</code></td><td><code>--font-weight-medium</code></td></tr>
+            <tr><td>body</td><td><code>--font-size-base</code></td><td><code>--font-size-base</code></td><td><code>--font-weight-regular</code></td></tr>
+            <tr><td>small / caption</td><td><code>--font-size-sm</code></td><td><code>--font-size-sm</code></td><td><code>--font-weight-regular</code></td></tr>
+          </tbody>
+        </table>
+        </div>
+        <div class="heading-demo" aria-hidden="true">
+          <h1>Heading 1</h1>
+          <h2>Heading 2</h2>
+          <h3>Heading 3</h3>
+          <h4>Heading 4</h4>
+        </div>
+
+        <h3 class="subsection__title">Weights</h3>
+        <div class="weight-demo">
+          <span class="w-regular">Regular 400 — body copy, default UI text</span>
+          <span class="w-medium">Medium 500 — emphasis, h4, the wordmark</span>
+          <span class="w-semibold">Semibold 600 — h1–h3, button labels</span>
+          <span class="w-bold">Bold 700 — rare, hard emphasis only</span>
+        </div>
+
+        <h3 class="subsection__title">Letter-spacing</h3>
+        <div class="tracking-demo">
+          <span class="ls-tight">Tight −0.02em — font-size-3xl and above</span>
+          <span class="ls-normal">Normal 0 — default: body, UI, h4 and smaller</span>
+          <span class="ls-wide">Wide 0.08em — uppercase labels and the wordmark only</span>
+        </div>
+      </section>
+
+      <section class="section" id="spacing">
+        <h2 class="section__title">Spacing scale (BRANDING.md §6.1)</h2>
+        <p class="section__intro">Base unit 4px. Every layout gap, padding, and margin on this page resolves to one of these.</p>
+                <div class="space-scale">
+          <div class="space-row"><code class="space-row__token">--space-0</code><span class="space-row__bar" style="width:var(--space-0)"></span><span class="space-row__value">0</span></div>
+          <div class="space-row"><code class="space-row__token">--space-1</code><span class="space-row__bar" style="width:var(--space-1)"></span><span class="space-row__value">0.25rem</span></div>
+          <div class="space-row"><code class="space-row__token">--space-2</code><span class="space-row__bar" style="width:var(--space-2)"></span><span class="space-row__value">0.5rem</span></div>
+          <div class="space-row"><code class="space-row__token">--space-3</code><span class="space-row__bar" style="width:var(--space-3)"></span><span class="space-row__value">0.75rem</span></div>
+          <div class="space-row"><code class="space-row__token">--space-4</code><span class="space-row__bar" style="width:var(--space-4)"></span><span class="space-row__value">1rem</span></div>
+          <div class="space-row"><code class="space-row__token">--space-5</code><span class="space-row__bar" style="width:var(--space-5)"></span><span class="space-row__value">1.25rem</span></div>
+          <div class="space-row"><code class="space-row__token">--space-6</code><span class="space-row__bar" style="width:var(--space-6)"></span><span class="space-row__value">1.5rem</span></div>
+          <div class="space-row"><code class="space-row__token">--space-8</code><span class="space-row__bar" style="width:var(--space-8)"></span><span class="space-row__value">2rem</span></div>
+          <div class="space-row"><code class="space-row__token">--space-10</code><span class="space-row__bar" style="width:var(--space-10)"></span><span class="space-row__value">2.5rem</span></div>
+          <div class="space-row"><code class="space-row__token">--space-12</code><span class="space-row__bar" style="width:var(--space-12)"></span><span class="space-row__value">3rem</span></div>
+          <div class="space-row"><code class="space-row__token">--space-16</code><span class="space-row__bar" style="width:var(--space-16)"></span><span class="space-row__value">4rem</span></div>
+          <div class="space-row"><code class="space-row__token">--space-20</code><span class="space-row__bar" style="width:var(--space-20)"></span><span class="space-row__value">5rem</span></div>
+          <div class="space-row"><code class="space-row__token">--space-24</code><span class="space-row__bar" style="width:var(--space-24)"></span><span class="space-row__value">6rem</span></div>
+        </div>
+      </section>
+
+      <section class="section" id="radius">
+        <h2 class="section__title">Radius (BRANDING.md §6.2)</h2>
+        <p class="section__intro">Radii lean small on purpose — an engineering-tool personality, not a rounded consumer-app one. <code>--radius-full</code> is reserved for pills, avatars, badges (§7.C.10) — never a standard button or card.</p>
+                <div class="swatch-row">
+          <div class="radius-demo"><span class="radius-demo__box" style="border-radius:var(--radius-sm)"></span><code>--radius-sm</code><span>0.25rem</span></div>
+          <div class="radius-demo"><span class="radius-demo__box" style="border-radius:var(--radius-md)"></span><code>--radius-md</code><span>0.5rem</span></div>
+          <div class="radius-demo"><span class="radius-demo__box" style="border-radius:var(--radius-lg)"></span><code>--radius-lg</code><span>0.75rem</span></div>
+          <div class="radius-demo"><span class="radius-demo__box" style="border-radius:var(--radius-full)"></span><code>--radius-full</code><span>9999px</span></div>
+        </div>
+      </section>
+
+      <section class="section" id="elevation">
+        <h2 class="section__title">Elevation (BRANDING.md §6.3)</h2>
+        <p class="section__intro">Built from <code>--color-ink-950</code> at low opacity — no new color introduced for shadow. In dark mode, prefer the surface-lightness difference over shadow (see the card demos below); <code>--shadow-md</code> is reserved for genuinely floating elements.</p>
+                <div class="swatch-row">
+          <div class="shadow-demo"><span class="shadow-demo__box" style="box-shadow:var(--shadow-sm)"></span><code>--shadow-sm</code></div>
+          <div class="shadow-demo"><span class="shadow-demo__box" style="box-shadow:var(--shadow-md)"></span><code>--shadow-md</code></div>
+        </div>
+      </section>
+
+      <section class="section" id="breakpoints">
+        <h2 class="section__title">Breakpoints & containers (BRANDING.md §6.4)</h2>
+        <div class="bp-table-wrap">
+        <table class="bp-table">
+          <thead><tr><th scope="col">Token</th><th scope="col">Value</th></tr></thead>
+          <tbody>
+            <tr><td><code>--breakpoint-sm</code></td><td>480px</td></tr>
+            <tr><td><code>--breakpoint-md</code></td><td>768px</td></tr>
+            <tr><td><code>--breakpoint-lg</code></td><td>1024px</td></tr>
+            <tr><td><code>--breakpoint-xl</code></td><td>1280px</td></tr>
+            <tr><td><code>--content-measure</code></td><td>45rem</td></tr>
+            <tr><td><code>--layout-max</code></td><td>75rem</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <h3 class="subsection__title">343px worked example</h3>
+        <p class="section__intro">At the 375px floor this system is required to clear: viewport 375px minus <code>--space-4</code> padding on each side = 343px usable content width. Every component on this page needs to make sense inside that box.</p>
+        <div class="worked-example">
+          <div class="worked-example__content">343px content area (this box's parent is exactly 375px wide)</div>
+        </div>
+      </section>
+
+      <section class="section" id="components">
+        <h2 class="section__title">Component primitives (plan §7 compositions)</h2>
+        <p class="section__intro">
+          Every composition below is existing tokens only — a composition is
+          not a new brand value. Hover and focus are shown as live CSS states
+          (try them) <em>and</em> as statically-forced <code>.is-hover</code> /
+          <code>.is-focus</code> classes, so a static screenshot shows every
+          state at once. Disabled uses the real <code>disabled</code>
+          attribute, not a class, so it stays keyboard-correct.
+        </p>
+
+        <div class="theme-demo-pair">
+          <div class="theme-panel" data-theme="light">
+            <span class="theme-panel__label">Light</span>
+
+            <h3 class="subsection__title">Buttons</h3>
+            <div class="btn-row">
+              <button class="btn btn-primary">Primary</button>
+              <button class="btn btn-primary is-hover">Primary (hover)</button>
+              <button class="btn btn-primary" disabled>Primary (disabled)</button>
+              <button class="btn btn-primary is-focus">Primary (focus)</button>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-secondary">Secondary</button>
+              <button class="btn btn-secondary is-hover">Secondary (hover)</button>
+              <button class="btn btn-secondary" disabled>Secondary (disabled)</button>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-ghost">Ghost</button>
+              <button class="btn btn-ghost is-hover">Ghost (hover)</button>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-destructive">Destructive</button>
+              <button class="btn btn-destructive is-hover">Destructive (hover)</button>
+              <button class="btn btn-destructive" disabled>Destructive (disabled)</button>
+            </div>
+            <p class="section__intro"><a href="#components">A link, hover changes underline thickness, not color (F4)</a></p>
+
+            <h3 class="subsection__title">Input</h3>
+            <div class="field">
+              <label class="field__label" for="input-demo-light">Project name</label>
+              <input class="field__input" id="input-demo-light" type="text" placeholder="e.g. Q3 invoicing">
+              <span class="field__help">Shown to teammates on shared views.</span>
+            </div>
+            <div class="field">
+              <label class="field__label" for="input-demo-light-focus">Focused (forced, .is-focus)</label>
+              <input class="field__input is-focus" id="input-demo-light-focus" type="text" value="Focus ring is outline, not border-color">
+            </div>
+            <div class="field">
+              <label class="field__label" for="input-demo-light-disabled">Disabled</label>
+              <input class="field__input" id="input-demo-light-disabled" type="text" value="Can't edit this" disabled>
+            </div>
+            <div class="field field--error">
+              <label class="field__label" for="input-demo-light-error">Email</label>
+              <input class="field__input" id="input-demo-light-error" type="text" value="not-an-email" aria-invalid="true" aria-describedby="input-demo-light-error-msg">
+              <span class="field__error" id="input-demo-light-error-msg">Error: enter a valid email address.</span>
+            </div>
+
+            <h3 class="subsection__title">Table</h3>
+            <div class="table-demo-wrap">
+              <table class="table-demo">
+                <thead><tr><th scope="col">Invoice</th><th scope="col">Client</th><th scope="col">Status</th><th scope="col">Amount</th></tr></thead>
+                <tbody>
+                  <tr><td>INV-1042</td><td>Halyard &amp; Co.</td><td>Paid</td><td class="numeric">$4,200.00</td></tr>
+                  <tr class="is-hover"><td>INV-1043</td><td>Northbeam</td><td>Pending</td><td class="numeric">$1,150.00</td></tr>
+                  <tr><td>INV-1044</td><td>Quiet Parent LLC</td><td>Overdue</td><td class="numeric">$980.50</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 class="subsection__title">Cards</h3>
+            <div class="card-row">
+              <div class="card card--on-canvas">
+                <h4 class="card__title">Resting card</h4>
+                <p class="card__body">bg-surface, radius-md, shadow-sm carries elevation in light mode.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="theme-panel" data-theme="dark">
+            <span class="theme-panel__label">Dark</span>
+
+            <h3 class="subsection__title">Buttons</h3>
+            <div class="btn-row">
+              <button class="btn btn-primary">Primary</button>
+              <button class="btn btn-primary is-hover">Primary (hover)<span class="ratio-note">2.54:1 boundary, FAIL</span></button>
+              <button class="btn btn-primary" disabled>Primary (disabled)</button>
+              <button class="btn btn-primary is-focus">Primary (focus)</button>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-secondary">Secondary</button>
+              <button class="btn btn-secondary is-hover">Secondary (hover)</button>
+              <button class="btn btn-secondary" disabled>Secondary (disabled)</button>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-ghost">Ghost</button>
+              <button class="btn btn-ghost is-hover">Ghost (hover)</button>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-destructive">Destructive<span class="ratio-note">2.97:1 boundary, FAIL (F2)</span></button>
+              <button class="btn btn-destructive is-hover">Destructive (hover)<span class="ratio-note">2.24:1, FAIL</span></button>
+              <button class="btn btn-destructive" disabled>Destructive (disabled)</button>
+            </div>
+            <p class="section__intro">On <code>bg-surface</code> (not sunken) no structural mitigation is applied here — §7's composition table scopes the border-interactive addition to "dark + on sunken" specifically. This instance ships as an honestly-labeled known failure per acceptance criterion #10, not silently hidden.</p>
+            <p class="section__intro"><a href="#components">A link, hover changes underline thickness, not color (F4)</a></p>
+
+            <h3 class="subsection__title">Input</h3>
+            <div class="field">
+              <label class="field__label" for="input-demo-dark">Project name</label>
+              <input class="field__input" id="input-demo-dark" type="text" placeholder="e.g. Q3 invoicing">
+              <span class="field__help">Shown to teammates on shared views.</span>
+            </div>
+            <div class="field">
+              <label class="field__label" for="input-demo-dark-focus">Focused (forced, .is-focus)</label>
+              <input class="field__input is-focus" id="input-demo-dark-focus" type="text" value="Focus ring is outline, not border-color">
+            </div>
+            <div class="field">
+              <label class="field__label" for="input-demo-dark-disabled">Disabled</label>
+              <input class="field__input" id="input-demo-dark-disabled" type="text" value="Can't edit this" disabled>
+            </div>
+            <div class="field field--error">
+              <label class="field__label" for="input-demo-dark-error">Email</label>
+              <input class="field__input" id="input-demo-dark-error" type="text" value="not-an-email" aria-invalid="true" aria-describedby="input-demo-dark-error-msg">
+              <span class="field__error" id="input-demo-dark-error-msg">Error: enter a valid email address.</span>
+            </div>
+            <p class="section__intro">Error text sits on <code>danger-bg-subtle</code> (5.04:1) here — never bare on <code>bg-surface-sunken</code>, where the same text color is 4.28:1 (below the 4.5:1 floor; see the contrast matrix above).</p>
+
+            <h3 class="subsection__title">Table</h3>
+            <div class="table-demo-wrap">
+              <table class="table-demo">
+                <thead><tr><th scope="col">Invoice</th><th scope="col">Client</th><th scope="col">Status</th><th scope="col">Amount</th></tr></thead>
+                <tbody>
+                  <tr><td>INV-1042</td><td>Halyard &amp; Co.</td><td>Paid</td><td class="numeric">$4,200.00</td></tr>
+                  <tr class="is-hover"><td>INV-1043</td><td>Northbeam</td><td>Pending</td><td class="numeric">$1,150.00</td></tr>
+                  <tr><td>INV-1044</td><td>Quiet Parent LLC</td><td>Overdue</td><td class="numeric">$980.50</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 class="subsection__title">Cards — the F3 demonstration</h3>
+            <p class="section__intro">Dark <code>border-hairline</code> is byte-identical to dark <code>bg-surface-sunken</code> (both <code>#2F3441</code>) — a hairline is not a usable boundary there. Compare the two cards on the right: same markup pattern, only the boundary strategy differs.</p>
+            <div class="card-row">
+              <div class="card card--on-canvas">
+                <h4 class="card__title">Resting, on canvas</h4>
+                <p class="card__body">Hairline border is genuinely visible here (1.47:1, decorative-only per BRANDING.md, but present).</p>
+              </div>
+            </div>
+            <div class="surface--sunken" style="margin-top:var(--space-4)">
+              <div class="f3-pair">
+                <div>
+                  <div class="card card--sunken-wrong">
+                    <h4 class="card__title">Wrong: hairline on sunken</h4>
+                    <p class="card__body">border-hairline here is 1.00:1 against this backdrop — literally the same color. The border is not rendering as a boundary at all.</p>
+                  </div>
+                  <p class="f3-caption">card--sunken-wrong: border: var(--border-width-hairline) solid var(--color-border-hairline)</p>
+                </div>
+                <div>
+                  <div class="card card--sunken-right">
+                    <h4 class="card__title">Correct: no border</h4>
+                    <p class="card__body">No border at all. The bg-surface vs bg-surface-sunken fill difference alone carries the boundary (§6.3's own guidance).</p>
+                  </div>
+                  <p class="f3-caption">card--sunken-right: border: none — relies on fill contrast only</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="refusals">
+        <h2 class="section__title">The brand never does this (BRANDING.md §7)</h2>
+        <p class="section__intro">Reproduced here as a build-time checklist — full rationale for each rule is in BRANDING.md §7.</p>
+        <ul class="refusals">
+          <li>No flags, stars-and-stripes motifs, eagles, bunting, fireworks, or literal patriotic iconography</li>
+          <li>No red/ink/blue composed in a flag-like arrangement, even incidentally</li>
+          <li>No stock photography, mascots, or "diverse team" imagery</li>
+          <li>No gradients, glassmorphism, neumorphism, or decorative surface trends</li>
+          <li>No decorative drop shadows, glows, or multi-layer "soft UI" shadows</li>
+          <li>No typeface beyond Inter and JetBrains Mono without a written amendment</li>
+          <li>No Inter weight below 400 or above 700 in running use</li>
+          <li>No text below its documented AA ratio outside the two exempt/decorative tokens</li>
+          <li>No hype copywriting (revolutionary, seamless, best-in-class, ...)</li>
+          <li>No fully-rounded treatment on standard buttons, cards, or containers</li>
+          <li>No emoji as functional UI iconography</li>
+          <li>No dark patterns — disguised opt-outs, fake urgency, pre-checked add-ons</li>
+          <li>No licensed or paid typefaces, icon sets, illustrations, or tooling</li>
+          <li>No binary or externally-hosted design assets in this repository</li>
+          <li>No animated or video logo treatment in v1</li>
+          <li>No product name, iconography, or product-specific visual metaphor here</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="page-footer">
+      <p>Generated from <code>BRANDING.md</code> (commit referenced in <code>tokens.json</code> <code>$meta.sourceCommit</code>) by Lattice task AS-29. Parity enforced by <code>docs/design/tokens/tokens.test.mjs</code>.</p>
+    </footer>
+  </div>
+
+  <script>
+    // Progressive enhancement only — the page is fully correct without this
+    // running (falls back to prefers-color-scheme, per tokens.css block 3).
+    (function () {
+      var root = document.documentElement;
+      var button = document.getElementById('theme-toggle');
+      var state = document.getElementById('theme-toggle-state');
+      var order = [null, 'light', 'dark'];
+      var labels = { null: 'system', light: 'light', dark: 'dark' };
+      var i = 0;
+      button.addEventListener('click', function () {
+        i = (i + 1) % order.length;
+        var mode = order[i];
+        if (mode) root.setAttribute('data-theme', mode); else root.removeAttribute('data-theme');
+        state.textContent = labels[mode];
+      });
+    })();
+
+    // Font detection — reports what's actually rendering (F1), best-effort.
+    (function () {
+      var el = document.getElementById('font-detection');
+      if (!el || !window.document.fonts || !document.fonts.check) {
+        if (el) el.textContent = "(This browser can't report installed fonts; the disclosure above still holds.)";
+        return;
+      }
+      try {
+        var hasInter = document.fonts.check('12px "Inter"');
+        var hasMono = document.fonts.check('12px "JetBrains Mono"');
+        el.textContent = 'Detected locally: Inter ' + (hasInter ? 'available' : 'not available, using fallback') +
+          '; JetBrains Mono ' + (hasMono ? 'available' : 'not available, using fallback') + '.';
+      } catch (e) {
+        el.textContent = '(Font detection failed; the disclosure above still holds.)';
+      }
+    })();
+  </script>
+</body>
+</html>

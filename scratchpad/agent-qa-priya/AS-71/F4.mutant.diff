@@ -1,0 +1,16 @@
+diff --git a/apps/invoicing/test/helpers/states-ledger.js b/apps/invoicing/test/helpers/states-ledger.js
+index 5caeaa6..b123551 100644
+--- a/apps/invoicing/test/helpers/states-ledger.js
++++ b/apps/invoicing/test/helpers/states-ledger.js
+@@ -128,11 +128,8 @@ export function parseStatesLedger(text) {
+     }
+     seen.add(id);
+     const row = { id, category, trigger, renders, na };
+-    screens.get(screen).rows.push(row);
+-    rows.push({ screen, ...row });
+   }
+ 
+-  if (rows.length === 0) throw new Error('states-ledger: the document yields no rows');
+   if (declared === null) throw new Error('states-ledger: no declared count (§8) found');
+   return { screens, rows, declared };
+ }

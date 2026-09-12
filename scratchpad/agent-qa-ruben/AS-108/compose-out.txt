@@ -1,0 +1,24 @@
+BUILT lines:  Image asc-review-as108-test Built 
+summary: ℹ tests 568 ℹ pass 561 ℹ fail 0 ℹ skipped 7 exit 0
+network after:
+NETWORK ID     NAME                          DRIVER    SCOPE
+9cde62746070   asc-as93-marcus_default       bridge    local
+fe4d69a7532e   asc-as93-mutant_default       bridge    local
+1dfdd80f80c8   asc-as94-lena_default         bridge    local
+9a7352b5b846   asc-as95-qa-2_default         bridge    local
+f4f5279775e5   asc-as95-qa-3_default         bridge    local
+11bf4cecfbc3   asc-as95-qa-master_default    bridge    local
+fe9be5c6eb06   asc-as95-qa_default           bridge    local
+164ca4e0caef   asc-chat-qa23_default         bridge    local
+c8367c772101   asc-chat_default              bridge    local
+cbcb64cd9152   asc-invoicing_default         bridge    local
+19ebe26d2f81   asc-invoicing_stripe-mock     bridge    local
+4762d85e8da7   asc-marcus95_default          bridge    local
+083d2f026ae0   asc-review-as120-m5_default   bridge    local
+bddf529cd755   asc-review-as120_default      bridge    local
+fc6f25f7ca35   bettereads_default            bridge    local
+95fe85e46d62   bridge                        bridge    local
+907f2b0d928c   host                          host      local
+236e966d06ff   none                          null      local
+eb13f9513666   whatever-sticks_default       bridge    local
+

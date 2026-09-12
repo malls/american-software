@@ -1,0 +1,65 @@
+(node:12693) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ stream: AS-27/AS-80 — close() clears every interval the server armed, the loop poll included (161.893292ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5430.615791
+
+✖ failing tests:
+
+test at .worktrees/AS-80/apps/chat/test/stream.test.js:449:1
+✖ stream: AS-27/AS-80 — close() clears every interval the server armed, the loop poll included (161.893292ms)
+  AssertionError [ERR_ASSERTION]: close() left 1 interval(s) armed
+  + actual - expected
+  
+  + [
+  +   <ref *1> Timeout {
+  +     Symbol(asyncId): 125,
+  +     Symbol(kAsyncContextFrame): undefined,
+  +     Symbol(kHasPrimitive): false,
+  +     Symbol(refed): true,
+  +     Symbol(triggerId): 41,
+  +     _destroyed: false,
+  +     _idleNext: TimersList {
+  +       _idleNext: [Circular *1],
+  +       _idlePrev: [Circular *1],
+  +       expiry: 25145,
+  +       id: -9007199254740991,
+  +       msecs: 25000,
+  +       priorityQueuePosition: 4
+  +     },
+  +     _idlePrev: TimersList {
+  +       _idleNext: [Circular *1],
+  +       _idlePrev: [Circular *1],
+  +       expiry: 25145,
+  +       id: -9007199254740991,
+  +       msecs: 25000,
+  +       priorityQueuePosition: 4
+  +     },
+  +     _idleStart: 145,
+  +     _idleTimeout: 25000,
+  +     _onTimeout: [Function (anonymous)],
+  +     _repeat: 25000,
+  +     _timerArgs: undefined
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-80/apps/chat/test/stream.test.js:508:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { _idleTimeout: -1, _idlePrev: null, _idleNext: null, _idleStart: 145, _onTimeout: null, _timerArgs: undefined, _repeat: 25000, _destroyed: true } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+===STATUS 1 SIGNAL null===

@@ -1,0 +1,12 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/pristine/docs/design/tokens/tokens.test.mjs	2026-09-12 17:14:48
++++ /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/c8-parser-no-throw-zero-rules/docs/design/tokens/tokens.test.mjs	2026-09-12 17:14:49
+@@ -321,9 +321,6 @@
+   if (depth !== 0) {
+     throw new Error(`FORMAT CONTRACT BROKEN in ${sourceLabel}: unbalanced "{" (depth ${depth} at end of file) — the rule parser cannot split this stylesheet.`);
+   }
+-  if (rules.length === 0) {
+-    throw new Error(`FORMAT CONTRACT BROKEN in ${sourceLabel}: no rules found at all — the rule parser would otherwise return an empty list and every structural assertion would pass on nothing.`);
+-  }
+   return { rules, trailing: blanked.slice(preludeStart) };
+ }
+ 

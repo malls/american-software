@@ -1,0 +1,35 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/pristine/docs/design/tokens/tokens.css	2026-09-12 17:14:48
++++ /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/p8d-block4-marker-moved-after-rule/docs/design/tokens/tokens.css	2026-09-12 17:14:51
+@@ -248,16 +248,6 @@
+   }
+ }
+ 
+-/*
+- * ============================================================================
+- * BLOCK 4 — EXPLICIT DARK. Wins everywhere, nests on any element (not just
+- * :root), which is what lets the style reference show light and dark side by
+- * side on one page. Same 28 declarations as block 3, deliberately duplicated
+- * (§4.2 of the plan) — CSS has no way to avoid this without a build step, and
+- * build steps are banned. Do NOT "DRY" this with a preprocessor; the
+- * duplication is checked by tokens.test.mjs, not hidden.
+- * ============================================================================
+- */
+ [data-theme="dark"] {
+   color-scheme: dark;
+ 
+@@ -290,3 +280,15 @@
+   --color-danger-solid: var(--color-danger-400);
+   --color-danger-solid-hover: var(--color-danger-600);
+ }
++
++/*
++ * ============================================================================
++ * BLOCK 4 — EXPLICIT DARK. Wins everywhere, nests on any element (not just
++ * :root), which is what lets the style reference show light and dark side by
++ * side on one page. Same 28 declarations as block 3, deliberately duplicated
++ * (§4.2 of the plan) — CSS has no way to avoid this without a build step, and
++ * build steps are banned. Do NOT "DRY" this with a preprocessor; the
++ * duplication is checked by tokens.test.mjs, not hidden.
++ * ============================================================================
++ */
++

@@ -1,0 +1,17 @@
+# AS-71 progress (developer-marcus)
+- plan committed 9bb19bc; branch feat/AS-71-vendor-states-ledger; worktree .worktrees/AS-71; in_progress f4f35e0
+- [x] baseline run (asc-impl-as71) -> baseline.log: 511/492/0/19 Built
+- [x] Dockerfile COPY + vendor.js VENDOR_DOCUMENTS
+- [x] test/helpers/states-ledger.js parser
+- [x] test/states-ledger.test.js (9 cases)
+- [x] deploy-shape pins (10->11; two vendor COPYs; new ledger pin) + harness inventory 22->23
+- [x] ledger prose amendments (S2-REFRESH, S2-ABANDON)
+- [x] comment/README corrections
+- [x] branch commit 2ec2d1a
+- [x] green1 522/503/0/19 Built (predicted 521; +1 is test/helpers/states-ledger.js counted as a test by bare `node --test`, same as the 4 existing helpers)
+- [x] F1 rename S2-ABANDON -> red {screen 2} exactly, 522/502/1/19; restored sha b393da86...
+- [x] F2 S3-LOADING category -> DEFAULT -> red {case 1, screen 3} exactly, 522/501/2/19; restored
+- [x] F3 drop COPY -> red 12 = 3 deploy-shape + 9 states-ledger, 522/491/12/19; /app/vendor listed tokens.css only; restored sha bbf3e0c2...
+- [x] F4 parser collects nothing + zero-rows guard removed -> red 9/9 (revised from plan's 8/9 before the run: case 2 asserts the zero-rows throw), 522/494/9/19; restored sha bfbf8ebe...
+- [x] green2 522/503/0/19 Built; tree clean; asc-impl-as71 torn down (down -v --rmi local)
+- [ ] Lattice comment (main checkout)

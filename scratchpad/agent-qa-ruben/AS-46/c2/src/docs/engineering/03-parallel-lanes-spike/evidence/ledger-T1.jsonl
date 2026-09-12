@@ -1,0 +1,36 @@
+{"ts":"2026-09-02T06:53:33.371Z","actor":"agent:cto-owen","cmd":"trial-setup","note":"6.0.1 precondition check"}
+{"ts":"2026-09-02T06:53:33.553Z","actor":"agent:cto-owen","cmd":"kill -0 5285","note":"lock pid alive, sample 1"}
+{"ts":"2026-09-02T06:53:44.784Z","actor":"agent:cto-owen","cmd":"chmod -R a-w .worktrees/AS-34/.lattice","note":"fence applied"}
+{"ts":"2026-09-02T06:53:44.817Z","actor":"agent:cto-owen","cmd":"touch .worktrees/AS-34/.lattice/__fence_probe","note":"refused as expected"}
+{"ts":"2026-09-02T06:53:44.854Z","actor":"agent:cto-owen","cmd":"chmod -R a-w .worktrees/AS-41/.lattice","note":"fence applied"}
+{"ts":"2026-09-02T06:53:44.883Z","actor":"agent:cto-owen","cmd":"touch .worktrees/AS-41/.lattice/__fence_probe","note":"refused as expected"}
+{"ts":"2026-09-02T06:53:44.921Z","actor":"agent:cto-owen","cmd":"chmod -R a-w .worktrees/AS-60/.lattice","note":"fence applied"}
+{"ts":"2026-09-02T06:53:44.949Z","actor":"agent:cto-owen","cmd":"touch .worktrees/AS-60/.lattice/__fence_probe","note":"refused as expected"}
+{"ts":"2026-09-02T06:53:45.002Z","actor":"agent:cto-owen","cmd":"snapshot .lattice/events sizes","note":"fence baseline"}
+{"ts":"2026-09-02T06:53:45.027Z","actor":"agent:cto-owen","cmd":"kill -0 5285","note":"lock pid alive, sample 2 (stability confirmed)"}
+{"ts":"2026-09-02T06:53:57.179Z","actor":"agent:cto-owen","cmd":"write trial-config.json","note":"6.0.4"}
+{"ts":"2026-09-02T06:53:57.249Z","actor":"agent:cto-owen","cmd":"check-disjoint.sh trial-config.json","note":"pair gate"}
+{"ts":"2026-09-02T06:54:17.060Z","actor":"agent:cto-owen","cmd":"rewrite trial-config.json to README schema","note":"6.0.4 (deviation D1: plan §6.0.4 shape vs tools README schema — README wins, it is the coupling contract)"}
+{"ts":"2026-09-02T06:54:17.224Z","actor":"agent:cto-owen","cmd":"check-disjoint.sh","note":"pair gate before fan"}
+{"ts":"2026-09-02T06:54:38.788Z","actor":"agent:cto-owen","cmd":"POST /api/messages conv 8","note":"6.0.7 board FYI"}
+{"ts":"2026-09-02T06:54:38.818Z","actor":"agent:cto-owen","cmd":"T1 window start","note":"fan window opens"}
+{"ts":"2026-09-02T06:54:51.306Z","actor":"agent:cto-owen","cmd":"lattice status AS-41 in_progress","note":"6.1.1"}
+{"ts":"2026-09-02T06:54:51.446Z","actor":"agent:cto-owen","cmd":"lattice status AS-34 in_progress","note":"6.1.1"}
+{"ts":"2026-09-02T06:54:51.618Z","actor":"agent:cto-owen","cmd":"lattice comment AS-41 lanes-trial spawned","note":"6.1.2 marker"}
+{"ts":"2026-09-02T06:54:51.781Z","actor":"agent:cto-owen","cmd":"lattice comment AS-34 lanes-trial spawned","note":"6.1.2 marker"}
+{"ts":"2026-09-02T06:54:51.873Z","actor":"agent:cto-owen","cmd":"git commit master 'lanes trial fan start'","note":"6.1.1 board commit"}
+{"ts":"2026-09-02T06:56:28.087Z","actor":"agent:cto-owen","cmd":"spawn lane A (AS-41, marcus) + lane B (AS-34, lena)","note":"6.1.2 fan — both spawned in one message"}
+{"ts":"2026-09-02T07:03:47.404Z","actor":"agent:cto-owen","cmd":"concurrency probe (6.1.3)","note":"PASS — genuine concurrency confirmed. Worktree-write evidence alone was insufficient (lane A wrote no files in the first 8 min); the discriminating measurement is subagent transcript growth: lane A transcript born 02:55:56 local, 440829 bytes, last write 03:01:38; lane B born 02:56:09, 237604 bytes, last write 03:02:48 — overlapping growth windows. Lane A was reading (AS-41 is a 12-file/~900-line task), not blocked. No A1 abort."}
+{"ts":"2026-09-02T07:04:18.028Z","actor":"agent:cto-owen","cmd":"lattice comment AS-34 (relay, --actor agent:developer-lena)","note":"6.1.6 relay: lane B breadcrumb posted verbatim"}
+{"ts":"2026-09-02T07:04:18.163Z","actor":"agent:cto-owen","cmd":"lattice comment AS-34 lanes-trial returned","note":"6.1.6 marker"}
+{"ts":"2026-09-02T07:04:18.300Z","actor":"agent:cto-owen","cmd":"lattice status AS-34 review","note":"6.1.6"}
+{"ts":"2026-09-02T07:04:18.371Z","actor":"agent:cto-owen","cmd":"git commit master 'lane B returned'","note":"6.1.6 board commit"}
+{"ts":"2026-09-02T07:21:45.308Z","actor":"human:forrest","cmd":"board directive (Claude Code chat): all agents on Opus for this loop","note":"Session-scoped model override, per-invocation, no dossier or agent-definition edits (same mechanism as the CLAUDE.md model-fallback directive). CONFOUND FOR THE SPIKE, recorded so Ruben does not discover it unexplained: T1 lanes ran on their dossier models (developer-marcus fable, developer-lena fable); any T2 resume spawn and all later stages in this loop run on opus. T2's criterion is durable-state resumption, not output equivalence, so the confound is bounded — but the spike result must state it."}
+{"ts":"2026-09-02T07:22:22.598Z","actor":"agent:cto-owen","cmd":"TaskStop lane A (AS-41)","note":"KILL EXECUTED 07:22:0xZ. DEVIATION D2, recorded per §9.11 (rulers are not moved after the fact): the pre-committed clock was first-observed-commit + one pass = 07:08:35Z; actual kill was ~13.5 min late because the orchestrator's poll cadence was interrupted. The kill mechanism was still exercised, but the residue case it sampled is the LATE one, not the pre-committed one. Consequence for the result doc: the kill-timing datum is invalid as a measurement of 'kill at first commit'; the resumability datum is unaffected (the stage was still incomplete). Do not re-run to get a prettier number."}
+{"ts":"2026-09-02T07:22:40.448Z","actor":"agent:cto-owen","cmd":"residue capture","note":"worktree A CLEAN (0 porcelain entries); 3 commits on branch (8094944, 58c017c, 26a8dfa); no as41 docker containers survive; live containers untouched and healthy. Clean-residue case exercised, not the dirty-residue case."}
+{"ts":"2026-09-02T07:22:40.638Z","actor":"agent:cto-owen","cmd":"lattice comment AS-41 lanes-trial killed","note":"6.1.7 kill breadcrumb — T2 discovery surface"}
+{"ts":"2026-09-02T07:22:40.714Z","actor":"agent:cto-owen","cmd":"git commit master 'lane A killed'","note":"6.1.7 board commit"}
+{"ts":"2026-09-02T07:25:45.976Z","actor":"agent:cto-owen","cmd":"T1 window end recorded","note":"2026-09-02T07:25:45Z"}
+{"ts":"2026-09-02T07:25:58.082Z","actor":"agent:cto-owen","cmd":"check-branch-clean.sh x2, check-git-identity.sh x2","note":"6.1.8 — all PASS (A: 12 files/3 commits; B: 3 files/1 commit)"}
+{"ts":"2026-09-02T07:25:58.410Z","actor":"agent:cto-owen","cmd":"check-confinement.sh x2, check-disjoint.sh","note":"6.1.8"}
+{"ts":"2026-09-02T07:26:17.422Z","actor":"agent:cto-owen","cmd":"check-event-integrity.mjs --repo (rejected)","note":"DEVIATION D3: plan §7 says all checkers take --repo first; the .mjs checkers take --events instead (README line 29 documents this, plan §7 overstates). Checker exited 2 with a usage message rather than guessing — correct fail-closed behaviour. Re-invoking with --events."}

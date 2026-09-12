@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/pristine/apps/invoicing/test/dependency-policy.test.js	2026-09-12 01:29:08
++++ /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/r1_expectfiles_refusal/apps/invoicing/test/dependency-policy.test.js	2026-09-12 01:32:06
+@@ -1050,7 +1050,7 @@
+   // rows (S1-LOADING, S2-LOADING) are unimplementable under it and are recorded
+   // as `unrenderable — browser-supplied` rather than silently skipped. This row
+   // is what stops the assumption decaying into a comment.
+-  scanConcept('script or style element', /<(script|style)\b/i, [], { only: /^(views|public)\//, expectFiles: 3 });
++  scanConcept('script or style element', /<(script|style)\b/i, [], { only: /^(views|public)\// });
+   // P3 — an attribute value that carries data is DOUBLE-quoted, because
+   // escaping `"` is only load-bearing if `"` is the delimiter. This row catches
+   // the two spellings that break that: a single-quoted value, and an unquoted

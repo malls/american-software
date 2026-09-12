@@ -1,0 +1,26 @@
+AS-82: extract makeWatcher() from main() and put the wiring under test
+
+main() was ~400 lines that nothing executed: the AS-27 heartbeat call in
+poll(), the lock take in fire() and release in settle(), the AS-21 spawn
+argv/env call site, the highwater write, the AS-100 tick events, the tick
+box and shutdown() were all unguarded. Priya's M3b deleted the heartbeat
+call and 255 tests stayed green.
+
+makeWatcher({config, paths, logsDir, watchDir, log, pid, isPidAlive, now,
+spawnFn, createLog, exit, ...ops}) is the sixth factory beside the five
+that already exist. poll/fire/settle/shutdown/readSentinel/pruneTickLogs
+move verbatim into its closure under the plan's substitution table; the
+ops are built inside start() so the sequence of side effects after the
+single-instance check is unchanged. main() is now config, paths, log,
+the factory call, start(), and the two signal handlers.
+
+test/watcher-main.test.js drives the factory with a controllable clock,
+an injected pid/liveness probe and a fake spawn, over a real temp data
+dir (the lock, loop mirror and events stream are bytes on disk, not mock
+call lists). test/watcher-process.test.js runs the real entry point once
+against a temp root with every fence set, to cover the residue no fake
+can hold: the interval actually firing, and SIGTERM exiting 0.
+
+Host: 478 tests, 0 fail (master baseline 468 + 10 new).
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>

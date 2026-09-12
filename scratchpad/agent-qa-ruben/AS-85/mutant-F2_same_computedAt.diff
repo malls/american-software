@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/.worktrees/AS-85/apps/chat/test/stream.test.js	2026-09-11 05:49:10
++++ /tmp/as85-scratch/test/stream.test.js	2026-09-11 14:17:50
+@@ -511,7 +511,7 @@
+   let lastWritten = null;
+   for (let i = 0; i < 10; i++) {
+     lastWritten = writeDeployState({
+-      computedAt: new Date(Date.now() + i + 1).toISOString(),
++      computedAt: firstCheckedAt,
+       lastAttempt: i % 2 === 0
+         ? { id: BUILD_ID, at: new Date().toISOString(), outcome: 'ok', detail: `serving ${i}` }
+         : null,

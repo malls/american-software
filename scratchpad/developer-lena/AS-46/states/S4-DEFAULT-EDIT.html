@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en" data-state="S4-DEFAULT-EDIT">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoicing — Edit invoice — draft</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body>
+    
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <span class="app-label">Invoicing</span>
+      </div>
+      <div class="container">
+        <nav class="site-nav" aria-label="Primary">
+          <a class="site-nav__link" href="/invoices/new">New invoice</a>
+          <form class="site-nav__signout" method="post" action="/signout">
+            <button type="submit" class="btn-link">Sign out</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1 class="page-title">Edit invoice — draft</h1>
+
+      
+
+      
+      <form method="post">
+        <div class="client-picker">
+          
+            
+              <p class="client-picker__mode-toggle">Client:
+                <button type="submit" name="intent" value="new-client" class="btn-link">add a new client instead</button>
+              </p>
+            
+            <input type="hidden" name="pickerMode" value="select" />
+            
+              <div class="field">
+                <label for="clientId">Bill to</label>
+                <select id="clientId" name="clientId">
+                  <option value="">Select a client…</option>
+                  
+                    
+                      <option value="c1">Ada Example (ada@example.test)</option>
+                    
+                  
+                    
+                      <option value="c2" selected>Bea Sample (bea@example.test)</option>
+                    
+                  
+                </select>
+              </div>
+            
+          
+        </div>
+
+        <fieldset>
+          <legend>Line items</legend>
+          <div class="line-items">
+            
+              <div class="line-item-row">
+                
+                  <div class="field">
+                    <label for="lineItems-0-description">Description</label>
+                    <input type="text" id="lineItems-0-description" name="lineItems[0][description]" value="Logo concepts" />
+                  </div>
+                
+                
+                  <div class="field">
+                    <label for="lineItems-0-quantity">Qty</label>
+                    <input type="text" inputmode="numeric" id="lineItems-0-quantity" name="lineItems[0][quantity]" value="1" />
+                  </div>
+                
+                
+                  <div class="field">
+                    <label for="lineItems-0-unitPrice">Unit price (USD)</label>
+                    <input type="text" inputmode="decimal" id="lineItems-0-unitPrice" name="lineItems[0][unitPrice]" value="80.00" />
+                  </div>
+                
+              </div>
+            
+              <div class="line-item-row">
+                
+                  <div class="field">
+                    <label for="lineItems-1-description">Description</label>
+                    <input type="text" id="lineItems-1-description" name="lineItems[1][description]" value="A very long description that should wrap rather than widen the row at three hundred and seventy-five pixels" />
+                  </div>
+                
+                
+                  <div class="field">
+                    <label for="lineItems-1-quantity">Qty</label>
+                    <input type="text" inputmode="numeric" id="lineItems-1-quantity" name="lineItems[1][quantity]" value="12" />
+                  </div>
+                
+                
+                  <div class="field">
+                    <label for="lineItems-1-unitPrice">Unit price (USD)</label>
+                    <input type="text" inputmode="decimal" id="lineItems-1-unitPrice" name="lineItems[1][unitPrice]" value="1234.56" />
+                  </div>
+                
+              </div>
+            
+              <div class="line-item-row">
+                
+                  <div class="field">
+                    <label for="lineItems-2-description">Description</label>
+                    <input type="text" id="lineItems-2-description" name="lineItems[2][description]" value="" />
+                  </div>
+                
+                
+                  <div class="field">
+                    <label for="lineItems-2-quantity">Qty</label>
+                    <input type="text" inputmode="numeric" id="lineItems-2-quantity" name="lineItems[2][quantity]" value="" />
+                  </div>
+                
+                
+                  <div class="field">
+                    <label for="lineItems-2-unitPrice">Unit price (USD)</label>
+                    <input type="text" inputmode="decimal" id="lineItems-2-unitPrice" name="lineItems[2][unitPrice]" value="" />
+                  </div>
+                
+              </div>
+            
+          </div>
+          
+          
+            <button type="submit" name="intent" value="add-row" class="btn btn-secondary">Add line item</button>
+          
+        </fieldset>
+
+        
+          <div class="field">
+            <label for="daysUntilDue">Due in (days)</label>
+            <input type="text" inputmode="numeric" id="daysUntilDue" name="daysUntilDue" value="14" />
+            <span class="field-hint">Client must pay within this many days of receiving the invoice.</span>
+          </div>
+        
+
+        <div class="form-actions">
+          <button type="submit" name="intent" value="save" class="btn btn-secondary">Save draft</button>
+          <button type="submit" name="intent" value="send" class="btn btn-primary">Finalize &amp; send</button>
+        </div>
+        <p class="page-meta">Finalizing sends this invoice by email — <strong>Stripe</strong> sends it directly to the client. We do not see or store that email.</p>
+      </form>
+      
+    </main>
+  </body>
+</html>

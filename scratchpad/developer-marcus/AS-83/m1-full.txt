@@ -1,0 +1,31 @@
+[m1] bin/chat.js sha BEFORE ec77557c47eeb03406b804fe82dd4f3aea492d3eafc1b870f0e3fc5cb307c5a2
+[m1] predicted red: AS-24 — API-mode writes land in the server view | full command sweep | AS-83 — the same slow server inside the budget is up
+  ok: anchor "if (result.state === 'up') return createApiBackend(api);" occurs exactly once
+  ok: rule-3 block opener occurs once (slice is unambiguous)
+  ok: rule-3 slice located
+  ok: rule-3 slice has 2 createDirectBackend(db || DEFAULT_DB)
+  ok: rule-3 slice has 0 createApiBackend(
+[m1] --- running node --test test/mode.test.js ---
+✔ mode: AS-83 — a failed CLI exit is reported with status, signal, elapsed ms, stderr and stdout (0.496917ms)
+✖ mode: AS-24 — API-mode writes land in the server view; no DB file is ever created (78.907041ms)
+✔ mode: AS-24 — probe timeout (something listening, not answering) refuses loudly, zero side effects (3049.834667ms)
+✔ mode: AS-83 — a live server that answers slower than the probe budget is refused as ambiguous (the flake signature) (114.301417ms)
+✖ mode: AS-83 — the same slow server inside the budget is up: the write lands in the server view, no DB touched (232.845ms)
+✔ mode: AS-83 — CHAT_PROBE_TIMEOUT_MS must be a positive integer of milliseconds; anything else is a usage error on every path (148.875541ms)
+✔ mode: AS-24 — squatted port (wrong-shaped JSON) refuses loudly, zero side effects (51.732875ms)
+✔ mode: AS-24 — hard connection-refused falls back to direct mode against CHAT_DB (53.357042ms)
+✔ mode: AS-24 — CHAT_MODE=direct skips the probe entirely (poisoned CHAT_API never contacted) (37.928708ms)
+✔ mode: AS-24 — CHAT_MODE=api with a down server is a loud exit 1 (47.769125ms)
+✔ mode: AS-24 — invalid CHAT_MODE is a usage error (35.769458ms)
+✖ mode: AS-24 — full command sweep in API mode (no DB file, direct-mode shapes) (1137.468167ms)
+✔ mode: AS-24 — CHAT_DB alone (rule 4) stays direct with no probe: the suite is hermetic (38.615667ms)
+ℹ tests 13
+ℹ pass 10
+ℹ fail 3
+✖ failing tests:
+✖ mode: AS-24 — API-mode writes land in the server view; no DB file is ever created (78.907041ms)
+✖ mode: AS-83 — the same slow server inside the budget is up: the write lands in the server view, no DB touched (232.845ms)
+✖ mode: AS-24 — full command sweep in API mode (no DB file, direct-mode shapes) (1137.468167ms)
+[m1] suite exit 1
+[m1] bin/chat.js sha AFTER  ec77557c47eeb03406b804fe82dd4f3aea492d3eafc1b870f0e3fc5cb307c5a2
+[m1] restored equal: true

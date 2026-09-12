@@ -1,0 +1,70 @@
+[
+  {
+    "id": "M1",
+    "what": "rearmIfDue(): delete `resumeHold = true; // AS-132` (today's code)",
+    "exit": 1,
+    "summary": "tests 663 pass 659 fail 1 skipped 3",
+    "red": [
+      "as132-t1-rearm-after-resume-holds-the-lock-gate: a cooldown entered from resume() re-arms behind the orphan's lock, not over it",
+      "failing tests:"
+    ],
+    "expected": [
+      "as132-t1-rearm-after-resume-holds-the-lock-gate"
+    ],
+    "restored": true
+  },
+  {
+    "id": "M2",
+    "what": "blockedByLock(): a lock never ages out (`>= resumeGraceMs` -> `>= Infinity`)",
+    "exit": 1,
+    "summary": "tests 663 pass 658 fail 2 skipped 3",
+    "red": [
+      "f2-resume-fires-when-the-lock-aged-out: older than a whole tick timeout is not a live tick",
+      "as132-t1-rearm-after-resume-holds-the-lock-gate: a cooldown entered from resume() re-arms behind the orphan's lock, not over it",
+      "failing tests:"
+    ],
+    "expected": [
+      "as132-t1-rearm-after-resume-holds-the-lock-gate",
+      "f2-resume-fires-when-the-lock-aged-out"
+    ],
+    "restored": true
+  },
+  {
+    "id": "M3",
+    "what": "blockedByLock(): a missing lock is read as a fresh one",
+    "exit": 1,
+    "summary": "tests 663 pass 657 fail 3 skipped 3",
+    "red": [
+      "f2-resume-fires-with-no-lock: nothing held means nothing to wait for",
+      "as132-t2-ordinary-rearm-is-not-held-with-no-lock: an in-process cooldown re-arms and fires on the same poll",
+      "AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched",
+      "failing tests:"
+    ],
+    "expected": [
+      "as132-t2-ordinary-rearm-is-not-held-with-no-lock",
+      "f2-resume-fires-with-no-lock",
+      "as129-t11 (watcher-main)"
+    ],
+    "restored": true
+  },
+  {
+    "id": "M4",
+    "what": "resume(): delete `resumeHold = true; // F2: ...`",
+    "exit": 1,
+    "summary": "tests 663 pass 656 fail 4 skipped 3",
+    "red": [
+      "f2-resume-waits-out-a-live-lock: a young lock blocks the resumed fire, once, loudly",
+      "f2-gate-is-age-not-pid: a young lock whose owner pid is long dead still blocks",
+      "f2-gate-is-resume-only: once the resumed loop fires its own tick, the gate is gone",
+      "as132-t3-contrast-ordinary-resume-holds: the same lock under a not-past-cap resume is held as before",
+      "failing tests:"
+    ],
+    "expected": [
+      "as132-t3-contrast-ordinary-resume-holds",
+      "f2-resume-waits-out-a-live-lock",
+      "f2-gate-is-age-not-pid",
+      "f2-gate-is-resume-only"
+    ],
+    "restored": true
+  }
+]

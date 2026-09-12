@@ -1,0 +1,7 @@
+AC-7 surface diff --stat: EMPTY (ok)
+AC-8 changed lines in run.mjs: 36; lines matching the forbidden identifiers: 0
+AC-6 grep -c 'not built|404s': branch 0, master 7
+AC-6 first line: "D1 core-loop walkthrough (AS-90)"
+AC-6 last line: "None of these creates a charge, a payment intent, or a transfer; the platform key never touches money."
+AC-6 step-2 body line: "  < 200  body: text/html, 1649 bytes, page state S3-EMPTY-FIRSTRUN"
+STOPPED present: false

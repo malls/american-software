@@ -1,0 +1,294 @@
+{
+  "screenMergeCommits": {
+    "1": "95b5ee5",
+    "2": "46eea90",
+    "3": "4f4ef1b",
+    "4": "7e680f8",
+    "5": "4f4ef1b",
+    "6": "944c2ac",
+    "7": "45ab932"
+  },
+  "branchCommit": "review",
+  "capturedAt": "2026-09-12T16:56:09.694Z",
+  "chrome": "Chrome/152.0.7977.83",
+  "method": "cdp (node built-in WebSocket; Page.captureScreenshot full page)",
+  "base": "http://127.0.0.1:8349",
+  "target": "demo service (serve.mjs) beside stripe-mock; default network added for the host port only",
+  "captures": [
+    {
+      "file": "screen-1-signin-375.png",
+      "state": "S1-DEFAULT-SIGNIN",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/signin",
+      "bytes": 13553
+    },
+    {
+      "file": "screen-1-signin-1280.png",
+      "state": "S1-DEFAULT-SIGNIN",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/signin",
+      "bytes": 16690
+    },
+    {
+      "file": "screen-1-signup-375.png",
+      "state": "S1-DEFAULT-SIGNUP",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/signin?mode=signup",
+      "bytes": 18922
+    },
+    {
+      "file": "screen-1-signup-1280.png",
+      "state": "S1-DEFAULT-SIGNUP",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/signin?mode=signup",
+      "bytes": 23249
+    },
+    {
+      "file": "screen-1-error-validation-375.png",
+      "state": "S1-ERROR-VALIDATION",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/signin",
+      "bytes": 26302
+    },
+    {
+      "file": "screen-3-empty-firstrun-375.png",
+      "state": "S3-EMPTY-FIRSTRUN",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/",
+      "bytes": 33330,
+      "layer": "S3-GATED-STRIPENOTREADY"
+    },
+    {
+      "file": "screen-3-empty-firstrun-1280.png",
+      "state": "S3-EMPTY-FIRSTRUN",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/",
+      "bytes": 37997,
+      "layer": "S3-GATED-STRIPENOTREADY"
+    },
+    {
+      "file": "screen-2-default-notstarted-375.png",
+      "state": "S2-DEFAULT-NOTSTARTED",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/connect-stripe",
+      "bytes": 25990
+    },
+    {
+      "file": "screen-2-default-notstarted-1280.png",
+      "state": "S2-DEFAULT-NOTSTARTED",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/connect-stripe",
+      "bytes": 29297
+    },
+    {
+      "file": "screen-4-gated-stripenotready-375.png",
+      "state": "S4-GATED-STRIPENOTREADY",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/invoices/new",
+      "bytes": 26470
+    },
+    {
+      "file": "screen-4-gated-stripenotready-1280.png",
+      "state": "S4-GATED-STRIPENOTREADY",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/invoices/new",
+      "bytes": 30930
+    },
+    {
+      "file": "screen-2-return-notready-375.png",
+      "state": "S2-RETURN-NOTREADY",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/connect-stripe",
+      "bytes": 24984
+    },
+    {
+      "file": "screen-2-return-notready-1280.png",
+      "state": "S2-RETURN-NOTREADY",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/connect-stripe",
+      "bytes": 30610
+    },
+    {
+      "file": "screen-2-return-ready-375.png",
+      "state": "S2-RETURN-READY",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/connect-stripe",
+      "bytes": 17823
+    },
+    {
+      "file": "screen-2-return-ready-1280.png",
+      "state": "S2-RETURN-READY",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/connect-stripe",
+      "bytes": 21806
+    },
+    {
+      "file": "screen-6-default-375.png",
+      "state": "S6-DEFAULT",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/contracts/new",
+      "bytes": 42223
+    },
+    {
+      "file": "screen-6-default-1280.png",
+      "state": "S6-DEFAULT",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/contracts/new",
+      "bytes": 46560
+    },
+    {
+      "file": "screen-6-error-validation-375.png",
+      "state": "S6-ERROR-VALIDATION",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/contracts/new",
+      "bytes": 63404
+    },
+    {
+      "file": "screen-7-default-375.png",
+      "state": "S7-DEFAULT",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/contracts/3e07d827-794a-4181-9589-ae5ddef9b7e9",
+      "bytes": 117372
+    },
+    {
+      "file": "screen-7-default-1280.png",
+      "state": "S7-DEFAULT",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/contracts/3e07d827-794a-4181-9589-ae5ddef9b7e9",
+      "bytes": 127716
+    },
+    {
+      "file": "screen-7-default-1280-print.png",
+      "state": "S7-DEFAULT",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/contracts/3e07d827-794a-4181-9589-ae5ddef9b7e9",
+      "bytes": 93730,
+      "media": "print"
+    },
+    {
+      "file": "screen-4-default-create-375.png",
+      "state": "S4-DEFAULT-CREATE",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/invoices/new",
+      "bytes": 61119
+    },
+    {
+      "file": "screen-4-default-create-1280.png",
+      "state": "S4-DEFAULT-CREATE",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/invoices/new",
+      "bytes": 61298
+    },
+    {
+      "file": "screen-4-error-validation-375.png",
+      "state": "S4-ERROR-VALIDATION",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/invoices/new",
+      "bytes": 78463
+    },
+    {
+      "file": "screen-4-default-edit-375.png",
+      "state": "S4-DEFAULT-EDIT",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/invoices/b4b80a8e-9ffd-472f-9ac7-4e5778796e01/edit",
+      "bytes": 62680
+    },
+    {
+      "file": "screen-4-default-edit-1280.png",
+      "state": "S4-DEFAULT-EDIT",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/invoices/b4b80a8e-9ffd-472f-9ac7-4e5778796e01/edit",
+      "bytes": 65154
+    },
+    {
+      "file": "screen-5-default-draft-375.png",
+      "state": "S5-DEFAULT-DRAFT",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/invoices/b4b80a8e-9ffd-472f-9ac7-4e5778796e01",
+      "bytes": 30714
+    },
+    {
+      "file": "screen-5-default-draft-1280.png",
+      "state": "S5-DEFAULT-DRAFT",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/invoices/b4b80a8e-9ffd-472f-9ac7-4e5778796e01",
+      "bytes": 35263
+    },
+    {
+      "file": "screen-5-default-open-375.png",
+      "state": "S5-DEFAULT-OPEN",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/invoices/b4b80a8e-9ffd-472f-9ac7-4e5778796e01",
+      "bytes": 27254
+    },
+    {
+      "file": "screen-5-default-open-1280.png",
+      "state": "S5-DEFAULT-OPEN",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/invoices/b4b80a8e-9ffd-472f-9ac7-4e5778796e01",
+      "bytes": 31837
+    },
+    {
+      "file": "screen-5-default-paid-375.png",
+      "state": "S5-DEFAULT-PAID",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/invoices/b4b80a8e-9ffd-472f-9ac7-4e5778796e01",
+      "bytes": 27644
+    },
+    {
+      "file": "screen-5-default-paid-1280.png",
+      "state": "S5-DEFAULT-PAID",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/invoices/b4b80a8e-9ffd-472f-9ac7-4e5778796e01",
+      "bytes": 32204
+    },
+    {
+      "file": "screen-3-default-populated-375.png",
+      "state": "S3-DEFAULT-POPULATED",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/",
+      "bytes": 30717
+    },
+    {
+      "file": "screen-3-default-populated-1280.png",
+      "state": "S3-DEFAULT-POPULATED",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/",
+      "bytes": 34405
+    }
+  ]
+}

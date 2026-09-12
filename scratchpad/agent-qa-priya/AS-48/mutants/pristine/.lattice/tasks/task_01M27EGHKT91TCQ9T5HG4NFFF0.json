@@ -1,0 +1,41 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [
+    {
+      "branch": "feat/AS-108-lanes-realpath-root",
+      "linked_at": "2026-09-11T22:55:32Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 6,
+  "complexity": null,
+  "created_at": "2026-09-11T05:19:42Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": null,
+  "done_at": "2026-09-11T23:41:07Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01M29D7P361T6FGWGCR9EFB9R0",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01M27EGHKT91TCQ9T5HG4NFFF0",
+  "last_event_id": "ev_01M29DM5ZG51XJKD76ZY9AY47A",
+  "last_status_changed_at": "2026-09-11T23:41:07Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-108",
+  "status": "done",
+  "tags": null,
+  "title": "Chat: lanes \u2014 relPathOf must realpath the repo root (symlinked root marks every lane outside-repo) and lane.key must not collide for two outside-repo worktrees sharing a basename (AS-99 N1/N2)",
+  "type": "task",
+  "updated_at": "2026-09-11T23:42:41Z",
+  "urgency": null
+}

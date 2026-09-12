@@ -1,0 +1,179 @@
+[
+  {
+    "id": "M1(AC-1)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)",
+    "exit": 1,
+    "total": "511",
+    "fail": "2",
+    "red": [
+      "AS-84 makeWatcher: shutdown never releases a lock it does not own — a deploy-source lock survives",
+      "AS-84 makeLockOps: release is by pid AND source — a deploy-source instance leaves a watcher-source lock alone, and vice versa"
+    ],
+    "predicted": "AC-1, AC-11",
+    "restoredClean": true
+  },
+  {
+    "id": "M2(AC-2)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)",
+    "exit": 1,
+    "total": "511",
+    "fail": "1",
+    "red": [
+      "AS-84 makeLockOps: verify-after-create requires our nonce, not just our pid"
+    ],
+    "predicted": "AC-2",
+    "restoredClean": true
+  },
+  {
+    "id": "M3(AC-3)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)",
+    "exit": 1,
+    "total": "511",
+    "fail": "2",
+    "red": [
+      "AS-84 makeDeployOps: lastAttempt is hydrated from deploy-state.json — a failed attempt at the desired id, inside the cooldown, refuses without building",
+      "AS-84 makeDeployOps: an interrupted attempt ('started' on disk) counts as a failure for the cooldown"
+    ],
+    "predicted": "AC-3, AC-4",
+    "restoredClean": true
+  },
+  {
+    "id": "M4(AC-4)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)",
+    "exit": 1,
+    "total": "511",
+    "fail": "1",
+    "red": [
+      "AS-84 makeDeployOps: an interrupted attempt ('started' on disk) counts as a failure for the cooldown"
+    ],
+    "predicted": "AC-4",
+    "restoredClean": true
+  },
+  {
+    "id": "M5(AC-5)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 2 --\n 1 file changed, 2 deletions(-)",
+    "exit": 1,
+    "total": "511",
+    "fail": "1",
+    "red": [
+      "AS-84 makeDeployOps: the 'started' record is on disk before compose is spawned"
+    ],
+    "predicted": "AC-5",
+    "restoredClean": true
+  },
+  {
+    "id": "M6a(AC-6 no-signal)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)",
+    "exit": 1,
+    "total": "511",
+    "fail": "2",
+    "red": [
+      "AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0",
+      "AS-84 makeDeployOps: abort() signals the running build, records an abort rather than a failure, and gives the lock back"
+    ],
+    "predicted": "AC-6",
+    "restoredClean": true
+  },
+  {
+    "id": "M6b(AC-6 fail-not-aborted)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)",
+    "exit": 1,
+    "total": "511",
+    "fail": "2",
+    "red": [
+      "AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0",
+      "AS-84 makeDeployOps: abort() signals the running build, records an abort rather than a failure, and gives the lock back"
+    ],
+    "predicted": "AC-6",
+    "restoredClean": true
+  },
+  {
+    "id": "M7(AC-7)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)",
+    "exit": 1,
+    "total": "511",
+    "fail": "1",
+    "red": [
+      "AS-84 makeDeployOps: abort() while idle resolves immediately and touches nothing"
+    ],
+    "predicted": "AC-7",
+    "restoredClean": true
+  },
+  {
+    "id": "M8(AC-8)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 1 +\n 1 file changed, 1 insertion(+)",
+    "exit": 1,
+    "total": "511",
+    "fail": "1",
+    "red": [
+      "AS-84 makeDeployOps: evaluate() never rejects — a throwing collaborator becomes {noop, error}, persisted, logged once"
+    ],
+    "predicted": "AC-8",
+    "restoredClean": true
+  },
+  {
+    "id": "M9(AC-9 sync exit)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)",
+    "exit": 1,
+    "total": "511",
+    "fail": "4",
+    "red": [
+      "AS-84 makeWatcher: shutdown clears the intervals, SIGTERMs the child and WAITS for its settle — tick_ended before exit 0",
+      "AS-84 makeWatcher: shutdown with a deploy in flight aborts it and waits for it before exiting",
+      "AS-84 makeWatcher: the shutdown grace is a bound — a child that ignores SIGTERM is SIGKILLed and we still exit 0",
+      "AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0"
+    ],
+    "predicted": "AC-9, AC-10, AC-11 (plan)",
+    "restoredClean": true
+  },
+  {
+    "id": "M10(AC-10 no abort)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)",
+    "exit": 1,
+    "total": "511",
+    "fail": "2",
+    "red": [
+      "AS-84 makeWatcher: shutdown with a deploy in flight aborts it and waits for it before exiting",
+      "AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0"
+    ],
+    "predicted": "AC-10, AC-14",
+    "restoredClean": true
+  },
+  {
+    "id": "M12(AC-12 no grace)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 2 +-\n 1 file changed, 1 insertion(+), 1 deletion(-)",
+    "exit": 1,
+    "total": "511",
+    "fail": "0",
+    "red": [
+      "AS-84 makeWatcher: the shutdown grace is a bound — a child that ignores SIGTERM is SIGKILLed and we still exit 0"
+    ],
+    "predicted": "AC-12",
+    "restoredClean": true
+  },
+  {
+    "id": "M13(AC-13 no catch)",
+    "applied": true,
+    "diffStat": "apps/chat/watch/advance-watcher.mjs | 3 +--\n 1 file changed, 1 insertion(+), 2 deletions(-)",
+    "exit": 1,
+    "total": "511",
+    "fail": "1",
+    "red": [
+      "AS-84 makeWatcher: deployPoll() survives a rejecting evaluate — no unhandled rejection, one ERROR line"
+    ],
+    "predicted": "AC-13",
+    "restoredClean": true
+  }
+]

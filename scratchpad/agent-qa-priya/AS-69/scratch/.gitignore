@@ -1,0 +1,20 @@
+apps/chat/data/*
+!apps/chat/data/export/
+.worktrees/
+
+# Lattice CLI/daemon runtime state (appeared 2026-09-10). These are NOT board
+# state and must never be committed: locks/ is per-file advisory locks,
+# tmp-prompts/ is scratch for in-flight agent prompts, and review_state/ is the
+# auto-review daemon's own bookkeeping for a review that is currently running.
+# Left untracked they are worse than noise — a tick that stages board state with
+# `git add .lattice` sweeps another process's live lock files onto master.
+.lattice/locks/
+.lattice/tmp-prompts/
+.lattice/review_state/
+apps/invoicing/node_modules/
+# Local secrets (AS-51): Stripe test-mode credentials live here and only here.
+# Never committed. compose.yaml does NOT reference this file (AS-38): the key
+# reaches the container by interpolation — `docker compose --env-file
+# apps/invoicing/.env.local up` — so the file's absence is not an error.
+apps/invoicing/.env.local
+*.env.local

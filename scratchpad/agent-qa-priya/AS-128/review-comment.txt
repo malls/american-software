@@ -1,0 +1,13 @@
+REVIEW (qa-priya, cold: plan + diff + spec, implementer comment unread) — verdict: PASS. No inline fixes made.
+
+FINDINGS OUTSIDE THE PLAN'S LIST: 0 blocking. Two non-blocking observations, neither against a stated criterion: (a) clientName still reaches the repository untrimmed on both screens (pre-existing, plan §Approach 1 declares it out of scope) — backlog, not a defect; (b) 'Enter a complete email address.' now lives in three files (sign-up, both view models), consistent with the no-export stance — not a defect.
+
+M6 PROBES (45 cases, both screens, green): malformed shapes (@ first/last, two @, inner space/NBSP), empty/whitespace/tab, padded-valid incl. tab+newline and leading NBSP, unicode, exactly 254 vs 255 vs 2000 chars, HTML in the refused email and in the name, clientConfirm=1 + malformed, the same body twice, repeated clientEmail field (array -> blank, no crash), save/generate with a stray malformed clientEmail (303, unaffected), invoice edit-mode POST. Every refusal: 400 text/html, S{4,6}-CLIENT-ERROR-VALIDATION, one clientEmail-error, values echoed as typed and escaped (no raw tags), 0 client/invoice/contract rows. Add-client branches identical in shape after renaming (only a comment differs). Templates untouched, escape via <%= %>.
+
+FALSIFIERS, in place, mutation diff asserted per site, restore proven by git diff --exit-code: M1 fail 1 {S4 screen test}; M2 fail 1 {invoice trim test}; M3 fail 1 {S6 screen test}; M4 fail 1 {contract trim test}; M5 fail 2 {S4 screen test, invoice view-model test}; M6 fail 2 {S6 screen test, contract view-model test}. All six exact to the plan.
+
+COUNTS (--build receipts): master 524/505/0/19 'Image asc-review-as128-master-test Built' -> branch 530/511/0/19 'Image asc-review-as128-test Built', +6 (1 view-model + 2 screen tests per screen); re-run after restores 530/511/0/19, receipt again. Both projects torn down.
+
+FLOOR CHECK (M5), criteria 1-7: all 7 pass — 1-4 by the branch tests plus my probes; 5 by the view-model tests; 6 by `git diff --exit-code` on lib/db, clients.test.js, package files (and views) empty; 7 above. Branch base 3bdd3ee; master has moved only in .lattice since.
+
+Battery: scratchpad/agent-qa-priya/AS-128/ (INDEX.txt, logs, M*.mutation.diff, mutation-results.json).

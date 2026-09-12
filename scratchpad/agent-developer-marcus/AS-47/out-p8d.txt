@@ -1,0 +1,9 @@
+no mutation
+docker compose -p asc-as47-p8d run --rm --build test -- node --test --test-name-pattern=P8 test/contracts.test.js
+RECEIPT project=asc-as47-p8d
+  built: Image asc-as47-p8d-test Built
+  tests=undefined pass=undefined fail=undefined skipped=undefined
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (0):

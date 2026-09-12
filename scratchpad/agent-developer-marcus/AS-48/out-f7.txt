@@ -1,0 +1,11 @@
+assert-applied /contracts/new anchor: 0 -> 1 (expected 0 -> 1)
+docker compose -p asc-impl-as48-f7 run --rm --build test
+RECEIPT project=asc-impl-as48-f7
+  built: Image asc-impl-as48-f7-test Built
+  tests=475 pass=454 fail=3 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (2):
+  ✖ the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, AS-44, AS-45 and AS-46 put them
+  ✖ every href and form action in every template names a route the app registers or a file public/ serves

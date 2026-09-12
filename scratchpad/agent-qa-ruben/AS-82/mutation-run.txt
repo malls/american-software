@@ -1,0 +1,77 @@
+HASH_BEFORE 77b71a100c452c28c750566e25701bf3e77a07d2b5d047718e30aca8df123866
+
+=== M1 delete heartbeat call in poll() | enclosing function poll() { lines 2186-2268 | edit at line 2196 | predicted {2,10}
+✖ AS-82 makeWatcher: every poll rewrites heartbeatAt — including while our own tick is running — and never touches pid/startedAt (2.888834ms)
+✖ AS-82 entry point: the real process heartbeats on its own interval against a temp data dir, and SIGTERM removes the pid file with exit 0 (20060.857541ms)
+ℹ tests 478
+ℹ pass 476
+ℹ fail 2
+✖ AS-82 makeWatcher: every poll rewrites heartbeatAt — including while our own tick is running — and never touches pid/startedAt (2.888834ms)
+✖ AS-82 entry point: the real process heartbeats on its own interval against a temp data dir, and SIGTERM removes the pid file with exit 0 (20060.857541ms)
+OTHER FAILS:
+✖ failing tests:
+restored, hash ok
+
+=== M3 acquireLock condition -> false in fire() | enclosing function fire(sentinel) { lines 2062-2184 | edit at line 2067 | predicted {3,7}
+✖ AS-82 makeWatcher: a message fires exactly one tick — lock taken with our pid/source/nonce/loop marker, highwater advanced, tick_started emitted (9.158458ms)
+✖ AS-82 makeWatcher: the spawn call site passes tickArgv() and tickChildEnv() verbatim, with the settings-file grants, from the repo root (7.138167ms)
+✖ AS-82 makeWatcher: a fire that loses the lock spawns nothing and leaves the highwater alone (8.675458ms)
+✖ AS-82 makeWatcher: shutdown clears the intervals, terminates the child, releases the lock, removes the pid file, exits 0 (5.832666ms)
+ℹ tests 478
+ℹ pass 474
+ℹ fail 4
+✖ AS-82 makeWatcher: a message fires exactly one tick — lock taken with our pid/source/nonce/loop marker, highwater advanced, tick_started emitted (9.158458ms)
+✖ AS-82 makeWatcher: the spawn call site passes tickArgv() and tickChildEnv() verbatim, with the settings-file grants, from the repo root (7.138167ms)
+✖ AS-82 makeWatcher: a fire that loses the lock spawns nothing and leaves the highwater alone (8.675458ms)
+✖ AS-82 makeWatcher: shutdown clears the intervals, terminates the child, releases the lock, removes the pid file, exits 0 (5.832666ms)
+OTHER FAILS:
+✖ failing tests:
+restored, hash ok
+
+=== M6 delete highwater write+rename in fire() | enclosing function fire(sentinel) { lines 2062-2184 | edit at line 2082 | predicted {3} or {2,3}
+✖ AS-82 makeWatcher: a message fires exactly one tick — lock taken with our pid/source/nonce/loop marker, highwater advanced, tick_started emitted (6.590958ms)
+✖ AS-82 makeWatcher: a fire that loses the lock spawns nothing and leaves the highwater alone (6.428083ms)
+ℹ tests 478
+ℹ pass 476
+ℹ fail 2
+✖ AS-82 makeWatcher: a message fires exactly one tick — lock taken with our pid/source/nonce/loop marker, highwater advanced, tick_started emitted (6.590958ms)
+✖ AS-82 makeWatcher: a fire that loses the lock spawns nothing and leaves the highwater alone (6.428083ms)
+OTHER FAILS:
+✖ failing tests:
+restored, hash ok
+
+=== M9 swap tickEnded/loop.settle in settle() | enclosing function settle(code = null, signal = null) { lines 2162-2173 | edit at line 2171 | predicted {5}
+✖ AS-82 makeWatcher: settle releases the lock, then records tick_ended, then folds the tick into the loop — in that order (5.809792ms)
+ℹ tests 478
+ℹ pass 477
+ℹ fail 1
+✖ AS-82 makeWatcher: settle releases the lock, then records tick_ended, then folds the tick into the loop — in that order (5.809792ms)
+OTHER FAILS:
+✖ failing tests:
+restored, hash ok
+
+=== M8 delete unlinkSync(paths.pid) in shutdown() | enclosing function shutdown(signal) { lines 2270-2287 | edit at line 2282 | predicted {8,10}
+✖ AS-82 makeWatcher: shutdown clears the intervals, terminates the child, releases the lock, removes the pid file, exits 0 (5.4905ms)
+✖ AS-82 entry point: the real process heartbeats on its own interval against a temp data dir, and SIGTERM removes the pid file with exit 0 (128.785416ms)
+ℹ tests 478
+ℹ pass 476
+ℹ fail 2
+✖ AS-82 makeWatcher: shutdown clears the intervals, terminates the child, releases the lock, removes the pid file, exits 0 (5.4905ms)
+✖ AS-82 entry point: the real process heartbeats on its own interval against a temp data dir, and SIGTERM removes the pid file with exit 0 (128.785416ms)
+OTHER FAILS:
+✖ failing tests:
+restored, hash ok
+
+=== M2 heartbeat moved below the child gate in poll() | enclosing function poll() { lines 2186-2268 | edit at line 2195 | predicted {2}
+✖ AS-82 makeWatcher: every poll rewrites heartbeatAt — including while our own tick is running — and never touches pid/startedAt (8.885375ms)
+ℹ tests 478
+ℹ pass 477
+ℹ fail 1
+✖ AS-82 makeWatcher: every poll rewrites heartbeatAt — including while our own tick is running — and never touches pid/startedAt (8.885375ms)
+OTHER FAILS:
+✖ failing tests:
+restored, hash ok
+
+HASH_AFTER worktree 77b71a100c452c28c750566e25701bf3e77a07d2b5d047718e30aca8df123866 UNCHANGED
+(node:86409) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)

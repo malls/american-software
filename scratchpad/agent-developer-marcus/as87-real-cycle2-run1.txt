@@ -1,0 +1,11 @@
+✔ AS-87 real build: the state file heartbeats through the build and deploy-*.log carries the BuildKit output (92772.194125ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 92818.678208
+
+exit 0 2026-09-11T20:02:48.769Z

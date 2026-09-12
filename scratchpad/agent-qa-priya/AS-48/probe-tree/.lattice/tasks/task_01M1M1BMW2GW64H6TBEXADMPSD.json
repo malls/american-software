@@ -1,0 +1,37 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "medium",
+  "created_at": "2026-09-03T16:24:16Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": "Board request: DM conversation 7, msg 521 (2026-09-03), \"set up posthog and sentry, low priority, observability needs to be on the radar\". Depends on the observability design task (see depends_on link); do not start before that design note exists at docs/engineering/04-observability-posture.md and its board ask has been ANSWERED.\n\nWHAT: server-side error tracking for apps/invoicing \u2014 uncaught exceptions, unhandled rejections, and the catch blocks in routes/*.js that currently swallow into a response with no record (grep 'catch (err)' in routes/ and lib/health.js). Today the only error surface is console output inside the container; a failure a user hits leaves no trace we can read afterwards.\n\nHOW (bounded by the design note, which decides SDK vs raw ingest): whichever transport is chosen, it lives in exactly one egress module (mirror of lib/stripe's shape), and the dependency-policy scan (apps/invoicing/test/dependency-policy.test.js \u2014 the line-557 'no outbound HTTP client outside the Stripe module' test and the sanctioned-constructs test) is extended to sanction that module and ONLY that module. The extension must be shown failing first: an import of the egress module from a route, or a fetch to the vendor host from anywhere else, must turn the suite red. Config follows lib/config.js conventions: INVOICING_SENTRY_DSN (secret: true, default null, required: false); with no DSN the module is a no-op and the app boots exactly as it does today. The suite must still pass under --network none (stack decision rule 5) \u2014 the test harness never has a DSN.\n\nDATA POSTURE: the design note's deny-list is enforced here. No request bodies, no local variables, no client emails, no invoice amounts or line items, no contract text, no session tokens, no Stripe ids in any error payload. Error type, message (sanitised), stack, app version, route name, and an opaque request id are the allow-list. A test asserts a planted PII-bearing error is scrubbed before it reaches the transport.\n\nBOARD GATE: a Sentry account (cloud, free tier or otherwise) or a self-hosted Sentry deployment is an external service commitment and is board-gated per CLAUDE.md \u2014 including free accounts. The implementer does NOT create an account, does NOT generate a DSN, and does NOT point the app at any host, on their own initiative. The DSN arrives from the board via the same path as the Stripe key (docs/engineering/02 pattern: .env.local, never committed). If the board ask has not been answered when this task is picked up, the implementer builds the no-DSN path, proves the guards, and moves the task to needs_human with the one-line ask, rather than stalling.\n\nPRIORITY: low (board's words). Sequencing: should land before the first non-employee user touches the product; it does not block any D1 v1 task and does not jump the D1 line or the chat cluster.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M1M1BMW2GW64H6TBEXADMPSD",
+  "last_event_id": "ev_01M1M1BVZSEGKS6VJ86HH3J4W1",
+  "last_status_changed_at": "2026-09-03T16:24:16Z",
+  "priority": "low",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-03T16:24:23Z",
+      "created_by": "agent:cto-owen",
+      "note": null,
+      "target_task_id": "task_01M1M1BMRVY1BNPA94XS5SJS8Y",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-77",
+  "status": "backlog",
+  "tags": [
+    "observability",
+    "invoicing"
+  ],
+  "title": "Observability: Sentry error tracking for apps/invoicing \u2014 single egress module behind the chokepoint guard, PII deny-list, board-gated DSN",
+  "type": "task",
+  "updated_at": "2026-09-03T16:24:23Z",
+  "urgency": "low"
+}

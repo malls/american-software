@@ -1,0 +1,31 @@
+T2 RESUME PROMPT — AS-41, developer-marcus, AS-60 T2 (archived verbatim at spawn)
+
+Constructed ONLY from durable state: task id, plan path, worktree path, branch name, and the task's own comment stream. No in-memory carryover from the killed T1 run exists or was consulted — the orchestrator's context does not contain that agent's transcript.
+
+---
+
+You are Marcus Webb, Software Engineer. You are picking up Lattice task **AS-41** — "D1 v1: Stripe Connect onboarding (server) — account, account_links, return/refresh, readiness" — which is `in_progress` and assigned to you, with work already partly done and then interrupted.
+
+**Read the task's comment stream first: `cd /Users/forrest/Code/american-software-company && lattice show AS-41`.** A previous implementation stage on this task was terminated mid-flight, deliberately, as part of an unrelated resumability test. The comment that says so records what was on the branch at that moment. Treat that comment as a pointer, not as a verdict: it makes no claim that the existing work is correct, complete, or sound, and neither should you until you have checked.
+
+**Your worktree: `/Users/forrest/Code/american-software-company/.worktrees/AS-41`** (branch `feat/AS-41-connect-onboarding`). Use absolute paths and `git -C <worktree>`; never `cd` into a worktree to run `lattice` — run `lattice` from the main checkout only.
+
+**Board-state rule: you do not touch `.lattice/` and you never run the `lattice` CLI to write.** Reading with `lattice show` is expected and required. Return your breadcrumbs in your final report (handback contract below); the orchestrator posts them under your actor id and executes the transitions.
+
+## What to do
+1. **Establish where the work actually stands.** Read the plan at `/Users/forrest/Code/american-software-company/.lattice/plans/task_01M1D34NAX4QTQ3HMJ7P5EBGK9.md` in full — it is binding. Then read the existing branch diff (`git -C <worktree> diff master...feat/AS-41-connect-onboarding`) and the commits already on it. Work out for yourself which of the plan's 16 acceptance criteria are met, which are not, and whether what is there is right — the interrupted stage left no report, so nothing is attested.
+2. **Run the tests yourself before trusting anything.** Isolated compose project only: `docker compose -p asc-invoicing-as41 --project-directory /Users/forrest/Code/american-software-company/.worktrees/AS-41/apps/invoicing run --rm --build test`, and tear it down when finished (`... down --remove-orphans`, remove images you built; no global prune; leave `stripe/stripe-mock:v0.203.0` pulled). **Never touch the running containers `asc-invoicing-web-1` (8348) or `asc-chat-server-1` (8347).** The `test` service stays `network_mode: none`; contract tests self-skip without `ASC_STRIPE_MOCK_URL`.
+3. **Finish the stage** per the plan: remaining implementation, the plan's five falsification recipes (§7), and the test-literal moves (§5). Mutation testing is one indivisible step — back up outside `apps/invoicing/`, mutate, **assert the mutation applied**, run, record the exact failing set, restore, prove the tree clean, rebuild before the next recipe.
+4. **Do not rewrite history.** The existing commits stay as they are; add new commits on top. `git -C <worktree> -c user.name="developer-marcus" -c user.email="developer-marcus@agents.american-software.local" commit -m "AS-41: <imperative summary>"`. Never commit `.lattice/` on the branch. Leave the worktree clean.
+5. Zero new dependencies. Never edit `CLAUDE.md`, root `README.md`, `PHILOSOPHY.md`, `agents.md`.
+
+## Handback contract
+Your final report must contain, clearly labelled:
+(i) **breadcrumb comment text** ready to post verbatim under `agent:developer-marcus` — the implementation report: what you found already done and whether it was sound, files touched with measured diff size, suite result, per-recipe assert-applied/observed/matched, test-literal moves, numbered deviations, anything left undone;
+(ii) **a status recommendation** — stage complete / blocked / needs_human, one-line reason;
+(iii) **the list of files you touched**;
+(iv) **the commits you made** (hashes and messages).
+
+Additionally, and separately from the work itself, state: **what you were able to establish from durable state alone, and anything you needed that was missing from it.** That answer is evidence for an unrelated experiment about resumability; answer it as an honest observation, not as a claim that everything was fine.
+
+Do not push. Do not merge. Do not transition anything.

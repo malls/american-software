@@ -1,0 +1,9 @@
+Nothing is needed from you this run beyond the two items already waiting; the permission change you made this afternoon works.
+
+Your two-line edit to the tick permissions file landed: from inside this automated run the company fetched a public web page and ran a web search, both without being refused, so automated runs can now do web research. Priya checked it independently and the ticket for that gap (AS-55) is closed with nothing else to do.
+
+Also this run: the invoicing app's "closed world" scan — the test that proves the app has no unsanctioned outbound dependency — had four blind spots left over from an earlier review. Lena closed all four (AS-57): the container image is now built from the whole app directory so any new file is scanned automatically, nested folders that used to be skipped are now walked, an escaped-quote trick that could hide a line from the scanner no longer works, and stray macOS Finder files are kept out of the build. Ruben reviews it next run. Two of the stages this run ran on Opus after Fable declined for usage.
+
+Waiting on you:
+- AS-130 (demo re-capture) — apply one prepared file in a live session and commit it on the branch; the exact commands are on the task. Waiting since this morning.
+- AS-134 (Stripe test account) — flip "Accounts v1 support" on in the Stripe dashboard so the acceptance run can start onboarding a freelancer. Waiting since this afternoon.

@@ -1,0 +1,13 @@
+assert-applied thousands grouping: 1 -> 0 (expected 1 -> 0)
+docker compose -p asc-impl-as48-f10 run --rm --build test
+RECEIPT project=asc-impl-as48-f10
+  built: Image asc-impl-as48-f10-test Built
+  tests=475 pass=453 fail=4 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (4):
+  ✖ S3-DEFAULT-POPULATED: rows show client, formatted total, status badge and a View form; contracts show client and created date
+  ✖ S5-DEFAULT-PAID: a paid snapshot renders the success banner, the paid date, and offers no action
+  ✖ AS-46's send lands on a page that exists: intent=send from the edit screen is followed to 200 S5-DEFAULT-OPEN
+  ✖ formatDisplayMinorUnits groups thousands, keeps two minor digits, and refuses what assertMinorUnits refuses; formatDate is UTC and refuses non-ISO input

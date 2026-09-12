@@ -1,0 +1,36 @@
+diff --git a/.claude/skills/d1-demo-artifact/SKILL.md b/Users/forrest/Code/american-software-company/scratchpad/agent-developer-lena/AS-130/SKILL.md
+index aed3d13..4bcda95 100644
+--- a/.claude/skills/d1-demo-artifact/SKILL.md
++++ b/Users/forrest/Code/american-software-company/scratchpad/agent-developer-lena/AS-130/SKILL.md
+@@ -36,8 +36,12 @@ docs/design/tokens/tokens.css          ← the look (AS-29); inlined by build.mj
+ 1. **Transcript.** From `apps/invoicing/` (a clean checkout of the branch or
+    master you are capturing):
+    ```
+-   DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose run --rm --build demo > /tmp/demo.out; docker compose down
++   DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose run --rm --build demo > /tmp/demo.out; docker compose --profile tools down
+    ```
++   `--profile tools` on the `down` is what stops stripe-mock: `demo` and
++   `stripe-mock` sit under that profile, and a `down` that loads the compose
++   file without it exits 0 while skipping them (measured 2026-09-12, Compose
++   v5.3.0); check with `docker ps -a --filter name=asc-invoicing`.
+    The container's stdout begins at the line `D1 core-loop walkthrough (AS-90)`;
+    compose v5 prints its build progress on stdout *ahead* of it, so cut there:
+    the transcript is everything from that line to the end. Confirm the run
+@@ -57,8 +61,16 @@ docs/design/tokens/tokens.css          ← the look (AS-29); inlined by build.mj
+    docker compose -p asc-capture-<n> -f apps/invoicing/compose.yaml -f .claude/skills/d1-demo-artifact/compose.capture.yaml \
+      run --rm -d --build -p 127.0.0.1:8349:8348 -p 127.0.0.1:8350:8350 --name asc-capture-<n>-web demo node demo/serve.mjs
+    node .claude/skills/d1-demo-artifact/capture.mjs --base http://127.0.0.1:8349 --ledger http://127.0.0.1:8350 --commit <sha>
+-   docker compose -p asc-capture-<n> -f apps/invoicing/compose.yaml -f .claude/skills/d1-demo-artifact/compose.capture.yaml down -v
++   docker compose --profile tools -p asc-capture-<n> -f apps/invoicing/compose.yaml -f .claude/skills/d1-demo-artifact/compose.capture.yaml down -v --remove-orphans
+    ```
++   Both teardown flags are needed: `--profile tools` because `demo` and
++   `stripe-mock` sit under that profile and a `down` without it skips them
++   (the mock stays up and both networks report "still in use"), and
++   `--remove-orphans` because the `--name`d `run --rm -d` one-off is not a
++   service container `down` would otherwise remove (it stays up holding 8349
++   and 8350). Measured 2026-09-12, Compose v5.3.0: the bare `down -v` exits 0
++   leaving 2 containers, 2 networks and both ports held; the line above leaves
++   nothing. Check: `docker ps -a --filter name=asc-capture-<n>` prints nothing.
+    Zero dependencies: node's built-in `WebSocket` drives the host's Chrome
+    (`/Applications/Google Chrome.app/…`) over the DevTools protocol. It walks
+    the demo's own path in the demo's order — signs up through the real form,

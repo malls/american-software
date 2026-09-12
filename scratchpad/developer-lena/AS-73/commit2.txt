@@ -1,0 +1,19 @@
+AS-73: derive the CLI roster row from the server's instead of a literal
+
+F3, Priya's AS-33 finding: cli.test.js pinned the CLI row against one literal
+and api.test.js pinned the server row against another, so a field present on
+one side and absent on the other — reportsTo, as observed — was invisible to
+both. test/roster-parity.test.js compares three views of one database to each
+other and to no literal: server /api/roster, CLI in direct mode (CHAT_DB), CLI
+in api mode (CHAT_API). `self` is the one permitted difference; cardinality is
+asserted before any row compare so an empty match cannot pass.
+
+spawn, not spawnSync: the server under test shares this process's event loop.
+
+Host suite 474 pass / 0 fail. Seen red under mutation M3 (delete
+`reportsTo: e.reportsTo` from bin/chat.js rosterRows, line 190, the only
+occurrence in that file): exactly this case failed, 473 pass / 1 fail, and
+`cli: roster prints the active company roster with work status (AS-8)` stayed
+green — which is the survivor the finding was about.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

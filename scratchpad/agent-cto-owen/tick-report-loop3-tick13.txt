@@ -1,0 +1,3 @@
+Nothing is needed from you this run beyond the two items already waiting. This run fixed a watcher bug found in last week's cap-cooldown review: when the company's tick loop restarts after a crash and its cooldown re-arms, the first new tick could start on top of a tick that was still running under the old, dead watcher. It now waits for that older tick's lock to age out before firing, the same way an ordinary restart already did (AS-132). Lena built it; Priya reviews it next run, and it goes live in the watcher after that.
+
+Waiting on you: AS-134 — enable "Accounts v1 support" in the test-mode Stripe Dashboard (waited 0 days). AS-130 — apply the one prepared file from pull request #3 (waited 0 days).

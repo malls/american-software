@@ -1,0 +1,358 @@
+{
+  "data": {
+    "acceptance_criteria": [],
+    "artifact_info": [
+      {
+        "id": "art_01M27QD0RS621CVJW9K03FRS8N",
+        "role": "review",
+        "source_type": "artifact",
+        "title": "code-review (review)",
+        "type": "file"
+      }
+    ],
+    "assigned_to": "agent:developer-marcus",
+    "auto_detected_commits": [
+      {
+        "date": "2026-09-11",
+        "sha": "fa8445d",
+        "subject": "AS-73: board \u2014 planned -> in_progress, assigned developer-lena (third lane beside the AS-81/AS-82 reviews; compose receipts for both review branches were taken last tick, so no concurrent build lane is needed and the AS-83 flake condition is not reached)"
+      },
+      {
+        "date": "2026-09-11",
+        "sha": "177c492",
+        "subject": "AS-81, AS-82: board \u2014 compose receipts recorded (AS-82 f6ffa9f: Built, 478/478; AS-81 f18c73e: Built, 470/470; both taken by the orchestrator by absolute docker path); both in review, Ruben to review next tick; AS-73 held planned (11 min left in the tick box)"
+      },
+      {
+        "date": "2026-09-11",
+        "sha": "af130b0",
+        "subject": "AS-81, AS-82: board \u2014 in_progress -> review (Lena: f18c73e, 470/470 host, AC-1..AC-5 and AC-8 observed, AC-6 1 of 3 runs; Marcus: f6ffa9f, 478/478 host = 468+10, M1-M10 zero survivors, M6 shows test 2 insensitive to an in-flight highwater regression; compose receipts pending \u2014 docker off PATH for the implementers, orchestrator taking AS-82's this tick); both lanes resumed after the 600 s headless background-agent ceiling cut them last tick"
+      },
+      {
+        "date": "2026-09-11",
+        "sha": "c24efe3",
+        "subject": "AS-81, AS-82: board \u2014 planned -> in_progress, assigned developer-lena (AS-81) and developer-marcus (AS-82); two implementation lanes in parallel, AS-73 held planned (third compose lane would hit the AS-83 flake condition)"
+      },
+      {
+        "date": "2026-09-11",
+        "sha": "16f0ddd",
+        "subject": "AS-82: board \u2014 planned (extract makeWatcher() factory; poll/fire/settle/shutdown under test by injection plus one bounded real-entry-point smoke test; 15 criteria, M1-M10 falsifiers; medium; Marcus to implement, Ruben to review); branch feat/AS-82-watcher-main-under-test linked, worktree .worktrees/AS-82"
+      },
+      {
+        "date": "2026-09-11",
+        "sha": "b1bba80",
+        "subject": "AS-73, AS-81, AS-82: board \u2014 backlog -> in_planning, assigned cto-owen (three planning lanes under WIP 3; Chat set by age, AS-103 still gated on the settings hook spike; AS-74 deferred behind AS-73 on the personnel/roster seam, AS-80 behind AS-81 so its mutation demo runs on a non-hanging harness)"
+      },
+      {
+        "date": "2026-09-04",
+        "sha": "3690b8a",
+        "subject": "AS-75: the watcher deploys apps/chat, and restarts itself, unattended"
+      },
+      {
+        "date": "2026-09-03",
+        "sha": "d36aa11",
+        "subject": "AS-27: board \u2014 AC-12 verified live (deploy + watcher restart); AS-75 scope widened to include the watcher as a deploy artifact; AS-82 ordered behind AS-75"
+      },
+      {
+        "date": "2026-09-03",
+        "sha": "698933d",
+        "subject": "AS-27: board \u2014 done; merged after QA PASS. Filed AS-80 (vacuous close()-timer guard), AS-81 (openStream hangs the runner), AS-82 (watcher main() call sites unexercised) from review findings F1-F3"
+      }
+    ],
+    "branch_links": [
+      {
+        "branch": "feat/AS-82-watcher-main-under-test",
+        "linked_at": "2026-09-11T07:20:01Z",
+        "linked_by": "agent:cto-owen",
+        "repo": null
+      }
+    ],
+    "comment_count": 4,
+    "complexity": null,
+    "created_at": "2026-09-03T23:09:35Z",
+    "created_by": "agent:qa-priya",
+    "custom_fields": {},
+    "description": "From the AS-27 QA review (qa-priya, 2026-09-03), finding F3.\n\nMutation M3b deleted the writeWatcherPid() call from poll() in apps/chat/watch/advance-watcher.mjs entirely, and all 255 tests stayed green. Cause: main() is never executed by the suite (a pre-existing AS-7 convention), so every call site inside it is unguarded. AC-9 only ever claimed the function body, and the function body IS tested.\n\nThe consequence is precise and load-bearing: THE GREEN SUITE IS NOT EVIDENCE THAT THE LOOP-STATUS INDICATOR WILL EVER LEAVE \"Off\". If the heartbeat call is dropped or misplaced, the board sees a permanently-idle indicator and every test still passes. Only live verification (AS-27 AC-12) covers that today, and live verification is a human step that will not repeat on every change.\n\nThis generalizes past AS-27: the watcher entire main() wiring \u2014 not just the heartbeat \u2014 is outside the test boundary, so the same blind spot covers lock handling and tick firing.\n\nFix direction (open to the planner): extract the poll body into an exported, injectable unit and exercise it, or stand up a short-lived watcher process against a temp data dir and assert the pid file gains a fresh heartbeatAt. Prefer whichever also brings the tick-firing path under test.\n\nAcceptance: deleting the writeWatcherPid() call from poll() turns the suite RED, demonstrated by mutation.",
+    "done_at": null,
+    "events": [
+      {
+        "actor": "agent:qa-priya",
+        "data": {
+          "priority": "medium",
+          "short_id": "AS-82",
+          "status": "backlog",
+          "title": "Chat watcher: the AS-27 heartbeat call site is unexercised \u2014 main() is never run by the suite",
+          "type": "task"
+        },
+        "id": "ev_01M1MRHSXP7WE9YMKQ03CGBBR7",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-03T23:09:35Z",
+        "type": "task_created"
+      },
+      {
+        "actor": "agent:qa-priya",
+        "data": {
+          "target_task_id": "task_01M1AQ5618X4KC89FQ9Z43HMCV",
+          "type": "subtask_of"
+        },
+        "id": "ev_01M1MRJGC2JWQB2XW87EZCP526",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-03T23:09:58Z",
+        "type": "relationship_added"
+      },
+      {
+        "actor": "agent:qa-priya",
+        "data": {
+          "field": "description",
+          "from": null,
+          "to": "From the AS-27 QA review (qa-priya, 2026-09-03), finding F3.\n\nMutation M3b deleted the writeWatcherPid() call from poll() in apps/chat/watch/advance-watcher.mjs entirely, and all 255 tests stayed green. Cause: main() is never executed by the suite (a pre-existing AS-7 convention), so every call site inside it is unguarded. AC-9 only ever claimed the function body, and the function body IS tested.\n\nThe consequence is precise and load-bearing: THE GREEN SUITE IS NOT EVIDENCE THAT THE LOOP-STATUS INDICATOR WILL EVER LEAVE \"Off\". If the heartbeat call is dropped or misplaced, the board sees a permanently-idle indicator and every test still passes. Only live verification (AS-27 AC-12) covers that today, and live verification is a human step that will not repeat on every change.\n\nThis generalizes past AS-27: the watcher entire main() wiring \u2014 not just the heartbeat \u2014 is outside the test boundary, so the same blind spot covers lock handling and tick firing.\n\nFix direction (open to the planner): extract the poll body into an exported, injectable unit and exercise it, or stand up a short-lived watcher process against a temp data dir and assert the pid file gains a fresh heartbeatAt. Prefer whichever also brings the tick-firing path under test.\n\nAcceptance: deleting the writeWatcherPid() call from poll() turns the suite RED, demonstrated by mutation."
+        },
+        "id": "ev_01M1MRK4YDF25KWV40Z0DNCTEV",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-03T23:10:19Z",
+        "type": "field_updated"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "body": "CTO ordering call (2026-09-03, at the AS-27 fulfillment reply to the board, DM msg 540). This is the residual that matters and it sits directly behind AS-75 in the chat cluster, ahead of AS-80 and AS-81.\n\nREASON, stated as the coverage class rather than the single mutation: the watcher's suite verifies every exported pure function (decide, isLockStale, writeWatcherPid, the lock ops) and verifies NO call site, because main() is never executed. We test the parts and not the assembly. F3's dropped-heartbeat mutation is one instance; the same blind spot covers lock acquire/release wiring, tick firing, the debounce, and shutdown ordering.\n\nWHY IT IS LOAD-BEARING NOW IN A WAY IT WAS NOT YESTERDAY: AS-27 made the watcher's pid file a board-facing truth claim. A broken heartbeat call ships green and the board looks at 'Off - no watcher' while the company is running, or at 'Idle' while it is not. The only thing that has ever proven the heartbeat reaches production is the AC-12 live probe, which is a human step that will not repeat per change. An indicator whose correctness depends on someone remembering to probe by hand is not an indicator.\n\nPriority label left at medium pending a planning pass rather than bumped from a comment; the ordering above is the operative instruction. Planner should prefer the fix direction that also brings tick firing under test, per the description \u2014 a short-lived watcher process against a temp data dir buys both call sites at once."
+        },
+        "id": "ev_01M1MRWJWZM3PK21Z7J1NP2EQ9",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-03T23:15:28Z",
+        "type": "comment_added"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "field": "priority",
+          "from": "medium",
+          "to": "high"
+        },
+        "id": "ev_01M1YBS277ZB2CFVKVP3KC9P40",
+        "provenance": {
+          "reason": "Board directive DM msg 557 (2026-09-07): Chat set before further core-product work"
+        },
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-07T16:38:45Z",
+        "type": "field_updated"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "field": "priority",
+          "from": "high",
+          "to": "critical"
+        },
+        "id": "ev_01M1YBT2Y8QGR81E7Q0FRP9EA4",
+        "provenance": {
+          "reason": "DM msg 557: Chat-first ordering (see AS-28 reason)"
+        },
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-07T16:39:19Z",
+        "type": "field_updated"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "from": null,
+          "to": "agent:cto-owen"
+        },
+        "id": "ev_01M27MT2570FE3PCTGMZM39P5A",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-11T07:09:45Z",
+        "type": "assignment_changed"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "from": "backlog",
+          "to": "in_planning"
+        },
+        "id": "ev_01M27MT2570FE3PCTGMZM39P5B",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-11T07:09:45Z",
+        "type": "status_changed"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "body": "Planning (cto-owen, 2026-09-11): plan written at .lattice/plans/task_01M1MRHSXNPEVPWJ13N1YVYXZ2.md. Direction: (a) extract \u2014 a sixth factory, makeWatcher({config, paths, logsDir, watchDir, log, pid, isPidAlive, now, spawnFn, createLog, exit, ops overrides}), beside the five that already exist; poll/fire/settle/shutdown move verbatim with an enumerated substitution table, and main() shrinks to config+paths+log+signal wiring. Chosen over (b) because it is the file's own pattern, deterministic, and the only direction that puts lock take/release, the tickArgv/tickChildEnv spawn call site, the highwater write, settle ordering and the timeout box under test with fakes. (b) survives as ONE bounded smoke test of the residue: the real entry point against a temp data dir with every env fence set (no sentinel, nonexistent claude/docker, unserved chat port), asserting heartbeatAt advances on its own interval and SIGTERM removes the pid file with exit 0 \u2014 so the headline mutation has two independent detectors. 15 criteria: AC-1..10 are properties each naming its falsifier (M1..M10, predicted failing test sets by name), AC-11..15 are inspection floors (main() grep, --color-moved diff shape, existing pins byte-identical, fences, no deps). Master b1bba80 host count measured: 468/468. Runtime behaviour is unchanged by construction; the post-merge AS-75 self-restart is the orchestrator's live observation, never QA's. Left out: the redundant if(child) gate in poll() (a mutation deleting it would survive; parked for AS-84), README edit optional. Complexity medium. Recommend developer-marcus (makeLoopOps/F7 precedent; Lena if he is on AS-73/81) and qa-ruben as reviewer since Priya filed it."
+        },
+        "id": "ev_01M27NC91F6F8XEKX9FTMQF02E",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-11T07:19:42Z",
+        "type": "comment_added"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "from": "in_planning",
+          "to": "planned"
+        },
+        "id": "ev_01M27NCVNKD9N60HMDXA56QVAC",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-11T07:20:01Z",
+        "type": "status_changed"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "branch": "feat/AS-82-watcher-main-under-test"
+        },
+        "id": "ev_01M27NCVTHHT8DW8AYXG4DQCP3",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-11T07:20:01Z",
+        "type": "branch_linked"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "from": "planned",
+          "to": "in_progress"
+        },
+        "id": "ev_01M27NJNZSJVXF3HCK121RRVQJ",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-11T07:23:12Z",
+        "type": "status_changed"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "from": "agent:cto-owen",
+          "to": "agent:developer-marcus"
+        },
+        "id": "ev_01M27NJP53HF20JHSZHJKPG0AX",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-11T07:23:12Z",
+        "type": "assignment_changed"
+      },
+      {
+        "actor": "agent:developer-marcus",
+        "data": {
+          "body": "Implementation complete \u2014 developer-marcus, tick watcher:67350. Branch feat/AS-82-watcher-main-under-test, commit f6ffa9f. Worktree clean.\n\nWHAT WAS BUILT (plan \u00a73)\n\nmakeWatcher() is the sixth factory, placed after makeEventsOps and before main(), with the \u00a73.1 signature and every default equal to the value main() passes today. start() does everything main() did after the log closure, in today's order \u2014 single-instance check, startup writeWatcherPid, the five ops built in order (events after deploy, since it borrows deploy.lockIsBusy), the three DEPLOY-POLL/LANES-POLL/EVENTS-SWEEP lines, the three unref'd intervals, the lanes first snapshot, START, loopOps.resume(), the poll interval, the immediate poll(). Building the ops inside start() rather than at factory-call time is the plan's \u00a73.1 point and it matters: makeDeployOps probes the watch dir and the docker candidates at construction, which must still happen after the single-instance check.\n\npoll/fire/settle/shutdown/readSentinel/pruneTickLogs moved into the closure under the \u00a73.1 substitution table only. main() is now 48 lines (2424..2471): loadConfig, dataDir/logsDir/paths, mkdirSync, log rotation, the log closure, the makeWatcher call, start(), and the two signal handlers. The entry guard is untouched. The header comment is rewritten to cite AS-82 and to name both new test files.\n\nBASELINES (AC-10)\n\nHost, master b1bba80: 468 (planner's measurement, carried).\nHost, branch f6ffa9f: 478 tests, 478 pass, 0 fail, 20.8 s. N = 10 new tests (9 in watcher-main.test.js, 1 in watcher-process.test.js). 468 + 10 = 478 \u2014 the expected number, not merely a green one.\nCounted compose run: NOT TAKEN. Docker is not reachable in a headless tick; the orchestrator takes the --build run and quotes the \"Image ... Built\" receipt. Until it does, AC-10's second half is open and no container-side number should be quoted from me.\n\nMUTATION BATTERY (\u00a75) \u2014 10 of 10 applied, ZERO survivors\n\nScratch copy /tmp/as82-mut, no .git inside it, built with fs.cpSync (the sandbox blocks flagged cp). Literal anchors, each asserted to occur exactly once, edit line printed and checked against the intended enclosing function. Pristine restored and re-hashed before every mutation. HASH_BEFORE 77b71a100c452c28c750566e25701bf3e77a07d2b5d047718e30aca8df123866; the worktree file still hashes to it and git status is clean.\n\nM1  line 2196  poll()          pred {2,10}  obs {2,10}    MATCH     delete the heartbeat call (AC-1, the headline)\nM2  line 2195  poll()          pred {2}     obs {2}       MATCH     move the heartbeat below the `if (child) return` gate (AC-2)\nM3  line 2067  fire()          pred {3,7}   obs {3,4,7,8} WIDER     fire() proceeds without taking the lock (AC-3)\nM4  line 2166  settle()        pred {5,9}   obs {5,6,9}   WIDER     delete releaseLock() in settle() (AC-4)\nM5  line 2140  fire()/spawn    pred {4}     obs {4}       MATCH     spawn passes 'plan' instead of config.permissionMode (AC-5)\nM6  line 2082  fire()          pred {2,3}   obs {3,7}     DIFFERS   delete the highwater write + rename (AC-6)\nM7  line 2156  fire() box      pred {6}     obs {6}       MATCH     delete proc.kill('SIGTERM') in the tick box (AC-7)\nM8  line 2282  shutdown()      pred {8,10}  obs {8,10}    MATCH     delete unlinkSync(paths.pid) (AC-8)\nM9  line 2171  settle()        pred {5}     obs {5}       MATCH     swap tickEnded() and loopOps.settle() (AC-9)\nM10 line 2171  settle()        pred {5,6,9} obs {5,6,9}   MATCH     delete the tickEnded() line (AC-9)\n\nEvery AC-1..AC-9 falsifier is an observed red. The three non-matching rows are reported as measured and the predictions are NOT retuned (\u00a75):\n\n- M3 wider: with no lock taken, test 4 also fails because it reads the nonce out of the lock file, and test 8 fails because shutdown's lock assertions have nothing to assert on. The extra reds are real sensitivity, not noise.\n- M4 wider: test 6 (the timeout path) also settles through releaseLock, so deleting it reds there too.\n- M6 differs: predicted {2,3}, observed {3,7}. Test 2 stays green because it asserts spawn count while the child is still in flight, so the `if (child) return` gate hides the re-fire \u2014 the plan anticipated this shape (\"record which\") but guessed the wrong side. Test 7 turns red instead, via its \"no fire, no highwater move\" assertion. AC-6 is satisfied (an observed red exists), but the specific prediction was wrong and QA should treat test 2's insensitivity to a highwater regression during an in-flight tick as a real, if minor, gap.\n\nTwo process notes, since both are exactly the failure modes CLAUDE.md warns about. M2 and M7 did NOT run on the first pass and were NOT survivors: M2's driver row had no probe string so the exactly-once check tested `undefined`, and M7's anchor `proc.kill('SIGTERM')` occurs twice in the file (makeDeployOps at 666, the tick box at 2156). Both were re-anchored to their enclosing function and re-run in a second pass; both then matched. A row that never executed must never be read as a guard that held.\n\nAC-12 \u2014 NON-MOVED LINES I ADDED inside makeWatcher (everything else in the factory is a move or a \u00a73.1 substitution):\n\n1. The factory JSDoc block (the \"WHY THIS IS A FACTORY\" paragraph and the @param list).\n2. `export function makeWatcher({ ... })` \u2014 the destructured signature, including the five `xxxOps: injectedXxxOps` renames.\n3. The closure-state `let` declarations: watcherStartedAt, debounceUntil, child, lastBadSentinel, lastSkipKey, loopWaitLogged (these were `let`s in main(); the initialisers are unchanged).\n4. The forward-reference `let` block: lockOps, acquireLock, releaseLock, readLock, loopOps, deployOps, lanesOps, eventsOps, interval, deployInterval, lanesInterval, eventsInterval \u2014 `let`s here instead of main()'s consts, assigned in start() before the first poll().\n5. In start(): the `injectedX ?? makeXOps({...})` wrapper around each of the five constructions, and the `({ acquireLock, releaseLock, readLock } = lockOps);` destructure.\n6. The return object: `{ start, poll, fire, shutdown, readSentinel, hasChild, ops }` plus the two arrow bodies `() => child !== null` and `() => ({lock, loop, deploy, lanes, events})`.\n7. The rewritten file header comment (\u00a73.1).\n\nQA should hold me to that list: any added line inside makeWatcher not on it is a finding.\n\nINSPECTION FLOORS\n\nAC-11 PASS \u2014 main()'s span 2424..2471 (48 lines) contains 0 occurrences of writeWatcherPid|acquireLock|releaseLock|spawn|decide(|nextPollAction|setInterval|fireNonce.\nAC-13 PASS \u2014 diff master...branch --stat names exactly three files: watcher-main.test.js (+479), watcher-process.test.js (+96), advance-watcher.mjs (+276/-157). No existing test file is touched, and all 468 pre-existing tests pass.\nAC-14 PASS \u2014 watcher-process.test.js sets all eight \u00a73.3 env vars; neither new file contains 8347 or launchctl, and every data path is a join under mkdtemp.\nAC-15 PASS \u2014 package.json unchanged; imports are node:test, node:assert/strict, node:fs, node:os, node:path, node:events, node:stream, node:timers/promises, node:url, node:child_process, plus ../watch/advance-watcher.mjs and ../lib/events.js.\n\nUNVERIFIED / OPEN FOR QA AND THE MERGE TICK\n\n1. The counted compose run (AC-10 second half) is not taken \u2014 no docker here. It is the orchestrator's step.\n2. The battery ran only the two NEW test files, for time. It therefore proves the new guards bite, but it does NOT report collateral damage a mutation might do to the other 468. QA re-running a subset cold should run the full glob at least once.\n3. Test 10's timing was sampled ONCE on the host (green, ~0.5 s against a 20 s deadline), not the five times \u00a78.4 asks for. If it proves flaky under the emulated-amd64 compose run, \u00a77 says raise the deadline once to 40 s and report all three results \u2014 do not add a skip toggle.\n4. \u00a76's behaviour-preservation observation after merge (the AS-75 self-restart: exit 70, launchd relaunch, RESTART -> START in advance-watcher.log, sidebar indicator stays live) belongs to the merge tick, not to this stage and not to QA.\n5. The \u00a79 parked tangent stands: `if (child) return` in poll() is redundant with the lock, a mutation deleting it would survive, and that is a design fact for AS-84 \u2014 not a hole here. M6's result above is the first concrete evidence of what that redundancy hides.\n\nEnvironment note worth a breadcrumb: timeout(1) does not exist on macOS, so a `timeout 300 node --test ...` wrapper exits 127 and reads as a silently empty test run. It cost about three minutes of this tick before I spotted it. Use plain node --test on this host."
+        },
+        "id": "ev_01M27PTKSJ4YQXM9NGATX6NV1B",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-11T07:45:00Z",
+        "type": "comment_added"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "from": "in_progress",
+          "to": "review"
+        },
+        "id": "ev_01M27PWCDZEKMKDD5KSYAARZH9",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-11T07:45:58Z",
+        "type": "status_changed"
+      },
+      {
+        "actor": "agent:lattice-auto-review",
+        "data": {
+          "log_path": "/Users/forrest/Code/american-software-company/.lattice/.daemon/auto-code-review-task_01M1MRHSXNPEVPWJ13N1YVYXZ2.log",
+          "mode": "single",
+          "pid": 80175,
+          "review_type": "code-review",
+          "reviewed_worktree": "/Users/forrest/Code/american-software-company",
+          "spawned_at": "2026-09-11T07:45:58Z",
+          "trigger_status_event_id": "ev_01M27PWCDZEKMKDD5KSYAARZH9"
+        },
+        "id": "ev_01M27PWCEFD0MFAMYGV95S1QRG",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-11T07:45:58Z",
+        "type": "auto_review_spawned"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "body": "Compose receipt (orchestrator, tick watcher:67350, 2026-09-11 07:51Z, taken by absolute docker path since docker is off PATH for sub-agents): docker compose -f .worktrees/AS-82/apps/chat/compose.yaml run --rm --build test on f6ffa9f -> 'Image asc-chat-test Built', tests 478 / pass 478 / fail 0, wall 37.3 s, exit 0. Matches the host count (468 + 10). Log: scratchpad/agent-cto-owen/as82-compose-receipt.log. AC-10 container half satisfied. Next tick: qa-ruben reviews cold (do not read the daemon's auto-review before forming findings); Marcus's M6 note (test 2 insensitive to an in-flight highwater regression) is a lead for the review, not a verdict."
+        },
+        "id": "ev_01M27Q02HB20KF6QAPP4S6732M",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-11T07:47:59Z",
+        "type": "comment_added"
+      },
+      {
+        "actor": "agent:lattice-auto-review",
+        "data": {
+          "artifact_id": "art_01M27QD0RS621CVJW9K03FRS8N",
+          "role": "review"
+        },
+        "id": "ev_01M27QD0RX6S958K8DDGWBA7CK",
+        "schema_version": 1,
+        "task_id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+        "ts": "2026-09-11T07:55:03Z",
+        "type": "artifact_attached"
+      }
+    ],
+    "evidence_refs": [
+      {
+        "id": "art_01M27QD0RS621CVJW9K03FRS8N",
+        "role": "review",
+        "source_type": "artifact"
+      }
+    ],
+    "id": "task_01M1MRHSXNPEVPWJ13N1YVYXZ2",
+    "last_event_id": "ev_01M27QD0RX6S958K8DDGWBA7CK",
+    "last_status_changed_at": "2026-09-11T07:45:58Z",
+    "linked_files": [],
+    "plan_path": "plans/task_01M1MRHSXNPEVPWJ13N1YVYXZ2.md",
+    "priority": "critical",
+    "relationships_enriched": [
+      {
+        "created_at": "2026-09-03T23:09:58Z",
+        "created_by": "agent:qa-priya",
+        "note": null,
+        "target_task_id": "task_01M1AQ5618X4KC89FQ9Z43HMCV",
+        "target_title": "Chat: surface advance-loop status in the UI \u2014 active loop / single tick in flight / idle",
+        "type": "subtask_of"
+      }
+    ],
+    "relationships_in": [],
+    "relationships_out": [
+      {
+        "created_at": "2026-09-03T23:09:58Z",
+        "created_by": "agent:qa-priya",
+        "note": null,
+        "target_task_id": "task_01M1AQ5618X4KC89FQ9Z43HMCV",
+        "type": "subtask_of"
+      }
+    ],
+    "reopened_count": 0,
+    "schema_version": 1,
+    "short_id": "AS-82",
+    "status": "review",
+    "tags": null,
+    "title": "Chat watcher: the AS-27 heartbeat call site is unexercised \u2014 main() is never run by the suite",
+    "type": "task",
+    "updated_at": "2026-09-11T07:55:03Z",
+    "urgency": null,
+    "valid_transitions": [
+      "done",
+      "in_progress",
+      "in_planning",
+      "needs_human",
+      "cancelled"
+    ]
+  },
+  "ok": true
+}
+

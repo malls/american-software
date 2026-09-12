@@ -1,0 +1,10 @@
+container up: []
+exit code=5 signal=null after 0.0 s
+RECEIPT project=asc-as121-realsig-fix-33900
+  built: missing
+  run exit=1
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=5
+compose-run: no `Built` line — this run is not a receipt (CLAUDE.md --build corollary)
+survivors: networks=[] images=[]

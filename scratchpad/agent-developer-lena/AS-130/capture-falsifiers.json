@@ -1,0 +1,26 @@
+[
+  {
+    "name": "AC-4 cookies cleared before #13 (S7-DEFAULT)",
+    "exit": 1,
+    "refusal": "capture: page landed on /signin?next=%2Fcontracts%2Fd2ca8b2c-61ac-44ff-b7db-c30d43dbb363, expected /contracts/d2ca8b2c-61ac-44ff-b7db-c30d43dbb363 — a redirect is not the page it was asked for; refusing to write the screenshot",
+    "written": 18,
+    "red": true,
+    "serverBuilt": true
+  },
+  {
+    "name": "AC-5a #8 expects S4-DEFAULT-CREATE at GET /invoices/new before readiness",
+    "exit": 1,
+    "refusal": "capture: page at http://127.0.0.1:8349/invoices/new is in state \"S4-GATED-STRIPENOTREADY\", expected S4-DEFAULT-CREATE — refusing to write the screenshot",
+    "written": 9,
+    "red": true,
+    "serverBuilt": true
+  },
+  {
+    "name": "AC-5b #6 DOM predicate inverted (gate asserted absent on the first run)",
+    "exit": 1,
+    "refusal": "capture: page does not show what S3-GATED-STRIPENOTREADY implies (DOM predicate false: document.querySelector('.site-nav__item--disabled') === null && document.querySelector('a[href=\"/invoices/new\"]') !== null) — refusing to write the screenshot",
+    "written": 5,
+    "red": true,
+    "serverBuilt": true
+  }
+]

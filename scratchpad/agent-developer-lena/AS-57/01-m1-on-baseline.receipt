@@ -1,0 +1,8 @@
+RECEIPT project=asc-impl-as57-01-m1-on-baseline
+  built: Image asc-impl-as57-01-m1-on-baseline-test Built
+  tests=530 pass=511 fail=0 skipped=19
+  run exit=0
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=0
+RUN_EXIT=0

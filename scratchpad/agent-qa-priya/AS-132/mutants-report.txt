@@ -1,0 +1,27 @@
+M1 — delete `resumeHold = true` in rearmIfDue() (today's code)
+  applied at site (function rearmIfDue): false; hunk lines: -    resumeHold = true; // AS-132
+  suite: tests=663 pass=659 fail=1 skipped=3 exit=1
+  red set (1): as132-t1-rearm-after-resume-holds-the-lock-gate
+  expected: as132-t1=RED
+  restored, git diff --exit-code clean: true
+
+M2 — blockedByLock() never ages a lock out (>= resumeGraceMs -> >= Infinity)
+  applied at site (function blockedByLock): false; hunk lines: -    if (!held || !Number.isFinite(startedMs) || now() - startedMs >= resumeGraceMs) { | +    if (!held || !Number.isFinite(startedMs) || now() - startedMs >= Infinity) {
+  suite: tests=663 pass=658 fail=2 skipped=3 exit=1
+  red set (2): as132-t1-rearm-after-resume-holds-the-lock-gate ; f2-resume-fires-when-the-lock-aged-out
+  expected: as132-t1=RED, f2-resume-fires-when-the-lock-aged-out=RED
+  restored, git diff --exit-code clean: true
+
+M3 — blockedByLock() treats a missing lock as a fresh one
+  applied at site (function blockedByLock): true; hunk lines: -    const held = loadLock(); | +    const held = loadLock() ?? { startedAt: new Date(now()).toISOString() };
+  suite: tests=663 pass=657 fail=3 skipped=3 exit=1
+  red set (3): AS-129 T11 makeWatcher ; as132-t2-ordinary-rearm-is-not-held-with-no-lock ; f2-resume-fires-with-no-lock
+  expected: as132-t2=RED, f2-resume-fires-with-no-lock=RED, AS-129 T11=RED
+  restored, git diff --exit-code clean: true
+
+M4 — delete `resumeHold = true` in resume()
+  applied at site (function resume): false; hunk lines: -    resumeHold = true; // F2: wait out anything the dead process left running
+  suite: tests=663 pass=656 fail=4 skipped=3 exit=1
+  red set (4): as132-t3-contrast-ordinary-resume-holds ; f2-gate-is-age-not-pid ; f2-gate-is-resume-only ; f2-resume-waits-out-a-live-lock
+  expected: as132-t3=RED, f2-resume-waits-out-a-live-lock=RED, f2-gate-is-age-not-pid=RED, f2-gate-is-resume-only=RED
+  restored, git diff --exit-code clean: true

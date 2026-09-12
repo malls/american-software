@@ -1,0 +1,92 @@
+AS-86 implementation report (developer-lena, tick watcher:93997 loop tick 23). Branch `feat/AS-86-dockerignore-image-input`, commits **735b050** (manifests + watcher exports) and **b4d3455** (guards + docs). Working tree clean; nothing outside `apps/chat` touched; `.worktrees/AS-84` and `.worktrees/AS-85` untouched.
+
+## Findings first (5, all outside the criteria list; 0 blocking)
+
+**F-1 — plan errata, affects criterion 3.** The predicted M1 red set of four is too narrow, because master already hard-codes the input count in places plan §4 does not name, and AS-86 must move them: `watcher.test.js`'s `AS-75 parseLsTree` test asserts `full.length` / `ok.count` / `r.expected` as literal `9` (lines 636/641/649, plus the "8 of 9" prose), and the deploy-ops short-set test asserts the log text `/8 of 9 image inputs/` (line 1007). Both are now `10` and `9 of 10`. I kept them as literals rather than deriving them from `IMAGE_INPUTS.length` — the file's own cardinality-first style, and deriving them would make the guard follow the mutant. Consequence: the **observed M1 red set is 8 tests, not 4**. All four extras are genuine guards over the same fact; enumerated below.
+
+**F-2 — plan errata, affects criterion 9.** §6 predicts compose `skipped 2`. Three tests skip when git is absent, not two: the two in `deploy-inputs-git.test.js` **plus** `deploy-shape: every tracked path under apps/chat is an image input or declared not one`, which uses the same git-runnable predicate. The container number to expect is **504 total, skipped 3**.
+
+**F-3 — stale comment, deliberately left.** `advance-watcher.mjs:358` (the `parseLsTree` docstring) still reads "A digest over 8 of 9 inputs would be stable, wrong…". Criterion 11 forbids touching anything else in that file, so it stands. Candidate as a one-line rider on AS-87, which edits that file anyway.
+
+**F-4 — guard scope, worth knowing before anyone trusts it.** The index-backed `deploy-shape` guard **cannot detect M2 today**: the live repo has zero unclassified paths, so a classifier that mislabels strays still passes it against an empty set. The two tests that do kill M2 are the pure fixture test and the scratch-repo stray test, both of which supply a stray. The index guard is a regression net for a *future* stray, not a live falsifier of the classifier.
+
+**F-5 — probe, under the survivor-is-a-lead rule.** My first falsifier for criterion 8 (add `README.md` to `IMAGE_INPUTS`) died **earlier than intended**, at the 10-stub assertion in the test helper, and therefore proved nothing about the negative control. I re-read the mutated diff, re-aimed at a cardinality-preserving mutation (inside `makeDeployOps`, digest `apps/chat/README.md` in place of `apps/chat/Dockerfile`), and it reds at `deploy-inputs-git.test.js:164` — the control's own assertion — with the id moving `c9ea7a8d55e4726e` → `9466eda1e3651d35`. The negative control is discriminating.
+
+## Mutant red sets
+
+Method for every mutant: back up, apply, **assert the mutation applied at the named site** (function-anchored match + file-wide uniqueness check + reported line number), run the **full** host suite, restore, prove the tree with `git diff --exit-code`, re-run green. This shell rejects `trap`, so the restore is a node `finally` block; every run below reported tree-clean and 504/504 after restore. Harness kept at `scratchpad/agent-developer-lena/AS-86/`.
+
+**M1 — remove `'.dockerignore'` from `IMAGE_INPUTS`.** Applied at the frozen array, line 117, entries 10 → 9 (asserted). `504 tests / 496 pass / 8 fail / 0 skipped`. Red set (8; plan predicted 4 — see F-1):
+
+1. `deploy-shape: IMAGE_INPUTS is exactly the set the Dockerfile COPYs`
+2. `deploy-shape: .dockerignore is an image input and hides no manifest`
+3. `deploy-shape: every tracked path under apps/chat is an image input or declared not one`
+4. `AS-86 deploy-inputs-git: a committed change to .dockerignore changes the desired id`
+
+— the four the plan named — plus
+
+5. `AS-75 parseLsTree: a short input set is a refusal, and the digest ignores git output order` (the literal 10)
+6. `AS-86 classifyImagePaths: strays are named, roots cover their children, and names are not prefixes` (fixture expects `.dockerignore` among inputs)
+7. `AS-75 makeDeployOps: a dirty image-input tree refuses, and a broken git refuses differently` (the "9 of 10 image inputs" log literal)
+8. `AS-86 deploy-inputs-git: a stray compose.override.yaml is rejected by the classifier` (the 10-stub assertion in the scratch-repo helper)
+
+**M2 — `classifyImagePaths` swallows strays** (unknowns pushed to `declared`). Applied **inside** `classifyImagePaths`, function at line 150, target line 158, uniqueness checked file-wide. `504 / 502 pass / 2 fail / 0 skipped`. Red set (2) — **exactly as predicted**:
+
+1. `AS-86 classifyImagePaths: strays are named, roots cover their children, and names are not prefixes`
+2. `AS-86 deploy-inputs-git: a stray compose.override.yaml is rejected by the classifier`
+
+**M3 — digest a short set** (`IMAGE_INPUTS.slice(0, 9)`). Applied at the `const paths =` line 774, inside `makeDeployOps` (line 741), checked not to occur earlier in the file. `504 / 503 pass / 1 fail / 0 skipped`. Red set (1) — **exactly as predicted**:
+
+1. `AS-86 deploy-inputs-git: a committed change to .dockerignore changes the desired id`
+
+Confirmed from the assertion text that the AS-75 refusal is what catches it: *"a clean stub repo digests: reason inputs-missing"*, `desired === null`, at step 2 — the cardinality refusal fires before any digest is taken.
+
+**M4 — `.dockerignore` hides an image input** (line `test/fixtures` inserted after `chat`; presence re-asserted by regex after the write). `504 / 503 pass / 1 fail / 0 skipped`. Red set (1) — **exactly as predicted**:
+
+1. `deploy-shape: .dockerignore is an image input and hides no manifest`
+
+**M7 (criterion 7's falsifier, mine) — `parseDockerignore` shrugs at globs instead of throwing.** Applied inside `parseDockerignore` (function line 209, target line 215). `504 / 503 pass / 1 fail / 0 skipped`. Red set (1):
+
+1. `deploy-shape: the .dockerignore parser throws on forms it does not understand`
+
+**M6 (criterion 8's falsifier, mine)** — see F-5. One red, at the negative control's own assertion.
+
+## Criterion 2 — `ls-tree` line count
+
+`git ls-tree <ref> -- <the 10 apps/chat paths>`, exit 0 both times: **10 lines on branch HEAD, 10 lines on master**. Five blobs (`.dockerignore`, `Dockerfile`, `compose.yaml`, `package.json`, `server.js`) and five trees (`bin`, `lib`, `public`, `test`, `watch`) — one line each, which is why a tree input costs the digest exactly one line.
+
+## Criterion 9 — suite counts
+
+**Host**, from the worktree, `node --test <abs>/.worktrees/AS-86/apps/chat/test/*.test.js`:
+
+```
+tests 504 / suites 0 / pass 504 / fail 0 / cancelled 0 / skipped 0 / todo 0 / duration_ms 7769.655375
+```
+
+Baseline was 498/498 `skipped 0`; **+6 exactly as predicted** (deploy-shape +3, watcher.test +1, deploy-inputs-git +2). Predicted 504 = observed 504.
+
+**Compose (`--build`, with the `Image … Built` receipt line): PENDING THE ORCHESTRATOR.** Docker is off PATH for a sub-agent, so I did not attempt it; per CLAUDE.md the counted `--build` receipt is taken from the main checkout by absolute docker path. Expect **504 total, skipped 3**, not 2 (F-2): the two `deploy-inputs-git` tests and the `deploy-shape` index guard all skip on "git not runnable here", and `node:24-slim` ships no git. `skipped 0` in the container would mean git *is* present there and is itself a finding; any other number means a skip predicate misfired.
+
+## Merge-tick prediction (plan §5, restated)
+
+Merging AS-86 causes **two rebuilds, not one**, once ever, and it is expected and self-healing — do not read it as a loop. (a) The running **pre-merge** watcher sees a new 9-path id anyway (the Dockerfile and `watch/` blobs changed) and rebuilds once, stamping the image with a 9-path id. (b) Its own source digest changed, so once current it exits 70 and launchd relaunches it on the new code. (c) The **new** watcher computes a **10-path** id, which cannot equal the stamped 9-path id, and rebuilds once more. ~1–2 min each. The merge report should predict the second rebuild in advance.
+
+**Seam note for the AS-84 lane:** my only edit inside the deploy-ops block of `watcher.test.js` is the one-line log literal at line 1007 (`8 of 9` → `9 of 10`) — a mid-block edit, not a tail append, so it cannot collide with appends at the end of that block. `deployHarness` derives its fake `lsTree` from `IMAGE_INPUTS`, so the tenth entry flows into AS-84's tests automatically provided AS-84 does not hard-code 9.
+
+## Acceptance sweep — a floor check, not the review (M5)
+
+**11 of 11 criteria pass; the 5 findings above sit *outside* this list, two of them corrections to the criteria themselves.**
+
+1. **PASS** — `IMAGE_INPUTS` has 10 entries including `'.dockerignore'`; the Dockerfile COPYs it on the manifest line; the self-exclusion is gone; the COPY-set guard literals are 7 lines / 10 sources / 10 entries.
+2. **PASS** — 10 `ls-tree` lines, verified by hand, above.
+3. **PASS, with a wider red set than predicted** (8 vs 4). See F-1; every extra red is a real guard over the same fact.
+4. **PASS** — red set exactly the two predicted.
+5. **PASS** — red set exactly the one predicted, and the refusal reason is `inputs-missing` as stated.
+6. **PASS** — red set exactly the one predicted.
+7. **PASS** — six unrecognised forms examined (literal `6` asserted before the loop): negation, star glob, question glob, bracket glob, double-star glob, leading-slash anchor; plus a positive parse so the throws discriminate. The real file parses to exactly 3 patterns (`data`, `README.md`, `chat`), asserted in the manifest test rather than the parser test so M4 stays a single red. Guard falsified by M7.
+8. **PASS** — negative control present and green. Cardinality before quantification: **10 stubbed inputs** (5 files, 5 directories stubbed one file deep; directory-ness read from the real `apps/chat` rather than hard-coded), plus `README.md`; **3 commits** in test 1, **2 commits** in test 2; tracked count asserted at 12 in test 2. Falsified by M6 (F-5).
+9. **HOST PASS** 504/504 `skipped 0`. Compose pending the orchestrator, with the expected number and its reason stated above.
+10. **PASS** — this comment, in the required order.
+11. **PASS** — `git diff master...branch` on `advance-watcher.mjs` is exactly two hunks, at the `IMAGE_INPUTS` comment block and the new exports directly beneath it; zero changed lines mention `computeDesired`, `decideDeploy`, `parseLsTree`, `evaluate` or `shutdown`. The seam guarantee to AS-84/AS-87 holds.
+
+**Deviations from the plan:** none in approach or scope. The only unplanned edits are the five hard-coded input counts in `watcher.test.js` that §4 did not enumerate (F-1) — required, not discretionary: the suite is red without them.

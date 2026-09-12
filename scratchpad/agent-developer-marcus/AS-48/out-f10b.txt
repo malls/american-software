@@ -1,0 +1,20 @@
+assert-applied MINOR_DIGITS: 1 -> 0 (expected 1 -> 0)
+docker compose -p asc-impl-as48-f10b run --rm --build test
+RECEIPT project=asc-impl-as48-f10b
+  built: Image asc-impl-as48-f10b-test Built
+  tests=475 pass=446 fail=11 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (11):
+  ✖ S4-DEFAULT-EDIT: the stored draft is pre-populated, prices formatted from minor units, one blank row appended
+  ✖ line items are accepted in both shapes qs produces, and 25 rows survive a re-render in order
+  ✖ S4-ERROR-SYSTEM: a send that fails at Stripe lands on the edit page with the system banner, the draft still a draft
+  ✖ save creates a draft with the typed prices converted exactly, and lands on an edit page that exists
+  ✖ send from the edit page updates the draft, runs the pipeline, and redirects to the detail path
+  ✖ formatMinorUnits and parseMajorUnits round-trip, reject every malformed spelling, and never touch a float
+  ✖ S3-DEFAULT-POPULATED: rows show client, formatted total, status badge and a View form; contracts show client and created date
+  ✖ S5-DEFAULT-OPEN renders from a mirror row the webhook has not updated: status Sent, both hosted links as escaped text, due date formatted
+  ✖ S5-DEFAULT-PAID: a paid snapshot renders the success banner, the paid date, and offers no action
+  ✖ S5-DEFAULT-DRAFT: a draft shows Due in N days once sent, no Stripe links, and the Edit form
+  ✖ formatDisplayMinorUnits groups thousands, keeps two minor digits, and refuses what assertMinorUnits refuses; formatDate is UTC and refuses non-ISO input

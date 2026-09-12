@@ -1,0 +1,4 @@
+asc-c2-master test: exit 0; receipt Image asc-c2-master-test Built; 532/513/0/19
+asc-c2-master contract: exit 0; receipt Image asc-c2-master-contract Built; 532/532/0/0
+asc-c2-master teardown exit 0; containers left: none
+asc-c2-master images removed: asc-c2-master-contract, asc-c2-master-test

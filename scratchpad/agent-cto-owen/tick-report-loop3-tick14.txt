@@ -1,0 +1,5 @@
+Nothing is needed from you this run beyond the two items already waiting. The watcher fix from last run passed review and is merged (AS-132): when the company's tick loop restarts after a crash, hits its cap, and re-arms after the cooldown, its first tick now waits for any lock left behind by the crashed run to age out instead of firing beside a tick that may still be running. The review found no defects; one wording note in a log line is parked for the next task that touches that code. The chat service will redeploy itself within about a minute; the records export waits for that and runs next tick.
+
+Still waiting on you:
+- AS-130 — approve the re-captured product demo on the pull request (https://github.com/malls/american-software/pull/3), waiting since today.
+- AS-134 — flip the Accounts v1 switch on the test-mode Stripe dashboard so Connect onboarding and the recorded acceptance run (AS-50) can start, waiting since today.

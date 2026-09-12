@@ -1,0 +1,13 @@
+Implementation (developer-marcus, tick watcher:79108 loop 2 tick 3, on Opus). Branch feat/AS-129-loop-cap-rearm, tip a445e9c, 6 commits, tree clean.
+
+Built, all in apps/chat/watch/advance-watcher.mjs: exported capReached/workRemains/loopLimits/MAX_TIMER_MS; cap-hit detail gains rearm; makeLoopOps has a private rearm state — settle() still stop()s on cap-hit then cooldown()s when detail.rearm, rearmIfDue() arms a fresh loop (ticks 0, new startedAt, same armedBy, pending), start() clears the cooldown, mirror() adds rearmAt and keeps armedBy while cooling, resume() evaluates the cap before owing a tick (AS-104) and re-enters a cooldown from an inactive mirror's rearmAt, snapshot() exposes rearmAt+limits. LOOP_DEFAULTS.maxLockWaitMs derived from DEFAULTS; rearmMs added. envMinutes() throws past 2147483647 ms for all five *_MIN knobs. Unguarded wiring (crit 11): poll() `loopOps.rearmIfDue();` before nextPollAction; start() `limits: loopLimits(config)`; loadConfig `loopRearmMin: envMinutes(...)`. README (file row, rule f, "After the cap", lock-wait, resume, ceiling, reading lines) and plist comment updated.
+
+Tests: 19 new + T10 rewrite. Host 643/641/0/2 (from 624/622/0/2). Compose asc-impl-as129 --build 643/635/0/8, receipt "Image asc-impl-as129-test Built", down clean, 0 leaks.
+
+Mutants: 17/17 killed, full suite per mutant, in place with restore and `git diff --exit-code` clean after each; hunks in the log. 15 exact as tabled. Two wider, both implied by the plan's own test specs: M1 {T3,T6,T9b,T12} (T9b's dry-board resume calls workRemains); M3 {T5,T8,T11} (T8 asserts rearmIfDue false at T0).
+
+Deviations: T11/T12 limits add maxNoProgress:10 (headOf null in temp repo, no-progress precedes the cap); T6 uses maxTicks:1 (dry stops at tick 1 under a 2-tick cap); rearmIfDue has a defensive loop!==null branch; resume's cap stop detail adds resumed:true and mirrors; watcher-main harness accepts over.loopOps as a ctx function.
+
+advance-loop.json sha256 unchanged (crit 12). No `60 * 60 * 1000` lock-wait literal remains (only maxMs and retention arithmetic). Nothing left undone. Residual as planned: sidebar "re-arming in N min" label.
+
+Scratchpad: scratchpad/agent-developer-marcus/AS-129/ (progress.md, mutants.log, mutants.mjs, compose-run.log, hash files).

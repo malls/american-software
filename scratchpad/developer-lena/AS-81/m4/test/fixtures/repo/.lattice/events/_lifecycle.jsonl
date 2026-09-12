@@ -1,0 +1,2 @@
+{"actor":"human:forrest","data":{"short_id":"AS-7","status":"backlog","title":"Fixture task seven"},"id":"ev_A1","schema_version":1,"task_id":"task_TESTAAAA","ts":"2026-08-30T10:00:00Z","type":"task_created"}
+{"actor":"system:other","data":{"short_id":"AS-99","status":"backlog","title":"If this appears in chat, _lifecycle.jsonl was wrongly read"},"id":"ev_LIFECYCLE_ONLY","schema_version":1,"task_id":"task_TESTZZZZ","ts":"2026-08-30T10:05:00Z","type":"task_created"}

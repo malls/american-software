@@ -1,0 +1,26 @@
+{
+  "account": {
+    "id": "acct_probe",
+    "charges_enabled": false,
+    "details_submitted": false,
+    "payouts_enabled": false,
+    "currently_due": [
+      "business_profile.product_description",
+      "business_profile.support_phone",
+      "business_profile.url",
+      "external_account",
+      "tos_acceptance.date",
+      "tos_acceptance.ip"
+    ],
+    "disabled_reason": "requirements.past_due"
+  },
+  "invoice": {
+    "id": "in_RLq75mnuXUpJ7hA",
+    "status": "draft",
+    "amount_due": 1000,
+    "amount_paid": 0,
+    "hosted_invoice_url": null,
+    "invoice_pdf": null,
+    "due_date": 1234567890
+  }
+}

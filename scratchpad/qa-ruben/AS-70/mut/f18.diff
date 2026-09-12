@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/pristine/apps/invoicing/routes/pages.js	2026-09-12 01:29:08
++++ /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/f18/apps/invoicing/routes/pages.js	2026-09-12 01:32:08
+@@ -39,7 +39,7 @@
+ 
+   // 303 See Other, the one redirect status this app uses (routes/connect.js).
+   router.get('/', (req, res) => {
+-    res.redirect(303, '/connect-stripe');
++    res.redirect(303, '/nope');
+   });
+ 
+   return router;

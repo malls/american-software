@@ -1,0 +1,10 @@
+assert-applied S5-ABANDON row: 1 -> 0 (expected 1 -> 0)
+docker compose -p asc-impl-as48-f11b run --rm --build test
+RECEIPT project=asc-impl-as48-f11b
+  built: Image asc-impl-as48-f11b-test Built
+  tests=475 pass=456 fail=1 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (1):
+  ✖ screen 5 accounts for all ten of its ledger rows: 5 + 1 + 1 + 1 + 2 = 10

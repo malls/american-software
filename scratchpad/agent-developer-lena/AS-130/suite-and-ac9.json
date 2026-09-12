@@ -1,0 +1,41 @@
+{
+  "ac9": {
+    "name": "ac9-test-mutant",
+    "exit": 1,
+    "built": "asc-impl-as130-test",
+    "tests": null,
+    "pass": null,
+    "fail": null,
+    "skipped": null,
+    "failing": []
+  },
+  "ac9RestoredDiffExit": 0,
+  "ac10Stripe": {
+    "exit": 2,
+    "line": "demo/serve: ASC_STRIPE_MOCK_URL points at api.stripe.com: this server only ever talks to stripe-mock"
+  },
+  "ac10Unset": {
+    "exit": 2,
+    "line": "demo/serve: ASC_STRIPE_MOCK_URL is not set — this server only ever talks to stripe-mock; run it as the `demo` compose service with the capture override"
+  },
+  "test": {
+    "name": "suite-test",
+    "exit": 0,
+    "built": "asc-impl-as130-test",
+    "tests": null,
+    "pass": null,
+    "fail": null,
+    "skipped": null,
+    "failing": []
+  },
+  "contract": {
+    "name": "suite-contract",
+    "exit": 0,
+    "built": "asc-impl-as130-contract",
+    "tests": null,
+    "pass": null,
+    "fail": null,
+    "skipped": null,
+    "failing": []
+  }
+}

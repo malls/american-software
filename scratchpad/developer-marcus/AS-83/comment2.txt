@@ -1,0 +1,9 @@
+M4 upgraded to the plan's cardinality before the tick clock — F-5 (reduced 1+1) and part of F-4 are WITHDRAWN. Second indivisible execution (same recipe, same applied-at-site assertions, restore proven: sha equal to 2abd16dc…ac519, worktree porcelain empty, branch still 060c7dd) ran 2 mutated + 2 restored:
+
+MUTATED (old 500 ms budget via apiEnv, under R1 load — 20 burners, container nproc 10): run A 13 tests / 10 pass / 3 fail exit 1, 41 s; run B 13 / 11 / 2 exit 1, 40 s. RESTORED: run A 13/13/0 exit 0, 86 s; run B 13/13/0 exit 0, 90 s. Every one of the four carries its own `Image as83test-test Built` line.
+
+M4 TOTAL ACROSS BOTH EXECUTIONS: 3 of 3 mutated RED, 3 of 3 restored GREEN — the plan's 3+3, so AC-9 is a full pass and not a reduced-cardinality pass. Observed red set (union): {`mode: AS-24 — API-mode writes land in the server view; no DB file is ever created`, `mode: AS-24 — full command sweep in API mode`, `mode: AS-83 — the same slow server inside the budget is up` (T2)} — all three and only the three apiEnv consumers. Per run: {sweep} / {dm, sweep, T2} / {dm, sweep}.
+
+This corrects F-4: the dm/AS-24 case the plan predicted DID go red, in both of the new runs. Run 1's sweep-only red was the weakest draw of a nondeterministic mutant, not a wrong-site edit — exposure ordering (sweep ~15 children > dm 1 child) shows up as which cases fall first, with the sweep red in 3 of 3. T2 going red is the sharpest single data point in the whole task: a genuinely live server behind a 150 ms proxy, refused as ambiguous once the budget is 500 ms and the box is loaded, and accepted at 20000 ms on the same run — the flake, with only the budget changed.
+
+Unchanged from the previous comment: R2 3 of 3 green with attribution, R0 numbers and the decision to keep 3000 ms, findings F-1/F-2/F-3/F-6, and the AC floor sweep (with AC-9 now a clean pass). Nothing else not reached.

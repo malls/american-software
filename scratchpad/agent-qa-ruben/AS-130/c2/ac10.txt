@@ -1,0 +1,6 @@
+receipt: Image asc-c2-ac10-demo Built
+AC-10a api.stripe.com: exit 2; demo/serve: ASC_STRIPE_MOCK_URL points at api.stripe.com: this server only ever talks to stripe-mock
+AC-10b unset: exit 2; demo/serve: ASC_STRIPE_MOCK_URL is not set — this server only ever talks to stripe-mock; run it as the `demo` compose service with the capture override
+probe empty string: exit 2; demo/serve: ASC_STRIPE_MOCK_URL is not set — this server only ever talks to stripe-mock; run it as the `demo` compose service with the capture override
+teardown; containers left: none
+images removed: asc-c2-ac10-demo

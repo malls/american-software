@@ -1,0 +1,3353 @@
+TAP version 13
+# (node:21030) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: api: identities, CSP header, static page
+ok 1 - api: identities, CSP header, static page
+  ---
+  duration_ms: 117.489291
+  type: 'test'
+  ...
+# Subtest: api: startup ingestion fills lattice-events; channel guarded from non-system posts
+ok 2 - api: startup ingestion fills lattice-events; channel guarded from non-system posts
+  ---
+  duration_ms: 74.918834
+  type: 'test'
+  ...
+# Subtest: api: channels, messages, threads, refs, unread, read watermark
+ok 3 - api: channels, messages, threads, refs, unread, read watermark
+  ---
+  duration_ms: 67.7655
+  type: 'test'
+  ...
+# Subtest: api: AS-3 — POST /api/read with over-max upTo is 400 and moves nothing
+ok 4 - api: AS-3 — POST /api/read with over-max upTo is 400 and moves nothing
+  ---
+  duration_ms: 25.029458
+  type: 'test'
+  ...
+# Subtest: api: task resolution endpoint and clear 4xx errors
+ok 5 - api: task resolution endpoint and clear 4xx errors
+  ---
+  duration_ms: 26.380084
+  type: 'test'
+  ...
+# Subtest: api: AS-6 — \#board is hidden from non-members, byte-identically to nonexistent
+ok 6 - api: AS-6 — \#board is hidden from non-members, byte-identically to nonexistent
+  ---
+  duration_ms: 105.805333
+  type: 'test'
+  ...
+# Subtest: api: AS-11 — cross-conversation threadRoot rejection is type-blind over HTTP
+ok 7 - api: AS-11 — cross-conversation threadRoot rejection is type-blind over HTTP
+  ---
+  duration_ms: 50.704166
+  type: 'test'
+  ...
+# Subtest: api: AS-9 — url-state.js is served; query string never affects static routing
+ok 8 - api: AS-9 — url-state.js is served; query string never affects static routing
+  ---
+  duration_ms: 17.874083
+  type: 'test'
+  ...
+# Subtest: api: AS-17 — scroll.js is served (app.js module graph must not 404)
+ok 9 - api: AS-17 — scroll.js is served (app.js module graph must not 404)
+  ---
+  duration_ms: 40.759292
+  type: 'test'
+  ...
+# Subtest: api: AS-19 — thread-modal.js is served; index.html ships the modal, not the sidebar
+ok 10 - api: AS-19 — thread-modal.js is served; index.html ships the modal, not the sidebar
+  ---
+  duration_ms: 18.376792
+  type: 'test'
+  ...
+# Subtest: api: AS-23 — served page and CSS carry the mobile layout artifacts
+ok 11 - api: AS-23 — served page and CSS carry the mobile layout artifacts
+  ---
+  duration_ms: 15.064291
+  type: 'test'
+  ...
+# Subtest: api: AS-8 — roster joins personnel, lattice work status, and DM state
+ok 12 - api: AS-8 — roster joins personnel, lattice work status, and DM state
+  ---
+  duration_ms: 109.837292
+  type: 'test'
+  ...
+# Subtest: api: AS-8 — roster degrades to empty when personnel/ is absent
+ok 13 - api: AS-8 — roster degrades to empty when personnel/ is absent
+  ---
+  duration_ms: 10.76125
+  type: 'test'
+  ...
+# Subtest: api: AS-24 — POST /api/channels honors visibility/members; members-without-private is a store-level 400
+ok 14 - api: AS-24 — POST /api/channels honors visibility/members; members-without-private is a store-level 400
+  ---
+  duration_ms: 120.43825
+  type: 'test'
+  ...
+# Subtest: api: AS-24 — POST /api/catchup marks everything read
+ok 15 - api: AS-24 — POST /api/catchup marks everything read
+  ---
+  duration_ms: 36.453542
+  type: 'test'
+  ...
+# Subtest: api: AS-24 — POST /api/sync ingests new lattice events immediately (no 10s throttle)
+ok 16 - api: AS-24 — POST /api/sync ingests new lattice events immediately (no 10s throttle)
+  ---
+  duration_ms: 55.358666
+  type: 'test'
+  ...
+# Subtest: api: AS-24 — GET /api/messages honors ?limit= (CLI history --limit parity)
+ok 17 - api: AS-24 — GET /api/messages honors ?limit= (CLI history --limit parity)
+  ---
+  duration_ms: 63.367042
+  type: 'test'
+  ...
+# Subtest: api: AS-24 — GET /api/dump and /api/export are byte-faithful to the store
+ok 18 - api: AS-24 — GET /api/dump and /api/export are byte-faithful to the store
+  ---
+  duration_ms: 72.291125
+  type: 'test'
+  ...
+# Subtest: api: malformed JSON body is a 400 with a clear message
+ok 19 - api: malformed JSON body is a 400 with a clear message
+  ---
+  duration_ms: 10.87375
+  type: 'test'
+  ...
+# Subtest: api: AS-25 — GET /api/messages?since= returns the flat delta; hidden-channel parity holds for since=
+ok 20 - api: AS-25 — GET /api/messages?since= returns the flat delta; hidden-channel parity holds for since=
+  ---
+  duration_ms: 94.820333
+  type: 'test'
+  ...
+# Subtest: api: AS-25 — live.js is served (app.js module graph must not 404); the 5s poll is retired
+ok 21 - api: AS-25 — live.js is served (app.js module graph must not 404); the 5s poll is retired
+  ---
+  duration_ms: 35.72
+  type: 'test'
+  ...
+# Subtest: api: AS-72 — app.js schedules exactly two intervals (balanced-paren scan): one >=30s reconcile, one render-only tick
+ok 22 - api: AS-72 — app.js schedules exactly two intervals (balanced-paren scan): one >=30s reconcile, one render-only tick
+  ---
+  duration_ms: 39.086291
+  type: 'test'
+  ...
+# Subtest: api: AS-18 — dm-sort.js is served (app.js module graph must not 404)
+ok 23 - api: AS-18 — dm-sort.js is served (app.js module graph must not 404)
+  ---
+  duration_ms: 30.845333
+  type: 'test'
+  ...
+# Subtest: api: AS-26 — msg-refs.js and markdown.js are served; index.html ships the file modal
+ok 24 - api: AS-26 — msg-refs.js and markdown.js are served; index.html ships the file modal
+  ---
+  duration_ms: 27.609875
+  type: 'test'
+  ...
+# Subtest: api: AS-26 — GET /api/message/<id> resolves navigation data; hidden = nonexistent byte-identically
+ok 25 - api: AS-26 — GET /api/message/<id> resolves navigation data; hidden = nonexistent byte-identically
+  ---
+  duration_ms: 118.075208
+  type: 'test'
+  ...
+# Subtest: api: AS-26 — GET /api/file serves allowlisted repo markdown; every probe 404s byte-identically
+ok 26 - api: AS-26 — GET /api/file serves allowlisted repo markdown; every probe 404s byte-identically
+  ---
+  duration_ms: 65.082708
+  type: 'test'
+  ...
+# Subtest: api: AS-61 — GET /api/file refuses hard links (nlink > 1) byte-identically, and .claude/ stays unreachable by name
+ok 27 - api: AS-61 — GET /api/file refuses hard links (nlink > 1) byte-identically, and .claude/ stays unreachable by name
+  ---
+  duration_ms: 122.540375
+  type: 'test'
+  ...
+# Subtest: api: AS-54 — served app.js autolinks through markdown.js and never inside a markdown link
+ok 28 - api: AS-54 — served app.js autolinks through markdown.js and never inside a markdown link
+  ---
+  duration_ms: 37.37075
+  type: 'test'
+  ...
+# Subtest: api: AS-33 — /api/org reports violations from the fixture root
+ok 29 - api: AS-33 — /api/org reports violations from the fixture root
+  ---
+  duration_ms: 30.732125
+  type: 'test'
+  ...
+# Subtest: api: AS-33 — /api/org degrades to empty on a root with no personnel/
+ok 30 - api: AS-33 — /api/org degrades to empty on a root with no personnel/
+  ---
+  duration_ms: 21.509792
+  type: 'test'
+  ...
+# Subtest: api: AS-33 — /api/roster keeps its envelope while gaining the reporting edge
+ok 31 - api: AS-33 — /api/roster keeps its envelope while gaining the reporting edge
+  ---
+  duration_ms: 18.281459
+  type: 'test'
+  ...
+# Subtest: api: AS-33 — org-chart.js is served, imported, and holds the no-innerHTML line
+ok 32 - api: AS-33 — org-chart.js is served, imported, and holds the no-innerHTML line
+  ---
+  duration_ms: 22.441417
+  type: 'test'
+  ...
+# Subtest: api: AS-33 — index.html ships the org chart control and modal skeleton
+ok 33 - api: AS-33 — index.html ships the org chart control and modal skeleton
+  ---
+  duration_ms: 58.353625
+  type: 'test'
+  ...
+# Subtest: api: AS-33 — check-org --json matches GET /api/org for the same root
+ok 34 - api: AS-33 — check-org --json matches GET /api/org for the same root
+  ---
+  duration_ms: 337.244834
+  type: 'test'
+  ...
+# Subtest: api: AS-32 — served app.js renders the roster title through el() and shows title alone
+ok 35 - api: AS-32 — served app.js renders the roster title through el() and shows title alone
+  ---
+  duration_ms: 67.084667
+  type: 'test'
+  ...
+# Subtest: api: AS-32 — style.css truncates the roster title to one line
+ok 36 - api: AS-32 — style.css truncates the roster title to one line
+  ---
+  duration_ms: 16.284916
+  type: 'test'
+  ...
+# Subtest: api: AS-74 — served app.js keeps the org chart node label as title · class · team (the other half of the AS-32 divergence)
+ok 37 - api: AS-74 — served app.js keeps the org chart node label as title · class · team (the other half of the AS-32 divergence)
+  ---
+  duration_ms: 24.947875
+  type: 'test'
+  ...
+# Subtest: api: AS-74 — every served public/ module is free of markup sinks (12 examined)
+ok 38 - api: AS-74 — every served public/ module is free of markup sinks (12 examined)
+  ---
+  duration_ms: 28.085875
+  type: 'test'
+  ...
+# Subtest: api: AS-28 — /favicon.svg is served with the SVG content type
+ok 39 - api: AS-28 — /favicon.svg is served with the SVG content type
+  ---
+  duration_ms: 13.965166
+  type: 'test'
+  ...
+# Subtest: api: AS-28 — index.html links the favicon
+ok 40 - api: AS-28 — index.html links the favicon
+  ---
+  duration_ms: 15.594333
+  type: 'test'
+  ...
+# Subtest: api: AS-28 — the favicon uses only palette hex values
+ok 41 - api: AS-28 — the favicon uses only palette hex values
+  ---
+  duration_ms: 20.951167
+  type: 'test'
+  ...
+# Subtest: api: AS-27 — GET /api/loop-status reports each of the four states from its own file configuration
+ok 42 - api: AS-27 — GET /api/loop-status reports each of the four states from its own file configuration
+  ---
+  duration_ms: 36.489667
+  type: 'test'
+  ...
+# Subtest: api: AS-95 — a watcher loop is observable over /api/loop-status, with its tick count and its stop reason
+ok 43 - api: AS-95 — a watcher loop is observable over /api/loop-status, with its tick count and its stop reason
+  ---
+  duration_ms: 56.271667
+  type: 'test'
+  ...
+# Subtest: api: AS-27 — the AS-16 nonce never leaves the server, and malformed files never 500
+ok 44 - api: AS-27 — the AS-16 nonce never leaves the server, and malformed files never 500
+  ---
+  duration_ms: 46.308792
+  type: 'test'
+  ...
+# Subtest: api: AS-27 — a pre-AS-27 watcher pid file (no heartbeatAt) reads as off, honestly
+ok 45 - api: AS-27 — a pre-AS-27 watcher pid file (no heartbeatAt) reads as off, honestly
+  ---
+  duration_ms: 20.390958
+  type: 'test'
+  ...
+# Subtest: api: AS-27 — loop-status.js is served and imported; the production poll cadence is 2s
+ok 46 - api: AS-27 — loop-status.js is served and imported; the production poll cadence is 2s
+  ---
+  duration_ms: 18.601042
+  type: 'test'
+  ...
+# Subtest: api: AS-75 — GET /api/build reports the baked id, and "unknown"/absent as not-an-id
+ok 47 - api: AS-75 — GET /api/build reports the baked id, and "unknown"/absent as not-an-id
+  ---
+  duration_ms: 73.331333
+  type: 'test'
+  ...
+# Subtest: api: AS-75 — /api/loop-status carries build, and current is null (never false) whenever we cannot know
+ok 48 - api: AS-75 — /api/loop-status carries build, and current is null (never false) whenever we cannot know
+  ---
+  duration_ms: 182.126417
+  type: 'test'
+  ...
+# Subtest: api: AS-75 — a malformed deploy-state.json never throws and never changes state
+ok 49 - api: AS-75 — a malformed deploy-state.json never throws and never changes state
+  ---
+  duration_ms: 30.785333
+  type: 'test'
+  ...
+# Subtest: api: AS-75 — composeBuild is pure and tri-state at the unit level
+ok 50 - api: AS-75 — composeBuild is pure and tri-state at the unit level
+  ---
+  duration_ms: 0.459667
+  type: 'test'
+  ...
+# Subtest: api: AS-87 — composeBuild passes 'deploying' through when fresh, and still overrides to stale-state when not
+ok 51 - api: AS-87 — composeBuild passes 'deploying' through when fresh, and still overrides to stale-state when not
+  ---
+  duration_ms: 0.235875
+  type: 'test'
+  ...
+# Subtest: api: AS-93 — /api/config exposes exactly the dashboard override; dashboard-link.js is served, imported, and pure
+ok 52 - api: AS-93 — /api/config exposes exactly the dashboard override; dashboard-link.js is served, imported, and pure
+  ---
+  duration_ms: 34.107875
+  type: 'test'
+  ...
+# Subtest: api: AS-93 — all four dashboard link sites go through the helper (4 examined, 4 covered)
+ok 53 - api: AS-93 — all four dashboard link sites go through the helper (4 examined, 4 covered)
+  ---
+  duration_ms: 15.287125
+  type: 'test'
+  ...
+# Subtest: api: AS-99 — GET /api/lanes joins the watcher snapshot to the live board
+ok 54 - api: AS-99 — GET /api/lanes joins the watcher snapshot to the live board
+  ---
+  duration_ms: 16.09075
+  type: 'test'
+  ...
+# Subtest: api: AS-99 — api-lanes-stale-boundary: age comes from generatedAt, never the file mtime
+ok 55 - api: AS-99 — api-lanes-stale-boundary: age comes from generatedAt, never the file mtime
+  ---
+  duration_ms: 17.142333
+  type: 'test'
+  ...
+# Subtest: api: AS-99 — every degraded feed is a named reason, never a short list
+ok 56 - api: AS-99 — every degraded feed is a named reason, never a short list
+  ---
+  duration_ms: 23.373292
+  type: 'test'
+  ...
+# Subtest: api: AS-99 — api-lanes-git-error-badge: a refused git enumeration reaches the board as a dash, not a zero
+ok 57 - api: AS-99 — api-lanes-git-error-badge: a refused git enumeration reaches the board as a dash, not a zero
+  ---
+  duration_ms: 13.792542
+  type: 'test'
+  ...
+# Subtest: api: AS-99 — api-lanes-key-whitelist: the payload carries no field the contract does not name
+ok 58 - api: AS-99 — api-lanes-key-whitelist: the payload carries no field the contract does not name
+  ---
+  duration_ms: 41.349791
+  type: 'test'
+  ...
+# Subtest: api: AS-99 — /lanes.js is served, and the client edges are real
+ok 59 - api: AS-99 — /lanes.js is served, and the client edges are real
+  ---
+  duration_ms: 24.716583
+  type: 'test'
+  ...
+# Subtest: api: AS-99 — LANES_POLL_MS is the pinned production cadence
+ok 60 - api: AS-99 — LANES_POLL_MS is the pinned production cadence
+  ---
+  duration_ms: 0.641333
+  type: 'test'
+  ...
+# Subtest: api-events-since-exclusive: AS-100 — /api/events filters by since, task and limit, and reports its own stream reason
+ok 61 - api-events-since-exclusive: AS-100 — /api/events filters by since, task and limit, and reports its own stream reason
+  ---
+  duration_ms: 17.324084
+  type: 'test'
+  ...
+# Subtest: api-events-key-whitelist: AS-100 — a line that grew a field reaches no reader
+ok 62 - api-events-key-whitelist: AS-100 — a line that grew a field reaches no reader
+  ---
+  duration_ms: 11.4445
+  type: 'test'
+  ...
+# Subtest: api: AS-100 — EVENTS_POLL_MS is the pinned production cadence
+ok 63 - api: AS-100 — EVENTS_POLL_MS is the pinned production cadence
+  ---
+  duration_ms: 0.344542
+  type: 'test'
+  ...
+# (node:21031) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: cli: chat channels never lists \#board for a non-member; members see it
+ok 64 - cli: chat channels never lists \#board for a non-member; members see it
+  ---
+  duration_ms: 760.037375
+  type: 'test'
+  ...
+# Subtest: cli: hidden probes fail string-identically to nonexistent ones (modulo the echoed name)
+ok 65 - cli: hidden probes fail string-identically to nonexistent ones (modulo the echoed name)
+  ---
+  duration_ms: 1694.298875
+  type: 'test'
+  ...
+# Subtest: cli: inbox and catchup never touch \#board for a non-member
+ok 66 - cli: inbox and catchup never touch \#board for a non-member
+  ---
+  duration_ms: 386.642583
+  type: 'test'
+  ...
+# Subtest: cli: create-channel collision on the hidden name is uninformative
+ok 67 - cli: create-channel collision on the hidden name is uninformative
+  ---
+  duration_ms: 156.676667
+  type: 'test'
+  ...
+# Subtest: cli: roster prints the active company roster with work status (AS-8)
+ok 68 - cli: roster prints the active company roster with work status (AS-8)
+  ---
+  duration_ms: 195.798792
+  type: 'test'
+  ...
+# Subtest: cli: direct mode reconciles identities — a dossier-only hire can post with no prior register (AS-89 AC-7)
+ok 69 - cli: direct mode reconciles identities — a dossier-only hire can post with no prior register (AS-89 AC-7)
+  ---
+  duration_ms: 104.132042
+  type: 'test'
+  ...
+# Subtest: cli: members use \#board normally (post, history, reply, read)
+ok 70 - cli: members use \#board normally (post, history, reply, read)
+  ---
+  duration_ms: 208.091666
+  type: 'test'
+  ...
+# Subtest: cli: AS-3 — history/read/reply on a nonexistent DM never create a row
+ok 71 - cli: AS-3 — history/read/reply on a nonexistent DM never create a row
+  ---
+  duration_ms: 260.321375
+  type: 'test'
+  ...
+# Subtest: cli: AS-3 — DM read-path error quality is preserved (typo, self-DM)
+ok 72 - cli: AS-3 — DM read-path error quality is preserved (typo, self-DM)
+  ---
+  duration_ms: 102.466625
+  type: 'test'
+  ...
+# Subtest: cli: AS-22 acceptance — five-seat private \#bizdev is created, usable by members, invisible to others
+ok 73 - cli: AS-22 acceptance — five-seat private \#bizdev is created, usable by members, invisible to others
+  ---
+  duration_ms: 602.379167
+  type: 'test'
+  ...
+# Subtest: cli: AS-22 — --members without --visibility private is a usage error
+ok 74 - cli: AS-22 — --members without --visibility private is a usage error
+  ---
+  duration_ms: 159.53
+  type: 'test'
+  ...
+# Subtest: cli: AS-22 — store validation errors pass through unchanged
+ok 75 - cli: AS-22 — store validation errors pass through unchanged
+  ---
+  duration_ms: 199.149417
+  type: 'test'
+  ...
+# Subtest: cli: AS-22 — flagged create on a hidden name stays uninformative (oracle regression)
+ok 76 - cli: AS-22 — flagged create on a hidden name stays uninformative (oracle regression)
+  ---
+  duration_ms: 54.058083
+  type: 'test'
+  ...
+# Subtest: cli: AS-22 — flagless public create-channel is unchanged, including --json shape
+ok 77 - cli: AS-22 — flagless public create-channel is unchanged, including --json shape
+  ---
+  duration_ms: 156.298083
+  type: 'test'
+  ...
+# Subtest: cli: AS-3 — chat dm still creates the conversation and posts (regression guard)
+ok 78 - cli: AS-3 — chat dm still creates the conversation and posts (regression guard)
+  ---
+  duration_ms: 162.607042
+  type: 'test'
+  ...
+# Subtest: dashboard-link: AS-93 — a tailnet page links to the same host on :8443
+ok 79 - dashboard-link: AS-93 — a tailnet page links to the same host on :8443
+  ---
+  duration_ms: 2.985
+  type: 'test'
+  ...
+# Subtest: dashboard-link: AS-93 — a loopback page links to :8799 (all four loopback spellings)
+ok 80 - dashboard-link: AS-93 — a loopback page links to :8799 (all four loopback spellings)
+  ---
+  duration_ms: 0.111917
+  type: 'test'
+  ...
+# Subtest: dashboard-link: AS-93 — fails closed: the href host is ALWAYS the page host, never a loopback fallback
+ok 81 - dashboard-link: AS-93 — fails closed: the href host is ALWAYS the page host, never a loopback fallback
+  ---
+  duration_ms: 0.220083
+  type: 'test'
+  ...
+# Subtest: dashboard-link: AS-93 — an explicit override wins; blank and non-http overrides fall back to inference
+ok 82 - dashboard-link: AS-93 — an explicit override wins; blank and non-http overrides fall back to inference
+  ---
+  duration_ms: 0.792666
+  type: 'test'
+  ...
+# Subtest: dashboard-link: AS-93 — a blank page hostname yields a host-less link, never a loopback one
+ok 83 - dashboard-link: AS-93 — a blank page hostname yields a host-less link, never a loopback one
+  ---
+  duration_ms: 0.078334
+  type: 'test'
+  ...
+# Subtest: AS-86 deploy-inputs-git: a committed change to .dockerignore changes the desired id
+ok 84 - AS-86 deploy-inputs-git: a committed change to .dockerignore changes the desired id
+  ---
+  duration_ms: 978.010167
+  type: 'test'
+  ...
+# Subtest: AS-86 deploy-inputs-git: a stray compose.override.yaml is rejected by the classifier
+ok 85 - AS-86 deploy-inputs-git: a stray compose.override.yaml is rejected by the classifier
+  ---
+  duration_ms: 770.124292
+  type: 'test'
+  ...
+# Subtest: deploy-shape: parser sees the manifests it is about to assert on
+ok 86 - deploy-shape: parser sees the manifests it is about to assert on
+  ---
+  duration_ms: 0.962875
+  type: 'test'
+  ...
+# Subtest: deploy-shape: PRODUCTION_COMPOSE_PROJECT is the `name:` compose.yaml declares
+ok 87 - deploy-shape: PRODUCTION_COMPOSE_PROJECT is the `name:` compose.yaml declares
+  ---
+  duration_ms: 0.869875
+  type: 'test'
+  ...
+# Subtest: deploy-shape: /api/file reaches every repo markdown path the app links
+ok 88 - deploy-shape: /api/file reaches every repo markdown path the app links
+  ---
+  duration_ms: 0.267167
+  type: 'test'
+  ...
+# Subtest: deploy-shape: the repo mount is the whole checkout, read-only
+ok 89 - deploy-shape: the repo mount is the whole checkout, read-only
+  ---
+  duration_ms: 0.103083
+  type: 'test'
+  ...
+# Subtest: deploy-shape: cli keeps its lattice + personnel reads; test service stays mountless
+ok 90 - deploy-shape: cli keeps its lattice + personnel reads; test service stays mountless
+  ---
+  duration_ms: 0.105042
+  type: 'test'
+  ...
+# Subtest: deploy-shape: IMAGE_INPUTS is exactly the set the Dockerfile COPYs
+ok 91 - deploy-shape: IMAGE_INPUTS is exactly the set the Dockerfile COPYs
+  ---
+  duration_ms: 0.356458
+  type: 'test'
+  ...
+# Subtest: deploy-shape: the COPY parser throws on forms it does not understand
+ok 92 - deploy-shape: the COPY parser throws on forms it does not understand
+  ---
+  duration_ms: 0.307334
+  type: 'test'
+  ...
+# Subtest: deploy-shape: .dockerignore is an image input and hides no manifest
+ok 93 - deploy-shape: .dockerignore is an image input and hides no manifest
+  ---
+  duration_ms: 0.163416
+  type: 'test'
+  ...
+# Subtest: deploy-shape: the .dockerignore parser throws on forms it does not understand
+ok 94 - deploy-shape: the .dockerignore parser throws on forms it does not understand
+  ---
+  duration_ms: 0.134333
+  type: 'test'
+  ...
+# Subtest: deploy-shape: every tracked path under apps/chat is an image input or declared not one
+ok 95 - deploy-shape: every tracked path under apps/chat is an image input or declared not one
+  ---
+  duration_ms: 135.848791
+  type: 'test'
+  ...
+# Subtest: deploy-shape: the server image is stamped with the build id the deployer computes
+ok 96 - deploy-shape: the server image is stamped with the build id the deployer computes
+  ---
+  duration_ms: 0.300917
+  type: 'test'
+  ...
+# Subtest: deploy-shape: `up -d --build` starts the server alone — cli and test stay behind the tools profile
+ok 97 - deploy-shape: `up -d --build` starts the server alone — cli and test stay behind the tools profile
+  ---
+  duration_ms: 0.062833
+  type: 'test'
+  ...
+# Subtest: dm-sort: teamPrefix — agent, human, system, multi-hyphen, no-hyphen
+ok 98 - dm-sort: teamPrefix — agent, human, system, multi-hyphen, no-hyphen
+  ---
+  duration_ms: 0.486959
+  type: 'test'
+  ...
+# Subtest: dm-sort: teamPrefix — malformed input degrades to empty string
+ok 99 - dm-sort: teamPrefix — malformed input degrades to empty string
+  ---
+  duration_ms: 0.074666
+  type: 'test'
+  ...
+# Subtest: dm-sort: rosterOrder — no pins: prefix groups lexicographic, name tie-break
+ok 100 - dm-sort: rosterOrder — no pins: prefix groups lexicographic, name tie-break
+  ---
+  duration_ms: 41.653042
+  type: 'test'
+  ...
+# Subtest: dm-sort: rosterOrder — pinned float to top, comparator-sorted within tiers
+ok 101 - dm-sort: rosterOrder — pinned float to top, comparator-sorted within tiers
+  ---
+  duration_ms: 0.118958
+  type: 'test'
+  ...
+# Subtest: dm-sort: rosterOrder — pins referencing absent ids are ignored
+ok 102 - dm-sort: rosterOrder — pins referencing absent ids are ignored
+  ---
+  duration_ms: 0.087291
+  type: 'test'
+  ...
+# Subtest: dm-sort: rosterOrder — never mutates input; junk degrades to []
+ok 103 - dm-sort: rosterOrder — never mutates input; junk degrades to []
+  ---
+  duration_ms: 0.1035
+  type: 'test'
+  ...
+# Subtest: dm-sort: dmOrder — sorts by other-member prefix, then display name; no pins
+ok 104 - dm-sort: dmOrder — sorts by other-member prefix, then display name; no pins
+  ---
+  duration_ms: 0.1515
+  type: 'test'
+  ...
+# Subtest: dm-sort: dmOrder — stable over identical keys
+ok 105 - dm-sort: dmOrder — stable over identical keys
+  ---
+  duration_ms: 0.08075
+  type: 'test'
+  ...
+# Subtest: dm-sort: togglePin — add, remove, dedupe, input untouched
+ok 106 - dm-sort: togglePin — add, remove, dedupe, input untouched
+  ---
+  duration_ms: 0.092834
+  type: 'test'
+  ...
+# Subtest: dm-sort: sanitizePins — arrays keep string members deduped; junk -> []
+ok 107 - dm-sort: sanitizePins — arrays keep string members deduped; junk -> []
+  ---
+  duration_ms: 0.131584
+  type: 'test'
+  ...
+# Subtest: events-cli-creates-dir
+ok 108 - events-cli-creates-dir
+  ---
+  duration_ms: 76.897917
+  type: 'test'
+  ...
+# Subtest: events-cli-rejects-cut
+ok 109 - events-cli-rejects-cut
+  ---
+  duration_ms: 887.679542
+  type: 'test'
+  ...
+# Subtest: events-cli-unresolved-task-still-emits
+ok 110 - events-cli-unresolved-task-still-emits
+  ---
+  duration_ms: 386.838916
+  type: 'test'
+  ...
+# Subtest: events-cli-open-and-tail
+ok 111 - events-cli-open-and-tail
+  ---
+  duration_ms: 883.639417
+  type: 'test'
+  ...
+# Subtest: events-envelope-keys
+ok 112 - events-envelope-keys
+  ---
+  duration_ms: 10.344166
+  type: 'test'
+  ...
+# Subtest: lattice-events-share-parser
+ok 113 - lattice-events-share-parser
+  ---
+  duration_ms: 1.416542
+  type: 'test'
+  ...
+# Subtest: events-id-monotonic
+ok 114 - events-id-monotonic
+  ---
+  duration_ms: 4.889042
+  type: 'test'
+  ...
+# Subtest: events-append-only
+ok 115 - events-append-only
+  ---
+  duration_ms: 3.643209
+  type: 'test'
+  ...
+# Subtest: events-no-truncating-path
+ok 116 - events-no-truncating-path
+  ---
+  duration_ms: 0.715375
+  type: 'test'
+  ...
+# Subtest: events-make-validates
+ok 117 - events-make-validates
+  ---
+  duration_ms: 0.395958
+  type: 'test'
+  ...
+# Subtest: watcher-events-outcome-timeout
+ok 118 - watcher-events-outcome-timeout
+  ---
+  duration_ms: 0.161292
+  type: 'test'
+  ...
+# Subtest: events-open-derived-from-stream
+ok 119 - events-open-derived-from-stream
+  ---
+  duration_ms: 0.36525
+  type: 'test'
+  ...
+# Subtest: events-liveness-bound
+ok 120 - events-liveness-bound
+  ---
+  duration_ms: 0.188334
+  type: 'test'
+  ...
+# Subtest: events-liveness-shapes
+ok 121 - events-liveness-shapes
+  ---
+  duration_ms: 0.308375
+  type: 'test'
+  ...
+# Subtest: events-fold-incremental-equals-batch
+ok 122 - events-fold-incremental-equals-batch
+  ---
+  duration_ms: 0.224167
+  type: 'test'
+  ...
+# Subtest: events-project-whitelists-keys
+ok 123 - events-project-whitelists-keys
+  ---
+  duration_ms: 0.229166
+  type: 'test'
+  ...
+# Subtest: events-read-stream-reasons
+ok 124 - events-read-stream-reasons
+  ---
+  duration_ms: 0.176791
+  type: 'test'
+  ...
+# (node:21038) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: export round-trips the messages table faithfully
+ok 125 - export round-trips the messages table faithfully
+  ---
+  duration_ms: 27.074083
+  type: 'test'
+  ...
+# Subtest: export is deterministic and ignores read_state churn
+ok 126 - export is deterministic and ignores read_state churn
+  ---
+  duration_ms: 7.16725
+  type: 'test'
+  ...
+# Subtest: export is append-only: prior files are strict prefixes after new messages
+ok 127 - export is append-only: prior files are strict prefixes after new messages
+  ---
+  duration_ms: 11.825917
+  type: 'test'
+  ...
+# Subtest: DM filenames use the ~ scheme, are safe, and never collide
+ok 128 - DM filenames use the ~ scheme, are safe, and never collide
+  ---
+  duration_ms: 6.215625
+  type: 'test'
+  ...
+# Subtest: cli: chat export writes files, prints summary, and re-runs byte-identically
+ok 129 - cli: chat export writes files, prints summary, and re-runs byte-identically
+  ---
+  duration_ms: 499.2095
+  type: 'test'
+  ...
+# Subtest: AS-6: \#board never produces an export file, even with messages in it
+ok 130 - AS-6: \#board never produces an export file, even with messages in it
+  ---
+  duration_ms: 8.649209
+  type: 'test'
+  ...
+# Subtest: AS-6: the export header line format is unchanged (no visibility key)
+ok 131 - AS-6: the export header line format is unchanged (no visibility key)
+  ---
+  duration_ms: 5.521458
+  type: 'test'
+  ...
+# Subtest: AS-6: interleaved board traffic never perturbs public export files
+ok 132 - AS-6: interleaved board traffic never perturbs public export files
+  ---
+  duration_ms: 14.0155
+  type: 'test'
+  ...
+# Subtest: cli: AS-6 — chat export skips \#board: no file, no counts, still byte-identical on re-run
+ok 133 - cli: AS-6 — chat export skips \#board: no file, no counts, still byte-identical on re-run
+  ---
+  duration_ms: 181.511833
+  type: 'test'
+  ...
+# Subtest: AS-91: a DM with a human participant produces no export file; the sibling agent-agent DM still does
+ok 134 - AS-91: a DM with a human participant produces no export file; the sibling agent-agent DM still does
+  ---
+  duration_ms: 13.060417
+  type: 'test'
+  ...
+# Subtest: AS-91: any human identity is excluded, not just human:forrest (human-second and human-first keys)
+ok 135 - AS-91: any human identity is excluded, not just human:forrest (human-second and human-first keys)
+  ---
+  duration_ms: 8.722917
+  type: 'test'
+  ...
+# Subtest: cli: AS-91 — chat export skips human DMs: no file, no counts, still byte-identical on re-run
+ok 136 - cli: AS-91 — chat export skips human DMs: no file, no counts, still byte-identical on re-run
+  ---
+  duration_ms: 281.861
+  type: 'test'
+  ...
+# Subtest: cli: AS-3 — history on a nonexistent DM adds no export file
+ok 137 - cli: AS-3 — history on a nonexistent DM adds no export file
+  ---
+  duration_ms: 559.384083
+  type: 'test'
+  ...
+# (node:21067) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: identities: every active dossier is registered before the server accepts requests (AC-1, AC-9)
+ok 138 - identities: every active dossier is registered before the server accepts requests (AC-1, AC-9)
+  ---
+  duration_ms: 205.601375
+  type: 'test'
+  ...
+# Subtest: identities: a new dossier with no identity can post without anyone registering it (AC-2)
+ok 139 - identities: a new dossier with no identity can post without anyone registering it (AC-2)
+  ---
+  duration_ms: 83.13775
+  type: 'test'
+  ...
+# chat: identity reconciliation skipped 1 dossier(s): agent:blank-name (displayName must be a non-empty string.)
+# Subtest: identities: departed dossiers are not registered (AC-3)
+ok 140 - identities: departed dossiers are not registered (AC-3)
+  ---
+  duration_ms: 28.526083
+  type: 'test'
+  ...
+# Subtest: identities: an existing identity with a drifted display name is left as-is (AC-4)
+ok 141 - identities: an existing identity with a drifted display name is left as-is (AC-4)
+  ---
+  duration_ms: 20.751375
+  type: 'test'
+  ...
+# Subtest: identities: a dossier registerIdentity rejects is skipped and reported; the server still boots (AC-5)
+ok 142 - identities: a dossier registerIdentity rejects is skipped and reported; the server still boots (AC-5)
+  ---
+  duration_ms: 50.576292
+  type: 'test'
+  ...
+# Subtest: identities: missing personnel/ dir reconciles nothing and the server is up (AC-6, AS-8 contract)
+ok 143 - identities: missing personnel/ dir reconciles nothing and the server is up (AC-6, AS-8 contract)
+  ---
+  duration_ms: 11.100042
+  type: 'test'
+  ...
+# Subtest: identities: reconciliation is idempotent across two boots on one DB (AC-8)
+ok 144 - identities: reconciliation is idempotent across two boots on one DB (AC-8)
+  ---
+  duration_ms: 12.005792
+  type: 'test'
+  ...
+# Subtest: lanes-label-null-is-dash: an unanswered fetch is a dash, never a zero
+ok 145 - lanes-label-null-is-dash: an unanswered fetch is a dash, never a zero
+  ---
+  duration_ms: 13.601541
+  type: 'test'
+  ...
+# Subtest: lanes-label-reason-table: every snapshot reason has a sentence, and no sentence is orphaned
+ok 146 - lanes-label-reason-table: every snapshot reason has a sentence, and no sentence is orphaned
+  ---
+  duration_ms: 0.4555
+  type: 'test'
+  ...
+# Subtest: lanes-label-git-error-is-not-a-measured-zero: git refusing is not "nothing in flight"
+ok 147 - lanes-label-git-error-is-not-a-measured-zero: git refusing is not "nothing in flight"
+  ---
+  duration_ms: 0.199042
+  type: 'test'
+  ...
+# Subtest: lanes-label-empty-state-table: every reason has its own empty-state sentence, and only `ok` claims a measurement
+ok 148 - lanes-label-empty-state-table: every reason has its own empty-state sentence, and only `ok` claims a measurement
+  ---
+  duration_ms: 0.135
+  type: 'test'
+  ...
+# Subtest: lanes-label-stale-caption: a stale snapshot says so, in age and in words
+ok 149 - lanes-label-stale-caption: a stale snapshot says so, in age and in words
+  ---
+  duration_ms: 0.1265
+  type: 'test'
+  ...
+# Subtest: lanes-label-task-only-not-cut-yet: a lane with no branch never reads 0 or clean
+ok 150 - lanes-label-task-only-not-cut-yet: a lane with no branch never reads 0 or clean
+  ---
+  duration_ms: 0.299375
+  type: 'test'
+  ...
+# Subtest: lanes-label-card-fields: a worktree lane renders all eight durable fields in words
+ok 151 - lanes-label-card-fields: a worktree lane renders all eight durable fields in words
+  ---
+  duration_ms: 0.5685
+  type: 'test'
+  ...
+# Subtest: lanes-label-employee-disagreement-is-shown: two identities, assignee first
+ok 152 - lanes-label-employee-disagreement-is-shown: two identities, assignee first
+  ---
+  duration_ms: 0.186083
+  type: 'test'
+  ...
+# Subtest: lanes-label-dirty-lattice-and-errors: the two-plane violation and a failed git call are said out loud
+ok 153 - lanes-label-dirty-lattice-and-errors: the two-plane violation and a failed git call are said out loud
+  ---
+  duration_ms: 0.165084
+  type: 'test'
+  ...
+# Subtest: lanes-label-unknown-task-and-detached: a lane with no join still renders a card
+ok 154 - lanes-label-unknown-task-and-detached: a lane with no join still renders a card
+  ---
+  duration_ms: 0.157333
+  type: 'test'
+  ...
+# Subtest: lanes-label-stale-badge-says-why: the STALE flag is never a bare word
+ok 155 - lanes-label-stale-badge-says-why: the STALE flag is never a bare word
+  ---
+  duration_ms: 0.135334
+  type: 'test'
+  ...
+# Subtest: lanes-label-tick-line-is-whole-company: the liveness line refuses to imply per-lane
+ok 156 - lanes-label-tick-line-is-whole-company: the liveness line refuses to imply per-lane
+  ---
+  duration_ms: 0.117417
+  type: 'test'
+  ...
+# Subtest: lanes-label-activity-has-no-producer-yet: blank, live and decayed at the 15 s boundary
+ok 157 - lanes-label-activity-has-no-producer-yet: blank, live and decayed at the 15 s boundary
+  ---
+  duration_ms: 0.085625
+  type: 'test'
+  ...
+# Subtest: lanes-label-events-reason-table: every stream reason has a sentence, and no sentence is orphaned
+ok 158 - lanes-label-events-reason-table: every stream reason has a sentence, and no sentence is orphaned
+  ---
+  duration_ms: 0.144083
+  type: 'test'
+  ...
+# Subtest: lanes-label-outcome-tables: every stage outcome and sub-agent exit has a sentence
+ok 159 - lanes-label-outcome-tables: every stage outcome and sub-agent exit has a sentence
+  ---
+  duration_ms: 0.123708
+  type: 'test'
+  ...
+# Subtest: lanes-label-no-stream-fills-both-slots: the missing input is named, not blanked
+ok 160 - lanes-label-no-stream-fills-both-slots: the missing input is named, not blanked
+  ---
+  duration_ms: 0.092625
+  type: 'test'
+  ...
+# Subtest: lanes-label-stale-open-not-running: an expired tick box is never reported as running
+ok 161 - lanes-label-stale-open-not-running: an expired tick box is never reported as running
+  ---
+  duration_ms: 0.215417
+  type: 'test'
+  ...
+# Subtest: lanes-label-live-counts-up-and-ended-says-its-outcome
+ok 162 - lanes-label-live-counts-up-and-ended-says-its-outcome
+  ---
+  duration_ms: 0.1115
+  type: 'test'
+  ...
+# Subtest: lanes-parse-detached: main + linked + detached rows parse to three rows
+ok 163 - lanes-parse-detached: main + linked + detached rows parse to three rows
+  ---
+  duration_ms: 31.842583
+  type: 'test'
+  ...
+# Subtest: lanes-parse-tolerant: a record missing HEAD is a row with an error, never a throw
+ok 164 - lanes-parse-tolerant: a record missing HEAD is a row with an error, never a throw
+  ---
+  duration_ms: 0.154667
+  type: 'test'
+  ...
+# Subtest: lanes-parse-trailer: the final record survives a missing trailing blank line
+ok 165 - lanes-parse-trailer: the final record survives a missing trailing blank line
+  ---
+  duration_ms: 0.082333
+  type: 'test'
+  ...
+# Subtest: lanes-relpath: the absolute host path is stripped to a repo-relative one
+ok 166 - lanes-relpath: the absolute host path is stripped to a repo-relative one
+  ---
+  duration_ms: 0.1475
+  type: 'test'
+  ...
+# Subtest: lanes-relpath-outside-repo: a worktree outside the root is marked, never carried as a host path
+ok 167 - lanes-relpath-outside-repo: a worktree outside the root is marked, never carried as a host path
+  ---
+  duration_ms: 0.141291
+  type: 'test'
+  ...
+# Subtest: lanes-status-summary: dirty count, and .lattice dirt called out by name
+ok 168 - lanes-status-summary: dirty count, and .lattice dirt called out by name
+  ---
+  duration_ms: 0.191375
+  type: 'test'
+  ...
+# Subtest: lanes-merged-fresh-branch-is-not-merged: all three facts are needed
+ok 169 - lanes-merged-fresh-branch-is-not-merged: all three facts are needed
+  ---
+  duration_ms: 0.070334
+  type: 'test'
+  ...
+# Subtest: lanes-compose-shape: a joined lane carries exactly the projection keys
+ok 170 - lanes-compose-shape: a joined lane carries exactly the projection keys
+  ---
+  duration_ms: 45.734
+  type: 'test'
+  ...
+# Subtest: lanes-compose-unknown-task-kept: N worktree rows in, N worktree lanes out
+ok 171 - lanes-compose-unknown-task-kept: N worktree rows in, N worktree lanes out
+  ---
+  duration_ms: 7.934
+  type: 'test'
+  ...
+# Subtest: lanes-compose-link-beats-name: an explicit branch-link wins over a parsed short code
+ok 172 - lanes-compose-link-beats-name: an explicit branch-link wins over a parsed short code
+  ---
+  duration_ms: 0.200791
+  type: 'test'
+  ...
+# Subtest: lanes-compose-branch-name-fallback: no link, so the short code in the name joins
+ok 173 - lanes-compose-branch-name-fallback: no link, so the short code in the name joins
+  ---
+  duration_ms: 0.198333
+  type: 'test'
+  ...
+# Subtest: lanes-compose-task-only-membership: mid-lifecycle without a worktree is a lane; a queue is not
+ok 174 - lanes-compose-task-only-membership: mid-lifecycle without a worktree is a lane; a queue is not
+  ---
+  duration_ms: 0.188125
+  type: 'test'
+  ...
+# Subtest: lanes-compose-task-only-with-worktree: needs_human WITH a worktree is a lane
+ok 175 - lanes-compose-task-only-with-worktree: needs_human WITH a worktree is a lane
+  ---
+  duration_ms: 0.085083
+  type: 'test'
+  ...
+# Subtest: lanes-compose-no-double-count: a mid-lifecycle task joined to a worktree yields ONE lane
+ok 176 - lanes-compose-no-double-count: a mid-lifecycle task joined to a worktree yields ONE lane
+  ---
+  duration_ms: 0.07425
+  type: 'test'
+  ...
+# Subtest: lanes-compose-order: worktree lanes by path, then task-only lanes by short id
+ok 177 - lanes-compose-order: worktree lanes by path, then task-only lanes by short id
+  ---
+  duration_ms: 0.109083
+  type: 'test'
+  ...
+# Subtest: lanes-stale-reasons: done, cancelled and merged each flag; a live lane does not
+ok 178 - lanes-stale-reasons: done, cancelled and merged each flag; a live lane does not
+  ---
+  duration_ms: 0.172458
+  type: 'test'
+  ...
+# Subtest: lanes-employee-both-fields: assignee and git author are never merged
+ok 179 - lanes-employee-both-fields: assignee and git author are never merged
+  ---
+  duration_ms: 0.0955
+  type: 'test'
+  ...
+# Subtest: lanes-stale-boundary: the boundary is LANES_STALE_MS, taken from generatedAt
+ok 180 - lanes-stale-boundary: the boundary is LANES_STALE_MS, taken from generatedAt
+  ---
+  duration_ms: 0.095375
+  type: 'test'
+  ...
+# Subtest: lanes-degradation: every unreadable feed is a named reason, never a short list
+ok 181 - lanes-degradation: every unreadable feed is a named reason, never a short list
+  ---
+  duration_ms: 0.161917
+  type: 'test'
+  ...
+# Subtest: lanes-compose-tolerant: hostile and half-written rows never throw
+ok 182 - lanes-compose-tolerant: hostile and half-written rows never throw
+  ---
+  duration_ms: 0.103833
+  type: 'test'
+  ...
+# Subtest: lanes-liveness-shape-unchanged
+ok 183 - lanes-liveness-shape-unchanged
+  ---
+  duration_ms: 0.140209
+  type: 'test'
+  ...
+# (node:21090) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: resolveShortId resolves existing tasks and flags missing ones
+ok 184 - resolveShortId resolves existing tasks and flags missing ones
+  ---
+  duration_ms: 1.153834
+  type: 'test'
+  ...
+# Subtest: dashboardTaskUrl: default base, env override, trailing-slash trim (AS-10)
+ok 185 - dashboardTaskUrl: default base, env override, trailing-slash trim (AS-10)
+  ---
+  duration_ms: 0.258625
+  type: 'test'
+  ...
+# Subtest: resolveRefs extracts unique refs; unresolvable codes are flagged, not dropped
+ok 186 - resolveRefs extracts unique refs; unresolvable codes are flagged, not dropped
+  ---
+  duration_ms: 0.313708
+  type: 'test'
+  ...
+# Subtest: readTaskEvents: per-task files only, ordered by ts, malformed lines skipped
+ok 187 - readTaskEvents: per-task files only, ordered by ts, malformed lines skipped
+  ---
+  duration_ms: 0.856625
+  type: 'test'
+  ...
+# Subtest: formatEvent formats creations and transitions; truncates long titles
+ok 188 - formatEvent formats creations and transitions; truncates long titles
+  ---
+  duration_ms: 0.65025
+  type: 'test'
+  ...
+# Subtest: assignmentsByActor: in-flight only, priority ranking, recency tie-break (AS-8)
+ok 189 - assignmentsByActor: in-flight only, priority ranking, recency tie-break (AS-8)
+  ---
+  duration_ms: 9.182875
+  type: 'test'
+  ...
+# Subtest: assignmentsByActor: missing tasks dir yields an empty map
+ok 190 - assignmentsByActor: missing tasks dir yields an empty map
+  ---
+  duration_ms: 3.807666
+  type: 'test'
+  ...
+# Subtest: assignmentsByActor: prototype-chain status "constructor" is not in-flight (AS-12)
+ok 191 - assignmentsByActor: prototype-chain status "constructor" is not in-flight (AS-12)
+  ---
+  duration_ms: 2.632708
+  type: 'test'
+  ...
+# Subtest: assignmentsByActor: assigned_to "__proto__" is a safe own key, no throw (AS-12)
+ok 192 - assignmentsByActor: assigned_to "__proto__" is a safe own key, no throw (AS-12)
+  ---
+  duration_ms: 1.926125
+  type: 'test'
+  ...
+# Subtest: ingestNewEvents is idempotent: five runs post each event exactly once (T6)
+ok 193 - ingestNewEvents is idempotent: five runs post each event exactly once (T6)
+  ---
+  duration_ms: 17.658208
+  type: 'test'
+  ...
+# Subtest: launchd: AS-94 — every plist template under watch/ renders clean and carries the common job shape
+ok 194 - launchd: AS-94 — every plist template under watch/ renders clean and carries the common job shape
+  ---
+  duration_ms: 11.022708
+  type: 'test'
+  ...
+# Subtest: launchd: AS-94 — the dashboard job binds loopback :8799 from the repo root, exactly
+ok 195 - launchd: AS-94 — the dashboard job binds loopback :8799 from the repo root, exactly
+  ---
+  duration_ms: 0.263292
+  type: 'test'
+  ...
+# Subtest: launchd: AS-94 — the README install recipe substitutes exactly each template's placeholders
+ok 196 - launchd: AS-94 — the README install recipe substitutes exactly each template's placeholders
+  ---
+  duration_ms: 0.506167
+  type: 'test'
+  ...
+# Subtest: launchd: AS-94 — the plist reader throws on forms it does not understand
+ok 197 - launchd: AS-94 — the plist reader throws on forms it does not understand
+  ---
+  duration_ms: 0.47525
+  type: 'test'
+  ...
+# Subtest: link-sites: AS-98 — every href in public/*.js comes from an allowlisted source (12 files, 9 assignments examined)
+ok 198 - link-sites: AS-98 — every href in public/*.js comes from an allowlisted source (12 files, 9 assignments examined)
+  ---
+  duration_ms: 8.618542
+  type: 'test'
+  ...
+# Subtest: link-sites: AS-98 — no file in public/*.js sets href by any mechanism other than a .href = assignment
+ok 199 - link-sites: AS-98 — no file in public/*.js sets href by any mechanism other than a .href = assignment
+  ---
+  duration_ms: 3.376208
+  type: 'test'
+  ...
+# Subtest: link-sites: AS-98 — no file in public/*.js reads the server-baked url field (member or bracket access)
+ok 200 - link-sites: AS-98 — no file in public/*.js reads the server-baked url field (member or bracket access)
+  ---
+  duration_ms: 0.833917
+  type: 'test'
+  ...
+# Subtest: link-sites: AS-98 — the classifier itself rejects every known evasion spelling and accepts every allowed one
+ok 201 - link-sites: AS-98 — the classifier itself rejects every known evasion spelling and accepts every allowed one
+  ---
+  duration_ms: 0.208041
+  type: 'test'
+  ...
+# Subtest: AS-25 live: maxLoadedId spans top-level messages and thread replies; 0 when empty
+ok 202 - AS-25 live: maxLoadedId spans top-level messages and thread replies; 0 when empty
+  ---
+  duration_ms: 0.573334
+  type: 'test'
+  ...
+# Subtest: AS-25 live: top-level merge — appends id-ordered, normalizes replyCount, dedupes by id
+ok 203 - AS-25 live: top-level merge — appends id-ordered, normalizes replyCount, dedupes by id
+  ---
+  duration_ms: 0.536167
+  type: 'test'
+  ...
+# Subtest: AS-25 live: reply merge — appends to threads[root], bumps loaded root replyCount exactly once
+ok 204 - AS-25 live: reply merge — appends to threads[root], bumps loaded root replyCount exactly once
+  ---
+  duration_ms: 0.266625
+  type: 'test'
+  ...
+# Subtest: AS-25 live: catch-up idempotency — replaying the same delta changes nothing
+ok 205 - AS-25 live: catch-up idempotency — replaying the same delta changes nothing
+  ---
+  duration_ms: 73.552292
+  type: 'test'
+  ...
+# Subtest: AS-27 label: the four states produce four distinct tones and labels
+ok 206 - AS-27 label: the four states produce four distinct tones and labels
+  ---
+  duration_ms: 1.840875
+  type: 'test'
+  ...
+# Subtest: AS-27 label: detail carries the evidence — ages, pid, and the source
+ok 207 - AS-27 label: detail carries the evidence — ages, pid, and the source
+  ---
+  duration_ms: 0.160708
+  type: 'test'
+  ...
+# Subtest: AS-27 label: a stale lock names its source and says stale, without becoming a tick
+ok 208 - AS-27 label: a stale lock names its source and says stale, without becoming a tick
+  ---
+  duration_ms: 0.120333
+  type: 'test'
+  ...
+# Subtest: AS-27 label: the no-heartbeat watcher yields the off tone and names the restart
+ok 209 - AS-27 label: the no-heartbeat watcher yields the off tone and names the restart
+  ---
+  duration_ms: 0.203291
+  type: 'test'
+  ...
+# Subtest: AS-27 label: the between-ticks gap is described as a limit, not hidden
+ok 210 - AS-27 label: the between-ticks gap is described as a limit, not hidden
+  ---
+  duration_ms: 0.150583
+  type: 'test'
+  ...
+# Subtest: AS-27 label: an unavailable status degrades to off/unavailable, never a throw
+ok 211 - AS-27 label: an unavailable status degrades to off/unavailable, never a throw
+  ---
+  duration_ms: 0.249542
+  type: 'test'
+  ...
+# Subtest: AS-75 label: exactly one build sentence, distinct per case, silent when current
+ok 212 - AS-75 label: exactly one build sentence, distinct per case, silent when current
+  ---
+  duration_ms: 0.2465
+  type: 'test'
+  ...
+# Subtest: AS-75 label: every build reason has prose, and null is never rendered as behind
+ok 213 - AS-75 label: every build reason has prose, and null is never rendered as behind
+  ---
+  duration_ms: 67.887833
+  type: 'test'
+  ...
+# Subtest: AS-87 label: "deploying" says a rebuild is running now and points at the build log
+ok 214 - AS-87 label: "deploying" says a rebuild is running now and points at the build log
+  ---
+  duration_ms: 0.165166
+  type: 'test'
+  ...
+# Subtest: AS-75 label: a deploy holds the lock and says so — "Tick in flight · deploy"
+ok 215 - AS-75 label: a deploy holds the lock and says so — "Tick in flight · deploy"
+  ---
+  duration_ms: 0.141
+  type: 'test'
+  ...
+# Subtest: AS-95 label: a watcher loop is "Loop active · watcher, tick N", and the count comes from the lock first
+ok 216 - AS-95 label: a watcher loop is "Loop active · watcher, tick N", and the count comes from the lock first
+  ---
+  duration_ms: 0.138792
+  type: 'test'
+  ...
+# Subtest: AS-95 label: a stopped loop says WHY, in words, and only while no loop is running
+ok 217 - AS-95 label: a stopped loop says WHY, in words, and only while no loop is running
+  ---
+  duration_ms: 39.584334
+  type: 'test'
+  ...
+# Subtest: AS-95 label: an absent or malformed loop key changes nothing (pre-AS-95 server parity)
+ok 218 - AS-95 label: an absent or malformed loop key changes nothing (pre-AS-95 server parity)
+  ---
+  duration_ms: 0.16475
+  type: 'test'
+  ...
+# Subtest: AS-75 label: an absent or malformed build key changes nothing
+ok 219 - AS-75 label: an absent or malformed build key changes nothing
+  ---
+  duration_ms: 0.080125
+  type: 'test'
+  ...
+# Subtest: f5-between-ticks-label: the gap between loop ticks reads as a loop, and says it is a gap
+ok 220 - f5-between-ticks-label: the gap between loop ticks reads as a loop, and says it is a gap
+  ---
+  duration_ms: 0.079083
+  type: 'test'
+  ...
+# Subtest: f5-idle-keeps-its-own-words: a session loop between ticks still gets C5’s explanation
+ok 221 - f5-idle-keeps-its-own-words: a session loop between ticks still gets C5’s explanation
+  ---
+  duration_ms: 3.000041
+  type: 'test'
+  ...
+# Subtest: AS-27 loop-status: the four states, each from the inputs that produce it
+ok 222 - AS-27 loop-status: the four states, each from the inputs that produce it
+  ---
+  duration_ms: 12.271292
+  type: 'test'
+  ...
+# Subtest: AS-27 loop-status: staleness boundary is the watcher's, not a second comparison
+ok 223 - AS-27 loop-status: staleness boundary is the watcher's, not a second comparison
+  ---
+  duration_ms: 1.824917
+  type: 'test'
+  ...
+# Subtest: AS-27 loop-status: watcher freshness window is WATCHER_STALE_MS (12 watcher polls)
+ok 224 - AS-27 loop-status: watcher freshness window is WATCHER_STALE_MS (12 watcher polls)
+  ---
+  duration_ms: 0.130125
+  type: 'test'
+  ...
+# Subtest: AS-27 loop-status: malformed lock and pid files degrade to a reason, never a throw
+ok 225 - AS-27 loop-status: malformed lock and pid files degrade to a reason, never a throw
+  ---
+  duration_ms: 0.252042
+  type: 'test'
+  ...
+# Subtest: AS-27 loop-status: the AS-16 nonce is never copied into the derived object
+ok 226 - AS-27 loop-status: the AS-16 nonce is never copied into the derived object
+  ---
+  duration_ms: 0.211458
+  type: 'test'
+  ...
+# Subtest: AS-27 loop-status: a startedAt in the future (host clock skew) reads as age 0, never negative
+ok 227 - AS-27 loop-status: a startedAt in the future (host clock skew) reads as age 0, never negative
+  ---
+  duration_ms: 0.080625
+  type: 'test'
+  ...
+# Subtest: AS-95 loop-status: a watcher tick inside a loop derives state watcher-loop, from either witness alone
+ok 228 - AS-95 loop-status: a watcher tick inside a loop derives state watcher-loop, from either witness alone
+  ---
+  duration_ms: 0.125875
+  type: 'test'
+  ...
+# Subtest: AS-95 loop-status: watcher-loop never displaces the states that already existed
+ok 229 - AS-95 loop-status: watcher-loop never displaces the states that already existed
+  ---
+  duration_ms: 0.090083
+  type: 'test'
+  ...
+# Subtest: f5-between-ticks: a live loop between its ticks is a loop, not idle
+ok 230 - f5-between-ticks: a live loop between its ticks is a loop, not idle
+  ---
+  duration_ms: 0.082125
+  type: 'test'
+  ...
+# Subtest: f5-needs-a-live-watcher: an active mirror with a dead watcher is off, never a loop
+ok 231 - f5-needs-a-live-watcher: an active mirror with a dead watcher is off, never a loop
+  ---
+  duration_ms: 0.131458
+  type: 'test'
+  ...
+# Subtest: f5-does-not-touch-the-lock-states: a fresh lock still decides who holds it
+ok 232 - f5-does-not-touch-the-lock-states: a fresh lock still decides who holds it
+  ---
+  duration_ms: 0.090375
+  type: 'test'
+  ...
+# Subtest: AS-95 loop-status: lastLoop survives a stopped loop, and a garbage loop file degrades to null
+ok 233 - AS-95 loop-status: lastLoop survives a stopped loop, and a garbage loop file degrades to null
+  ---
+  duration_ms: 0.14975
+  type: 'test'
+  ...
+# Subtest: inline: strong, em (both delimiters), code, link — delimiters dropped from inner
+ok 234 - inline: strong, em (both delimiters), code, link — delimiters dropped from inner
+  ---
+  duration_ms: 1.552041
+  type: 'test'
+  ...
+# Subtest: inline: mixed body tokenizes in order with text between
+ok 235 - inline: mixed body tokenizes in order with text between
+  ---
+  duration_ms: 0.115459
+  type: 'test'
+  ...
+# Subtest: inline: javascript: and other non-http schemes stay literal (edge case 16)
+ok 236 - inline: javascript: and other non-http schemes stay literal (edge case 16)
+  ---
+  duration_ms: 0.1815
+  type: 'test'
+  ...
+# Subtest: inline: false positives stay literal (edge case 14)
+ok 237 - inline: false positives stay literal (edge case 14)
+  ---
+  duration_ms: 0.119292
+  type: 'test'
+  ...
+# Subtest: inline: code has precedence — styling never fires inside a code span
+ok 238 - inline: code has precedence — styling never fires inside a code span
+  ---
+  duration_ms: 0.111542
+  type: 'test'
+  ...
+# Subtest: inline: refs inside styling keep their text for the per-leaf ref passes (edge case 15)
+ok 239 - inline: refs inside styling keep their text for the per-leaf ref passes (edge case 15)
+  ---
+  duration_ms: 0.159416
+  type: 'test'
+  ...
+# Subtest: inline: single level — inner is not re-tokenized by the caller contract
+ok 240 - inline: single level — inner is not re-tokenized by the caller contract
+  ---
+  duration_ms: 0.060708
+  type: 'test'
+  ...
+# Subtest: inline: junk-tolerant on non-strings and empty input
+ok 241 - inline: junk-tolerant on non-strings and empty input
+  ---
+  duration_ms: 0.061125
+  type: 'test'
+  ...
+# Subtest: blocks: headings, fenced code, paragraphs on blank lines, list lines stay plain
+ok 242 - blocks: headings, fenced code, paragraphs on blank lines, list lines stay plain
+  ---
+  duration_ms: 0.283042
+  type: 'test'
+  ...
+# Subtest: blocks: unclosed fence runs to EOF; \#\#\#\#\#\#\# is a paragraph, not a heading
+ok 243 - blocks: unclosed fence runs to EOF; \#\#\#\#\#\#\# is a paragraph, not a heading
+  ---
+  duration_ms: 38.880792
+  type: 'test'
+  ...
+# Subtest: urls: bare http/https autolink — the corpus cases from chat history
+ok 244 - urls: bare http/https autolink — the corpus cases from chat history
+  ---
+  duration_ms: 8.412833
+  type: 'test'
+  ...
+# Subtest: urls: trailing sentence punctuation stays literal text
+ok 245 - urls: trailing sentence punctuation stays literal text
+  ---
+  duration_ms: 0.15525
+  type: 'test'
+  ...
+# Subtest: urls: closing brackets belong to the URL only when balanced
+ok 246 - urls: closing brackets belong to the URL only when balanced
+  ---
+  duration_ms: 0.919417
+  type: 'test'
+  ...
+# Subtest: urls: scheme allowlist — non-http(s) schemes never produce a url token
+ok 247 - urls: scheme allowlist — non-http(s) schemes never produce a url token
+  ---
+  duration_ms: 0.075625
+  type: 'test'
+  ...
+# Subtest: urls: scheme parity — bare URLs and markdown links accept the same schemes
+ok 248 - urls: scheme parity — bare URLs and markdown links accept the same schemes
+  ---
+  duration_ms: 0.106166
+  type: 'test'
+  ...
+# Subtest: urls: href is a verbatim source slice; round-trip holds over a fuzz corpus
+ok 249 - urls: href is a verbatim source slice; round-trip holds over a fuzz corpus
+  ---
+  duration_ms: 456.632083
+  type: 'test'
+  ...
+# Subtest: urls: AS-72 — a trailing en dash / em dash / ellipsis is prose; mid-URL it is not (D3)
+ok 250 - urls: AS-72 — a trailing en dash / em dash / ellipsis is prose; mid-URL it is not (D3)
+  ---
+  duration_ms: 0.187125
+  type: 'test'
+  ...
+# Subtest: urls: AS-72 — no invisible format (Cf) code point enters an href (D4)
+ok 251 - urls: AS-72 — no invisible format (Cf) code point enters an href (D4)
+  ---
+  duration_ms: 104.655375
+  type: 'test'
+  ...
+# Subtest: urls: pass order — refs inside a URL are never linkified; refs outside still are
+ok 252 - urls: pass order — refs inside a URL are never linkified; refs outside still are
+  ---
+  duration_ms: 64.263833
+  type: 'test'
+  ...
+# Subtest: urls: junk-tolerant on non-strings and empty input
+ok 253 - urls: junk-tolerant on non-strings and empty input
+  ---
+  duration_ms: 0.12075
+  type: 'test'
+  ...
+# (node:21171) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: mode: AS-83 — a failed CLI exit is reported with status, signal, elapsed ms, stderr and stdout
+ok 254 - mode: AS-83 — a failed CLI exit is reported with status, signal, elapsed ms, stderr and stdout
+  ---
+  duration_ms: 0.596875
+  type: 'test'
+  ...
+# Subtest: mode: AS-24 — API-mode writes land in the server view; no DB file is ever created
+ok 255 - mode: AS-24 — API-mode writes land in the server view; no DB file is ever created
+  ---
+  duration_ms: 1737.466
+  type: 'test'
+  ...
+# Subtest: mode: AS-24 — probe timeout (something listening, not answering) refuses loudly, zero side effects
+ok 256 - mode: AS-24 — probe timeout (something listening, not answering) refuses loudly, zero side effects
+  ---
+  duration_ms: 3077.4185
+  type: 'test'
+  ...
+# Subtest: mode: AS-83 — a live server that answers slower than the probe budget is refused as ambiguous (the flake signature)
+ok 257 - mode: AS-83 — a live server that answers slower than the probe budget is refused as ambiguous (the flake signature)
+  ---
+  duration_ms: 104.704417
+  type: 'test'
+  ...
+# Subtest: mode: AS-83 — the same slow server inside the budget is up: the write lands in the server view, no DB touched
+ok 258 - mode: AS-83 — the same slow server inside the budget is up: the write lands in the server view, no DB touched
+  ---
+  duration_ms: 749.261291
+  type: 'test'
+  ...
+# Subtest: mode: AS-83 — CHAT_PROBE_TIMEOUT_MS must be a positive integer of milliseconds; anything else is a usage error on every path
+ok 259 - mode: AS-83 — CHAT_PROBE_TIMEOUT_MS must be a positive integer of milliseconds; anything else is a usage error on every path
+  ---
+  duration_ms: 207.848
+  type: 'test'
+  ...
+# Subtest: mode: AS-24 — squatted port (wrong-shaped JSON) refuses loudly, zero side effects
+ok 260 - mode: AS-24 — squatted port (wrong-shaped JSON) refuses loudly, zero side effects
+  ---
+  duration_ms: 62.623792
+  type: 'test'
+  ...
+# Subtest: mode: AS-24 — hard connection-refused falls back to direct mode against CHAT_DB
+ok 261 - mode: AS-24 — hard connection-refused falls back to direct mode against CHAT_DB
+  ---
+  duration_ms: 71.620417
+  type: 'test'
+  ...
+# Subtest: mode: AS-24 — CHAT_MODE=direct skips the probe entirely (poisoned CHAT_API never contacted)
+ok 262 - mode: AS-24 — CHAT_MODE=direct skips the probe entirely (poisoned CHAT_API never contacted)
+  ---
+  duration_ms: 55.775708
+  type: 'test'
+  ...
+# Subtest: mode: AS-24 — CHAT_MODE=api with a down server is a loud exit 1
+ok 263 - mode: AS-24 — CHAT_MODE=api with a down server is a loud exit 1
+  ---
+  duration_ms: 56.703125
+  type: 'test'
+  ...
+# Subtest: mode: AS-24 — invalid CHAT_MODE is a usage error
+ok 264 - mode: AS-24 — invalid CHAT_MODE is a usage error
+  ---
+  duration_ms: 37.203541
+  type: 'test'
+  ...
+# Subtest: mode: AS-24 — full command sweep in API mode (no DB file, direct-mode shapes)
+ok 265 - mode: AS-24 — full command sweep in API mode (no DB file, direct-mode shapes)
+  ---
+  duration_ms: 2681.036458
+  type: 'test'
+  ...
+# Subtest: mode: AS-24 — CHAT_DB alone (rule 4) stays direct with no probe: the suite is hermetic
+ok 266 - mode: AS-24 — CHAT_DB alone (rule 4) stays direct with no probe: the suite is hermetic
+  ---
+  duration_ms: 51.532084
+  type: 'test'
+  ...
+# Subtest: msg-refs: single reference, keyword variants, optional \#
+ok 267 - msg-refs: single reference, keyword variants, optional \#
+  ---
+  duration_ms: 1.238083
+  type: 'test'
+  ...
+# Subtest: msg-refs: list idioms yield one token per number (edge case 8)
+ok 268 - msg-refs: list idioms yield one token per number (edge case 8)
+  ---
+  duration_ms: 0.170416
+  type: 'test'
+  ...
+# Subtest: msg-refs: list consumption stops at the first non-integer
+ok 269 - msg-refs: list consumption stops at the first non-integer
+  ---
+  duration_ms: 0.079708
+  type: 'test'
+  ...
+# Subtest: msg-refs: AS-n adjacency — task codes never feed msg refs (edge case 7)
+ok 270 - msg-refs: AS-n adjacency — task codes never feed msg refs (edge case 7)
+  ---
+  duration_ms: 0.109583
+  type: 'test'
+  ...
+# Subtest: msg-refs: bare numbers without a keyword never match
+ok 271 - msg-refs: bare numbers without a keyword never match
+  ---
+  duration_ms: 0.078625
+  type: 'test'
+  ...
+# Subtest: msg-refs: ids must be positive safe integers
+ok 272 - msg-refs: ids must be positive safe integers
+  ---
+  duration_ms: 0.081125
+  type: 'test'
+  ...
+# Subtest: msg-refs: multiple separate references in one body
+ok 273 - msg-refs: multiple separate references in one body
+  ---
+  duration_ms: 0.058709
+  type: 'test'
+  ...
+# Subtest: msg-refs: junk-tolerant on non-strings and empty input
+ok 274 - msg-refs: junk-tolerant on non-strings and empty input
+  ---
+  duration_ms: 0.049583
+  type: 'test'
+  ...
+# Subtest: file-refs: bare filenames, nested paths, and .lattice paths match
+ok 275 - file-refs: bare filenames, nested paths, and .lattice paths match
+  ---
+  duration_ms: 0.264959
+  type: 'test'
+  ...
+# Subtest: file-refs: trailing punctuation and backtick context stay outside the token
+ok 276 - file-refs: trailing punctuation and backtick context stay outside the token
+  ---
+  duration_ms: 0.1285
+  type: 'test'
+  ...
+# Subtest: file-refs: traversal, absolute, dot-leading, and non-md candidates stay literal
+ok 277 - file-refs: traversal, absolute, dot-leading, and non-md candidates stay literal
+  ---
+  duration_ms: 0.130542
+  type: 'test'
+  ...
+# Subtest: file-refs: multiple refs in one body, junk-tolerant input
+ok 278 - file-refs: multiple refs in one body, junk-tolerant input
+  ---
+  duration_ms: 0.064292
+  type: 'test'
+  ...
+# Subtest: org: the module is pure — no imports, no fs, no fetch, no DOM, no clock
+ok 279 - org: the module is pure — no imports, no fs, no fetch, no DOM, no clock
+  ---
+  duration_ms: 1.587042
+  type: 'test'
+  ...
+# Subtest: org: ORG_RULES is exactly the nine documented codes
+ok 280 - org: ORG_RULES is exactly the nine documented codes
+  ---
+  duration_ms: 0.601958
+  type: 'test'
+  ...
+# Subtest: org: orphan_reports_to fires on an edge pointing at no dossier
+ok 281 - org: orphan_reports_to fires on an edge pointing at no dossier
+  ---
+  duration_ms: 0.337458
+  type: 'test'
+  ...
+# Subtest: org: orphan_reports_to names a departed manager as the reason
+ok 282 - org: orphan_reports_to names a departed manager as the reason
+  ---
+  duration_ms: 0.101875
+  type: 'test'
+  ...
+# Subtest: org: orphan_reports_to names an invalid status, not departed, when that is the reason
+ok 283 - org: orphan_reports_to names an invalid status, not departed, when that is the reason
+  ---
+  duration_ms: 0.199042
+  type: 'test'
+  ...
+# Subtest: org: validateOrg tolerates a null roster entry, as buildOrgTree does
+ok 284 - org: validateOrg tolerates a null roster entry, as buildOrgTree does
+  ---
+  duration_ms: 0.293916
+  type: 'test'
+  ...
+# Subtest: org: missing_reports_to fires on an empty reporting line
+ok 285 - org: missing_reports_to fires on an empty reporting line
+  ---
+  duration_ms: 0.112708
+  type: 'test'
+  ...
+# Subtest: org: reporting_cycle fires once per cycle and returns
+ok 286 - org: reporting_cycle fires once per cycle and returns
+  ---
+  duration_ms: 0.195583
+  type: 'test'
+  ...
+# Subtest: org: reports_to_ic fires when a manager is class ic
+ok 287 - org: reports_to_ic fires when a manager is class ic
+  ---
+  duration_ms: 0.099208
+  type: 'test'
+  ...
+# Subtest: org: reports_to_ic does not fire for cofounder, c-level or manager
+ok 288 - org: reports_to_ic does not fire for cofounder, c-level or manager
+  ---
+  duration_ms: 0.122458
+  type: 'test'
+  ...
+# Subtest: org: unparsed_dossier fires on fenced-but-broken dossiers and spares README.md
+ok 289 - org: unparsed_dossier fires on fenced-but-broken dossiers and spares README.md
+  ---
+  duration_ms: 26.246917
+  type: 'test'
+  ...
+# Subtest: org: duplicate_actor_id fires when two files declare one identity
+ok 290 - org: duplicate_actor_id fires when two files declare one identity
+  ---
+  duration_ms: 0.14675
+  type: 'test'
+  ...
+# Subtest: org: invalid_class fires on a class outside the four
+ok 291 - org: invalid_class fires on a class outside the four
+  ---
+  duration_ms: 0.068208
+  type: 'test'
+  ...
+# Subtest: org: invalid_status fires on the unfiltered roster
+ok 292 - org: invalid_status fires on the unfiltered roster
+  ---
+  duration_ms: 0.112041
+  type: 'test'
+  ...
+# Subtest: org: multiple_board_reports fires on a second board report
+ok 293 - org: multiple_board_reports fires on a second board report
+  ---
+  duration_ms: 0.048791
+  type: 'test'
+  ...
+# Subtest: org: violations sort by (rule, actorId, file)
+ok 294 - org: violations sort by (rule, actorId, file)
+  ---
+  duration_ms: 0.109541
+  type: 'test'
+  ...
+# Subtest: org: a clean roster yields zero violations
+ok 295 - org: a clean roster yields zero violations
+  ---
+  duration_ms: 0.509458
+  type: 'test'
+  ...
+# Subtest: org: the tree roots at the board node and nests reports by name
+ok 296 - org: the tree roots at the board node and nests reports by name
+  ---
+  duration_ms: 0.515167
+  type: 'test'
+  ...
+# Subtest: org: every active employee appears exactly once — tree plus unplaced
+ok 297 - org: every active employee appears exactly once — tree plus unplaced
+  ---
+  duration_ms: 8.603667
+  type: 'test'
+  ...
+# Subtest: org: an orphaned employee is still shown, under Not placed
+ok 298 - org: an orphaned employee is still shown, under Not placed
+  ---
+  duration_ms: 0.108667
+  type: 'test'
+  ...
+# Subtest: org: cycle members land in unplaced, never in the tree
+ok 299 - org: cycle members land in unplaced, never in the tree
+  ---
+  duration_ms: 0.080958
+  type: 'test'
+  ...
+# Subtest: org: an empty roster still yields the board node, and junk degrades
+ok 300 - org: an empty roster still yields the board node, and junk degrades
+  ---
+  duration_ms: 0.425417
+  type: 'test'
+  ...
+# Subtest: check-org: exits 0 on a clean fixture root
+ok 301 - check-org: exits 0 on a clean fixture root
+  ---
+  duration_ms: 169.70625
+  type: 'test'
+  ...
+# Subtest: check-org: exits 1 and names every violation on the dirty fixture root
+ok 302 - check-org: exits 1 and names every violation on the dirty fixture root
+  ---
+  duration_ms: 261.064125
+  type: 'test'
+  ...
+# Subtest: check-org: exits 2 on an unknown flag and on --root without a value
+ok 303 - check-org: exits 2 on an unknown flag and on --root without a value
+  ---
+  duration_ms: 289.2565
+  type: 'test'
+  ...
+# Subtest: check-org: a root with no personnel/ is exit 0 and says so
+ok 304 - check-org: a root with no personnel/ is exit 0 and says so
+  ---
+  duration_ms: 361.732166
+  type: 'test'
+  ...
+# Subtest: check-org: reports the examined count and every unclassifiable person on a scratch root
+ok 305 - check-org: reports the examined count and every unclassifiable person on a scratch root
+  ---
+  duration_ms: 234.881792
+  type: 'test'
+  ...
+# Subtest: readRoster: valid dossiers parsed with all 8 fields, sorted by name
+ok 306 - readRoster: valid dossiers parsed with all 8 fields, sorted by name
+  ---
+  duration_ms: 25.005
+  type: 'test'
+  ...
+# Subtest: readRoster: inline \# comments and surrounding quotes are stripped
+ok 307 - readRoster: inline \# comments and surrounding quotes are stripped
+  ---
+  duration_ms: 1.5305
+  type: 'test'
+  ...
+# Subtest: readRoster: missing personnel/ directory yields [] (degradation contract)
+ok 308 - readRoster: missing personnel/ directory yields [] (degradation contract)
+  ---
+  duration_ms: 3.253125
+  type: 'test'
+  ...
+# Subtest: parseFrontmatter: fences, junk lines, quotes, and comments
+ok 309 - parseFrontmatter: fences, junk lines, quotes, and comments
+  ---
+  duration_ms: 0.126333
+  type: 'test'
+  ...
+# Subtest: readPersonnel: fence whitespace and a BOM never hide a broken dossier
+ok 310 - readPersonnel: fence whitespace and a BOM never hide a broken dossier
+  ---
+  duration_ms: 3.103292
+  type: 'test'
+  ...
+# Subtest: readPersonnel: examined counts every .md file, dossier or not
+ok 311 - readPersonnel: examined counts every .md file, dossier or not
+  ---
+  duration_ms: 6.806875
+  type: 'test'
+  ...
+# (node:21220) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: parity: the CLI roster row is the server roster row minus self, in direct and api mode
+ok 312 - parity: the CLI roster row is the server roster row minus self, in direct and api mode
+  ---
+  duration_ms: 1613.897417
+  type: 'test'
+  ...
+# Subtest: css-cascade: a later rule of equal specificity wins
+ok 313 - css-cascade: a later rule of equal specificity wins
+  ---
+  duration_ms: 6.360333
+  type: 'test'
+  ...
+# Subtest: css-cascade: higher specificity beats source order
+ok 314 - css-cascade: higher specificity beats source order
+  ---
+  duration_ms: 60.286458
+  type: 'test'
+  ...
+# Subtest: css-cascade: !important beats specificity and order
+ok 315 - css-cascade: !important beats specificity and order
+  ---
+  duration_ms: 0.969125
+  type: 'test'
+  ...
+# Subtest: css-cascade: rules inside @media compete, tagged with their condition
+ok 316 - css-cascade: rules inside @media compete, tagged with their condition
+  ---
+  duration_ms: 1.552459
+  type: 'test'
+  ...
+# Subtest: css-cascade: a selector it cannot score throws instead of guessing
+ok 317 - css-cascade: a selector it cannot score throws instead of guessing
+  ---
+  duration_ms: 0.496333
+  type: 'test'
+  ...
+# Subtest: truncation: AS-74 — the cascade leaves .roster-title nowrap, overflow hidden, ellipsis — no later or stronger rule re-enables wrapping
+ok 318 - truncation: AS-74 — the cascade leaves .roster-title nowrap, overflow hidden, ellipsis — no later or stronger rule re-enables wrapping
+  ---
+  duration_ms: 7.003084
+  type: 'test'
+  ...
+# Subtest: scroll: isAtBottom — slack boundary at default slack (40)
+ok 319 - scroll: isAtBottom — slack boundary at default slack (40)
+  ---
+  duration_ms: 1.391042
+  type: 'test'
+  ...
+# Subtest: scroll: isAtBottom — explicit slack overrides the default
+ok 320 - scroll: isAtBottom — explicit slack overrides the default
+  ---
+  duration_ms: 0.138875
+  type: 'test'
+  ...
+# Subtest: scroll: isAtBottom — degenerate metrics count as at-bottom
+ok 321 - scroll: isAtBottom — degenerate metrics count as at-bottom
+  ---
+  duration_ms: 0.075959
+  type: 'test'
+  ...
+# Subtest: scroll: renderPreservingScroll — forceBottom jumps to the new bottom
+ok 322 - scroll: renderPreservingScroll — forceBottom jumps to the new bottom
+  ---
+  duration_ms: 0.777709
+  type: 'test'
+  ...
+# Subtest: scroll: renderPreservingScroll — at bottom stays stuck to new content
+ok 323 - scroll: renderPreservingScroll — at bottom stays stuck to new content
+  ---
+  duration_ms: 0.086167
+  type: 'test'
+  ...
+# Subtest: scroll: renderPreservingScroll — scrolled up restores position exactly
+ok 324 - scroll: renderPreservingScroll — scrolled up restores position exactly
+  ---
+  duration_ms: 0.060166
+  type: 'test'
+  ...
+# Subtest: scroll: renderPreservingScroll — unchanged content, scrolled up: no movement
+ok 325 - scroll: renderPreservingScroll — unchanged content, scrolled up: no movement
+  ---
+  duration_ms: 0.10025
+  type: 'test'
+  ...
+# Subtest: scroll: renderPreservingScroll — empty/hidden pane is a safe no-op-to-bottom
+ok 326 - scroll: renderPreservingScroll — empty/hidden pane is a safe no-op-to-bottom
+  ---
+  duration_ms: 0.057583
+  type: 'test'
+  ...
+# (node:21340) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: seeds four identities and four channels (\#board private), idempotently
+ok 327 - seeds four identities and four channels (\#board private), idempotently
+  ---
+  duration_ms: 25.188375
+  type: 'test'
+  ...
+# Subtest: registerIdentity validates and rejects duplicates
+ok 328 - registerIdentity validates and rejects duplicates
+  ---
+  duration_ms: 8.59225
+  type: 'test'
+  ...
+# Subtest: createChannel validates name and uniqueness
+ok 329 - createChannel validates name and uniqueness
+  ---
+  duration_ms: 6.639917
+  type: 'test'
+  ...
+# Subtest: dmConversationFor: null pre-DM, the conv id post-openDm, never creates (AS-8)
+ok 330 - dmConversationFor: null pre-DM, the conv id post-openDm, never creates (AS-8)
+  ---
+  duration_ms: 7.567542
+  type: 'test'
+  ...
+# Subtest: DM is get-or-create on the normalized pair
+ok 331 - DM is get-or-create on the normalized pair
+  ---
+  duration_ms: 5.912958
+  type: 'test'
+  ...
+# Subtest: posting, threads flatten to one level, reply counts
+ok 332 - posting, threads flatten to one level, reply counts
+  ---
+  duration_ms: 17.302125
+  type: 'test'
+  ...
+# Subtest: lattice-events channel: only system posts top-level; threads open to all
+ok 333 - lattice-events channel: only system posts top-level; threads open to all
+  ---
+  duration_ms: 10.397375
+  type: 'test'
+  ...
+# Subtest: unread semantics: exactly the AC6 scenario
+ok 334 - unread semantics: exactly the AC6 scenario
+  ---
+  duration_ms: 27.09425
+  type: 'test'
+  ...
+# Subtest: markRead advances the watermark monotonically
+ok 335 - markRead advances the watermark monotonically
+  ---
+  duration_ms: 15.127625
+  type: 'test'
+  ...
+# Subtest: AS-3: markRead rejects upTo beyond the conversation max; watermark untouched
+ok 336 - AS-3: markRead rejects upTo beyond the conversation max; watermark untouched
+  ---
+  duration_ms: 8.580916
+  type: 'test'
+  ...
+# Subtest: data survives close and reopen (restart durability)
+ok 337 - data survives close and reopen (restart durability)
+  ---
+  duration_ms: 17.435792
+  type: 'test'
+  ...
+# Subtest: two connections interleave writes under WAL (concurrency smoke)
+ok 338 - two connections interleave writes under WAL (concurrency smoke)
+  ---
+  duration_ms: 67.3415
+  type: 'test'
+  ...
+# Subtest: ingestEvent is idempotent per event id
+ok 339 - ingestEvent is idempotent per event id
+  ---
+  duration_ms: 4.994875
+  type: 'test'
+  ...
+# Subtest: dumpLines emits valid JSONL covering every table
+ok 340 - dumpLines emits valid JSONL covering every table
+  ---
+  duration_ms: 12.835542
+  type: 'test'
+  ...
+# Subtest: AS-6: \#board is invisible to non-members on every store read path
+ok 341 - AS-6: \#board is invisible to non-members on every store read path
+  ---
+  duration_ms: 9.173792
+  type: 'test'
+  ...
+# Subtest: AS-6: hidden probes fail byte-identically to nonexistent ones (same template, same code)
+ok 342 - AS-6: hidden probes fail byte-identically to nonexistent ones (same template, same code)
+  ---
+  duration_ms: 7.924833
+  type: 'test'
+  ...
+# Subtest: AS-11: cross-conversation threadRoot rejection is type-blind and non-attributing
+ok 343 - AS-11: cross-conversation threadRoot rejection is type-blind and non-attributing
+  ---
+  duration_ms: 9.349167
+  type: 'test'
+  ...
+# Subtest: AS-6: name collision with a hidden channel is uninformative; visible collision unchanged
+ok 344 - AS-6: name collision with a hidden channel is uninformative; visible collision unchanged
+  ---
+  duration_ms: 7.154167
+  type: 'test'
+  ...
+# Subtest: AS-6: createChannel supports private channels at store level, with validation
+ok 345 - AS-6: createChannel supports private channels at store level, with validation
+  ---
+  duration_ms: 8.751083
+  type: 'test'
+  ...
+# Subtest: AS-6: founders are re-seeded into \#board on every open (lockout-proof)
+ok 346 - AS-6: founders are re-seeded into \#board on every open (lockout-proof)
+  ---
+  duration_ms: 11.903542
+  type: 'test'
+  ...
+# Subtest: AS-6: lattice ingestion only ever posts to \#lattice-events, never \#board
+ok 347 - AS-6: lattice ingestion only ever posts to \#lattice-events, never \#board
+  ---
+  duration_ms: 14.721
+  type: 'test'
+  ...
+# Subtest: AS-6: v0 database migrates in place to v1, preserving all data; re-open is a no-op
+ok 348 - AS-6: v0 database migrates in place to v1, preserving all data; re-open is a no-op
+  ---
+  duration_ms: 51.321667
+  type: 'test'
+  ...
+# Subtest: AS-7 sentinel: human post writes last-human-message.json; later human post overwrites
+ok 349 - AS-7 sentinel: human post writes last-human-message.json; later human post overwrites
+  ---
+  duration_ms: 7.983625
+  type: 'test'
+  ...
+# Subtest: AS-7 sentinel: agent and system authors (incl. ingestEvent) never touch it
+ok 350 - AS-7 sentinel: agent and system authors (incl. ingestEvent) never touch it
+  ---
+  duration_ms: 9.79125
+  type: 'test'
+  ...
+# Subtest: AS-7 sentinel: a human thread reply updates it (any human message counts)
+ok 351 - AS-7 sentinel: a human thread reply updates it (any human message counts)
+  ---
+  duration_ms: 16.877416
+  type: 'test'
+  ...
+# Subtest: AS-7 sentinel: :memory: store never writes; a failing write never fails the post
+ok 352 - AS-7 sentinel: :memory: store never writes; a failing write never fails the post
+  ---
+  duration_ms: 9.939584
+  type: 'test'
+  ...
+# Subtest: AS-13 sentinel: two stores on one data dir interleave posts without tmp collisions
+ok 353 - AS-13 sentinel: two stores on one data dir interleave posts without tmp collisions
+  ---
+  duration_ms: 24.685
+  type: 'test'
+  ...
+# Subtest: AS-25: onMessage fires post-commit for postMessage and ingestEvent; a subscriber throw never fails the write
+ok 354 - AS-25: onMessage fires post-commit for postMessage and ingestEvent; a subscriber throw never fails the write
+  ---
+  duration_ms: 15.527542
+  type: 'test'
+  ...
+# Subtest: AS-25: visibleTo — public true, hidden channel members-only, DM members-only, unknown false
+ok 355 - AS-25: visibleTo — public true, hidden channel members-only, DM members-only, unknown false
+  ---
+  duration_ms: 4.505916
+  type: 'test'
+  ...
+# Subtest: AS-25: messagesSince returns the flat id-ordered delta (replies included) behind the same gate as getMessages
+ok 356 - AS-25: messagesSince returns the flat id-ordered delta (replies included) behind the same gate as getMessages
+  ---
+  duration_ms: 8.906333
+  type: 'test'
+  ...
+# Subtest: AS-26: resolveMessage returns navigation data only, gated on visibility
+ok 357 - AS-26: resolveMessage returns navigation data only, gated on visibility
+  ---
+  duration_ms: 16.58375
+  type: 'test'
+  ...
+# Subtest: AS-26: resolveMessage — hidden and nonexistent targets fail byte-identically
+ok 358 - AS-26: resolveMessage — hidden and nonexistent targets fail byte-identically
+  ---
+  duration_ms: 24.798708
+  type: 'test'
+  ...
+# (node:21344) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: stream: AS-25 — two connected clients both receive a posted message as a push frame (no GET issued)
+ok 359 - stream: AS-25 — two connected clients both receive a posted message as a push frame (no GET issued)
+  ---
+  duration_ms: 227.983375
+  type: 'test'
+  ...
+# Subtest: stream: AS-25 — hidden-channel parity: a non-member receives zero \#board bytes (proved by ordering)
+ok 360 - stream: AS-25 — hidden-channel parity: a non-member receives zero \#board bytes (proved by ordering)
+  ---
+  duration_ms: 89.9335
+  type: 'test'
+  ...
+# Subtest: stream: AS-25 — endpoint gating: unknown me is a 404 JSON envelope (no stream), missing me a 400
+ok 361 - stream: AS-25 — endpoint gating: unknown me is a 404 JSON envelope (no stream), missing me a 400
+  ---
+  duration_ms: 25.578917
+  type: 'test'
+  ...
+# Subtest: stream: AS-25 — lattice ingestion pushes too (single event source covers ingestEvent)
+ok 362 - stream: AS-25 — lattice ingestion pushes too (single event source covers ingestEvent)
+  ---
+  duration_ms: 35.473458
+  type: 'test'
+  ...
+# Subtest: stream: AS-25 — close() reaps live streams and the heartbeat; shutdown never wedges
+ok 363 - stream: AS-25 — close() reaps live streams and the heartbeat; shutdown never wedges
+  ---
+  duration_ms: 92.084583
+  type: 'test'
+  ...
+# Subtest: stream: AS-27 — a new lock pushes exactly one loop frame; an unchanged lock pushes none over ten polls
+ok 364 - stream: AS-27 — a new lock pushes exactly one loop frame; an unchanged lock pushes none over ten polls
+  ---
+  duration_ms: 971.823459
+  type: 'test'
+  ...
+# Subtest: stream: AS-85 — deploy-state churn (computedAt, lastAttempt, runningId) pushes no loop frame over ten polls; a real build change pushes exactly one
+ok 365 - stream: AS-85 — deploy-state churn (computedAt, lastAttempt, runningId) pushes no loop frame over ten polls; a real build change pushes exactly one
+  ---
+  duration_ms: 3001.988167
+  type: 'test'
+  ...
+# Subtest: stream: AS-85 — each build field earns exactly one loop frame when it alone changes: desiredId, current, reason
+ok 366 - stream: AS-85 — each build field earns exactly one loop frame when it alone changes: desiredId, current, reason
+  ---
+  duration_ms: 2825.065875
+  type: 'test'
+  ...
+# Subtest: stream: AS-27 — loop frames reach every viewer identically (no visibility gate)
+ok 367 - stream: AS-27 — loop frames reach every viewer identically (no visibility gate)
+  ---
+  duration_ms: 33.825709
+  type: 'test'
+  ...
+# Subtest: stream: AS-27/AS-80 — close() clears every interval the server armed, the loop poll included
+ok 368 - stream: AS-27/AS-80 — close() clears every interval the server armed, the loop poll included
+  ---
+  duration_ms: 8.19775
+  type: 'test'
+  ...
+# Subtest: stream-lanes-change-only: a rewritten snapshot pushes exactly one lanes frame; an untouched one pushes none over ten polls
+ok 369 - stream-lanes-change-only: a rewritten snapshot pushes exactly one lanes frame; an untouched one pushes none over ten polls
+  ---
+  duration_ms: 972.317416
+  type: 'test'
+  ...
+# Subtest: stream-company-change-only: each appended event pushes exactly one company frame, in file order; an untouched file pushes none
+ok 370 - stream-company-change-only: each appended event pushes exactly one company frame, in file order; an untouched file pushes none
+  ---
+  duration_ms: 1044.501
+  type: 'test'
+  ...
+# Subtest: stream-company-truncation: a truncated stream is reported as a fact and the server stays up
+ok 371 - stream-company-truncation: a truncated stream is reported as a fact and the server stays up
+  ---
+  duration_ms: 1485.492
+  type: 'test'
+  ...
+# Subtest: stream-lanes-liveness-change-only: a stage event earns a lanes frame; elapsed time alone does not
+ok 372 - stream-lanes-liveness-change-only: a stage event earns a lanes frame; elapsed time alone does not
+  ---
+  duration_ms: 2126.25225
+  type: 'test'
+  ...
+# Subtest: stream: AS-99 — lanes frames reach every viewer identically (no visibility gate)
+ok 373 - stream: AS-99 — lanes frames reach every viewer identically (no visibility gate)
+  ---
+  duration_ms: 38.725708
+  type: 'test'
+  ...
+# Subtest: stream: AS-81 — no on-connect frame at all: openStream rejects naming the contract AND hangs up
+ok 374 - stream: AS-81 — no on-connect frame at all: openStream rejects naming the contract AND hangs up
+  ---
+  duration_ms: 207.660916
+  type: 'test'
+  ...
+# Subtest: stream: AS-81 — on-connect frames out of order: openStream rejects naming the order AND hangs up
+ok 375 - stream: AS-81 — on-connect frames out of order: openStream rejects naming the order AND hangs up
+  ---
+  duration_ms: 3.704458
+  type: 'test'
+  ...
+# Subtest: thread-modal: Escape closes only while the modal is visible
+ok 376 - thread-modal: Escape closes only while the modal is visible
+  ---
+  duration_ms: 0.45575
+  type: 'test'
+  ...
+# Subtest: thread-modal: defaultPrevented events never close (DM typeahead contract)
+ok 377 - thread-modal: defaultPrevented events never close (DM typeahead contract)
+  ---
+  duration_ms: 0.078833
+  type: 'test'
+  ...
+# Subtest: thread-modal: only the Escape key qualifies
+ok 378 - thread-modal: only the Escape key qualifies
+  ---
+  duration_ms: 0.075792
+  type: 'test'
+  ...
+# Subtest: thread-modal: click on the overlay itself is a backdrop click
+ok 379 - thread-modal: click on the overlay itself is a backdrop click
+  ---
+  duration_ms: 7.640292
+  type: 'test'
+  ...
+# Subtest: thread-modal: clicks inside the dialog are not backdrop clicks
+ok 380 - thread-modal: clicks inside the dialog are not backdrop clicks
+  ---
+  duration_ms: 0.442834
+  type: 'test'
+  ...
+# Subtest: thread-modal: gesture down+click both on the backdrop closes
+ok 381 - thread-modal: gesture down+click both on the backdrop closes
+  ---
+  duration_ms: 1.325625
+  type: 'test'
+  ...
+# Subtest: thread-modal: selection drag from dialog to backdrop does NOT close
+ok 382 - thread-modal: selection drag from dialog to backdrop does NOT close
+  ---
+  duration_ms: 0.081209
+  type: 'test'
+  ...
+# Subtest: thread-modal: null down-target falls back to the click-target check alone
+ok 383 - thread-modal: null down-target falls back to the click-target check alone
+  ---
+  duration_ms: 0.064583
+  type: 'test'
+  ...
+# Subtest: url-state: parse — every grammar production
+ok 384 - url-state: parse — every grammar production
+  ---
+  duration_ms: 1.062042
+  type: 'test'
+  ...
+# Subtest: url-state: parse — junk tolerance, never throws
+ok 385 - url-state: parse — junk tolerance, never throws
+  ---
+  duration_ms: 8.186708
+  type: 'test'
+  ...
+# Subtest: url-state: serialize — roundtrip property for valid selections
+ok 386 - url-state: serialize — roundtrip property for valid selections
+  ---
+  duration_ms: 2.396708
+  type: 'test'
+  ...
+# Subtest: url-state: serialize — owns only c/t/m; foreign params preserved
+ok 387 - url-state: serialize — owns only c/t/m; foreign params preserved
+  ---
+  duration_ms: 1.810292
+  type: 'test'
+  ...
+# Subtest: url-state: resolve — channel and dm hits
+ok 388 - url-state: resolve — channel and dm hits
+  ---
+  duration_ms: 3.053875
+  type: 'test'
+  ...
+# Subtest: url-state: resolve — oracle-safety contract: hidden === nonexistent
+ok 389 - url-state: resolve — oracle-safety contract: hidden === nonexistent
+  ---
+  duration_ms: 0.086666
+  type: 'test'
+  ...
+# Subtest: url-state: resolve — null-safe on empty/missing inputs
+ok 390 - url-state: resolve — null-safe on empty/missing inputs
+  ---
+  duration_ms: 0.06925
+  type: 'test'
+  ...
+# Subtest: AS-87 real build: the state file heartbeats through the build and deploy-*.log carries the BuildKit output
+ok 391 - AS-87 real build: the state file heartbeats through the build and deploy-*.log carries the BuildKit output # SKIP opt-in: set AS87_REAL_BUILD=1
+  ---
+  duration_ms: 0.490166
+  type: 'test'
+  ...
+# Subtest: watcher-events-tick-started-shape
+ok 392 - watcher-events-tick-started-shape
+  ---
+  duration_ms: 39.162625
+  type: 'test'
+  ...
+# Subtest: watcher-events-timeout-closes-as-cut
+ok 393 - watcher-events-timeout-closes-as-cut
+  ---
+  duration_ms: 3.391375
+  type: 'test'
+  ...
+# Subtest: watcher-events-close-before-tick-ended
+ok 394 - watcher-events-close-before-tick-ended
+  ---
+  duration_ms: 0.76325
+  type: 'test'
+  ...
+# Subtest: watcher-events-timeout-closes-subagent-as-cut
+ok 395 - watcher-events-timeout-closes-subagent-as-cut
+  ---
+  duration_ms: 0.37425
+  type: 'test'
+  ...
+# Subtest: watcher-events-unclosed-not-completed
+ok 396 - watcher-events-unclosed-not-completed
+  ---
+  duration_ms: 0.239167
+  type: 'test'
+  ...
+# Subtest: watcher-events-error-exit-closes-as-error
+ok 397 - watcher-events-error-exit-closes-as-error
+  ---
+  duration_ms: 0.211083
+  type: 'test'
+  ...
+# Subtest: watcher-events-tick-ended-noop-and-no-stream
+ok 398 - watcher-events-tick-ended-noop-and-no-stream
+  ---
+  duration_ms: 0.203
+  type: 'test'
+  ...
+# Subtest: watcher-events-sweep-boundary
+ok 399 - watcher-events-sweep-boundary
+  ---
+  duration_ms: 0.349791
+  type: 'test'
+  ...
+# Subtest: watcher-events-sweep-respects-lock
+ok 400 - watcher-events-sweep-respects-lock
+  ---
+  duration_ms: 0.203541
+  type: 'test'
+  ...
+# Subtest: watcher-events-sweep-closes-open-tick-as-error
+ok 401 - watcher-events-sweep-closes-open-tick-as-error
+  ---
+  duration_ms: 0.265084
+  type: 'test'
+  ...
+# Subtest: watcher-events-open-derived-from-stream
+ok 402 - watcher-events-open-derived-from-stream
+  ---
+  duration_ms: 0.223917
+  type: 'test'
+  ...
+# Subtest: watcher-events-append-failure-degrades-feed-not-tick
+ok 403 - watcher-events-append-failure-degrades-feed-not-tick
+  ---
+  duration_ms: 0.249042
+  type: 'test'
+  ...
+# Subtest: watcher-lanes-happy-path: one snapshot row per linked worktree, main flagged and kept
+ok 404 - watcher-lanes-happy-path: one snapshot row per linked worktree, main flagged and kept
+  ---
+  duration_ms: 20.272125
+  type: 'test'
+  ...
+# Subtest: watcher-lanes-merged: an ancestor tip off master's first-parent chain is merged
+ok 405 - watcher-lanes-merged: an ancestor tip off master's first-parent chain is merged
+  ---
+  duration_ms: 0.403833
+  type: 'test'
+  ...
+# Subtest: watcher-lanes-generatedAt-advances: every poll writes, even with byte-identical git output
+ok 406 - watcher-lanes-generatedAt-advances: every poll writes, even with byte-identical git output
+  ---
+  duration_ms: 5.716875
+  type: 'test'
+  ...
+# Subtest: watcher-lanes-git-down: a failed worktree list is a timestamped fact, not a crash
+ok 407 - watcher-lanes-git-down: a failed worktree list is a timestamped fact, not a crash
+  ---
+  duration_ms: 0.658583
+  type: 'test'
+  ...
+# Subtest: watcher-lanes-never-rejects: a git runner that THROWS is still a timestamped fact
+ok 408 - watcher-lanes-never-rejects: a git runner that THROWS is still a timestamped fact
+  ---
+  duration_ms: 0.385
+  type: 'test'
+  ...
+# Subtest: watcher-lanes-never-rejects-midway: a throw inside the row loop degrades to the error shape, never a partial list
+ok 409 - watcher-lanes-never-rejects-midway: a throw inside the row loop degrades to the error shape, never a partial list
+  ---
+  duration_ms: 0.387042
+  type: 'test'
+  ...
+# Subtest: watcher-lanes-row-isolation: one broken worktree never blanks its neighbours
+ok 410 - watcher-lanes-row-isolation: one broken worktree never blanks its neighbours
+  ---
+  duration_ms: 2.802625
+  type: 'test'
+  ...
+# Subtest: watcher-lanes-argv-pin: the status call carries --no-optional-locks, always
+ok 411 - watcher-lanes-argv-pin: the status call carries --no-optional-locks, always
+  ---
+  duration_ms: 0.552
+  type: 'test'
+  ...
+# Subtest: watcher-lanes-dirty-lattice: board state on a task branch is surfaced by name
+ok 412 - watcher-lanes-dirty-lattice: board state on a task branch is surfaced by name
+  ---
+  duration_ms: 0.4545
+  type: 'test'
+  ...
+# Subtest: watcher-lanes-unwritable: an unwritable snapshot warns once and never throws
+ok 413 - watcher-lanes-unwritable: an unwritable snapshot warns once and never throws
+  ---
+  duration_ms: 0.261292
+  type: 'test'
+  ...
+# Subtest: watcher-lanes-detached: a worktree with no branch is still measured, off its HEAD
+ok 414 - watcher-lanes-detached: a worktree with no branch is still measured, off its HEAD
+  ---
+  duration_ms: 0.95475
+  type: 'test'
+  ...
+# Subtest: a-statuses: any mid-lifecycle status continues the loop
+ok 415 - a-statuses: any mid-lifecycle status continues the loop
+  ---
+  duration_ms: 1.283334
+  type: 'test'
+  ...
+# Subtest: a-review: a task in review alone keeps the loop alive
+ok 416 - a-review: a task in review alone keeps the loop alive
+  ---
+  duration_ms: 0.108583
+  type: 'test'
+  ...
+# Subtest: a-terminal-only: done/cancelled/needs_human/blocked are not mid-lifecycle
+ok 417 - a-terminal-only: done/cancelled/needs_human/blocked are not mid-lifecycle
+  ---
+  duration_ms: 0.139166
+  type: 'test'
+  ...
+# Subtest: b-ready: a ready backlog task continues the loop
+ok 418 - b-ready: a ready backlog task continues the loop
+  ---
+  duration_ms: 64.207333
+  type: 'test'
+  ...
+# Subtest: b-chatset-detail: chat-set membership is counted (title prefix or critical)
+ok 419 - b-chatset-detail: chat-set membership is counted (title prefix or critical)
+  ---
+  duration_ms: 0.210958
+  type: 'test'
+  ...
+# Subtest: b-not-ready-statuses: needs_human/blocked-only board is dry
+ok 420 - b-not-ready-statuses: needs_human/blocked-only board is dry
+  ---
+  duration_ms: 0.107791
+  type: 'test'
+  ...
+# Subtest: c-new-message: sentinel above highwater continues, ranked above mid-lifecycle
+ok 421 - c-new-message: sentinel above highwater continues, ranked above mid-lifecycle
+  ---
+  duration_ms: 0.084709
+  type: 'test'
+  ...
+# Subtest: c-equal-not-new: sentinel equal to highwater is not a new message
+ok 422 - c-equal-not-new: sentinel equal to highwater is not a new message
+  ---
+  duration_ms: 0.071958
+  type: 'test'
+  ...
+# Subtest: c-no-highwater: a first message with no highwater is new
+ok 423 - c-no-highwater: a first message with no highwater is new
+  ---
+  duration_ms: 0.071875
+  type: 'test'
+  ...
+# Subtest: c-single-fire: a poll fires the message OR the loop, never both
+ok 424 - c-single-fire: a poll fires the message OR the loop, never both
+  ---
+  duration_ms: 1.271625
+  type: 'test'
+  ...
+# Subtest: c-single-fire-deploy-yield: the loop waits for a pending rebuild, but only when it owes a tick
+ok 425 - c-single-fire-deploy-yield: the loop waits for a pending rebuild, but only when it owes a tick
+  ---
+  duration_ms: 0.244125
+  type: 'test'
+  ...
+# Subtest: d-dry: an empty board with nothing new stops the loop
+ok 426 - d-dry: an empty board with nothing new stops the loop
+  ---
+  duration_ms: 0.063084
+  type: 'test'
+  ...
+# Subtest: e-one-continues: one unmoved HEAD continues with noProgress 1
+ok 427 - e-one-continues: one unmoved HEAD continues with noProgress 1
+  ---
+  duration_ms: 0.060875
+  type: 'test'
+  ...
+# Subtest: e-two: two consecutive unmoved HEADs stop the loop even with work left
+ok 428 - e-two: two consecutive unmoved HEADs stop the loop even with work left
+  ---
+  duration_ms: 0.06725
+  type: 'test'
+  ...
+# Subtest: e-reset: a moved HEAD resets the no-progress counter
+ok 429 - e-reset: a moved HEAD resets the no-progress counter
+  ---
+  duration_ms: 0.043833
+  type: 'test'
+  ...
+# Subtest: e-unknown-head: an unreadable HEAD counts as no progress
+ok 430 - e-unknown-head: an unreadable HEAD counts as no progress
+  ---
+  duration_ms: 0.051875
+  type: 'test'
+  ...
+# Subtest: f-23: the 23rd tick still continues
+ok 431 - f-23: the 23rd tick still continues
+  ---
+  duration_ms: 0.039792
+  type: 'test'
+  ...
+# Subtest: f-24: the 24th tick hits the cap
+ok 432 - f-24: the 24th tick hits the cap
+  ---
+  duration_ms: 0.83525
+  type: 'test'
+  ...
+# Subtest: f-8h: eight hours elapsed hits the cap regardless of tick count
+ok 433 - f-8h: eight hours elapsed hits the cap regardless of tick count
+  ---
+  duration_ms: 0.193625
+  type: 'test'
+  ...
+# Subtest: f-limits-injectable: a caller can tighten the caps
+ok 434 - f-limits-injectable: a caller can tighten the caps
+  ---
+  duration_ms: 0.142916
+  type: 'test'
+  ...
+# Subtest: g-one: a single failed tick continues with failures 1
+ok 435 - g-one: a single failed tick continues with failures 1
+  ---
+  duration_ms: 0.119916
+  type: 'test'
+  ...
+# Subtest: g-two: two failed ticks stop the loop
+ok 436 - g-two: two failed ticks stop the loop
+  ---
+  duration_ms: 0.558084
+  type: 'test'
+  ...
+# Subtest: g-timeout: a timed-out tick counts as a failure, as does a signal
+ok 437 - g-timeout: a timed-out tick counts as a failure, as does a signal
+  ---
+  duration_ms: 0.115417
+  type: 'test'
+  ...
+# Subtest: g-reset: a clean tick resets the failure counter
+ok 438 - g-reset: a clean tick resets the failure counter
+  ---
+  duration_ms: 0.049334
+  type: 'test'
+  ...
+# Subtest: g-precedence: failures stop the loop even when a new message is waiting
+ok 439 - g-precedence: failures stop the loop even when a new message is waiting
+  ---
+  duration_ms: 0.047875
+  type: 'test'
+  ...
+# Subtest: dep-unmet-out: a backlog task with an unmet depends_on is not ready
+ok 440 - dep-unmet-out: a backlog task with an unmet depends_on is not ready
+  ---
+  duration_ms: 0.080291
+  type: 'test'
+  ...
+# Subtest: dep-met: a backlog task whose deps are done/cancelled is ready
+ok 441 - dep-met: a backlog task whose deps are done/cancelled is ready
+  ---
+  duration_ms: 0.060458
+  type: 'test'
+  ...
+# Subtest: dep-missing-target: an unresolvable dependency is unmet, not ignored
+ok 442 - dep-missing-target: an unresolvable dependency is unmet, not ignored
+  ---
+  duration_ms: 0.054042
+  type: 'test'
+  ...
+# Subtest: dep-unmet-in: an inverse "blocks" edge makes the blocked task unready
+ok 443 - dep-unmet-in: an inverse "blocks" edge makes the blocked task unready
+  ---
+  duration_ms: 2.908209
+  type: 'test'
+  ...
+# Subtest: reader-shape: readBoard projects the fields the predicate needs
+ok 444 - reader-shape: readBoard projects the fields the predicate needs
+  ---
+  duration_ms: 0.147958
+  type: 'test'
+  ...
+# Subtest: reader-unparsable: a half-written task file is skipped and counted
+ok 445 - reader-unparsable: a half-written task file is skipped and counted
+  ---
+  duration_ms: 0.088709
+  type: 'test'
+  ...
+# Subtest: reader-missing-dir: a missing tasks dir yields an empty board, no throw
+ok 446 - reader-missing-dir: a missing tasks dir yields an empty board, no throw
+  ---
+  duration_ms: 0.600417
+  type: 'test'
+  ...
+# Subtest: head-ref: a symbolic HEAD resolves through .git/refs
+ok 447 - head-ref: a symbolic HEAD resolves through .git/refs
+  ---
+  duration_ms: 1.757875
+  type: 'test'
+  ...
+# Subtest: head-packed: a HEAD with no loose ref falls back to packed-refs
+ok 448 - head-packed: a HEAD with no loose ref falls back to packed-refs
+  ---
+  duration_ms: 0.948458
+  type: 'test'
+  ...
+# Subtest: head-detached: a detached HEAD returns the sha itself
+ok 449 - head-detached: a detached HEAD returns the sha itself
+  ---
+  duration_ms: 0.081708
+  type: 'test'
+  ...
+# Subtest: head-worktree: a gitdir: pointer file is followed
+ok 450 - head-worktree: a gitdir: pointer file is followed
+  ---
+  duration_ms: 0.093292
+  type: 'test'
+  ...
+# Subtest: lock-marker: a loop tick stamps loop.ticks into the lock body, source unchanged
+ok 451 - lock-marker: a loop tick stamps loop.ticks into the lock body, source unchanged
+  ---
+  duration_ms: 2.821333
+  type: 'test'
+  ...
+# Subtest: lock-marker-absent: acquiring without the marker leaves the body exactly as it was
+ok 452 - lock-marker-absent: acquiring without the marker leaves the body exactly as it was
+  ---
+  duration_ms: 1.72825
+  type: 'test'
+  ...
+# Subtest: head-unreadable: an unreadable repo yields null, never a throw
+ok 453 - head-unreadable: an unreadable repo yields null, never a throw
+  ---
+  duration_ms: 0.21275
+  type: 'test'
+  ...
+# Subtest: f3-mirror-at-start: arming a loop mirrors it immediately, before its first tick runs
+ok 454 - f3-mirror-at-start: arming a loop mirrors it immediately, before its first tick runs
+  ---
+  duration_ms: 0.235875
+  type: 'test'
+  ...
+# Subtest: f3-mirror-is-resumable: what start() writes is what resume() re-enters
+ok 455 - f3-mirror-is-resumable: what start() writes is what resume() re-enters
+  ---
+  duration_ms: 0.147917
+  type: 'test'
+  ...
+# Subtest: f1-abort-retries: an aborted loop fire keeps the debt and says so once
+ok 456 - f1-abort-retries: an aborted loop fire keeps the debt and says so once
+  ---
+  duration_ms: 0.111666
+  type: 'test'
+  ...
+# Subtest: f1-abort-bounded: a lock that never frees stops the loop with a reason the board can read
+ok 457 - f1-abort-bounded: a lock that never frees stops the loop with a reason the board can read
+  ---
+  duration_ms: 0.167167
+  type: 'test'
+  ...
+# Subtest: f1-abort-clears-on-success: a fire that gets the lock ends the wait episode
+ok 458 - f1-abort-clears-on-success: a fire that gets the lock ends the wait episode
+  ---
+  duration_ms: 0.103667
+  type: 'test'
+  ...
+# Subtest: f1-abort-outside-a-loop: an aborted message fire arms nothing and stops nothing
+ok 459 - f1-abort-outside-a-loop: an aborted message fire arms nothing and stops nothing
+  ---
+  duration_ms: 0.050459
+  type: 'test'
+  ...
+# Subtest: f1-limit-default: the lock wait outlives both the tick timeout and the lock staleness rule
+ok 460 - f1-limit-default: the lock wait outlives both the tick timeout and the lock staleness rule
+  ---
+  duration_ms: 0.037375
+  type: 'test'
+  ...
+# Subtest: f2-resume-waits-out-a-live-lock: a young lock blocks the resumed fire, once, loudly
+ok 461 - f2-resume-waits-out-a-live-lock: a young lock blocks the resumed fire, once, loudly
+  ---
+  duration_ms: 0.131125
+  type: 'test'
+  ...
+# Subtest: f2-resume-fires-when-the-lock-aged-out: older than a whole tick timeout is not a live tick
+ok 462 - f2-resume-fires-when-the-lock-aged-out: older than a whole tick timeout is not a live tick
+  ---
+  duration_ms: 0.078417
+  type: 'test'
+  ...
+# Subtest: f2-resume-fires-with-no-lock: nothing held means nothing to wait for
+ok 463 - f2-resume-fires-with-no-lock: nothing held means nothing to wait for
+  ---
+  duration_ms: 0.054417
+  type: 'test'
+  ...
+# Subtest: f2-gate-is-age-not-pid: a young lock whose owner pid is long dead still blocks
+ok 464 - f2-gate-is-age-not-pid: a young lock whose owner pid is long dead still blocks
+  ---
+  duration_ms: 0.053375
+  type: 'test'
+  ...
+# Subtest: f2-undatable-lock-does-not-block-forever: a lock with no readable age is left to the steal rule
+ok 465 - f2-undatable-lock-does-not-block-forever: a lock with no readable age is left to the steal rule
+  ---
+  duration_ms: 0.048125
+  type: 'test'
+  ...
+# Subtest: f2-gate-is-resume-only: once the resumed loop fires its own tick, the gate is gone
+ok 466 - f2-gate-is-resume-only: once the resumed loop fires its own tick, the gate is gone
+  ---
+  duration_ms: 0.049167
+  type: 'test'
+  ...
+# Subtest: f2-poll-order: a held lock outranks a pending deploy, and a message outranks both
+ok 467 - f2-poll-order: a held lock outranks a pending deploy, and a message outranks both
+  ---
+  duration_ms: 0.133708
+  type: 'test'
+  ...
+# Subtest: f1-retry-is-quiet: the retries inside a wait episode do not re-announce the tick
+ok 468 - f1-retry-is-quiet: the retries inside a wait episode do not re-announce the tick
+  ---
+  duration_ms: 0.079
+  type: 'test'
+  ...
+# Subtest: f3-mirror-after-every-settle: a settled tick is in the file before the next one fires
+ok 469 - f3-mirror-after-every-settle: a settled tick is in the file before the next one fires
+  ---
+  duration_ms: 0.185333
+  type: 'test'
+  ...
+# Subtest: f3-mirror-records-the-stop: the file says the loop ended and why
+ok 470 - f3-mirror-records-the-stop: the file says the loop ended and why
+  ---
+  duration_ms: 0.077375
+  type: 'test'
+  ...
+# Subtest: f3-mirror-outside-a-loop: a tick with no loop still refreshes lastTick
+ok 471 - f3-mirror-outside-a-loop: a tick with no loop still refreshes lastTick
+  ---
+  duration_ms: 0.050125
+  type: 'test'
+  ...
+# Subtest: AS-82 makeWatcher: start() refuses to run beside a live watcher, and otherwise writes the pid file with startedAt === heartbeatAt
+ok 472 - AS-82 makeWatcher: start() refuses to run beside a live watcher, and otherwise writes the pid file with startedAt === heartbeatAt
+  ---
+  duration_ms: 19.92325
+  type: 'test'
+  ...
+# Subtest: AS-82 makeWatcher: every poll rewrites heartbeatAt — including while our own tick is running — and never touches pid/startedAt
+ok 473 - AS-82 makeWatcher: every poll rewrites heartbeatAt — including while our own tick is running — and never touches pid/startedAt
+  ---
+  duration_ms: 19.426125
+  type: 'test'
+  ...
+# Subtest: AS-82 makeWatcher: a message fires exactly one tick — lock taken with our pid/source/nonce/loop marker, highwater advanced, tick_started emitted
+ok 474 - AS-82 makeWatcher: a message fires exactly one tick — lock taken with our pid/source/nonce/loop marker, highwater advanced, tick_started emitted
+  ---
+  duration_ms: 12.973083
+  type: 'test'
+  ...
+# Subtest: AS-82 makeWatcher: the spawn call site passes tickArgv() and tickChildEnv() verbatim, with the settings-file grants, from the repo root
+ok 475 - AS-82 makeWatcher: the spawn call site passes tickArgv() and tickChildEnv() verbatim, with the settings-file grants, from the repo root
+  ---
+  duration_ms: 52.517375
+  type: 'test'
+  ...
+# Subtest: AS-82 makeWatcher: settle releases the lock, then records tick_ended, then folds the tick into the loop — in that order
+ok 476 - AS-82 makeWatcher: settle releases the lock, then records tick_ended, then folds the tick into the loop — in that order
+  ---
+  duration_ms: 51.437958
+  type: 'test'
+  ...
+# Subtest: AS-82 makeWatcher: a tick that outlives the box is SIGTERMed and settles as timedOut
+ok 477 - AS-82 makeWatcher: a tick that outlives the box is SIGTERMed and settles as timedOut
+  ---
+  duration_ms: 174.078166
+  type: 'test'
+  ...
+# Subtest: AS-82 makeWatcher: a fire that loses the lock spawns nothing and leaves the highwater alone
+ok 478 - AS-82 makeWatcher: a fire that loses the lock spawns nothing and leaves the highwater alone
+  ---
+  duration_ms: 15.115167
+  type: 'test'
+  ...
+# Subtest: AS-84 makeWatcher: shutdown clears the intervals, SIGTERMs the child and WAITS for its settle — tick_ended before exit 0
+ok 479 - AS-84 makeWatcher: shutdown clears the intervals, SIGTERMs the child and WAITS for its settle — tick_ended before exit 0
+  ---
+  duration_ms: 9.769875
+  type: 'test'
+  ...
+# Subtest: AS-84 makeWatcher: shutdown with a deploy in flight aborts it and waits for it before exiting
+ok 480 - AS-84 makeWatcher: shutdown with a deploy in flight aborts it and waits for it before exiting
+  ---
+  duration_ms: 3.512
+  type: 'test'
+  ...
+# Subtest: AS-84 makeWatcher: shutdown never releases a lock it does not own — a deploy-source lock survives
+ok 481 - AS-84 makeWatcher: shutdown never releases a lock it does not own — a deploy-source lock survives
+  ---
+  duration_ms: 3.80475
+  type: 'test'
+  ...
+# Subtest: AS-84 makeWatcher: the shutdown grace is a bound — a child that ignores SIGTERM is SIGKILLed and we still exit 0
+ok 482 - AS-84 makeWatcher: the shutdown grace is a bound — a child that ignores SIGTERM is SIGKILLed and we still exit 0
+  ---
+  duration_ms: 18.127209
+  type: 'test'
+  ...
+# Subtest: AS-84 makeWatcher: the shutdown grace bounds the deploy child too — a build that ignores SIGTERM is SIGKILLed and we still exit 0
+ok 483 - AS-84 makeWatcher: the shutdown grace bounds the deploy child too — a build that ignores SIGTERM is SIGKILLed and we still exit 0
+  ---
+  duration_ms: 13.68225
+  type: 'test'
+  ...
+# Subtest: AS-84 makeWatcher: deployPoll() survives a rejecting evaluate — no unhandled rejection, one ERROR line
+ok 484 - AS-84 makeWatcher: deployPoll() survives a rejecting evaluate — no unhandled rejection, one ERROR line
+  ---
+  duration_ms: 3.2035
+  type: 'test'
+  ...
+# Subtest: AS-82 makeWatcher: a spawn error settles the tick and frees the lock
+ok 485 - AS-82 makeWatcher: a spawn error settles the tick and frees the lock
+  ---
+  duration_ms: 6.256584
+  type: 'test'
+  ...
+# Subtest: AS-92 makeWatcher: fire() spawns the tick with the prepended PATH and logs TICK-PATH
+ok 486 - AS-92 makeWatcher: fire() spawns the tick with the prepended PATH and logs TICK-PATH
+  ---
+  duration_ms: 5.624458
+  type: 'test'
+  ...
+# Subtest: AS-88 makeWatcher: deploys to the production project — start() without injected deploy ops builds them with PRODUCTION_COMPOSE_PROJECT
+ok 487 - AS-88 makeWatcher: deploys to the production project — start() without injected deploy ops builds them with PRODUCTION_COMPOSE_PROJECT
+  ---
+  duration_ms: 2.962792
+  type: 'test'
+  ...
+# Subtest: AS-82 entry point: the real process heartbeats on its own interval against a temp data dir, and SIGTERM removes the pid file with exit 0
+ok 488 - AS-82 entry point: the real process heartbeats on its own interval against a temp data dir, and SIGTERM removes the pid file with exit 0
+  ---
+  duration_ms: 137.626375
+  type: 'test'
+  ...
+# Subtest: AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0
+ok 489 - AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0
+  ---
+  duration_ms: 992.316166
+  type: 'test'
+  ...
+# Subtest: AS-84 entry point: a build that ignores SIGTERM is SIGKILLed at grace expiry — no orphan, no deploy lock, exit 0
+ok 490 - AS-84 entry point: a build that ignores SIGTERM is SIGKILLed at grace expiry — no orphan, no deploy lock, exit 0
+  ---
+  duration_ms: 1279.45975
+  type: 'test'
+  ...
+# Subtest: AS-92 real process: a child given the thin PATH plus the watcher's prepend can run docker and gh; without the prepend it cannot
+ok 491 - AS-92 real process: a child given the thin PATH plus the watcher's prepend can run docker and gh; without the prepend it cannot
+  ---
+  duration_ms: 106.572542
+  type: 'test'
+  ...
+# Subtest: decide: missing or unparsable sentinel is a noop
+ok 492 - decide: missing or unparsable sentinel is a noop
+  ---
+  duration_ms: 1.168125
+  type: 'test'
+  ...
+# Subtest: decide: sentinel at or below highwater is a noop (already fired)
+ok 493 - decide: sentinel at or below highwater is a noop (already fired)
+  ---
+  duration_ms: 7.575125
+  type: 'test'
+  ...
+# Subtest: decide: first advance arms a 15s trailing window; further advances never extend it
+ok 494 - decide: first advance arms a 15s trailing window; further advances never extend it
+  ---
+  duration_ms: 0.129417
+  type: 'test'
+  ...
+# Subtest: decide: two advances inside one window collapse to one fire at the latest messageId
+ok 495 - decide: two advances inside one window collapse to one fire at the latest messageId
+  ---
+  duration_ms: 0.288916
+  type: 'test'
+  ...
+# Subtest: decide: expired window with a fresh foreign lock skips, then fires once the lock clears
+ok 496 - decide: expired window with a fresh foreign lock skips, then fires once the lock clears
+  ---
+  duration_ms: 0.263875
+  type: 'test'
+  ...
+# Subtest: decide: stale locks (dead pid / age) are fired over, not respected
+ok 497 - decide: stale locks (dead pid / age) are fired over, not respected
+  ---
+  duration_ms: 0.118041
+  type: 'test'
+  ...
+# Subtest: decide: missed-while-down recovery fires exactly once from persisted state
+ok 498 - decide: missed-while-down recovery fires exactly once from persisted state
+  ---
+  duration_ms: 0.099083
+  type: 'test'
+  ...
+# Subtest: isLockStale: fresh, dead-pid, over-age, and unparsable startedAt
+ok 499 - isLockStale: fresh, dead-pid, over-age, and unparsable startedAt
+  ---
+  duration_ms: 0.731542
+  type: 'test'
+  ...
+# Subtest: makeLockOps: clean acquire creates the lock with our pid; release removes it
+ok 500 - makeLockOps: clean acquire creates the lock with our pid; release removes it
+  ---
+  duration_ms: 3.261541
+  type: 'test'
+  ...
+# Subtest: makeLockOps: fresh foreign lock is respected — acquire false, file untouched
+ok 501 - makeLockOps: fresh foreign lock is respected — acquire false, file untouched
+  ---
+  duration_ms: 3.662166
+  type: 'test'
+  ...
+# Subtest: makeLockOps: stale locks (dead pid / old startedAt / unparsable) are stolen; verify passes
+ok 502 - makeLockOps: stale locks (dead pid / old startedAt / unparsable) are stolen; verify passes
+  ---
+  duration_ms: 8.055917
+  type: 'test'
+  ...
+# Subtest: makeLockOps: foreign overwrite between create and verify yields without unlink
+ok 503 - makeLockOps: foreign overwrite between create and verify yields without unlink
+  ---
+  duration_ms: 1.036
+  type: 'test'
+  ...
+# Subtest: AS-84 makeLockOps: release is by pid AND source — a deploy-source instance leaves a watcher-source lock alone, and vice versa
+ok 504 - AS-84 makeLockOps: release is by pid AND source — a deploy-source instance leaves a watcher-source lock alone, and vice versa
+  ---
+  duration_ms: 2.233583
+  type: 'test'
+  ...
+# Subtest: AS-84 makeLockOps: verify-after-create requires our nonce, not just our pid
+ok 505 - AS-84 makeLockOps: verify-after-create requires our nonce, not just our pid
+  ---
+  duration_ms: 0.688709
+  type: 'test'
+  ...
+# Subtest: tickChildEnv: pins exactly {PATH, HOME, USER, LOGNAME, ADVANCE_TICK_PARENT} — no more, no less
+ok 506 - tickChildEnv: pins exactly {PATH, HOME, USER, LOGNAME, ADVANCE_TICK_PARENT} — no more, no less
+  ---
+  duration_ms: 0.248792
+  type: 'test'
+  ...
+# Subtest: AS-92 tickPathPrepend: a thin PATH gains the docker and gh directories, docker first
+ok 507 - AS-92 tickPathPrepend: a thin PATH gains the docker and gh directories, docker first
+  ---
+  duration_ms: 0.167375
+  type: 'test'
+  ...
+# Subtest: AS-92 tickPathPrepend: directories already on PATH are reported present, never repeated, and PATH is not reordered
+ok 508 - AS-92 tickPathPrepend: directories already on PATH are reported present, never repeated, and PATH is not reordered
+  ---
+  duration_ms: 0.064833
+  type: 'test'
+  ...
+# Subtest: AS-92 tickPathPrepend: ADVANCE_TICK_PATH_EXTRA goes first, splits on ':', drops empties, de-duplicates
+ok 509 - AS-92 tickPathPrepend: ADVANCE_TICK_PATH_EXTRA goes first, splits on ':', drops empties, de-duplicates
+  ---
+  duration_ms: 0.074625
+  type: 'test'
+  ...
+# Subtest: AS-92 tickPathPrepend / tickChildEnv: nothing resolvable passes PATH through verbatim
+ok 510 - AS-92 tickPathPrepend / tickChildEnv: nothing resolvable passes PATH through verbatim
+  ---
+  duration_ms: 0.092167
+  type: 'test'
+  ...
+# Subtest: AS-92 resolveGhBin: override, override-missing (no fall-through), candidates in order, not-found; GH_CANDIDATES pinned
+ok 511 - AS-92 resolveGhBin: override, override-missing (no fall-through), candidates in order, not-found; GH_CANDIDATES pinned
+  ---
+  duration_ms: 0.114875
+  type: 'test'
+  ...
+# Subtest: tickArgv: pins the exact spawn argv — marker rides as the /advance prompt argument
+ok 512 - tickArgv: pins the exact spawn argv — marker rides as the /advance prompt argument
+  ---
+  duration_ms: 0.4625
+  type: 'test'
+  ...
+# Subtest: tickArgv: injected rules append --allowedTools/--disallowedTools, each rule its own element, denies last
+ok 513 - tickArgv: injected rules append --allowedTools/--disallowedTools, each rule its own element, denies last
+  ---
+  duration_ms: 0.134334
+  type: 'test'
+  ...
+# Subtest: loadPermissionRules: valid settings file yields exact {allow, deny} from one parse
+ok 514 - loadPermissionRules: valid settings file yields exact {allow, deny} from one parse
+  ---
+  duration_ms: 1.657042
+  type: 'test'
+  ...
+# Subtest: loadPermissionRules: missing file, malformed JSON, and non-object JSON all yield null
+ok 515 - loadPermissionRules: missing file, malformed JSON, and non-object JSON all yield null
+  ---
+  duration_ms: 4.09275
+  type: 'test'
+  ...
+# Subtest: loadPermissionRules: absent/partial permissions default to empty lists; non-strings filtered
+ok 516 - loadPermissionRules: absent/partial permissions default to empty lists; non-strings filtered
+  ---
+  duration_ms: 3.893458
+  type: 'test'
+  ...
+# Subtest: loadPermissionRules -> tickArgv composition: force-push denies ride as trailing argv elements whenever allows do
+ok 517 - loadPermissionRules -> tickArgv composition: force-push denies ride as trailing argv elements whenever allows do
+  ---
+  duration_ms: 2.740375
+  type: 'test'
+  ...
+# Subtest: fireNonce: 16 lowercase hex chars (64 bits), fresh per call
+ok 518 - fireNonce: 16 lowercase hex chars (64 bits), fresh per call
+  ---
+  duration_ms: 0.294958
+  type: 'test'
+  ...
+# Subtest: nonce threading: one fire's nonce is identical across lock body, argv marker, and env marker
+ok 519 - nonce threading: one fire's nonce is identical across lock body, argv marker, and env marker
+  ---
+  duration_ms: 1.7265
+  type: 'test'
+  ...
+# Subtest: config: defaults match the plan; env overrides apply; junk env falls back
+ok 520 - config: defaults match the plan; env overrides apply; junk env falls back
+  ---
+  duration_ms: 0.420125
+  type: 'test'
+  ...
+# Subtest: writeWatcherPid: atomic {pid, startedAt, heartbeatAt}; heartbeats advance without losing startedAt
+ok 521 - writeWatcherPid: atomic {pid, startedAt, heartbeatAt}; heartbeats advance without losing startedAt
+  ---
+  duration_ms: 3.174041
+  type: 'test'
+  ...
+# Subtest: AS-75 resolveDockerBin: an override that does not exist is loud, never a fall-through
+ok 522 - AS-75 resolveDockerBin: an override that does not exist is loud, never a fall-through
+  ---
+  duration_ms: 0.150834
+  type: 'test'
+  ...
+# Subtest: AS-75 resolveGitBin: absolute when it exists, bare name otherwise, override always wins
+ok 523 - AS-75 resolveGitBin: absolute when it exists, bare name otherwise, override always wins
+  ---
+  duration_ms: 0.065625
+  type: 'test'
+  ...
+# Subtest: AS-75 parseLsTree: a short input set is a refusal, and the digest ignores git output order
+ok 524 - AS-75 parseLsTree: a short input set is a refusal, and the digest ignores git output order
+  ---
+  duration_ms: 0.506333
+  type: 'test'
+  ...
+# Subtest: AS-86 classifyImagePaths: strays are named, roots cover their children, and names are not prefixes
+ok 525 - AS-86 classifyImagePaths: strays are named, roots cover their children, and names are not prefixes
+  ---
+  duration_ms: 0.150209
+  type: 'test'
+  ...
+# Subtest: AS-75 watchSourceDigest: order-independent, content-sensitive, and name-boundary safe
+ok 526 - AS-75 watchSourceDigest: order-independent, content-sensitive, and name-boundary safe
+  ---
+  duration_ms: 0.137542
+  type: 'test'
+  ...
+# Subtest: AS-75 pruneLogs: tick and deploy logs share one retention rule
+ok 527 - AS-75 pruneLogs: tick and deploy logs share one retention rule
+  ---
+  duration_ms: 4.331125
+  type: 'test'
+  ...
+# Subtest: AS-75 decideDeploy: every rule in the table, in the table's order
+ok 528 - AS-75 decideDeploy: every rule in the table, in the table's order
+  ---
+  duration_ms: 0.485958
+  type: 'test'
+  ...
+# Subtest: AS-75 decideDeploy: the cooldown suppresses only a repeat of a FAILED attempt at the SAME id
+ok 529 - AS-75 decideDeploy: the cooldown suppresses only a repeat of a FAILED attempt at the SAME id
+  ---
+  duration_ms: 0.3345
+  type: 'test'
+  ...
+# Subtest: AS-75 decideDeploy: an unreadable running id is not-current, never accidentally current
+ok 530 - AS-75 decideDeploy: an unreadable running id is not-current, never accidentally current
+  ---
+  duration_ms: 0.172375
+  type: 'test'
+  ...
+# Subtest: AS-95 makeDeployOps: pendingDeploy() answers "a rebuild is owed and can run", and never blocks the loop forever
+ok 531 - AS-95 makeDeployOps: pendingDeploy() answers "a rebuild is owed and can run", and never blocks the loop forever
+  ---
+  duration_ms: 9.708042
+  type: 'test'
+  ...
+# Subtest: AS-75 makeDeployOps: a stale container is rebuilt with the right env, and success means the RUNNING id changed
+ok 532 - AS-75 makeDeployOps: a stale container is rebuilt with the right env, and success means the RUNNING id changed
+  ---
+  duration_ms: 5.187958
+  type: 'test'
+  ...
+# Subtest: AS-75 makeDeployOps: exit code 0 with a mismatched re-probe is a FAILURE, not a success
+ok 533 - AS-75 makeDeployOps: exit code 0 with a mismatched re-probe is a FAILURE, not a success
+  ---
+  duration_ms: 7.841333
+  type: 'test'
+  ...
+# Subtest: AS-75 makeDeployOps: a deploy takes advance.lock with source "deploy" for its duration
+ok 534 - AS-75 makeDeployOps: a deploy takes advance.lock with source "deploy" for its duration
+  ---
+  duration_ms: 2.653167
+  type: 'test'
+  ...
+# Subtest: AS-75 makeDeployOps: a fresh foreign lock yields noop/busy and spawns nothing
+ok 535 - AS-75 makeDeployOps: a fresh foreign lock yields noop/busy and spawns nothing
+  ---
+  duration_ms: 7.654666
+  type: 'test'
+  ...
+# Subtest: AS-75 makeDeployOps: a dirty image-input tree refuses, and a broken git refuses differently
+ok 536 - AS-75 makeDeployOps: a dirty image-input tree refuses, and a broken git refuses differently
+  ---
+  duration_ms: 4.126959
+  type: 'test'
+  ...
+# Subtest: AS-75 makeDeployOps: no docker binary is a refusal that names the remedy, not a crash
+ok 537 - AS-75 makeDeployOps: no docker binary is a refusal that names the remedy, not a crash
+  ---
+  duration_ms: 0.814292
+  type: 'test'
+  ...
+# Subtest: AS-75 makeDeployOps: a watcher-source change exits 70 and leaves the pid file alone
+ok 538 - AS-75 makeDeployOps: a watcher-source change exits 70 and leaves the pid file alone
+  ---
+  duration_ms: 4.652458
+  type: 'test'
+  ...
+# Subtest: AS-75 makeDeployOps: deploy-state.json is written on every poll, atomically, for the server to read
+ok 539 - AS-75 makeDeployOps: deploy-state.json is written on every poll, atomically, for the server to read
+  ---
+  duration_ms: 2.417334
+  type: 'test'
+  ...
+# Subtest: AS-84 makeDeployOps: lastAttempt is hydrated from deploy-state.json — a failed attempt at the desired id, inside the cooldown, refuses without building
+ok 540 - AS-84 makeDeployOps: lastAttempt is hydrated from deploy-state.json — a failed attempt at the desired id, inside the cooldown, refuses without building
+  ---
+  duration_ms: 5.830833
+  type: 'test'
+  ...
+# Subtest: AS-84 makeDeployOps: an interrupted attempt ('started' on disk) counts as a failure for the cooldown
+ok 541 - AS-84 makeDeployOps: an interrupted attempt ('started' on disk) counts as a failure for the cooldown
+  ---
+  duration_ms: 18.32625
+  type: 'test'
+  ...
+# Subtest: AS-84 makeDeployOps: the 'started' record is on disk before compose is spawned
+ok 542 - AS-84 makeDeployOps: the 'started' record is on disk before compose is spawned
+  ---
+  duration_ms: 6.237166
+  type: 'test'
+  ...
+# Subtest: AS-84 makeDeployOps: abort() signals the running build, records an abort rather than a failure, and gives the lock back
+ok 543 - AS-84 makeDeployOps: abort() signals the running build, records an abort rather than a failure, and gives the lock back
+  ---
+  duration_ms: 42.183709
+  type: 'test'
+  ...
+# Subtest: AS-84 makeDeployOps: abort() while idle resolves immediately and touches nothing
+ok 544 - AS-84 makeDeployOps: abort() while idle resolves immediately and touches nothing
+  ---
+  duration_ms: 1.380625
+  type: 'test'
+  ...
+# Subtest: AS-84 makeDeployOps: evaluate() never rejects — a throwing collaborator becomes {noop, error}, persisted, logged once
+ok 545 - AS-84 makeDeployOps: evaluate() never rejects — a throwing collaborator becomes {noop, error}, persisted, logged once
+  ---
+  duration_ms: 3.273125
+  type: 'test'
+  ...
+# Subtest: AS-84 runDockerCompose: a compose log stream error is logged, not thrown — the build still resolves
+ok 546 - AS-84 runDockerCompose: a compose log stream error is logged, not thrown — the build still resolves
+  ---
+  duration_ms: 1.359042
+  type: 'test'
+  ...
+# Subtest: AS-87 evaluate heartbeats while deploying: every poll during a build rewrites deploy-state.json with a fresh computedAt and reason "deploying"
+ok 547 - AS-87 evaluate heartbeats while deploying: every poll during a build rewrites deploy-state.json with a fresh computedAt and reason "deploying"
+  ---
+  duration_ms: 11.209166
+  type: 'test'
+  ...
+# Subtest: AS-87 runDockerCompose argv: compose is spawned with --progress plain, never quiet
+ok 548 - AS-87 runDockerCompose argv: compose is spawned with --progress plain, never quiet
+  ---
+  duration_ms: 0.356
+  type: 'test'
+  ...
+# Subtest: AS-88 runDockerCompose names the caller's project: -p carries composeProject, not a literal
+ok 549 - AS-88 runDockerCompose names the caller's project: -p carries composeProject, not a literal
+  ---
+  duration_ms: 0.172667
+  type: 'test'
+  ...
+# Subtest: AS-88 runDockerCompose refuses an implicit project: no composeProject -> throws before opening the log or spawning
+ok 550 - AS-88 runDockerCompose refuses an implicit project: no composeProject -> throws before opening the log or spawning
+  ---
+  duration_ms: 0.484208
+  type: 'test'
+  ...
+# Subtest: AS-88 performDeploy passes composeProject through to deploy() and names it in the DEPLOY building line
+ok 551 - AS-88 performDeploy passes composeProject through to deploy() and names it in the DEPLOY building line
+  ---
+  duration_ms: 7.179458
+  type: 'test'
+  ...
+# Subtest: AS-88 makeDeployOps refuses a COMPOSE_PROJECT_NAME the scrub would discard (AS-75 review F8)
+ok 552 - AS-88 makeDeployOps refuses a COMPOSE_PROJECT_NAME the scrub would discard (AS-75 review F8)
+  ---
+  duration_ms: 2.153125
+  type: 'test'
+  ...
+# Subtest: AS-88 makeDeployOps accepts an agreeing or empty COMPOSE_PROJECT_NAME
+ok 553 - AS-88 makeDeployOps accepts an agreeing or empty COMPOSE_PROJECT_NAME
+  ---
+  duration_ms: 4.223625
+  type: 'test'
+  ...
+# Subtest: AS-88 makeDeployOps requires composeProject: no default, throws at construction
+ok 554 - AS-88 makeDeployOps requires composeProject: no default, throws at construction
+  ---
+  duration_ms: 5.284084
+  type: 'test'
+  ...
+1..554
+# tests 554
+# suites 0
+# pass 553
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 15444.821542

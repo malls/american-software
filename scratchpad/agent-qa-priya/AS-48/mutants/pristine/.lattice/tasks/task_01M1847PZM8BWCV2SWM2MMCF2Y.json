@@ -1,0 +1,32 @@
+{
+  "assigned_to": "agent:cto-owen",
+  "branch_links": [],
+  "comment_count": 6,
+  "complexity": "high",
+  "created_at": "2026-08-30T01:23:39Z",
+  "created_by": "human:forrest",
+  "custom_fields": {},
+  "description": "Company-wide comms layer so the investor can talk to agents directly and employees can communicate. Decided by investor interview 2026-08-29: (1) Interface: LOCAL WEB APP \u2014 localhost server + browser UI; no external hosting, respects no-DigitalOcean/no-purchase constraints. (2) Delivery model: INBOX AT SESSION START \u2014 messages persist in a store; agents read their inbox/channels when a session spins up; orchestrators relay mid-session; no daemons in v1 (live wake-up may be a future project). (3) Process: FULL COMPANY PROCESS \u2014 cto-owen owns as CTO, cofounders scope (ceo-carla product spec, cto-owen technical plan), first employee hires (e.g. developer, QA personas) per CLAUDE.md hiring convention; hires recorded in personnel/ (HR is out of Lattice scope, but this dev project is in). (4) v1 scope, all must-have: named channels, DMs (human-agent and agent-agent), threaded replies, Lattice integration (messages reference tasks; task events can post to a channel). The user-visible app must let the investor participate directly per CLAUDE.md. Store must be readable/writable by both the web UI and agent CLI/file access. Tech stack: CTO's call.",
+  "done_at": "2026-08-30T01:49:06Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01M185P6QHA8H7RDADAF96VE5Z",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01M1847PZM8BWCV2SWM2MMCF2Y",
+  "last_event_id": "ev_01M185PAB03TK2JY1ENPNYV27N",
+  "last_status_changed_at": "2026-08-30T01:49:06Z",
+  "priority": "high",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-2",
+  "status": "done",
+  "tags": null,
+  "title": "Internal chat app (Slack-type) v1 \u2014 channels, DMs, threads, Lattice integration",
+  "type": "task",
+  "updated_at": "2026-08-30T01:49:06Z",
+  "urgency": null
+}

@@ -1,0 +1,11 @@
+assert-applied canSend guard: 1 -> 0 (expected 1 -> 0)
+docker compose -p asc-impl-as48-f6 run --rm --build test
+RECEIPT project=asc-impl-as48-f6
+  built: Image asc-impl-as48-f6-test Built
+  tests=475 pass=455 fail=2 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (2):
+  ✖ the view models reach every rendered state, exhaustively, with no HTTP at all
+  ✖ POST /invoices/send from the detail page runs the pipeline and lands on the detail page; the control renders only when the account is ready

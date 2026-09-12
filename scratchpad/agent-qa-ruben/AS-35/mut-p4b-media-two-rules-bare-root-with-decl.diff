@@ -1,0 +1,10 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/pristine/docs/design/tokens/tokens.css	2026-09-12 17:14:48
++++ /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/p4b-media-two-rules-bare-root-with-decl/docs/design/tokens/tokens.css	2026-09-12 17:14:50
+@@ -246,6 +246,7 @@
+     --color-danger-solid: var(--color-danger-400);
+     --color-danger-solid-hover: var(--color-danger-600);
+   }
++  :root { --color-bg-canvas: var(--color-ink-950); }
+ }
+ 
+ /*

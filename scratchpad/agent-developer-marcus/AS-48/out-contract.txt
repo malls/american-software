@@ -1,0 +1,9 @@
+no mutation
+docker compose -p asc-impl-as48-contract run --rm --build contract
+RECEIPT project=asc-impl-as48-contract
+  built: Image asc-impl-as48-contract-contract Built
+  tests=475 pass=475 fail=0 skipped=0
+  run exit=0
+  down exit=0
+  leak check: clean
+RED SET (0):

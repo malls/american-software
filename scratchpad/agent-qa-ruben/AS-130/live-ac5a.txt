@@ -1,0 +1,15 @@
+=== variant ac5a @ 2026-09-12T16:56:42.494Z ===
+up: exit 0, receipt 'Image asc-review-as130-cap-demo Built' present: true
+healthz 200 after 1102 ms
+inspect asc-review-as130-cap-web: image asc-review-as130-cap-demo, cmd ["node","demo/serve.mjs"]
+  Env (5): ASC_STRIPE_MOCK_URL=http://stripe-mock:12111 ; PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin ; NODE_VERSION=24.20.0 ; YARN_VERSION=1.22.22 ; NODE_ENV=production
+  ASC_STRIPE_MOCK_URL present: true; INVOICING_STRIPE_* entries: 0; any INVOICING_*: none
+  networks: asc-review-as130-cap_default, asc-review-as130-cap_stripe-mock; port bindings: {"8348/tcp":[{"HostIp":"127.0.0.1","HostPort":"8349"}],"8350/tcp":[{"HostIp":"127.0.0.1","HostPort":"8350"}]}
+  merged config (profile tools) demo.networks: ["default","stripe-mock"]; demo.ports: null; web.networks: ["default"]; web.ports: ["8348"]
+  [ac5a] mutation applied at intended site: true
+ac5a: exit 1; PNGs written 9; capture.json written false; chrome profiles leaked: 0
+  stderr: capture: page at http://127.0.0.1:8349/invoices/new is in state "S4-GATED-STRIPENOTREADY", expected S4-DEFAULT-CREATE — refusing to write the screenshot
+  screen-4 PNGs present: 0; PNGs: screen-1-error-validation-375.png, screen-1-signin-1280.png, screen-1-signin-375.png, screen-1-signup-1280.png, screen-1-signup-375.png, screen-2-default-notstarted-1280.png, screen-2-default-notstarted-375.png, screen-3-empty-firstrun-1280.png, screen-3-empty-firstrun-375.png
+down -v (as documented, no --profile): exit 0; stderr: Network asc-review-as130-cap_default Removing  |  Network asc-review-as130-cap_default Resource is still in use; containers still present: 2 [asc-review-as130-cap-web, asc-review-as130-cap-stripe-mock-1]
+down -v --profile tools: exit 0; 4 'Removed' lines
+leftovers after down: containers [] networks []

@@ -1,0 +1,17 @@
+IMPLEMENTED (Lena) — feat/AS-57-closed-world-residuals, four commits: 08ddbda (item 3: test/helpers/hash-comment.js, both imports, escape cases), 36ca22f (item 2: depth-0 SKIPPED_DIRS + nestedSkipped + assertion 0), 074b69d (item 4: **/.DS_Store + .DS_Store, DS pins 7 + member), 526f0d1 (item 1: one `COPY apps/invoicing ./` after `RUN npm ci`, 11→5 COPYs; deploy-shape pins APP_COPY exactly once, after npm ci, only the cache-layer COPY under apps/invoicing/; README V2b row; UNSCANNED comment).
+
+Final counted run on the tip: 531/512/0/19, `Image asc-impl-as57-20-final-test Built`.
+
+DEVIATION, explained not absorbed: every predicted count in the plan is off by +1 test/+1 pass. `node --test` bare runs every .js under test/** as a file-level test — the five existing helpers already count one pass each (baseline log lines 324–328); the sixth helper file adds exactly +1/+1. No new test() was written. Baseline on the worktree before any change was 530/511/0/19 (00-baseline).
+
+Red sets (each: mutation asserted at site, run, restored, porcelain empty):
+- M1 on baseline: GREEN 530/511/0/19 (the before picture). M1 on the fix: 531/510/2/19 = {DP#3 "expected 3 manifests, found 4: … compose.override.yaml …", DP#5 "compose.override.yaml:4: fetch — not sanctioned"}.
+- M1b: 531/509/3/19 = {DS-1 "found 12", DS-demo, DS-ride "found 0"}; dependency-policy green.
+- M2: 531/510/2/19 = {DP#3 assertion-0 message naming lib/vendor, DP#5 "lib/vendor/probe.js:1: fetch"}.
+- M3: 531/511/1/19 = {DP#5 "compose.yaml:32: fetch — not sanctioned"}; deploy-shape green.
+- M4(i): GREEN 531/512/0/19, `git check-ignore -q` exit 0. M4(ii): 531/509/3/19 = {DS-1 "found 6", DS-ign, DP#3 "lib/.DS_Store is neither …"}.
+- M5: 531/510/2/19 = {DP#2, DS-parse}.
+
+Checks: dependency-policy.test.js 1,195 lines (first item-2 cut was 1,205 and test #7 went red as designed; prose trimmed); `grep -c "quote = null"` 0/0; product code, package.json and .lattice untouched on the branch; harness list unchanged. Boring choices: the escape rule is a standalone one-line statement so M5's single-line delete leaves valid syntax; the .gitignore line carries a two-line comment in the file's house style. Q1/Q2 defaults taken. One harness lesson for Ruben: a backup file left inside apps/invoicing/ is now itself an unclassified file (first M3 attempt) — keep backups outside the worktree.
+
+Logs, receipts, harness: scratchpad/agent-developer-lena/AS-57/ (progress.md, mutate.mjs, NN-*.log/.receipt).

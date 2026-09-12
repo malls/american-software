@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  AS-94 Lattice dashboard launchd template. Render before installing:
+    __REPO_ROOT__    absolute path to the MAIN checkout (pinned to master; no trailing
+                     slash). The dashboard finds .lattice/ by walking up from its cwd,
+                     so WorkingDirectory must be the repo root.
+    __LATTICE_BIN__  absolute path to the lattice CLI (`command -v lattice`; the pipx
+                     symlink /Users/<you>/.local/bin/lattice, not the venv path)
+    __PATH__         PATH for the job; must contain the directory holding `lattice`
+                     (launchd's default env is thin — do not omit this)
+  This job is the ONE owner of 127.0.0.1:8799. Bind stays loopback: tailnet reach is
+  Tailscale serve (:8443 -> 127.0.0.1:8799) only — never 0.0.0.0. Guarded by
+  test/launchd-plist.test.js. Install/uninstall/restart: ./README.md, "Lattice dashboard".
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.american-software.lattice-dashboard</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__LATTICE_BIN__</string>
+    <string>dashboard</string>
+    <string>--host</string>
+    <string>127.0.0.1</string>
+    <string>--port</string>
+    <string>8799</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO_ROOT__</string>
+
+  <!-- Survives reboot (RunAtLoad) and crashes (KeepAlive). -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>__PATH__</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__REPO_ROOT__/apps/chat/data/logs/lattice-dashboard.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO_ROOT__/apps/chat/data/logs/lattice-dashboard.err.log</string>
+</dict>
+</plist>

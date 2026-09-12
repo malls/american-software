@@ -1,0 +1,12 @@
+diff --git a/apps/chat/watch/advance-watcher.mjs b/apps/chat/watch/advance-watcher.mjs
+index f119cd7..f4aa629 100644
+--- a/apps/chat/watch/advance-watcher.mjs
++++ b/apps/chat/watch/advance-watcher.mjs
+@@ -1937,7 +1937,6 @@ export function makeLoopOps({
+       return;
+     }
+     pending = true;
+-    resumeHold = true; // F2: wait out anything the dead process left running
+     log(`LOOP-RESUME reason=watcher-restart tick ${loop.ticks} armedBy ${loop.armedBy}`);
+   }
+ 

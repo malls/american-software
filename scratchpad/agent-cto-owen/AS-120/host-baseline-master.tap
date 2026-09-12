@@ -1,0 +1,38 @@
+TAP version 13
+# node:internal/modules/cjs/loader:1451
+#   throw err;
+#   ^
+# Error: Cannot find module '/Users/forrest/Code/american-software-company/apps/chat/test'
+#     at Module._resolveFilename (node:internal/modules/cjs/loader:1448:15)
+#     at defaultResolveImpl (node:internal/modules/cjs/loader:1059:19)
+#     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1064:22)
+#     at Module._load (node:internal/modules/cjs/loader:1234:25)
+#     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+#     at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+#     at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+#     at node:internal/main/run_main_module:33:47 {
+#   code: 'MODULE_NOT_FOUND',
+#   requireStack: []
+# }
+# Node.js v24.13.1
+# Subtest: /Users/forrest/Code/american-software-company/apps/chat/test
+not ok 1 - /Users/forrest/Code/american-software-company/apps/chat/test
+  ---
+  duration_ms: 30.831583
+  type: 'test'
+  location: '/Users/forrest/Code/american-software-company/apps/chat/test:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 36.2695

@@ -1,0 +1,8 @@
+=== variant ac10 @ 2026-09-12T16:57:01.361Z ===
+AC-10a ASC_STRIPE_MOCK_URL=https://api.stripe.com: exit 2; stderr: demo/serve: ASC_STRIPE_MOCK_URL points at api.stripe.com: this server only ever talks to stripe-mock
+AC-10b unset: exit 2; stderr: demo/serve: ASC_STRIPE_MOCK_URL is not set — this server only ever talks to stripe-mock; run it as the `demo` compose service with the capture override
+probe subdomain checkout.stripe.com: exit 2; stderr: demo/serve: ASC_STRIPE_MOCK_URL points at checkout.stripe.com: this server only ever talks to stripe-mock
+probe not-a-url: exit 2; stderr: demo/serve: ASC_STRIPE_MOCK_URL is not a URL: "not a url"
+probe mock unreachable: exit 1; stderr: demo/serve: Error: stripe-mock at http://127.0.0.1:1 did not answer within 10 s
+down -v (as documented, no --profile): exit 0; stderr: Network asc-review-as130-cap_default Removing  |  Network asc-review-as130-cap_default Removed; containers still present: 0 []
+down -v --profile tools: exit 0; 1 'Removed' lines

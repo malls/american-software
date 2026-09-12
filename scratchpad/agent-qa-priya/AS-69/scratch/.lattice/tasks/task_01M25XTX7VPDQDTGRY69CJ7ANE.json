@@ -1,0 +1,52 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": "agent:developer-marcus",
+  "branch_links": [
+    {
+      "branch": "feat/AS-95-watcher-loop",
+      "linked_at": "2026-09-10T20:22:28Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 13,
+  "complexity": null,
+  "created_at": "2026-09-10T15:09:01Z",
+  "created_by": "human:forrest",
+  "custom_fields": {},
+  "description": "Board directive, Claude Code chat (metawork), 2026-09-10, verbatim: \"when I send a message, it should trigger a loop, not a tick\". Stop rule chosen by the board the same day: UNTIL THE COMPANY RUNS DRY. Filed explicitly by the board in that channel (the CLAUDE.md exception), so this is a board-authored task.\n\nWHAT CHANGES. Today apps/chat/watch/advance-watcher.mjs fires exactly one headless tick per human message: decide() sees the sentinel (last-human-message.json) above the highwater, arms the 15s debounce, fires one claude -p /advance with a fresh nonce+lock, and settle() releases the lock and writes the highwater. Then it waits for the next human message. Consequence the board has lived: a message that needs three lifecycle stages (plan -> implement -> review) advances one stage and then the company sits idle until he speaks again; msg 607 got no ack for 40 minutes because its one tick was spent on AS-91.\n\nTARGET. A human message opens a LOOP: after a fired tick settles, the watcher immediately evaluates a continue-predicate and fires the next tick (fresh nonce, fresh lock, same single-flight discipline) while it holds; it stops when the company is dry. The loop is a property of the watcher, not of the tick \u2014 /advance stays one bounded tick and knows nothing about the loop.\n\nCONTINUE-PREDICATE (the board picked the \"runs dry\" rule; make it a pure, exported, unit-tested function like decide()/decideDeploy(), and record the reason in the log on every evaluation):\n  continue when ANY of:\n    (a) a task is in_planning, planned, in_progress or review (something is mid-lifecycle);\n    (b) a backlog task is READY under the scheduling rule (no unmet depends_on; Chat set first while it is non-empty per CLAUDE.md \"Scheduling priority\");\n    (c) the sentinel is above the highwater again (a new human message arrived during the last tick \u2014 already the existing fire path; the loop must not double-fire it).\n  stop when ANY of:\n    (d) none of (a)/(b)/(c) hold \u2014 the company is dry (needs_human/blocked tasks do not count as work; they are waiting on the board);\n    (e) NO-PROGRESS GUARD: two consecutive ticks ended without a new commit on master (compare HEAD before/after each tick) \u2014 a tick that no-ops twice is stuck, not working; stop and log which condition it saw;\n    (f) SAFETY CAP: 24 consecutive ticks or 8 hours of continuous looping per human message, whichever first \u2014 logged as cap-hit; a new message re-arms;\n    (g) the tick child exited non-zero or was killed by the 30-min tick timeout twice in a row.\n  Reading task state: the watcher is node:* builtins only and must not shell out to the lattice CLI per tick; read .lattice/tasks/*.json directly (status, priority, depends_on via the relationships the CLI writes) \u2014 that file layout is the CLI's own storage and the AS-8/AS-27 code already reads .lattice read-only. Compute readiness = every depends_on target is done/cancelled.\n\nCONSTRAINTS. Zero new dependencies. Single-flight is unchanged: one tick at a time, one lock, the deploy poll's rule 1 still refuses under a fresh lock; the loop must not starve the deploy poll (decide between ticks whether a deploy is pending \u2014 if deploy-state says stale-build and docker is available, let one deploy run before the next tick, so a merge in tick N is live before tick N+1 reviews anything on 8347). Heartbeat/lock/highwater semantics unchanged (AS-16 nonce per fire). The UI's loop indicator (AS-27) should read \"Loop active\" while the watcher is looping: write source:\"watcher-loop\" or an explicit loop marker the loop-status derivation understands, and extend describeLoopStatus so the sidebar distinguishes a single watcher tick from a watcher loop, with the tick count (e.g. \"Loop active - watcher, tick 3\"). Every stop reason is logged in launchd.out and surfaced in loop-status's lastTick/lastLoop fields so the board can see WHY the company stopped.\n\nRELATION TO AS-84: the lock-ownership question (pid vs source) is shared; do not fork the semantics \u2014 if AS-84 lands first, build on it; if this lands first, keep lock handling byte-identical and leave AS-84's scope alone.\n\nACCEPTANCE (M4-shaped: each property names its falsifier, satisfied by an OBSERVED red):\n  AC-1 shouldContinue() is pure and exported; every rule (a)-(g) has a unit test that turns RED when that rule is deleted or its comparison inverted (one mutation per rule, exact failing set recorded).\n  AC-2 the no-progress guard: a fixture where HEAD does not move across two ticks stops the loop; deleting the guard turns the test red.\n  AC-3 the cap: a fixture at 24 ticks stops; 23 continues.\n  AC-4 readiness: a backlog task with an unmet depends_on is NOT counted as ready; deleting the depends_on check turns it red.\n  AC-5 a new human message mid-loop is delivered exactly once (no double fire): sentinel advance during tick N is consumed by tick N+1's normal inbox pull and the highwater moves once; a test asserts one fire, not two.\n  AC-6 loop-status: the sidebar label for a watcher loop is observed over the served endpoint with a tick count; the label test goes red when the loop branch is removed.\n  AC-7 one observed end-to-end run on an isolated stack (own compose project, temp data dir, fixture .lattice): one human message -> at least three consecutive ticks -> stop with reason \"dry\" logged; and a second run stopping on the no-progress guard.\n  AC-8 --build receipt on every counted suite run (Image ... Built line quoted); cardinality before quantification vs the master baseline.\n  AC-9 README (apps/chat/watch/README.md) documents the loop, the stop rules, the cap, and how to read the stop reason.\n  AC-10 the unguarded main() wiring is enumerated in the implementation report (AS-82 hole), capped small; all logic is module-scope exports.\n\nMETAWORK ALREADY APPLIED WITH THIS FILING: CLAUDE.md \"Target interface\" paragraph updated to the loop semantics. .claude/commands/advance.md is unchanged \u2014 one invocation is still one tick.",
+  "done_at": "2026-09-11T03:10:43Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01M26JPSZVQ1MFKNYHGE53Y13V",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "art_01M274PKK5WKNQ4TDQ8BJNK6KT",
+      "role": "review",
+      "source_type": "artifact"
+    },
+    {
+      "id": "ev_01M2753A0M1KVEH04N5CB5M646",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01M25XTX7VPDQDTGRY69CJ7ANE",
+  "last_event_id": "ev_01M28VR33FB0T36740N1Z4CM48",
+  "last_status_changed_at": "2026-09-11T03:10:43Z",
+  "linked_files": [],
+  "needs_human": null,
+  "priority": "critical",
+  "relationships_out": [],
+  "reopened_count": 1,
+  "schema_version": 1,
+  "short_id": "AS-95",
+  "status": "done",
+  "tags": null,
+  "title": "Chat watcher: a board message starts a loop of ticks that runs until the company is dry, not a single tick",
+  "type": "task",
+  "updated_at": "2026-09-11T18:30:15Z",
+  "urgency": null
+}

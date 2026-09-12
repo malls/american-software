@@ -1,0 +1,71 @@
+(node:6252) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ mode: AS-83 — a failed CLI exit is reported with status, signal, elapsed ms, stderr and stdout (0.492458ms)
+✔ mode: AS-24 — API-mode writes land in the server view; no DB file is ever created (356.699458ms)
+✖ mode: AS-24 — probe timeout (something listening, not answering) refuses loudly, zero side effects (3068.577208ms)
+✖ mode: AS-83 — a live server that answers slower than the probe budget is refused as ambiguous (the flake signature) (112.049917ms)
+✔ mode: AS-83 — the same slow server inside the budget is up: the write lands in the server view, no DB touched (429.380583ms)
+✔ mode: AS-83 — CHAT_PROBE_TIMEOUT_MS must be a positive integer of milliseconds; anything else is a usage error on every path (145.958209ms)
+✔ mode: AS-24 — squatted port (wrong-shaped JSON) refuses loudly, zero side effects (54.195333ms)
+✔ mode: AS-24 — hard connection-refused falls back to direct mode against CHAT_DB (53.220583ms)
+✔ mode: AS-24 — CHAT_MODE=direct skips the probe entirely (poisoned CHAT_API never contacted) (38.083916ms)
+✔ mode: AS-24 — CHAT_MODE=api with a down server is a loud exit 1 (47.586959ms)
+✔ mode: AS-24 — invalid CHAT_MODE is a usage error (33.495208ms)
+✔ mode: AS-24 — full command sweep in API mode (no DB file, direct-mode shapes) (2526.952209ms)
+✔ mode: AS-24 — CHAT_DB alone (rule 4) stays direct with no probe: the suite is hermetic (38.215791ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 11
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6970.309958
+
+✖ failing tests:
+
+test at test/mode.test.js:219:1
+✖ mode: AS-24 — probe timeout (something listening, not answering) refuses loudly, zero side effects (3068.577208ms)
+  AssertionError [ERR_ASSERTION]: post (trap listener): exit 0 signal null after 3064 ms
+  --- stderr ---
+  
+  --- stdout ---
+  Posted to #engineering as message 1
+  
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-83/apps/chat/test/mode.test.js:239:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/mode.test.js:254:1
+✖ mode: AS-83 — a live server that answers slower than the probe budget is refused as ambiguous (the flake signature) (112.049917ms)
+  AssertionError [ERR_ASSERTION]: dm (150 ms server, 50 ms budget): exit 0 signal null after 102 ms
+  --- stderr ---
+  
+  --- stdout ---
+  {"id":1,"conversationId":5,"threadRootId":null,"authorId":"human:forrest","body":"must not land","createdAt":"2026-09-11T08:35:40.754Z"}
+  
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-83/apps/chat/test/mode.test.js:263:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

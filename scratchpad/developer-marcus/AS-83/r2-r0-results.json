@@ -1,0 +1,138 @@
+{
+  "r2": [
+    {
+      "run": 1,
+      "tests": 484,
+      "pass": 484,
+      "fail": 0,
+      "exit": 0,
+      "secs": 41.85,
+      "built": "Image as83test-test Built",
+      "buildAliveAtStart": true,
+      "buildAliveAtEnd": true,
+      "siblings": [
+        "asc-chat-server-1",
+        "whatever-sticks-app-1",
+        "whatever-sticks-db-1",
+        "asc-invoicing-web-1",
+        "web",
+        "api",
+        "search",
+        "meilisearch",
+        "postgres"
+      ]
+    },
+    {
+      "run": 2,
+      "tests": 484,
+      "pass": 484,
+      "fail": 0,
+      "exit": 0,
+      "secs": 41.34,
+      "built": "Image as83test-test Built",
+      "buildAliveAtStart": true,
+      "buildAliveAtEnd": true,
+      "siblings": [
+        "asc-chat-server-1",
+        "whatever-sticks-app-1",
+        "whatever-sticks-db-1",
+        "asc-invoicing-web-1",
+        "web",
+        "api",
+        "search",
+        "meilisearch",
+        "postgres"
+      ]
+    },
+    {
+      "run": 3,
+      "tests": 484,
+      "pass": 484,
+      "fail": 0,
+      "exit": 0,
+      "secs": 39.49,
+      "built": "Image as83test-test Built",
+      "buildAliveAtStart": true,
+      "buildAliveAtEnd": true,
+      "siblings": [
+        "asc-chat-server-1",
+        "whatever-sticks-app-1",
+        "whatever-sticks-db-1",
+        "asc-invoicing-web-1",
+        "web",
+        "api",
+        "search",
+        "meilisearch",
+        "postgres"
+      ]
+    }
+  ],
+  "r0": [
+    {
+      "mode": "build",
+      "nproc": 10,
+      "burners": 0,
+      "n": 50,
+      "p50": 3.3,
+      "p99": 85.7,
+      "max": 85.7,
+      "buildAlive": true,
+      "siblings": [
+        "asc-chat-server-1",
+        "whatever-sticks-app-1",
+        "whatever-sticks-db-1",
+        "asc-invoicing-web-1",
+        "web",
+        "api",
+        "search",
+        "meilisearch",
+        "postgres"
+      ],
+      "built": "Image as83test-test Built"
+    },
+    {
+      "mode": "burn",
+      "nproc": 10,
+      "burners": 20,
+      "n": 50,
+      "p50": 5.3,
+      "p99": 334.9,
+      "max": 334.9,
+      "buildAlive": false,
+      "siblings": [
+        "asc-chat-server-1",
+        "whatever-sticks-app-1",
+        "whatever-sticks-db-1",
+        "asc-invoicing-web-1",
+        "web",
+        "api",
+        "search",
+        "meilisearch",
+        "postgres"
+      ],
+      "built": "Image as83test-test Built"
+    },
+    {
+      "mode": "quiet",
+      "nproc": 10,
+      "burners": 0,
+      "n": 50,
+      "p50": 2.7,
+      "p99": 84.7,
+      "max": 84.7,
+      "buildAlive": false,
+      "siblings": [
+        "asc-chat-server-1",
+        "whatever-sticks-app-1",
+        "whatever-sticks-db-1",
+        "asc-invoicing-web-1",
+        "web",
+        "api",
+        "search",
+        "meilisearch",
+        "postgres"
+      ],
+      "built": "Image as83test-test Built"
+    }
+  ]
+}

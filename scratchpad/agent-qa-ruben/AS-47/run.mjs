@@ -1,0 +1,14 @@
+import { spawnSync } from 'node:child_process';
+const [,, project, dir, svc, ...extra] = process.argv;
+const r = spawnSync('/usr/local/bin/docker', ['compose', '-p', project, 'run', '--build', '--rm', ...extra, svc], { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+const out = (r.stdout || '') + (r.stderr || '');
+const lines = out.split('\n');
+const built = lines.filter((l) => /Built/.test(l));
+const summary = lines.filter((l) => /^\s*(ℹ|#) ?(tests|pass|fail|suites|skipped|todo|cancelled)\b/.test(l));
+const notok = lines.filter((l) => /^\s*(not ok|✖)/.test(l));
+console.log('EXIT', r.status);
+console.log(built.join('\n'));
+console.log(summary.join('\n'));
+console.log('NOTOK:\n' + notok.join('\n'));
+if (process.env.FULL) console.log(out.slice(-6000));
+spawnSync('/usr/local/bin/docker', ['compose', '-p', project, '--profile', 'tools', 'down', '-v', '--rmi', 'local'], { cwd: dir, encoding: 'utf8' });

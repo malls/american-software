@@ -1,0 +1,13 @@
+Review cycle 2 (qa-priya, tip b90f2fa): PASS. Findings outside the criteria list: 0 behaviour defects, 1 new residual (R5); R1–R4 stand. No inline fixes, nothing committed by QA.
+
+F1 resolved at the site named: findLoadedMessage (app.js:832) delegates to live.js findLoaded, which counts a reply as loaded only when its root is a loaded top-level row. Browser repro: live reply on a root outside the page, msg-ref clicked → thread modal shows [root, earlier reply, live reply], root paged in over 3 fetches, URL ?c&t&m. Cycle-0 shortcut intact: a live reply on a loaded root opens with zero fetches.
+
+R5 (residual, not blocking): mergeOlderPage installs the server thread list for a fresh root, overwriting an orphan list a live frame put there between the server building the page and the client merging it; the reply is invisible until the next since= catch-up, which re-delivers it. Window = one page-fetch round trip. Criterion 8 pins 'replace', so design, not defect; a union for fresh roots would close it.
+
+Guards: M11 (restore reply-only check, live.js:120) red set = exactly {criterion 12 test}. M1–M10 re-run at the new tip reproduce every cycle-1 red set, no widening/narrowing (5,4,2,3,1,2,1,2,1,2,1); M10 site moved 126→146 by the findLoaded insertion, confirmed. Scratch worktree /private/tmp/AS-131-mutant, git diff --exit-code clean after restore.
+
+Suite: host 660/657/0/3. Compose: Image asc-review2-as131-test Built, 660/651/0/9, leak check clean.
+
+Floor check: 12/12 criteria pass (table in the record). Past the list: browser 19/19 new (deep top-level ref, cross-conversation deep reply, orphan+scroll-up merge, ?t= deep root, ?m=reply strip) and 23/23 cycle-1 battery re-run; API walk to exhaustion with per-page thread/replyCount exactness; before at reply ids and oldest root; partial-page watermark with counter-probe; CLI history and export byte-identical master-server vs branch-server on one DB copy; 404 parity 5/5; all 11 CSS tokens defined.
+
+Logs: scratchpad/agent-qa-priya/AS-131/cycle-2/ (review-record.md, host-suite.log, compose-run.out, mutant-battery.log, probe-*.log).

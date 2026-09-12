@@ -1,0 +1,15 @@
+=== M5 @line 933 applied(anchor 1->0) exit 1 | tests 550 pass 547 fail 2 skipped 1
+   RED: deploy-shape: every tracked path under apps/chat is an image input or declared not one
+   RED: AS-88 makeDeployOps accepts an agreeing or empty COMPOSE_PROJECT_NAME
+   RED: failing tests:
+file:///Users/forrest/Code/american-software-company/scratchpad/agent-qa-priya/as88-mutants.mjs:50
+  if (nAfter !== 0 || (repl !== '' && nRepl < 1) || applied === before) throw new Error(`${id}: mutation NOT applied (anchor after=${nAfter}, repl=${nRepl})`);
+                                                                              ^
+
+Error: M6: mutation NOT applied (anchor after=1, repl=1)
+    at file:///Users/forrest/Code/american-software-company/scratchpad/agent-qa-priya/as88-mutants.mjs:50:79
+    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.13.1

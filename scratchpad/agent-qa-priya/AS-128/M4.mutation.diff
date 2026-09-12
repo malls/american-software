@@ -1,0 +1,13 @@
+diff --git a/apps/invoicing/routes/contracts.js b/apps/invoicing/routes/contracts.js
+index eaea84e..a7c801a 100644
+--- a/apps/invoicing/routes/contracts.js
++++ b/apps/invoicing/routes/contracts.js
+@@ -204,7 +204,7 @@ export function contractRoutes(config, { repos }) {
+         // refusing. The typed value is what re-renders, whitespace and all.
+         const { clientName, clientEmail, clientConfirm } = submission.values;
+         if (clientName.trim() === '' || clientEmail.trim() === '') return renderForm(res, contractFormLocals(base));
+-        const email = clientEmail.trim();
++        const email = clientEmail;
+         if (!clientConfirm) {
+           const matches = repos.clients.findByEmail(freelancerId, email);
+           // Several matches: the first by created_at is named (AS-46 §10 Q4).

@@ -1,0 +1,854 @@
+{
+  "S4-CLIENT-EMPTY": {
+    "innerWidth": 500,
+    "docScrollWidth": 500,
+    "bodyScrollWidth": 500,
+    "docHeight": 1739,
+    "overflowing": [
+      "header.site-header left=0.0 right=500.0",
+      "div.container.site-header__inner left=0.0 right=500.0",
+      "div.container left=0.0 right=500.0",
+      "nav.site-nav left=24.0 right=476.0",
+      "a.site-nav__link left=24.0 right=476.0",
+      "form.site-nav__signout left=416.2 right=476.0",
+      "button.btn-link left=416.2 right=476.0",
+      "main.container left=0.0 right=500.0",
+      "h1.page-title left=24.0 right=476.0",
+      "form left=24.0 right=476.0",
+      "div.client-picker left=24.0 right=476.0",
+      "p left=41.0 right=459.0",
+      "div.field left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "input left=41.0 right=459.0",
+      "div.field left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "input left=41.0 right=459.0",
+      "div.form-actions left=41.0 right=459.0",
+      "fieldset left=24.0 right=476.0",
+      "div.line-items left=41.0 right=459.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=24.0 right=476.0",
+      "label left=24.0 right=476.0",
+      "input left=24.0 right=476.0",
+      "span.field-hint left=24.0 right=476.0",
+      "div.form-actions left=24.0 right=476.0",
+      "p.page-meta left=24.0 right=476.0"
+    ],
+    "rows": [
+      [
+        {
+          "top": 619,
+          "w": 392
+        },
+        {
+          "top": 697,
+          "w": 392
+        },
+        {
+          "top": 775,
+          "w": 392
+        }
+      ],
+      [
+        {
+          "top": 862,
+          "w": 392
+        },
+        {
+          "top": 940,
+          "w": 392
+        },
+        {
+          "top": 1018,
+          "w": 392
+        }
+      ],
+      [
+        {
+          "top": 1105,
+          "w": 392
+        },
+        {
+          "top": 1183,
+          "w": 392
+        },
+        {
+          "top": 1261,
+          "w": 392
+        }
+      ]
+    ],
+    "selects": []
+  },
+  "S4-CLIENT-ERROR-DUPLICATE": {
+    "innerWidth": 500,
+    "docScrollWidth": 500,
+    "bodyScrollWidth": 500,
+    "docHeight": 1297,
+    "overflowing": [
+      "header.site-header left=0.0 right=500.0",
+      "div.container.site-header__inner left=0.0 right=500.0",
+      "div.container left=0.0 right=500.0",
+      "nav.site-nav left=24.0 right=476.0",
+      "a.site-nav__link left=24.0 right=476.0",
+      "form.site-nav__signout left=416.2 right=476.0",
+      "button.btn-link left=416.2 right=476.0",
+      "main.container left=0.0 right=500.0",
+      "h1.page-title left=24.0 right=476.0",
+      "form left=24.0 right=476.0",
+      "div.client-picker left=24.0 right=476.0",
+      "div.field left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "input left=41.0 right=459.0",
+      "div.field left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "input left=41.0 right=459.0",
+      "div.banner.banner-warning left=41.0 right=459.0",
+      "p left=57.0 right=443.0",
+      "strong left=57.0 right=442.1",
+      "p left=57.0 right=443.0",
+      "button.btn-link left=243.9 right=419.4",
+      "fieldset left=24.0 right=476.0",
+      "div.line-items left=41.0 right=459.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=24.0 right=476.0",
+      "label left=24.0 right=476.0",
+      "input left=24.0 right=476.0",
+      "span.field-hint left=24.0 right=476.0",
+      "div.form-actions left=24.0 right=476.0",
+      "p.page-meta left=24.0 right=476.0"
+    ],
+    "rows": [
+      [
+        {
+          "top": 663,
+          "w": 392
+        },
+        {
+          "top": 741,
+          "w": 392
+        },
+        {
+          "top": 819,
+          "w": 392
+        }
+      ]
+    ],
+    "selects": []
+  },
+  "S4-CLIENT-ERROR-VALIDATION": {
+    "innerWidth": 500,
+    "docScrollWidth": 500,
+    "bodyScrollWidth": 500,
+    "docHeight": 1425,
+    "overflowing": [
+      "header.site-header left=0.0 right=500.0",
+      "div.container.site-header__inner left=0.0 right=500.0",
+      "div.container left=0.0 right=500.0",
+      "nav.site-nav left=24.0 right=476.0",
+      "a.site-nav__link left=24.0 right=476.0",
+      "form.site-nav__signout left=416.2 right=476.0",
+      "button.btn-link left=416.2 right=476.0",
+      "main.container left=0.0 right=500.0",
+      "h1.page-title left=24.0 right=476.0",
+      "div.banner.banner-error left=24.0 right=476.0",
+      "p.banner__title left=40.0 right=460.0",
+      "p left=40.0 right=460.0",
+      "form left=24.0 right=476.0",
+      "div.client-picker left=24.0 right=476.0",
+      "p.client-picker__mode-toggle left=41.0 right=459.0",
+      "div.field.field--invalid left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "input left=41.0 right=459.0",
+      "span.field-error left=41.0 right=459.0",
+      "div.field.field--invalid left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "input left=41.0 right=459.0",
+      "span.field-error left=41.0 right=459.0",
+      "div.form-actions left=41.0 right=459.0",
+      "fieldset left=24.0 right=476.0",
+      "div.line-items left=41.0 right=459.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=24.0 right=476.0",
+      "label left=24.0 right=476.0",
+      "input left=24.0 right=476.0",
+      "span.field-hint left=24.0 right=476.0",
+      "div.form-actions left=24.0 right=476.0",
+      "p.page-meta left=24.0 right=476.0"
+    ],
+    "rows": [
+      [
+        {
+          "top": 791,
+          "w": 392
+        },
+        {
+          "top": 869,
+          "w": 392
+        },
+        {
+          "top": 947,
+          "w": 392
+        }
+      ]
+    ],
+    "selects": []
+  },
+  "S4-DEFAULT-CREATE": {
+    "innerWidth": 500,
+    "docScrollWidth": 500,
+    "bodyScrollWidth": 500,
+    "docHeight": 1555,
+    "overflowing": [
+      "header.site-header left=0.0 right=500.0",
+      "div.container.site-header__inner left=0.0 right=500.0",
+      "div.container left=0.0 right=500.0",
+      "nav.site-nav left=24.0 right=476.0",
+      "a.site-nav__link left=24.0 right=476.0",
+      "form.site-nav__signout left=416.2 right=476.0",
+      "button.btn-link left=416.2 right=476.0",
+      "main.container left=0.0 right=500.0",
+      "h1.page-title left=24.0 right=476.0",
+      "form left=24.0 right=476.0",
+      "div.client-picker left=24.0 right=476.0",
+      "p.client-picker__mode-toggle left=41.0 right=459.0",
+      "div.field left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "select left=41.0 right=459.0",
+      "fieldset left=24.0 right=476.0",
+      "div.line-items left=41.0 right=459.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=24.0 right=476.0",
+      "label left=24.0 right=476.0",
+      "input left=24.0 right=476.0",
+      "span.field-hint left=24.0 right=476.0",
+      "div.form-actions left=24.0 right=476.0",
+      "p.page-meta left=24.0 right=476.0"
+    ],
+    "rows": [
+      [
+        {
+          "top": 435,
+          "w": 392
+        },
+        {
+          "top": 513,
+          "w": 392
+        },
+        {
+          "top": 591,
+          "w": 392
+        }
+      ],
+      [
+        {
+          "top": 678,
+          "w": 392
+        },
+        {
+          "top": 756,
+          "w": 392
+        },
+        {
+          "top": 834,
+          "w": 392
+        }
+      ],
+      [
+        {
+          "top": 921,
+          "w": 392
+        },
+        {
+          "top": 999,
+          "w": 392
+        },
+        {
+          "top": 1077,
+          "w": 392
+        }
+      ]
+    ],
+    "selects": [
+      {
+        "w": 418,
+        "right": 459
+      }
+    ]
+  },
+  "S4-DEFAULT-EDIT": {
+    "innerWidth": 500,
+    "docScrollWidth": 500,
+    "bodyScrollWidth": 500,
+    "docHeight": 1555,
+    "overflowing": [
+      "header.site-header left=0.0 right=500.0",
+      "div.container.site-header__inner left=0.0 right=500.0",
+      "div.container left=0.0 right=500.0",
+      "nav.site-nav left=24.0 right=476.0",
+      "a.site-nav__link left=24.0 right=476.0",
+      "form.site-nav__signout left=416.2 right=476.0",
+      "button.btn-link left=416.2 right=476.0",
+      "main.container left=0.0 right=500.0",
+      "h1.page-title left=24.0 right=476.0",
+      "form left=24.0 right=476.0",
+      "div.client-picker left=24.0 right=476.0",
+      "p.client-picker__mode-toggle left=41.0 right=459.0",
+      "div.field left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "select left=41.0 right=459.0",
+      "fieldset left=24.0 right=476.0",
+      "div.line-items left=41.0 right=459.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=24.0 right=476.0",
+      "label left=24.0 right=476.0",
+      "input left=24.0 right=476.0",
+      "span.field-hint left=24.0 right=476.0",
+      "div.form-actions left=24.0 right=476.0",
+      "p.page-meta left=24.0 right=476.0"
+    ],
+    "rows": [
+      [
+        {
+          "top": 435,
+          "w": 392
+        },
+        {
+          "top": 513,
+          "w": 392
+        },
+        {
+          "top": 591,
+          "w": 392
+        }
+      ],
+      [
+        {
+          "top": 678,
+          "w": 392
+        },
+        {
+          "top": 756,
+          "w": 392
+        },
+        {
+          "top": 834,
+          "w": 392
+        }
+      ],
+      [
+        {
+          "top": 921,
+          "w": 392
+        },
+        {
+          "top": 999,
+          "w": 392
+        },
+        {
+          "top": 1077,
+          "w": 392
+        }
+      ]
+    ],
+    "selects": [
+      {
+        "w": 418,
+        "right": 459
+      }
+    ]
+  },
+  "S4-ERROR-SYSTEM": {
+    "innerWidth": 500,
+    "docScrollWidth": 500,
+    "bodyScrollWidth": 500,
+    "docHeight": 1679,
+    "overflowing": [
+      "header.site-header left=0.0 right=500.0",
+      "div.container.site-header__inner left=0.0 right=500.0",
+      "div.container left=0.0 right=500.0",
+      "nav.site-nav left=24.0 right=476.0",
+      "a.site-nav__link left=24.0 right=476.0",
+      "form.site-nav__signout left=416.2 right=476.0",
+      "button.btn-link left=416.2 right=476.0",
+      "main.container left=0.0 right=500.0",
+      "h1.page-title left=24.0 right=476.0",
+      "div.banner.banner-error left=24.0 right=476.0",
+      "p left=40.0 right=460.0",
+      "form left=24.0 right=476.0",
+      "div.client-picker left=24.0 right=476.0",
+      "p.client-picker__mode-toggle left=41.0 right=459.0",
+      "div.field left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "select left=41.0 right=459.0",
+      "fieldset left=24.0 right=476.0",
+      "div.line-items left=41.0 right=459.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=24.0 right=476.0",
+      "label left=24.0 right=476.0",
+      "input left=24.0 right=476.0",
+      "span.field-hint left=24.0 right=476.0",
+      "div.form-actions left=24.0 right=476.0",
+      "p.page-meta left=24.0 right=476.0"
+    ],
+    "rows": [
+      [
+        {
+          "top": 559,
+          "w": 392
+        },
+        {
+          "top": 637,
+          "w": 392
+        },
+        {
+          "top": 715,
+          "w": 392
+        }
+      ],
+      [
+        {
+          "top": 802,
+          "w": 392
+        },
+        {
+          "top": 880,
+          "w": 392
+        },
+        {
+          "top": 958,
+          "w": 392
+        }
+      ],
+      [
+        {
+          "top": 1045,
+          "w": 392
+        },
+        {
+          "top": 1123,
+          "w": 392
+        },
+        {
+          "top": 1201,
+          "w": 392
+        }
+      ]
+    ],
+    "selects": [
+      {
+        "w": 418,
+        "right": 459
+      }
+    ]
+  },
+  "S4-ERROR-VALIDATION-addnew-empty": {
+    "innerWidth": 500,
+    "docScrollWidth": 500,
+    "bodyScrollWidth": 500,
+    "docHeight": 1425,
+    "overflowing": [
+      "header.site-header left=0.0 right=500.0",
+      "div.container.site-header__inner left=0.0 right=500.0",
+      "div.container left=0.0 right=500.0",
+      "nav.site-nav left=24.0 right=476.0",
+      "a.site-nav__link left=24.0 right=476.0",
+      "form.site-nav__signout left=416.2 right=476.0",
+      "button.btn-link left=416.2 right=476.0",
+      "main.container left=0.0 right=500.0",
+      "h1.page-title left=24.0 right=476.0",
+      "div.banner.banner-error left=24.0 right=476.0",
+      "p.banner__title left=40.0 right=460.0",
+      "p left=40.0 right=460.0",
+      "form left=24.0 right=476.0",
+      "div.client-picker left=24.0 right=476.0",
+      "p left=41.0 right=459.0",
+      "div.field.field--invalid left=41.0 right=459.0",
+      "span.field-error left=41.0 right=459.0",
+      "div.field left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "input left=41.0 right=459.0",
+      "div.field left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "input left=41.0 right=459.0",
+      "div.form-actions left=41.0 right=459.0",
+      "fieldset left=24.0 right=476.0",
+      "div.line-items left=41.0 right=459.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=24.0 right=476.0",
+      "label left=24.0 right=476.0",
+      "input left=24.0 right=476.0",
+      "span.field-hint left=24.0 right=476.0",
+      "div.form-actions left=24.0 right=476.0",
+      "p.page-meta left=24.0 right=476.0"
+    ],
+    "rows": [
+      [
+        {
+          "top": 791,
+          "w": 392
+        },
+        {
+          "top": 869,
+          "w": 392
+        },
+        {
+          "top": 947,
+          "w": 392
+        }
+      ]
+    ],
+    "selects": []
+  },
+  "S4-ERROR-VALIDATION-addnew-toggled": {
+    "innerWidth": 500,
+    "docScrollWidth": 500,
+    "bodyScrollWidth": 500,
+    "docHeight": 1405,
+    "overflowing": [
+      "header.site-header left=0.0 right=500.0",
+      "div.container.site-header__inner left=0.0 right=500.0",
+      "div.container left=0.0 right=500.0",
+      "nav.site-nav left=24.0 right=476.0",
+      "a.site-nav__link left=24.0 right=476.0",
+      "form.site-nav__signout left=416.2 right=476.0",
+      "button.btn-link left=416.2 right=476.0",
+      "main.container left=0.0 right=500.0",
+      "h1.page-title left=24.0 right=476.0",
+      "div.banner.banner-error left=24.0 right=476.0",
+      "p.banner__title left=40.0 right=460.0",
+      "p left=40.0 right=460.0",
+      "form left=24.0 right=476.0",
+      "div.client-picker left=24.0 right=476.0",
+      "p.client-picker__mode-toggle left=41.0 right=459.0",
+      "div.field.field--invalid left=41.0 right=459.0",
+      "span.field-error left=41.0 right=459.0",
+      "div.field left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "input left=41.0 right=459.0",
+      "div.field left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "input left=41.0 right=459.0",
+      "div.form-actions left=41.0 right=459.0",
+      "fieldset left=24.0 right=476.0",
+      "div.line-items left=41.0 right=459.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=24.0 right=476.0",
+      "label left=24.0 right=476.0",
+      "input left=24.0 right=476.0",
+      "span.field-hint left=24.0 right=476.0",
+      "div.form-actions left=24.0 right=476.0",
+      "p.page-meta left=24.0 right=476.0"
+    ],
+    "rows": [
+      [
+        {
+          "top": 771,
+          "w": 392
+        },
+        {
+          "top": 849,
+          "w": 392
+        },
+        {
+          "top": 927,
+          "w": 392
+        }
+      ]
+    ],
+    "selects": []
+  },
+  "S4-ERROR-VALIDATION": {
+    "innerWidth": 500,
+    "docScrollWidth": 500,
+    "bodyScrollWidth": 500,
+    "docHeight": 1837,
+    "overflowing": [
+      "header.site-header left=0.0 right=500.0",
+      "div.container.site-header__inner left=0.0 right=500.0",
+      "div.container left=0.0 right=500.0",
+      "nav.site-nav left=24.0 right=476.0",
+      "a.site-nav__link left=24.0 right=476.0",
+      "form.site-nav__signout left=416.2 right=476.0",
+      "button.btn-link left=416.2 right=476.0",
+      "main.container left=0.0 right=500.0",
+      "h1.page-title left=24.0 right=476.0",
+      "div.banner.banner-error left=24.0 right=476.0",
+      "p.banner__title left=40.0 right=460.0",
+      "p left=40.0 right=460.0",
+      "form left=24.0 right=476.0",
+      "div.client-picker left=24.0 right=476.0",
+      "p.client-picker__mode-toggle left=41.0 right=459.0",
+      "div.field.field--invalid left=41.0 right=459.0",
+      "label left=41.0 right=459.0",
+      "select left=41.0 right=459.0",
+      "span.field-error left=41.0 right=459.0",
+      "fieldset left=24.0 right=476.0",
+      "div.line-items left=41.0 right=459.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field.field--invalid left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "span.field-error left=54.0 right=446.0",
+      "div.field.field--invalid left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "span.field-error left=54.0 right=446.0",
+      "div.field.field--invalid left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "span.field-error left=54.0 right=446.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.line-item-row left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field left=54.0 right=446.0",
+      "label left=54.0 right=446.0",
+      "input left=54.0 right=446.0",
+      "div.field.field--invalid left=24.0 right=476.0",
+      "label left=24.0 right=476.0",
+      "input left=24.0 right=476.0",
+      "span.field-error left=24.0 right=476.0",
+      "span.field-hint left=24.0 right=476.0",
+      "div.form-actions left=24.0 right=476.0",
+      "p.page-meta left=24.0 right=476.0"
+    ],
+    "rows": [
+      [
+        {
+          "top": 597,
+          "w": 392
+        },
+        {
+          "top": 705,
+          "w": 392
+        },
+        {
+          "top": 813,
+          "w": 392
+        }
+      ],
+      [
+        {
+          "top": 930,
+          "w": 392
+        },
+        {
+          "top": 1008,
+          "w": 392
+        },
+        {
+          "top": 1086,
+          "w": 392
+        }
+      ],
+      [
+        {
+          "top": 1173,
+          "w": 392
+        },
+        {
+          "top": 1251,
+          "w": 392
+        },
+        {
+          "top": 1329,
+          "w": 392
+        }
+      ]
+    ],
+    "selects": [
+      {
+        "w": 418,
+        "right": 459
+      }
+    ]
+  },
+  "S4-GATED-STRIPENOTREADY": {
+    "innerWidth": 500,
+    "docScrollWidth": 500,
+    "bodyScrollWidth": 500,
+    "docHeight": 725,
+    "overflowing": [
+      "header.site-header left=0.0 right=500.0",
+      "div.container.site-header__inner left=0.0 right=500.0",
+      "div.container left=0.0 right=500.0",
+      "nav.site-nav left=24.0 right=476.0",
+      "a.site-nav__link left=24.0 right=476.0",
+      "form.site-nav__signout left=416.2 right=476.0",
+      "button.btn-link left=416.2 right=476.0",
+      "main.container left=0.0 right=500.0",
+      "h1.page-title left=24.0 right=476.0",
+      "div.banner.banner-warning left=24.0 right=476.0",
+      "p left=40.0 right=460.0",
+      "div.form-actions left=24.0 right=476.0"
+    ],
+    "rows": [],
+    "selects": []
+  }
+}

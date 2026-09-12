@@ -1,0 +1,98 @@
+# ASC Chat compose (AS-4). Per investor directive (CLAUDE.md ## Infra), this is
+# the only way the app runs — no bare node on the host.
+#
+# Loopback exposure note: the server binds 0.0.0.0 INSIDE the container (the
+# port map is dead otherwise); loopback-only is enforced on the HOST side of
+# the mapping ("127.0.0.1:8347:8347"). The app's own default stays 127.0.0.1.
+#
+# platform is pinned to linux/amd64 on every service so the image is the same
+# everywhere and matches the eventual DO deployment target (plan §7). Runs
+# emulated on Apple Silicon via Docker Desktop; fine at our volume.
+#
+# BuildKit note: the host shell exports DOCKER_BUILDKIT=0 and
+# COMPOSE_DOCKER_CLI_BUILD=0 (legacy builder), under which compose ignores
+# every platform setting at build time and produces a native image that then
+# refuses to start against the amd64 pin. All documented invocations (the
+# ./chat wrapper and the README commands) therefore force
+# DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1.
+name: asc-chat
+
+services:
+  server:
+    # AS-75: long form so the deployer can stamp the image with the build id it
+    # computed from master's image inputs. `docker compose up` has no
+    # --build-arg, so the id rides in through the environment; an unset
+    # CHAT_BUILD_ID (a hand build) leaves the image honestly labelled `unknown`,
+    # which the watcher reads as "not current" and heals on its next poll.
+    build:
+      context: .
+      args:
+        BUILD_ID: ${CHAT_BUILD_ID:-unknown}
+    platform: linux/amd64
+    ports:
+      - "127.0.0.1:8347:8347"
+    environment:
+      - CHAT_BIND=0.0.0.0
+      - LATTICE_DASHBOARD_URL # dashboard link base (AS-10); unset -> app default
+    volumes:
+      - ./data:/app/data
+      # AS-26 cycle 2: the WHOLE repo, read-only, at the baked CHAT_REPO_ROOT.
+      # /api/file serves any repo-relative *.md that passes its gate — the
+      # top-level README/PHILOSOPHY/CLAUDE idioms included — so the mount must
+      # cover the same scope the tokenizer links; the previous narrow
+      # .lattice+personnel pair left those headline paths 404ing in the only
+      # supported deployment (cycle-1 blocking finding). Narrower alternatives
+      # were weighed and lose: per-file binds pin inodes (git checkout
+      # replaces top-level .md files -> stale content/ENOENT), and a directory
+      # allowlist regrows this bug on the next cited path. Boundaries that
+      # remain: :ro at the kernel, and the server's gate (only .md regular
+      # files; every dot-leading segment except a first '.lattice' 404s, so
+      # .git/.claude/.worktrees are categorically unreachable; realpath
+      # containment defeats symlink escape). This mount also carries .lattice
+      # and personnel, so AS-8's missing-mount degradation (empty roster,
+      # never a crash) is unchanged in kind. Pinned by
+      # test/deploy-shape.test.js — update both together.
+      - ../..:/repo:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8347/api/identities').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5s
+      retries: 3
+
+  cli:
+    build: .
+    platform: linux/amd64
+    profiles: ["tools"]
+    entrypoint: ["node", "bin/chat.js"]
+    environment:
+      - CHAT_ME
+      # AS-24: the containerized CLI proxies through the server service when it
+      # is up (container-to-container SQLite coherence over the bind mount was
+      # only empirically OK; this makes it irrelevant). Server down → the probe
+      # gets a hard ENOTFOUND/ECONNREFUSED → direct mode against the bind
+      # mount, same as before.
+      - CHAT_API=http://server:8347
+    volumes:
+      - ./data:/app/data
+      - ../../.lattice:/repo/.lattice:ro
+      - ../../personnel:/repo/personnel:ro
+
+  # No mounts here by design: the suite passing mountless proves the tests
+  # touch no real state (personnel/ access included — fixtures only).
+  #
+  # AS-106: no network either. `run --rm` removes only the container; a
+  # service on the project's `default` network makes compose create
+  # `<project>_default`, which survives until someone runs `down` — every
+  # counted `-p asc-*` review run leaked one, and at ~27 the daemon's address
+  # pool was exhausted and voided three acceptance runs. With `network_mode:
+  # none` there is no `default` network to create (loopback still exists, so
+  # api/live tests binding 127.0.0.1 are unaffected). Same shape as
+  # apps/invoicing/compose.yaml. Pinned by test/deploy-shape.test.js.
+  test:
+    build: .
+    platform: linux/amd64
+    profiles: ["tools"]
+    network_mode: none
+    command: ["node", "--test"]

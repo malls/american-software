@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/pristine/docs/design/tokens/tokens.css	2026-09-12 17:14:48
++++ /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/c4-media-light/docs/design/tokens/tokens.css	2026-09-12 17:14:48
+@@ -213,7 +213,7 @@
+  * match (the real root), and there they set identical values anyway.
+  * ============================================================================
+  */
+-@media (prefers-color-scheme: dark) {
++@media (prefers-color-scheme: light) {
+   :root:not([data-theme="light"]) {
+     color-scheme: dark;
+ 

@@ -1,0 +1,156 @@
+<%#
+  dashboard.ejs — Screen 3, the Dashboard (AS-48).
+
+  Built to docs/design/wireframes/screen-3-dashboard.html and its ledger,
+  02-states-ledger.md §3. Every element the wireframe marks `data-wf-note` is
+  annotation and is deliberately NOT built.
+
+  PRESENTATION ONLY. Every decision was made in lib/screens/dashboard-view.js;
+  this file branches on precomputed booleans and reads properties. The four
+  view-layer properties (README.md § The view layer) hold here exactly as on
+  screens 1, 2 and 4: no raw output, no interpolation in a URL or style
+  attribute, every data-carrying attribute value double-quoted, nothing
+  interpolated in a tag-name or attribute-name region.
+
+  A ROW REACHES ITS DETAIL SCREEN THROUGH A GET FORM, NEVER AN href. Each
+  "View" is a form with a CONSTANT action and the row's id in a hidden input;
+  the redirector answers 303 to the detail page. That is the only shape that
+  keeps an id out of a URL attribute for N rows (plan decision 1). The same
+  rule makes the nav constant markup: the gated "New invoice" is a span with
+  a constant link, selected by one boolean.
+
+  THE BADGE CLASS IS A CONSTANT PER BRANCH, never built from the badge's tone
+  (the connect-stripe.ejs rule for banners).
+
+  NOTE FOR ANYONE EDITING THIS COMMENT: do not spell the raw-output tag or a
+  closing EJS tag inside it — the dependency-policy scanner strips an EJS
+  comment up to its FIRST closing tag. And keep the three words the
+  minor-units concept row scans for out of this file, comments included: the
+  column header arrives as a local for exactly that reason.
+-%>
+<!doctype html>
+<html lang="en" data-state="<%= state %>">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoicing — <%= title %></title>
+    <link rel="stylesheet" href="/tokens.css" />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <%# Full chrome (01-screens.md §3): constant markup. "New contract" is
+        absent until AS-127 lands /contracts/new — a nav link to a 404 is the
+        R-2 defect (README.md § Obligations). %>
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <span class="app-label">Invoicing</span>
+      </div>
+      <div class="container">
+        <nav class="site-nav" aria-label="Primary">
+          <a class="site-nav__link" href="/">Dashboard</a>
+          <% if (stripeReady) { %>
+            <a class="site-nav__link" href="/invoices/new">New invoice</a>
+          <% } else { %>
+            <%# S3-GATED-STRIPENOTREADY, layered: the entry is disabled with
+                the inline note and the one link to screen 2 (00-flows.md Flow 5). %>
+            <span class="site-nav__item--disabled">New invoice
+              <span class="site-nav__note">Connect Stripe before invoicing — <a href="/connect-stripe">finish setup</a></span>
+            </span>
+          <% } %>
+          <form class="site-nav__signout" method="post" action="/signout">
+            <button type="submit" class="btn-link">Sign out</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1 class="page-title"><%= title %></h1>
+
+      <% if (isSystem) { %>
+        <div class="banner banner-error">
+          <p><%= systemMessage %></p>
+        </div>
+        <%# Retry is a GET of the page's own URL: no action attribute. %>
+        <form method="get">
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Retry</button>
+          </div>
+        </form>
+      <% } %>
+
+      <% if (isEmpty) { %>
+        <p class="lede"><%= firstRunLede %></p>
+        <% if (showInvoiceCta) { %>
+          <div class="form-actions">
+            <a href="/invoices/new" class="btn btn-primary"><%= invoiceCta %></a>
+          </div>
+        <% } %>
+      <% } %>
+
+      <% if (hasContracts) { %>
+        <h2 class="section-title">Contracts</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Client</th><th scope="col">Created</th><th scope="col"></th></tr>
+            </thead>
+            <tbody>
+              <% for (const row of contracts) { %>
+                <tr>
+                  <td><%= row.clientName %></td>
+                  <td><%= row.createdText %></td>
+                  <td>
+                    <form class="inline-form" method="get" action="/contracts/view">
+                      <input type="hidden" name="id" value="<%= row.id %>" />
+                      <button type="submit" class="btn-link">View</button>
+                    </form>
+                  </td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+
+      <% if (hasInvoices) { %>
+        <h2 class="section-title">Invoices</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Client</th><th scope="col"><%= totalLabel %></th><th scope="col">Status</th><th scope="col"></th></tr>
+            </thead>
+            <tbody>
+              <% for (const row of invoices) { %>
+                <tr>
+                  <td><%= row.clientName %></td>
+                  <td><%= row.totalText %></td>
+                  <td>
+                    <% if (row.badge.tone === 'success') { %>
+                      <span class="badge badge-success"><%= row.badge.label %></span>
+                    <% } %>
+                    <% if (row.badge.tone === 'accent') { %>
+                      <span class="badge badge-accent"><%= row.badge.label %></span>
+                    <% } %>
+                    <% if (row.badge.tone === 'neutral') { %>
+                      <span class="badge badge-neutral"><%= row.badge.label %></span>
+                    <% } %>
+                    <% if (row.badge.tone === 'warning') { %>
+                      <span class="badge badge-warning"><%= row.badge.label %></span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <form class="inline-form" method="get" action="/invoices/view">
+                      <input type="hidden" name="id" value="<%= row.id %>" />
+                      <button type="submit" class="btn-link">View</button>
+                    </form>
+                  </td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </main>
+  </body>
+</html>

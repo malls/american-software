@@ -1,0 +1,687 @@
+/*
+ * wireframe.css — AS-30 core-loop UX wireframes
+ * The ONE shared stylesheet for wireframe chrome (plan file §5.3). Self-contained on
+ * top of tokens.css; does not link or duplicate reference.css (the style reference's
+ * own chrome, not a shared library — plan file §5.2).
+ *
+ * Every color/font/size/spacing/radius/shadow value below is a var(--...) reference.
+ * The only literals are (a) structural layout values (flex/grid keywords, %, auto,
+ * min()/max() compositions) and (b) @media px conditions, each carrying a comment
+ * naming the token it stands in for (var() is invalid inside an @media condition —
+ * tokens.css documents this same convention in its own breakpoints block).
+ *
+ * Mobile-first: base rules target narrow viewports; wider layouts arrive only via
+ * min-width media queries. Verified against the 375px floor (BRANDING.md §6.4's
+ * worked example) — see this task's Lattice comment for what was actually rendered.
+ *
+ * Deliberate omission, stated here rather than left to be noticed as a gap: this
+ * stylesheet defines NO :hover rules. Two reasons, not one. First, these are static,
+ * non-interactive documentation artifacts — the states ledger has no "hover" category,
+ * and a hover state a developer can't click through is decoration, not spec. Second,
+ * and the reason this is called out explicitly rather than silently: the style
+ * reference's own generated contrast matrix (docs/design/style-reference/index.html
+ * #contrast) records --color-accent-solid-hover and --color-danger-solid-hover as
+ * failing WCAG 1.4.11 non-text contrast against EVERY background in dark mode (all 6
+ * of their rows fail — 2 tokens x 3 backgrounds). That is a known, already-labeled
+ * token-layer gap (not this task's to fix — tokens.css is read-only here, plan file
+ * §5.2) and not styling :hover at all is how this file avoids reproducing that pair,
+ * rather than silently working around it with an invented fix.
+ *
+ * Full accounting against all 12 known dark-mode failures in that matrix (review
+ * cycle 2, correcting an overclaim QA found here; split corrected again in cycle 3 —
+ * see this task's Lattice comment for the row-by-row re-derivation): 6 are the
+ * hover-fill pair above (accent-solid-hover and danger-solid-hover, each failing on
+ * all 3 backgrounds), avoided by defining no :hover rules at all; 5 more never trigger
+ * because the exact failing pairing (that token on that specific background) doesn't
+ * occur anywhere in this file; the remaining 1 IS reproduced here, correctly —
+ * .field--invalid's border-color (danger-solid on bg-surface, 2.97:1) is the same
+ * pairing reference.css:428 itself establishes, per plan file §5.4's instruction to
+ * use the semantic token pairs as the style reference pairs them. This file avoids 11
+ * of 12 and correctly inherits the 12th; it does not avoid all 12. See this task's
+ * Lattice comment for the full per-pairing accounting.
+ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+}
+
+/* ---------------------------------------------------------------------------------
+ * Layout primitives
+ * ------------------------------------------------------------------------------- */
+
+.container {
+  max-width: var(--layout-max);
+  margin-inline: auto;
+  padding-inline: var(--space-4); /* BRANDING.md §6.4 container padding, <480px */
+}
+
+@media (min-width: 480px) { /* --breakpoint-sm */
+  .container {
+    padding-inline: var(--space-6);
+  }
+}
+
+@media (min-width: 1024px) { /* --breakpoint-lg */
+  .container {
+    padding-inline: var(--space-8);
+  }
+}
+
+.visually-hidden {
+  /* The standard clip-to-nothing accessibility idiom needs a non-zero box; the
+     nearest named token is --border-width-hairline (1px), reused here rather than
+     writing a literal — see the file header note on tracing every value to a token. */
+  position: absolute;
+  width: var(--border-width-hairline);
+  height: var(--border-width-hairline);
+  padding: 0;
+  margin: calc(var(--border-width-hairline) * -1);
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 10;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border: var(--border-width-hairline) solid var(--color-border-interactive);
+  border-radius: var(--radius-sm);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* ---------------------------------------------------------------------------------
+ * Chrome — header, nav (plan file §5.1/§5.3; spec in 01-screens.md §3)
+ * ------------------------------------------------------------------------------- */
+
+.site-header {
+  border-bottom: var(--border-width-hairline) solid var(--color-border-hairline);
+  background: var(--color-bg-surface);
+}
+
+.site-header__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+}
+
+/* Plain-text app label, deliberately NOT the company wordmark — 01-screens.md §4.1 */
+.app-label {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.site-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  border-top: var(--border-width-hairline) solid var(--color-border-hairline);
+}
+
+@media (min-width: 768px) { /* --breakpoint-md */
+  .site-nav {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-6);
+  }
+}
+
+.site-nav__link {
+  color: var(--color-link);
+  text-decoration: underline;
+  font-size: var(--font-size-sm);
+}
+
+.site-nav__signout {
+  margin-inline-start: auto;
+}
+
+.site-nav__item--disabled {
+  color: var(--color-text-disabled);
+  font-size: var(--font-size-sm);
+}
+
+.site-nav__note {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ---------------------------------------------------------------------------------
+ * Page-level furniture: h1, the design-doc notice, the in-file state index
+ * ------------------------------------------------------------------------------- */
+
+main {
+  padding-block: var(--space-8);
+}
+
+.page-title {
+  font-size: var(--font-size-3xl); /* BRANDING.md §4.2 h1, <768px */
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+  margin: 0 0 var(--space-2) 0;
+}
+
+@media (min-width: 768px) { /* --breakpoint-md */
+  .page-title {
+    font-size: var(--font-size-4xl); /* BRANDING.md §4.2 h1, >=768px */
+  }
+}
+
+.page-meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  max-width: var(--content-measure);
+  margin: 0 0 var(--space-6) 0;
+}
+
+.wireframe-notice {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface-sunken);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  padding: var(--space-3) var(--space-4);
+  margin: 0 0 var(--space-6) 0;
+}
+
+.wireframe-notice code {
+  font-family: var(--font-family-mono);
+}
+
+.state-toc {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: 0 0 var(--space-8) 0;
+  background: var(--color-bg-surface);
+}
+
+.state-toc__title {
+  margin: 0 0 var(--space-2) 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wide);
+  color: var(--color-text-muted);
+}
+
+.state-toc ul {
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  columns: 1;
+}
+
+@media (min-width: 768px) { /* --breakpoint-md */
+  .state-toc ul {
+    columns: 2;
+  }
+}
+
+.state-toc a {
+  color: var(--color-link);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+.state-toc__na {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* ---------------------------------------------------------------------------------
+ * State sections — the core repeating unit (plan file §5.1: one section per ledger row)
+ * ------------------------------------------------------------------------------- */
+
+.state {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  padding: var(--space-5);
+  margin: 0 0 var(--space-8) 0;
+  scroll-margin-top: var(--space-4);
+}
+
+.state-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  border-bottom: var(--border-width-hairline) solid var(--color-border-hairline);
+  padding-block-end: var(--space-3);
+  margin-block-end: var(--space-4);
+}
+
+.state-label__id {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  background: var(--color-bg-surface-sunken);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.state-label__category {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wide);
+  color: var(--color-text-muted);
+}
+
+.state-label__desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.state__title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--space-3) 0;
+}
+
+/* Used where one ledger row illustrates more than one triggering scenario in a single
+   section (e.g. S1-ERROR-SYSTEM's sign-up vs. sign-in cases) — a sub-heading one step
+   down from .state__title, never a second .state__title. */
+.state__subtitle {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  margin: var(--space-4) 0 var(--space-2) 0;
+}
+
+/* ---------------------------------------------------------------------------------
+ * Forms
+ * ------------------------------------------------------------------------------- */
+
+fieldset {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: 0 0 var(--space-5) 0;
+}
+
+legend {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  padding-inline: var(--space-2);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-4) 0;
+  max-width: var(--content-measure);
+}
+
+.field label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.field input,
+.field select,
+.field textarea {
+  font: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  border: var(--border-width-hairline) solid var(--color-border-interactive);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.field--invalid input,
+.field--invalid select,
+.field--invalid textarea {
+  /* border-color intentionally reproduces the one dark-mode contrast pairing this file
+     doesn't avoid (danger-solid on bg-surface, 2.97:1) — see the file header note above
+     and reference.css:428, which establishes the same pairing (plan file §5.4). Not the
+     sole cue: the adjacent .field-error text and aria-invalid/aria-describedby carry the
+     error independently of this border. */
+  border-color: var(--color-danger-solid);
+  border-width: var(--focus-ring-width);
+}
+
+.field-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.field-error {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-text);
+  font-weight: var(--font-weight-medium);
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus,
+a:focus {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-block-start: var(--space-6);
+}
+
+/* ---------------------------------------------------------------------------------
+ * Buttons and links
+ * ------------------------------------------------------------------------------- */
+
+.btn {
+  display: inline-block;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-width-hairline) solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--color-accent-solid);
+  color: var(--color-text-on-accent);
+}
+
+.btn-secondary {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-interactive);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  background: var(--color-bg-surface-sunken);
+  color: var(--color-text-disabled);
+  border-color: var(--color-border-hairline);
+  cursor: not-allowed;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-link);
+  text-decoration: underline;
+  font-weight: var(--font-weight-regular);
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------------------------
+ * Banners — validation/system error, warning, success, info. bg-subtle + text-on-subtle
+ * pairs only (never a solid fill, never bg-surface-sunken): every pairing below is a
+ * PASS row in both BRANDING.md §3.4 and the style reference's full cross-product
+ * matrix, in both color schemes. See the wireframe.css header note above.
+ * ------------------------------------------------------------------------------- */
+
+.banner {
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: 0 0 var(--space-5) 0;
+  font-size: var(--font-size-sm);
+}
+
+.banner-error {
+  background: var(--color-danger-bg-subtle);
+  color: var(--color-danger-text-on-subtle);
+}
+
+.banner-warning {
+  background: var(--color-warning-bg-subtle);
+  color: var(--color-warning-text-on-subtle);
+}
+
+.banner-success {
+  background: var(--color-success-bg-subtle);
+  color: var(--color-success-text-on-subtle);
+}
+
+.banner-info {
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-accent-text-on-subtle);
+}
+
+.banner__title {
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--space-1) 0;
+}
+
+.banner p {
+  margin: 0;
+}
+
+.banner p + p {
+  margin-block-start: var(--space-2);
+}
+
+/* ---------------------------------------------------------------------------------
+ * Badges — status pills. radius-full is sanctioned only for pills/avatars/badges
+ * (BRANDING.md §6.2, §7.C.10).
+ * ------------------------------------------------------------------------------- */
+
+.badge {
+  display: inline-block;
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.badge-neutral {
+  background: var(--color-bg-surface-sunken);
+  color: var(--color-text-secondary);
+}
+
+.badge-accent {
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-accent-text-on-subtle);
+}
+
+.badge-success {
+  background: var(--color-success-bg-subtle);
+  color: var(--color-success-text-on-subtle);
+}
+
+.badge-warning {
+  background: var(--color-warning-bg-subtle);
+  color: var(--color-warning-text-on-subtle);
+}
+
+/* ---------------------------------------------------------------------------------
+ * Tables
+ * ------------------------------------------------------------------------------- */
+
+.table-wrap {
+  overflow-x: auto;
+  margin: 0 0 var(--space-5) 0;
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+th,
+td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width-hairline) solid var(--color-border-hairline);
+  white-space: nowrap;
+}
+
+thead th {
+  background: var(--color-bg-surface-sunken);
+  font-weight: var(--font-weight-semibold);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ---------------------------------------------------------------------------------
+ * Line items (invoice form repeating group — rendered as static rows; the real app's
+ * add/remove interaction is hand-written progressive-enhancement JS per
+ * docs/engineering/01-stack-decision.md §12, out of scope for a zero-JS wireframe)
+ * ------------------------------------------------------------------------------- */
+
+.line-items {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.line-item-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-block: var(--space-2);
+  border-bottom: var(--border-width-hairline) solid var(--color-border-hairline);
+}
+
+.line-item-row:last-of-type {
+  border-bottom: none;
+}
+
+.line-item-row .field {
+  flex: 1 1 100%; /* structural: mobile-first, one field per line at the 375px floor */
+  margin: 0;
+}
+
+@media (min-width: 480px) { /* --breakpoint-sm */
+  .line-item-row .field {
+    flex: 1 1 0; /* structural: distribute evenly once there's room to sit side-by-side */
+  }
+}
+
+/* ---------------------------------------------------------------------------------
+ * Client picker (shared inline-client-creation sub-pattern — 00-flows.md Flow 3)
+ * ------------------------------------------------------------------------------- */
+
+.client-picker {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: 0 0 var(--space-5) 0;
+  background: var(--color-bg-surface);
+}
+
+.client-picker__mode-toggle {
+  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-3) 0;
+}
+
+/* ---------------------------------------------------------------------------------
+ * Document region (Screen 7 — the delivery mechanism). Placeholder-body marking and
+ * the CC BY 4.0 line live INSIDE this region so both print and download with it.
+ * ------------------------------------------------------------------------------- */
+
+.doc-region {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  background: var(--color-bg-surface);
+  max-width: var(--content-measure);
+}
+
+.doc-region__body {
+  line-height: var(--line-height-relaxed);
+}
+
+.doc-attribution {
+  margin-block-start: var(--space-6);
+  padding-block-start: var(--space-4);
+  border-top: var(--border-width-hairline) solid var(--color-border-hairline);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ---------------------------------------------------------------------------------
+ * Print — Screen 7 only, scoped by [data-print-doc] on <body> (01-screens.md; plan
+ * file §5.3). Chrome, labels, and navigation furniture hide on every page when
+ * printed; a page carrying [data-print-doc] additionally collapses to just the state
+ * section marked .state--printable, so the printed sheet carries one state, not six.
+ * It is NOT the document alone (corrected in review cycle 3 — the previous wording
+ * claimed it was, and the print-media check disproves it): the page <h1>, the
+ * page-level [data-wf-note] route annotation, and the Print/Download actions all sit
+ * outside .doc-region and still print. This file is a design-doc artifact and its
+ * print block previews the document region; it is not a production print stylesheet.
+ * The placeholder-body warning and the CC BY 4.0 line are inside .doc-region and are
+ * never targeted by any rule below, so both survive into print (plan file §3, §7.10).
+ * ------------------------------------------------------------------------------- */
+
+@media print {
+  .skip-link,
+  .site-header,
+  .site-nav,
+  .wireframe-notice,
+  .state-toc,
+  .state-label {
+    display: none;
+  }
+
+  .state {
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  body[data-print-doc] .state:not(.state--printable) {
+    display: none;
+  }
+
+  .doc-region {
+    border: none;
+    padding: 0;
+    max-width: none;
+  }
+
+  /* Review cycle 3 (H1-R): the legal-gate banner's data-wf-note sibling sits inside
+     .doc-region for spec adjacency, but a data-wf-note element is never built into the
+     product (01-screens.md §6) — so it must not survive into this block's "document
+     alone" simulation either. Without this rule the print preview of this wireframe
+     file would show the (C-17)/lawyer-agent annotation on the same printed sheet as
+     the plain warning it was split away from, reproducing H1-R's harm one element
+     over. Scoped to .doc-region rather than globally: nothing outside the printable
+     document region is claimed to represent "the document" in the first place. */
+  .doc-region [data-wf-note] {
+    display: none;
+  }
+}

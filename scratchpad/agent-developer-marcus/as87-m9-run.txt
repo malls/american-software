@@ -1,0 +1,31 @@
+✖ AS-87 real build: the state file heartbeats through the build and deploy-*.log carries the BuildKit output (82370.7005ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 82426.323625
+
+✖ failing tests:
+
+test at scratchpad/agent-developer-marcus/mut87/m9-app-subdir.test.mjs:23:1
+✖ AS-87 real build: the state file heartbeats through the build and deploy-*.log carries the BuildKit output (82370.7005ms)
+  AssertionError [ERR_ASSERTION]: AC-11: no container from this run survives teardown
+  + actual - expected
+  
+  + [
+  +   'app-as87-1\tproject=app\tworking_dir=/private/tmp/asc-as87-35496-pDa20n/app'
+  + ]
+  - []
+  
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'app-as87-1\tproject=app\tworking_dir=/private/tmp/asc-as87-35496-pDa20n/app' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+exit 1 2026-09-11T20:04:37.849Z

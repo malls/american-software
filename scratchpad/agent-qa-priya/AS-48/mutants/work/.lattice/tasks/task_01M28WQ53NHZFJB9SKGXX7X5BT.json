@@ -1,0 +1,49 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": "agent:developer-lena",
+  "branch_links": [
+    {
+      "branch": "feat/AS-115-copy-refs",
+      "linked_at": "2026-09-11T21:14:00Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 7,
+  "complexity": "medium",
+  "created_at": "2026-09-11T18:47:13Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": "SOURCE: board DM msg 793 (human:forrest, 2026-09-11T18:15Z), verbatim: \"I think we need to make commit hashes/branch names in chat messages clickable to copy. make an issue for this\". Filed by cto-owen on behalf of the board (acked in msg 810).\n\nWHAT \"CLICKABLE TO COPY\" MEANS, concretely:\n  - A recognised commit hash (a bare 7-40 character lowercase hex run, word-bounded) or a branch name of the shape this company uses (feat/AS-<n>-<slug>; the planner decides whether to also admit other prefixes seen in history and should grep the chat export to find out what shapes actually occur) inside a message body renders as an inline element that, on plain click, writes the LITERAL matched text to the clipboard and shows a brief visual confirmation (e.g. a short-lived \"copied\" state on the element). No navigation, no href, no new tab. Modified clicks and ordinary text selection keep working as today.\n  - Copy uses navigator.clipboard.writeText where available; the planner decides the fallback (execCommand copy on a selection, or simply no affordance) for insecure contexts. The tailnet page is https and the loopback page is http://127.0.0.1, which browsers treat as a secure context, so both real deployments should have the async clipboard API.\n\nWHY: the board reads commit hashes and branch names in tick reports, review comments echoed into #engineering, and the lattice-events channel, and wants to paste them into a terminal without drag-selecting a 7-character token on a phone or a laptop. Selecting short hex runs is fiddly on touch; a one-tap copy removes that.\n\nTENSION WITH THE SAME-DAY \"WRITING TO THE BOARD\" RULE (#board msg 794; CLAUDE.md section Writing to the board): board-facing messages (DMs to human:forrest, #board, #bizdev) should no longer carry commit hashes or branch names at all -- that evidence moves to the Lattice task. That does NOT make this affordance moot: #engineering, employee-to-employee DMs, and the lattice-events channel (which mirrors board commits verbatim, e.g. \"merged 74cb6f9\") still carry hashes and branch names by design, and the board reads those channels too. The affordance is worth having; the planner should not re-derive this.\n\nWHERE RENDERING HAPPENS (the seam the planner starts from):\n  - apps/chat/public/app.js bodyNode(message) is the single body renderer. It runs tokenizeInline (public/markdown.js: code / strong / em / link, code first, single level) over the whole body, then appendRefLeaf(parent, text, refs, {autolink}) over every plain-text leaf INCLUDING the inner of code/strong/em/link spans. appendRefLeaf is a fixed chain of pure tokenizers in a recorded order: tokenizeUrls (AS-54, terminal -- URL text is never fed further) -> tokenizeAsRefs (AS-10, matches only refs the server resolved) -> tokenizeMsgRefs (AS-26, \"msg 156\") -> tokenizeFileRefs (AS-26 section 5, public/msg-refs.js FILE_RE, .md paths only) -> createTextNode. A hash/branch pass would be one more link in this chain, and its position matters: it must run after the URL pass (a hex run inside a GitHub commit URL must stay part of the URL) and must not steal \"AS-87\" out of \"feat/AS-87-deploy-heartbeat-and-log\" -- so the branch tokenizer probably belongs BEFORE tokenizeAsRefs, and the hash tokenizer after msg-refs so the digits of \"msg 810\" are never read as hex. Order is an acceptance-criterion-grade decision with named falsifiers per M4.\n  - Invariants to preserve: tokenizers emit text and structure, never markup (zero innerHTML anywhere -- every node via el()/textContent/createTextNode); every token text is the exact source slice so concatenation round-trips the input; tokenizers are pure modules importable from node:test (existing tests: test/markdown.test.js, test/msg-refs.test.js). Put the new tokenizer(s) in msg-refs.js or a sibling pure module with the same contract so they are unit-testable without a DOM.\n  - Hash false positives are the real design question: words made only of a-f letters (facade, decade, deface -- six letters, but seven-plus cases exist) and any all-digit run of 7+ characters (a pid, 2147483648, a timestamp) match a naive hex regex. The planner decides the rule (require at least one digit AND one a-f letter? minimum length 7? word-boundary and not preceded by # or msg?) and, per M4, names the concrete inputs that must NOT tokenize as a numbered criterion. Grep apps/chat/data/export/ for real bodies to calibrate.\n\nLINK-SITE GUARD OVERLAP (AS-93 / AS-98): AS-93 (merged f15c4ad) added a guard that scans public/ for a fourth site assigning an href from the server-baked .url field, and AS-98 (backlog, critical, Chat set) tightens that guard because its pattern is narrower than its English. This task adds a NEW inline clickable element to the body pipeline. It must NOT be an anchor with an href (there is nothing to navigate to), which keeps it outside the subject of that guard entirely -- and the plan must state that explicitly and prove it: the AS-93/AS-98 scan must remain green after this change for the right reason (no href site added), not because the pattern missed it. If AS-98 lands first, its tightened guard is the one to run; if this lands first, the AS-98 planner must know a new clickable element exists in bodyNode. Linked related_to AS-98.\n\nSTYLING: BRANDING.md governs the affordance -- inline code today uses the .body code rule (style.css around line 176); a copyable token wants a cursor/hover/copied state built from existing semantic tokens (--color-accent-bg-subtle, --color-border-interactive, --color-focus-ring, etc.), no raw hex, no new colors. Keyboard: the element should be focusable and copy on Enter/Space, or the plan says why not.\n\nTESTS: the tokenizers get node:test coverage in the existing style (exact token slices, round-trip, named negative inputs). Clipboard behaviour has no test harness in this suite (no DOM); the plan says what is guarded by tests and what is verified by a recorded manual check, and counts them separately. Every counted suite run carries --build (CLAUDE.md corollary).\n\nPRIORITY/ORDER: Chat set (title begins \"Chat:\"), hence critical per the CLAUDE.md scheduling rule; ordering within the set is by age, so it joins the tail of the age queue behind the remaining chat-app follow-ups (AS-87, AS-88, AS-92, AS-98, AS-102, AS-103, AS-112, AS-113) unless the board says otherwise. Planner: cto-owen or a developer as tech lead; implementer: either developer; reviewer: a qa-* who did not implement.",
+  "done_at": "2026-09-11T23:41:03Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01M298A7R756X5MEA62HH7ZE1P",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01M28WQ53NHZFJB9SKGXX7X5BT",
+  "last_event_id": "ev_01M29DH5TH0RTX5VWDMDTBMKEY",
+  "last_status_changed_at": "2026-09-11T23:41:03Z",
+  "linked_files": [],
+  "priority": "critical",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-11T18:47:22Z",
+      "created_by": "agent:cto-owen",
+      "note": null,
+      "target_task_id": "task_01M26C7SHH3G5YDP39FGXQHX6W",
+      "type": "related_to"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-115",
+  "status": "done",
+  "tags": null,
+  "title": "Chat: commit hashes and branch names in messages are click-to-copy",
+  "type": "task",
+  "updated_at": "2026-09-11T23:41:03Z",
+  "urgency": null
+}

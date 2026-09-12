@@ -1,0 +1,12 @@
+assert-applied GET /invoices/view registration: 1 -> 1 (expected 1 -> 1)
+assert-applied order: /invoices/view now registered AFTER /invoices/:id
+docker compose -p asc-impl-as48-f9 run --rm --build test
+RECEIPT project=asc-impl-as48-f9
+  built: Image asc-impl-as48-f9-test Built
+  tests=475 pass=455 fail=2 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (2):
+  ✖ GET /invoices/view and GET /contracts/view redirect a UUID-shaped id and refuse everything else with a bounded response
+  ✖ GET /invoices/view is served by the redirector, never by the :id route

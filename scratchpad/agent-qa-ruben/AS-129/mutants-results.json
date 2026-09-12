@@ -1,0 +1,325 @@
+{
+  "M1": {
+    "applied": true,
+    "mutatedSha": "e45be88f64d0e262fb509654c8abdcfeb25b4169768bdf8df24c4e92ddf8a88d",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "159",
+      "fail": "4",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t3-cap-on-a-dry-board: no work means no re-arm — needs_human is waiting on the board, not work",
+      "as129-t6-no-work-no-rearm: a cap-hit on a dry board stops for good — no cooldown, nothing ever re-arms",
+      "as129-t9b-resume-past-the-cap-dry: no tick is owed and nothing re-arms",
+      "AS-129 T12 makeWatcher: cap-hit with nothing left on the board stops for good — no rearmAt, no re-arm after the cooldown",
+      "failing tests:",
+      "as129-t3-cap-on-a-dry-board: no work means no re-arm — needs_human is waiting on the board, not work",
+      "as129-t6-no-work-no-rearm: a cap-hit on a dry board stops for good — no cooldown, nothing ever re-arms",
+      "as129-t9b-resume-past-the-cap-dry: no tick is owed and nothing re-arms",
+      "AS-129 T12 makeWatcher: cap-hit with nothing left on the board stops for good — no rearmAt, no re-arm after the cooldown"
+    ]
+  },
+  "M2": {
+    "applied": true,
+    "mutatedSha": "784e582ce0d03ef507ff5441defac260d1666266cecdf2dcfc1a8e293e97be40",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "159",
+      "fail": "4",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t4-settle-enters-the-cooldown: cap-hit with work stops the loop, logs the cooldown, and mirrors rearmAt",
+      "as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed",
+      "as129-t7-message-during-cooldown-wins: a board message arms a loop and cancels the pending re-arm",
+      "AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched",
+      "failing tests:",
+      "as129-t4-settle-enters-the-cooldown: cap-hit with work stops the loop, logs the cooldown, and mirrors rearmAt",
+      "as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed",
+      "as129-t7-message-during-cooldown-wins: a board message arms a loop and cancels the pending re-arm",
+      "AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched"
+    ]
+  },
+  "M3": {
+    "applied": true,
+    "mutatedSha": "886a92e9dcdf87d44bf9cc33f278679a03646dfaa209fb584cf852fe39517619",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "160",
+      "fail": "3",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed",
+      "as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown",
+      "AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched",
+      "failing tests:",
+      "as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed",
+      "as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown",
+      "AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched"
+    ]
+  },
+  "M4": {
+    "applied": true,
+    "mutatedSha": "53fd5d220071dd46658b11c8fc697443849aa145bff6d1e4534aae2f9ce1c52c",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "160",
+      "fail": "3",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed",
+      "as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown",
+      "AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched",
+      "failing tests:",
+      "as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed",
+      "as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown",
+      "AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched"
+    ]
+  },
+  "M5": {
+    "applied": true,
+    "mutatedSha": "a0a02560ba6274fd9d37e91f0ae1a86e4abeea820fe5eef5200dba645994b24a",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "161",
+      "fail": "2",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed",
+      "AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched",
+      "failing tests:",
+      "as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed",
+      "AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched"
+    ]
+  },
+  "M6": {
+    "applied": true,
+    "mutatedSha": "6e6c080fb5280a24dfb04bc534eaabafe85180513668bbb40199b66f0db68d19",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "162",
+      "fail": "1",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t7-message-during-cooldown-wins: a board message arms a loop and cancels the pending re-arm",
+      "failing tests:",
+      "as129-t7-message-during-cooldown-wins: a board message arms a loop and cancels the pending re-arm"
+    ]
+  },
+  "M7": {
+    "applied": true,
+    "mutatedSha": "004be0698d02941f25e1f540f1cdd633e64011e4e579d9f18978cdd970e1d7b0",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "162",
+      "fail": "1",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown",
+      "failing tests:",
+      "as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown"
+    ]
+  },
+  "M8": {
+    "applied": true,
+    "mutatedSha": "21f8c2fc3477686f8965e85f7fbe5524ff8cecc80ffcefda7e0cd66591bdcb40",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "161",
+      "fail": "2",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t9a-resume-past-the-cap-with-work: no tick is owed; the cap is logged and the cooldown starts now",
+      "as129-t9b-resume-past-the-cap-dry: no tick is owed and nothing re-arms",
+      "failing tests:",
+      "as129-t9a-resume-past-the-cap-with-work: no tick is owed; the cap is logged and the cooldown starts now",
+      "as129-t9b-resume-past-the-cap-dry: no tick is owed and nothing re-arms"
+    ]
+  },
+  "M9": {
+    "applied": true,
+    "mutatedSha": "12567545017639ef397656989d3a0549554c6a374f76ffc3f9e692c0316e5228",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "162",
+      "fail": "1",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "AS-129 T13 makeWatcher: start() builds the loop ops with loopLimits(config) — lock wait = tick box + staleness, cooldown from ADVANCE_LOOP_REARM_MIN",
+      "failing tests:",
+      "AS-129 T13 makeWatcher: start() builds the loop ops with loopLimits(config) — lock wait = tick box + staleness, cooldown from ADVANCE_LOOP_REARM_MIN"
+    ]
+  },
+  "M10": {
+    "applied": true,
+    "mutatedSha": "2078dcf65cbc503aab15aec897e20afa62926ad8c46b5d0547430bb52c04b432",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "161",
+      "fail": "2",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t10-limits-derived: maxLockWaitMs is the tick timeout plus the lock staleness, from config, never a literal",
+      "AS-129 T13 makeWatcher: start() builds the loop ops with loopLimits(config) — lock wait = tick box + staleness, cooldown from ADVANCE_LOOP_REARM_MIN",
+      "failing tests:",
+      "as129-t10-limits-derived: maxLockWaitMs is the tick timeout plus the lock staleness, from config, never a literal",
+      "AS-129 T13 makeWatcher: start() builds the loop ops with loopLimits(config) — lock wait = tick box + staleness, cooldown from ADVANCE_LOOP_REARM_MIN"
+    ]
+  },
+  "M11": {
+    "applied": true,
+    "mutatedSha": "0e39e286b89a26d3219b004bbf8b0d2abff6e8b0ee899f657d59d4309e7f4669",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "162",
+      "fail": "1",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched",
+      "failing tests:",
+      "AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched"
+    ]
+  },
+  "M12": {
+    "applied": true,
+    "mutatedSha": "4917d0d7f1c0a946322bd355568f79f9d9f1440764038b8be0e6b87795e427a6",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "162",
+      "fail": "1",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t14-ceiling ADVANCE_TICK_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "failing tests:",
+      "as129-t14-ceiling ADVANCE_TICK_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back"
+    ]
+  },
+  "M13": {
+    "applied": true,
+    "mutatedSha": "426940705ee56db5602affc1eb4dbad809ccf3e8bf0bd48f62b23f5eca298330",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "162",
+      "fail": "1",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t14-ceiling ADVANCE_LOCK_STALE_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "failing tests:",
+      "as129-t14-ceiling ADVANCE_LOCK_STALE_MIN: 35791 accepted, 35792 refused by name, junk falls back"
+    ]
+  },
+  "M14": {
+    "applied": true,
+    "mutatedSha": "e0bad649c06393f387077a04e9590068aeedef4e7b734a5a1d320522be05426a",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "162",
+      "fail": "1",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t14-ceiling ADVANCE_DEPLOY_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "failing tests:",
+      "as129-t14-ceiling ADVANCE_DEPLOY_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back"
+    ]
+  },
+  "M15": {
+    "applied": true,
+    "mutatedSha": "0bbc884740c609c5534c976e304392ce22147c7994eb15a4dc6439391142c0cb",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "162",
+      "fail": "1",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t14-ceiling ADVANCE_DEPLOY_COOLDOWN_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "failing tests:",
+      "as129-t14-ceiling ADVANCE_DEPLOY_COOLDOWN_MIN: 35791 accepted, 35792 refused by name, junk falls back"
+    ]
+  },
+  "M16": {
+    "applied": true,
+    "mutatedSha": "52f5bc25a8e8a3469d9a907a4d23738437352d5953bf078f372e9800a036a1eb",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "162",
+      "fail": "1",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t14-ceiling ADVANCE_LOOP_REARM_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "failing tests:",
+      "as129-t14-ceiling ADVANCE_LOOP_REARM_MIN: 35791 accepted, 35792 refused by name, junk falls back"
+    ]
+  },
+  "M17": {
+    "applied": true,
+    "mutatedSha": "d66fb533faef55b26343942cc750bed8d43f756987f41adff53aaa8fd0e0c4bc",
+    "exit": 1,
+    "summary": {
+      "tests": "163",
+      "pass": "158",
+      "fail": "5",
+      "cancelled": "0",
+      "skipped": "0"
+    },
+    "failing": [
+      "as129-t14-ceiling ADVANCE_TICK_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "as129-t14-ceiling ADVANCE_LOCK_STALE_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "as129-t14-ceiling ADVANCE_DEPLOY_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "as129-t14-ceiling ADVANCE_DEPLOY_COOLDOWN_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "as129-t14-ceiling ADVANCE_LOOP_REARM_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "failing tests:",
+      "as129-t14-ceiling ADVANCE_TICK_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "as129-t14-ceiling ADVANCE_LOCK_STALE_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "as129-t14-ceiling ADVANCE_DEPLOY_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "as129-t14-ceiling ADVANCE_DEPLOY_COOLDOWN_MIN: 35791 accepted, 35792 refused by name, junk falls back",
+      "as129-t14-ceiling ADVANCE_LOOP_REARM_MIN: 35791 accepted, 35792 refused by name, junk falls back"
+    ]
+  }
+}

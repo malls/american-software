@@ -1,0 +1,10 @@
+assert-applied failure: 'system' in the detail route: 2 -> 0 (expected 2 -> 0)
+docker compose -p asc-impl-as48-f4b run --rm --build test
+RECEIPT project=asc-impl-as48-f4b
+  built: Image asc-impl-as48-f4b-test Built
+  tests=475 pass=456 fail=1 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (1):
+  ✖ S5-ERROR-SYSTEM: a dropped invoice_line_items table renders the error banner at 500 with a retry form

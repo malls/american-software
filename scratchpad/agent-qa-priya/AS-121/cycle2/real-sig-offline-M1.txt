@@ -1,0 +1,5 @@
+container up: [ 'asc-as121-realoff-m1-36923-test-run-baf8ff4276fa' ] network: [ 'asc-as121-realoff-m1-36923_default' ]
+exit code=null signal=SIGTERM after 0.0 s
+
+survivors after the container ended: networks=["asc-as121-realoff-m1-36923_default"]
+hand cleanup: down exit=0; networks now=[]

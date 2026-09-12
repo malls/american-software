@@ -1,0 +1,11 @@
+container up: [ 'asc-as121-realoff-fix-36808-test-run-b6333d65da78' ] network: [ 'asc-as121-realoff-fix-36808_default' ]
+exit code=5 signal=null after 10.0 s
+RECEIPT project=asc-as121-realoff-fix-36808
+  built: missing
+  run exit=0
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=5
+compose-run: no `Built` line — this run is not a receipt (CLAUDE.md --build corollary)
+compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt
+survivors after the container ended: networks=[]

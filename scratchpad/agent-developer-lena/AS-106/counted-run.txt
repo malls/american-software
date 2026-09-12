@@ -1,0 +1,41 @@
+$ compose-run --check
+asc-* networks: 12 (ceiling 20)
+  production  asc-chat_default
+  production  asc-invoicing_default
+  production  asc-invoicing_stripe-mock
+  leftover    asc-as93-marcus_default  (AS-93 marcus)
+  leftover    asc-as93-mutant_default  (AS-93 mutant)
+  leftover    asc-as94-lena_default  (AS-94 lena)
+  leftover    asc-as95-qa-2_default  (AS-95 reviewer)
+  leftover    asc-as95-qa-3_default  (AS-95 reviewer)
+  leftover    asc-as95-qa-master_default  (AS-95 reviewer)
+  leftover    asc-as95-qa_default  (AS-95 reviewer)
+  leftover    asc-chat-qa23_default  (reviewer)
+  leftover    asc-marcus95_default  (marcus)
+9 leftover — removed nothing; owners tear down with: docker compose -p <project> down -v --rmi local --remove-orphans
+exit=1
+$ compose-run --project asc-impl-as106 --cwd /Users/forrest/Code/american-software-company/.worktrees/AS-106/apps/chat --log /Users/forrest/Code/american-software-company/scratchpad/agent-developer-lena/AS-106/compose-asc-impl-as106.log
+RECEIPT project=asc-impl-as106
+  built: Image asc-impl-as106-test Built
+  tests=571 pass=563 fail=0 skipped=8
+  run exit=0
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=0
+exit=0
+$ compose-run --check
+asc-* networks: 12 (ceiling 20)
+  production  asc-chat_default
+  production  asc-invoicing_default
+  production  asc-invoicing_stripe-mock
+  leftover    asc-as93-marcus_default  (AS-93 marcus)
+  leftover    asc-as93-mutant_default  (AS-93 mutant)
+  leftover    asc-as94-lena_default  (AS-94 lena)
+  leftover    asc-as95-qa-2_default  (AS-95 reviewer)
+  leftover    asc-as95-qa-3_default  (AS-95 reviewer)
+  leftover    asc-as95-qa-master_default  (AS-95 reviewer)
+  leftover    asc-as95-qa_default  (AS-95 reviewer)
+  leftover    asc-chat-qa23_default  (reviewer)
+  leftover    asc-marcus95_default  (marcus)
+9 leftover — removed nothing; owners tear down with: docker compose -p <project> down -v --rmi local --remove-orphans
+exit=1

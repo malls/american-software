@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/pristine/docs/design/tokens/tokens.css	2026-09-12 17:14:48
++++ /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/p1-fifth-rule-between-2-and-3/docs/design/tokens/tokens.css	2026-09-12 17:14:49
+@@ -204,6 +204,8 @@
+   --color-danger-solid: var(--color-danger-600);
+   --color-danger-solid-hover: var(--color-danger-700);
+ }
++
++html { }
+ 
+ /*
+  * ============================================================================

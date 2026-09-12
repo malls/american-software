@@ -1,0 +1,9 @@
+{
+  "id": "task_TESTD2",
+  "short_id": "AS-25",
+  "title": "Bob queued backlog item",
+  "status": "backlog",
+  "assigned_to": "agent:qa-bob",
+  "last_status_changed_at": "2026-08-30T00:31:00Z",
+  "schema_version": 1
+}

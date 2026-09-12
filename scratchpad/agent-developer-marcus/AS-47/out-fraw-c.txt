@@ -1,0 +1,13 @@
+assert-applied whole-line raw site: 1 -> 0 (expected 1 -> 0)
+RECEIPT project=asc-as47-fraw-c
+  built: Image asc-as47-fraw-c-test Built
+  tests=430 pass=409 fail=3 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=1
+
+RED SET (3):
+  ✖ screen 7 accounts for all eight of its ledger rows: 3 + 1 + 1 + 1 + 2 = 8
+  ✖ every href and form action in the two contract templates names a route the app registers
+  ✖ the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, AS-44, AS-45 and AS-47 put them

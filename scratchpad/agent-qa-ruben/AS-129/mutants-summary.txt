@@ -1,0 +1,190 @@
+pristine sha256 f021a2d4a55d457b29dc6a13dce54596bda75c398419e8c5f16d916aa0dfe990
+
+== M1: workRemains always true
+   applied at intended site (1 match), mutated sha256 e45be88f64d0
+   expected red: T3, T6, T12
+   exit=1 tests=163 pass=159 fail=4
+   observed red (9):
+     - as129-t3-cap-on-a-dry-board: no work means no re-arm — needs_human is waiting on the board, not work
+     - as129-t6-no-work-no-rearm: a cap-hit on a dry board stops for good — no cooldown, nothing ever re-arms
+     - as129-t9b-resume-past-the-cap-dry: no tick is owed and nothing re-arms
+     - AS-129 T12 makeWatcher: cap-hit with nothing left on the board stops for good — no rearmAt, no re-arm after the cooldown
+     - failing tests:
+     - as129-t3-cap-on-a-dry-board: no work means no re-arm — needs_human is waiting on the board, not work
+     - as129-t6-no-work-no-rearm: a cap-hit on a dry board stops for good — no cooldown, nothing ever re-arms
+     - as129-t9b-resume-past-the-cap-dry: no tick is owed and nothing re-arms
+     - AS-129 T12 makeWatcher: cap-hit with nothing left on the board stops for good — no rearmAt, no re-arm after the cooldown
+
+== M2: settle() never schedules the cooldown
+   applied at intended site (1 match), mutated sha256 784e582ce0d0
+   expected red: T4, T5, T7, T11
+   exit=1 tests=163 pass=159 fail=4
+   observed red (9):
+     - as129-t4-settle-enters-the-cooldown: cap-hit with work stops the loop, logs the cooldown, and mirrors rearmAt
+     - as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed
+     - as129-t7-message-during-cooldown-wins: a board message arms a loop and cancels the pending re-arm
+     - AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched
+     - failing tests:
+     - as129-t4-settle-enters-the-cooldown: cap-hit with work stops the loop, logs the cooldown, and mirrors rearmAt
+     - as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed
+     - as129-t7-message-during-cooldown-wins: a board message arms a loop and cancels the pending re-arm
+     - AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched
+
+== M3: rearmIfDue() ignores the clock
+   applied at intended site (1 match), mutated sha256 886a92e9dcdf
+   expected red: T5, T11
+   exit=1 tests=163 pass=160 fail=3
+   observed red (7):
+     - as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed
+     - as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown
+     - AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched
+     - failing tests:
+     - as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed
+     - as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown
+     - AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched
+
+== M4: rearmIfDue() always false
+   applied at intended site (1 match), mutated sha256 53fd5d220071
+   expected red: T5, T8, T11
+   exit=1 tests=163 pass=160 fail=3
+   observed red (7):
+     - as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed
+     - as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown
+     - AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched
+     - failing tests:
+     - as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed
+     - as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown
+     - AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched
+
+== M5: re-armed loop keeps the old counters (ticks not reset)
+   applied at intended site (1 match), mutated sha256 a0a02560ba62
+   expected red: T5, T11
+   exit=1 tests=163 pass=161 fail=2
+   observed red (5):
+     - as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed
+     - AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched
+     - failing tests:
+     - as129-t5-rearm-when-due: after the cooldown a FRESH loop is armed — ticks 0, new startedAt, same message, one tick owed
+     - AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched
+
+== M6: start() does not clear rearm
+   applied at intended site (1 match), mutated sha256 6e6c080fb528
+   expected red: T7
+   exit=1 tests=163 pass=162 fail=1
+   observed red (3):
+     - as129-t7-message-during-cooldown-wins: a board message arms a loop and cancels the pending re-arm
+     - failing tests:
+     - as129-t7-message-during-cooldown-wins: a board message arms a loop and cancels the pending re-arm
+
+== M7: resume() ignores rearmAt
+   applied at intended site (1 match), mutated sha256 004be0698d02
+   expected red: T8
+   exit=1 tests=163 pass=162 fail=1
+   observed red (3):
+     - as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown
+     - failing tests:
+     - as129-t8-cooldown-survives-a-restart: an inactive mirror with rearmAt resumes into the cooldown
+
+== M8: resume() skips the cap check (AS-104 — today's code)
+   applied at intended site (1 match), mutated sha256 21f8c2fc3477
+   expected red: T9a, T9b
+   exit=1 tests=163 pass=161 fail=2
+   observed red (5):
+     - as129-t9a-resume-past-the-cap-with-work: no tick is owed; the cap is logged and the cooldown starts now
+     - as129-t9b-resume-past-the-cap-dry: no tick is owed and nothing re-arms
+     - failing tests:
+     - as129-t9a-resume-past-the-cap-with-work: no tick is owed; the cap is logged and the cooldown starts now
+     - as129-t9b-resume-past-the-cap-dry: no tick is owed and nothing re-arms
+
+== M9: main() passes no limits to makeLoopOps
+   applied at intended site (1 match), mutated sha256 125675450176
+   expected red: T13
+   exit=1 tests=163 pass=162 fail=1
+   observed red (3):
+     - AS-129 T13 makeWatcher: start() builds the loop ops with loopLimits(config) — lock wait = tick box + staleness, cooldown from ADVANCE_LOOP_REARM_MIN
+     - failing tests:
+     - AS-129 T13 makeWatcher: start() builds the loop ops with loopLimits(config) — lock wait = tick box + staleness, cooldown from ADVANCE_LOOP_REARM_MIN
+
+== M10: loopLimits returns the literal 60*60*1000
+   applied at intended site (1 match), mutated sha256 2078dcf65cbc
+   expected red: T10, T13
+   exit=1 tests=163 pass=161 fail=2
+   observed red (5):
+     - as129-t10-limits-derived: maxLockWaitMs is the tick timeout plus the lock staleness, from config, never a literal
+     - AS-129 T13 makeWatcher: start() builds the loop ops with loopLimits(config) — lock wait = tick box + staleness, cooldown from ADVANCE_LOOP_REARM_MIN
+     - failing tests:
+     - as129-t10-limits-derived: maxLockWaitMs is the tick timeout plus the lock staleness, from config, never a literal
+     - AS-129 T13 makeWatcher: start() builds the loop ops with loopLimits(config) — lock wait = tick box + staleness, cooldown from ADVANCE_LOOP_REARM_MIN
+
+== M11: poll() drops the rearmIfDue() call
+   applied at intended site (1 match), mutated sha256 0e39e286b89a
+   expected red: T11
+   exit=1 tests=163 pass=162 fail=1
+   observed red (3):
+     - AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched
+     - failing tests:
+     - AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched
+
+== M12: TICK_TIMEOUT uses envNum
+   applied at intended site (1 match), mutated sha256 4917d0d7f1c0
+   expected red: T14 ADVANCE_TICK_TIMEOUT_MIN
+   exit=1 tests=163 pass=162 fail=1
+   observed red (3):
+     - as129-t14-ceiling ADVANCE_TICK_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - failing tests:
+     - as129-t14-ceiling ADVANCE_TICK_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back
+
+== M13: LOCK_STALE uses envNum
+   applied at intended site (1 match), mutated sha256 426940705ee5
+   expected red: T14 ADVANCE_LOCK_STALE_MIN
+   exit=1 tests=163 pass=162 fail=1
+   observed red (3):
+     - as129-t14-ceiling ADVANCE_LOCK_STALE_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - failing tests:
+     - as129-t14-ceiling ADVANCE_LOCK_STALE_MIN: 35791 accepted, 35792 refused by name, junk falls back
+
+== M14: DEPLOY_TIMEOUT uses envNum
+   applied at intended site (1 match), mutated sha256 e0bad649c063
+   expected red: T14 ADVANCE_DEPLOY_TIMEOUT_MIN
+   exit=1 tests=163 pass=162 fail=1
+   observed red (3):
+     - as129-t14-ceiling ADVANCE_DEPLOY_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - failing tests:
+     - as129-t14-ceiling ADVANCE_DEPLOY_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back
+
+== M15: DEPLOY_COOLDOWN uses envNum
+   applied at intended site (1 match), mutated sha256 0bbc884740c6
+   expected red: T14 ADVANCE_DEPLOY_COOLDOWN_MIN
+   exit=1 tests=163 pass=162 fail=1
+   observed red (3):
+     - as129-t14-ceiling ADVANCE_DEPLOY_COOLDOWN_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - failing tests:
+     - as129-t14-ceiling ADVANCE_DEPLOY_COOLDOWN_MIN: 35791 accepted, 35792 refused by name, junk falls back
+
+== M16: LOOP_REARM uses envNum
+   applied at intended site (1 match), mutated sha256 52f5bc25a8e8
+   expected red: T14 ADVANCE_LOOP_REARM_MIN
+   exit=1 tests=163 pass=162 fail=1
+   observed red (3):
+     - as129-t14-ceiling ADVANCE_LOOP_REARM_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - failing tests:
+     - as129-t14-ceiling ADVANCE_LOOP_REARM_MIN: 35791 accepted, 35792 refused by name, junk falls back
+
+== M17: envMinutes clamps to 35791 instead of throwing
+   applied at intended site (1 match), mutated sha256 d66fb533faef
+   expected red: T14 x5
+   exit=1 tests=163 pass=158 fail=5
+   observed red (11):
+     - as129-t14-ceiling ADVANCE_TICK_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - as129-t14-ceiling ADVANCE_LOCK_STALE_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - as129-t14-ceiling ADVANCE_DEPLOY_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - as129-t14-ceiling ADVANCE_DEPLOY_COOLDOWN_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - as129-t14-ceiling ADVANCE_LOOP_REARM_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - failing tests:
+     - as129-t14-ceiling ADVANCE_TICK_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - as129-t14-ceiling ADVANCE_LOCK_STALE_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - as129-t14-ceiling ADVANCE_DEPLOY_TIMEOUT_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - as129-t14-ceiling ADVANCE_DEPLOY_COOLDOWN_MIN: 35791 accepted, 35792 refused by name, junk falls back
+     - as129-t14-ceiling ADVANCE_LOOP_REARM_MIN: 35791 accepted, 35792 refused by name, junk falls back
+
+restored: sha256 f021a2d4a55d457b29dc6a13dce54596bda75c398419e8c5f16d916aa0dfe990 === pristine true

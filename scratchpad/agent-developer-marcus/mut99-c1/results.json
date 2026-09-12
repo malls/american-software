@@ -1,0 +1,98 @@
+{
+  "baseline": {
+    "code": 0,
+    "failed": [],
+    "tests": 420,
+    "pass": 420,
+    "fail": 0
+  },
+  "results": [
+    {
+      "id": "MF1a-git-error-is-a-measured-list",
+      "file": "public/lanes.js",
+      "line": 62,
+      "status": "RED",
+      "predict": [
+        "lanes-label-git-error-is-not-a-measured-zero",
+        "api: AS-99 — api-lanes-git-error-badge"
+      ],
+      "failed": [
+        "api: AS-99 — api-lanes-git-error-badge: a refused git enumeration reaches the board as a dash, not a zero",
+        "lanes-label-git-error-is-not-a-measured-zero: git refusing is not \"nothing in flight\""
+      ],
+      "code": 1,
+      "tests": 420,
+      "pass": 418,
+      "fail": 2
+    },
+    {
+      "id": "MF1b-git-error-empty-state-claims-nothing-in-flight",
+      "file": "public/lanes.js",
+      "line": 73,
+      "status": "RED",
+      "predict": [
+        "lanes-label-empty-state-table",
+        "lanes-label-git-error-is-not-a-measured-zero"
+      ],
+      "failed": [
+        "api: AS-99 — api-lanes-git-error-badge: a refused git enumeration reaches the board as a dash, not a zero",
+        "lanes-label-git-error-is-not-a-measured-zero: git refusing is not \"nothing in flight\"",
+        "lanes-label-empty-state-table: every reason has its own empty-state sentence, and only `ok` claims a measurement"
+      ],
+      "code": 1,
+      "tests": 420,
+      "pass": 417,
+      "fail": 3
+    },
+    {
+      "id": "MF1c-app-keys-empty-state-off-the-badge-string",
+      "file": "public/app.js",
+      "line": 1023,
+      "status": "RED",
+      "predict": [
+        "api: AS-99 — api-lanes-git-error-badge"
+      ],
+      "failed": [
+        "api: AS-99 — api-lanes-git-error-badge: a refused git enumeration reaches the board as a dash, not a zero"
+      ],
+      "code": 1,
+      "tests": 420,
+      "pass": 419,
+      "fail": 1
+    },
+    {
+      "id": "MF1d-stale-snapshot-loses-its-count",
+      "file": "public/lanes.js",
+      "line": 62,
+      "status": "RED",
+      "predict": [
+        "lanes-label-stale-caption"
+      ],
+      "failed": [
+        "lanes-label-stale-caption: a stale snapshot says so, in age and in words"
+      ],
+      "code": 1,
+      "tests": 420,
+      "pass": 419,
+      "fail": 1
+    },
+    {
+      "id": "MF2-outside-repo-path-survives-absolute",
+      "file": "watch/advance-watcher.mjs",
+      "line": 1530,
+      "status": "RED",
+      "predict": [
+        "lanes-relpath-outside-repo",
+        "lanes-relpath"
+      ],
+      "failed": [
+        "lanes-relpath: the absolute host path is stripped to a repo-relative one",
+        "lanes-relpath-outside-repo: a worktree outside the root is marked, never carried as a host path"
+      ],
+      "code": 1,
+      "tests": 420,
+      "pass": 418,
+      "fail": 2
+    }
+  ]
+}

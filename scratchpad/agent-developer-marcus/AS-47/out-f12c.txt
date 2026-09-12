@@ -1,0 +1,11 @@
+no mutation
+docker compose -p asc-as47-f12c run --rm --build -e ASC_SELFTEST_MUTATE=1 test
+RECEIPT project=asc-as47-f12c
+  built: Image asc-as47-f12c-test Built
+  tests=430 pass=410 fail=2 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (2):
+  ✖ every href and form action in the two contract templates names a route the app registers
+  ✖ V1: the runner can fail — ASC_SELFTEST_MUTATE=1 must turn this suite red

@@ -1,0 +1,126 @@
+{
+  "M1": {
+    "desc": "evaluate: delete `if (evaluating !== null) return evaluating;`",
+    "predicted": [
+      "T1",
+      "T3"
+    ],
+    "tests": "144",
+    "fail": "2",
+    "red": [
+      "AS-102 makeDeployOps: concurrent evaluate() calls coalesce — the second returns the first's promise and evaluateInner runs once",
+      "AS-102 makeDeployOps: a coalesced call cannot start a second performDeploy — one build, one lock take, one running-id re-probe"
+    ]
+  },
+  "M2": {
+    "desc": "evaluate: delete the finally that clears `evaluating`",
+    "predicted": [
+      "T2",
+      "T4",
+      "T6",
+      "T8"
+    ],
+    "tests": "144",
+    "fail": "10",
+    "red": [
+      "AS-102 makeWatcher: a loop tick whose deploy record is 'busy' does not LOOP-WAIT after settle — the next poll fires the loop tick without a deploy-interval tick elapsing",
+      "AS-102 makeWatcher: settle's evaluation still yields when a rebuild is genuinely owed — stale-build record => LOOP-WAIT, and the loop fires only after the deploy resolves it",
+      "AS-95 makeDeployOps: pendingDeploy() answers \"a rebuild is owed and can run\", and never blocks the loop forever",
+      "AS-102 makeDeployOps: after the in-flight evaluation resolves, the next evaluate() runs fresh (inflight is cleared on resolve AND on throw)",
+      "AS-102 makeDeployOps: evaluate({busy:false}) after a 'busy' record overwrites lastDecision, so pendingDeploy() reads false when nothing is owed",
+      "AS-75 makeDeployOps: a stale container is rebuilt with the right env, and success means the RUNNING id changed",
+      "AS-75 makeDeployOps: exit code 0 with a mismatched re-probe is a FAILURE, not a success",
+      "AS-75 makeDeployOps: a watcher-source change exits 70 and leaves the pid file alone",
+      "AS-84 makeDeployOps: lastAttempt is hydrated from deploy-state.json — a failed attempt at the desired id, inside the cooldown, refuses without building",
+      "AS-84 makeDeployOps: abort() signals the running build, records an abort rather than a failure, and gives the lock back",
+      "AS-87 evaluate heartbeats while deploying: every poll during a build rewrites deploy-state.json with a fresh computedAt and reason \"deploying\""
+    ]
+  },
+  "M3": {
+    "desc": "settle (watcher): delete `void deployPoll();`",
+    "predicted": [
+      "T5",
+      "T6"
+    ],
+    "tests": "144",
+    "fail": "3",
+    "red": [
+      "AS-102 makeWatcher: settle() triggers exactly one deploy evaluation with busy:false, after loopOps.settle and before the settled promise resolves",
+      "AS-102 makeWatcher: a loop tick whose deploy record is 'busy' does not LOOP-WAIT after settle — the next poll fires the loop tick without a deploy-interval tick elapsing",
+      "AS-102 makeWatcher: a settle-triggered evaluation that rejects is caught by deployPoll — one ERROR line, process alive, settled still resolves",
+      "AS-102 makeWatcher: settle's evaluation still yields when a rebuild is genuinely owed — stale-build record => LOOP-WAIT, and the loop fires only after the deploy resolves it"
+    ]
+  },
+  "M4": {
+    "desc": "settle (watcher): move `void deployPoll();` before releaseLock()",
+    "predicted": [
+      "T5",
+      "T6"
+    ],
+    "tests": "144",
+    "fail": "1",
+    "red": [
+      "AS-102 makeWatcher: settle() triggers exactly one deploy evaluation with busy:false, after loopOps.settle and before the settled promise resolves"
+    ]
+  },
+  "M5": {
+    "desc": "settle (watcher): call deployOps.evaluate({ busy: true }) instead of deployPoll()",
+    "predicted": [
+      "T5",
+      "T6"
+    ],
+    "tests": "144",
+    "fail": "3",
+    "red": [
+      "AS-102 makeWatcher: settle() triggers exactly one deploy evaluation with busy:false, after loopOps.settle and before the settled promise resolves",
+      "AS-102 makeWatcher: a loop tick whose deploy record is 'busy' does not LOOP-WAIT after settle — the next poll fires the loop tick without a deploy-interval tick elapsing",
+      "AS-102 makeWatcher: a settle-triggered evaluation that rejects is caught by deployPoll — one ERROR line, process alive, settled still resolves",
+      "AS-102 makeWatcher: settle's evaluation still yields when a rebuild is genuinely owed — stale-build record => LOOP-WAIT, and the loop fires only after the deploy resolves it"
+    ]
+  },
+  "M6": {
+    "desc": "settle (watcher): bare deployOps.evaluate({ busy: false }) — bypass the F6 catch",
+    "predicted": [
+      "T7"
+    ],
+    "tests": "144",
+    "fail": "1",
+    "red": [
+      "AS-102 makeWatcher: a settle-triggered evaluation that rejects is caught by deployPoll — one ERROR line, process alive, settled still resolves"
+    ]
+  },
+  "M7": {
+    "desc": "pendingDeploy: drop `|| lastDecision.reason === 'stale-build'`",
+    "predicted": [
+      "T8",
+      "AS-95 pendingDeploy"
+    ],
+    "tests": "144",
+    "fail": "1",
+    "red": [
+      "AS-102 makeWatcher: settle's evaluation still yields when a rebuild is genuinely owed — stale-build record => LOOP-WAIT, and the loop fires only after the deploy resolves it"
+    ]
+  },
+  "M8": {
+    "desc": "settle (watcher): move `void deployPoll();` after resolveSettled()",
+    "predicted": [
+      "T5"
+    ],
+    "tests": "144",
+    "fail": "1",
+    "red": [
+      "AS-102 makeWatcher: settle() triggers exactly one deploy evaluation with busy:false, after loopOps.settle and before the settled promise resolves"
+    ]
+  },
+  "M9": {
+    "desc": "evaluate: delete the `if (deploying)` pre-check (heartbeat must precede the guard)",
+    "predicted": [
+      "AS-87 heartbeat (timeout)"
+    ],
+    "tests": "144",
+    "fail": "0",
+    "red": [
+      "AS-87 evaluate heartbeats while deploying: every poll during a build rewrites deploy-state.json with a fresh computedAt and reason \"deploying\""
+    ]
+  }
+}

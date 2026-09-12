@@ -1,0 +1,12 @@
+assert-applied DROP TABLE contracts in case 25 (scratch edit of the TEST): 1 -> 0 (expected 1 -> 0)
+RECEIPT project=asc-as47-fsys
+  built: Image asc-as47-fsys-test Built
+  tests=430 pass=410 fail=2 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=1
+
+RED SET (2):
+  ✖ S7-ERROR-SYSTEM: a stored row that cannot be read renders the system state at 500 with a retry that is a GET of the same page
+  ✖ every href and form action in the two contract templates names a route the app registers

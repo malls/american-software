@@ -1,0 +1,103 @@
+{
+ "m-f1-no-retry": {
+  "tests": "363",
+  "pass": "359",
+  "fail": "4",
+  "red": [
+   "f1-abort-bounded: a lock that never frees stops the loop with a reason the board can read",
+   "f1-abort-clears-on-success: a fire that gets the lock ends the wait episode",
+   "f1-abort-retries: an aborted loop fire keeps the debt and says so once",
+   "f1-retry-is-quiet: the retries inside a wait episode do not re-announce the tick"
+  ]
+ },
+ "m-f1-unbounded": {
+  "tests": "363",
+  "pass": "362",
+  "fail": "1",
+  "red": [
+   "f1-abort-bounded: a lock that never frees stops the loop with a reason the board can read"
+  ]
+ },
+ "m-f1-noisy-retry": {
+  "tests": "363",
+  "pass": "362",
+  "fail": "1",
+  "red": [
+   "f1-retry-is-quiet: the retries inside a wait episode do not re-announce the tick"
+  ]
+ },
+ "m-f2-no-hold": {
+  "tests": "363",
+  "pass": "360",
+  "fail": "3",
+  "red": [
+   "f2-gate-is-age-not-pid: a young lock whose owner pid is long dead still blocks",
+   "f2-gate-is-resume-only: once the resumed loop fires its own tick, the gate is gone",
+   "f2-resume-waits-out-a-live-lock: a young lock blocks the resumed fire, once, loudly"
+  ]
+ },
+ "m-f2-age-is-pid": {
+  "tests": "363",
+  "pass": "360",
+  "fail": "3",
+  "red": [
+   "f2-gate-is-age-not-pid: a young lock whose owner pid is long dead still blocks",
+   "f2-gate-is-resume-only: once the resumed loop fires its own tick, the gate is gone",
+   "f2-resume-waits-out-a-live-lock: a young lock blocks the resumed fire, once, loudly"
+  ]
+ },
+ "m-f2-poll-order": {
+  "tests": "363",
+  "pass": "362",
+  "fail": "1",
+  "red": [
+   "f2-poll-order: a held lock outranks a pending deploy, and a message outranks both"
+  ]
+ },
+ "m-f3-no-start-mirror": {
+  "tests": "363",
+  "pass": "360",
+  "fail": "3",
+  "red": [
+   "f3-mirror-after-every-settle: a settled tick is in the file before the next one fires",
+   "f3-mirror-at-start: arming a loop mirrors it immediately, before its first tick runs",
+   "f3-mirror-is-resumable: what start() writes is what resume() re-enters"
+  ]
+ },
+ "m-f3-no-settle-mirror": {
+  "tests": "363",
+  "pass": "361",
+  "fail": "2",
+  "red": [
+   "f3-mirror-after-every-settle: a settled tick is in the file before the next one fires",
+   "f3-mirror-records-the-stop: the file says the loop ended and why"
+  ]
+ },
+ "m-f5-idle-between": {
+  "tests": "363",
+  "pass": "360",
+  "fail": "3",
+  "red": [
+   "api: AS-95 \u2014 a watcher loop is observable over /api/loop-status, with its tick count and its stop reason",
+   "f5-between-ticks: a live loop between its ticks is a loop, not idle",
+   "f5-does-not-touch-the-lock-states: a fresh lock still decides who holds it"
+  ]
+ },
+ "m-f5-no-heartbeat-guard": {
+  "tests": "363",
+  "pass": "361",
+  "fail": "2",
+  "red": [
+   "api: AS-95 \u2014 a watcher loop is observable over /api/loop-status, with its tick count and its stop reason",
+   "f5-needs-a-live-watcher: an active mirror with a dead watcher is off, never a loop"
+  ]
+ },
+ "m-f6-no-gap-detail": {
+  "tests": "363",
+  "pass": "362",
+  "fail": "1",
+  "red": [
+   "f5-between-ticks-label: the gap between loop ticks reads as a loop, and says it is a gap"
+  ]
+ }
+}

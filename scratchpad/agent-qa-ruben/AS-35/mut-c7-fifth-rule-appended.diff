@@ -1,0 +1,8 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/pristine/docs/design/tokens/tokens.css	2026-09-12 17:14:48
++++ /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/c7-fifth-rule-appended/docs/design/tokens/tokens.css	2026-09-12 17:14:48
+@@ -290,3 +290,5 @@
+   --color-danger-solid: var(--color-danger-400);
+   --color-danger-solid-hover: var(--color-danger-600);
+ }
++
++html { }

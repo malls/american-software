@@ -1,0 +1,9 @@
+AS-99: record both cycle-1 contracts in the lanes README
+
+The outside-repo path marker (F2) and the three ways an empty pane can be
+read (F1) are board-facing contract, not implementation detail: the next
+person to touch the projection needs to know that "no lanes" and "we could
+not look" are different renderings on purpose, and that relPath is never a
+host path.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

@@ -1,0 +1,69 @@
+✔ T1 isAllowedProject rejects production names (1.330541ms)
+✔ T2 isAllowedProject rejects non-asc and malformed names (0.107208ms)
+✔ T3 isAllowedProject accepts a scratch project (0.34525ms)
+✔ T4 buildDownArgs and buildRunArgs are exactly the recipe (0.087416ms)
+✔ T5a runCounted: run exits 0 -> down runs, status 0, receipt parsed (0.602208ms)
+✔ T5b runCounted: run exits 1 -> down still runs, status 1 preserved (0.224708ms)
+✔ T5c runCounted: run throws -> down still runs, error reported (0.210375ms)
+✔ T6 runCounted: a network or image surviving down is reported as LEAK, exit 4, anchored at ^<project>_ (0.13775ms)
+✔ T7a parseReceipt: Built line verbatim, counts from TAP and spec summaries (0.099041ms)
+✔ T7b runCounted: a run with no Built line is exit 5 even when every test passes (0.139125ms)
+✔ T8 classifyNetworks: the plan §1 fixture splits 3 production / 1 live / 9 leftover (0.328167ms)
+✔ T9a runCounted refuses at exactly the ceiling: 20 asc-* networks -> exit 3, no run (0.143292ms)
+✔ T9b runCounted proceeds below the ceiling: 19 asc-* networks -> run happens (0.093875ms)
+✔ T10a runCheck exits 1 with leftovers and 0 when production+live only (0.124959ms)
+✔ T10b runCheck is read-only: never down, rm, or prune (0.089834ms)
+✖ T12a SIGTERM to the script alone mid-run: it survives, down runs after run, receipt prints, interrupted line, exit 143 (2319.037542ms)
+✖ T12b SIGINT to the whole process group (script + docker child): down runs after run, run exit=null, interrupted line, exit non-zero (296.201917ms)
+﹣ T11 real run: the script leaves zero networks and zero images for its project and prints a Built line (0.320083ms) # opt-in: set AS106_REAL=1
+﹣ T13 real run, SIGTERM mid-container: zero networks and zero images survive, receipt printed, exit 143 (0.041ms) # opt-in: set AS106_REAL=1
+ℹ tests 19
+ℹ suites 0
+ℹ pass 15
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 2671.352708
+
+✖ failing tests:
+
+test at test/compose-run.test.js:290:1
+✖ T12a SIGTERM to the script alone mid-run: it survives, down runs after run, receipt prints, interrupted line, exit 143 (2319.037542ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-121-mutant/apps/chat/test/compose-run.test.js:300:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at test/compose-run.test.js:305:1
+✖ T12b SIGINT to the whole process group (script + docker child): down runs after run, run exit=null, interrupted line, exit non-zero (296.201917ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt/. Input:
+  
+  'compose-run: no `Built` line — this run is not a receipt (CLAUDE.md --build corollary)\n'
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-121-mutant/apps/chat/test/compose-run.test.js:315:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'compose-run: no `Built` line — this run is not a receipt (CLAUDE.md --build corollary)\n',
+    expected: /compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+--- stderr ---
+
+exit=1

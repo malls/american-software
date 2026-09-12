@@ -1,0 +1,49 @@
+P0 base (as given): /tmp/as108-probe-j2Brt8 | realpath: /private/tmp/as108-probe-j2Brt8
+P1 git worktree list --porcelain (cwd = symlinked path):
+worktree /private/tmp/as108-probe-j2Brt8/repo
+HEAD 2ae00015b0767fef11b3b2084d3f16434b83c23a
+branch refs/heads/master
+
+worktree /private/tmp/as108-probe-j2Brt8/outside-wt
+HEAD 2ae00015b0767fef11b3b2084d3f16434b83c23a
+branch refs/heads/b
+
+worktree /private/tmp/as108-probe-j2Brt8/repo/.worktrees/AS-1
+HEAD 2ae00015b0767fef11b3b2084d3f16434b83c23a
+branch refs/heads/a
+
+
+P2 root=as-given /tmp: realpath.native -> /private/tmp/as108-probe-j2Brt8/repo
+   relPaths vs canon: [ '.', '<outside repo>/outside-wt#76ac8f49', '.worktrees/AS-1' ]
+   relPaths vs as-given: [
+  '<outside repo>/repo#ff4a379b',
+  '<outside repo>/outside-wt#76ac8f49',
+  '<outside repo>/AS-1#55d1af1f'
+]
+P2 root=link2 -> link1 -> real: realpath.native -> /private/tmp/as108-probe-j2Brt8/repo
+   relPaths vs canon: [ '.', '<outside repo>/outside-wt#76ac8f49', '.worktrees/AS-1' ]
+   relPaths vs as-given: [
+  '<outside repo>/repo#ff4a379b',
+  '<outside repo>/outside-wt#76ac8f49',
+  '<outside repo>/AS-1#55d1af1f'
+]
+P2 root=link2 with trailing slash: realpath.native -> /private/tmp/as108-probe-j2Brt8/repo
+   relPaths vs canon: [ '.', '<outside repo>/outside-wt#76ac8f49', '.worktrees/AS-1' ]
+   relPaths vs as-given: [
+  '<outside repo>/repo#ff4a379b',
+  '<outside repo>/outside-wt#76ac8f49',
+  '<outside repo>/AS-1#55d1af1f'
+]
+P2 root=upper-cased real: realpath.native -> /private/tmp/as108-probe-j2Brt8
+   relPaths vs canon: [ 'repo', 'outside-wt', 'repo/.worktrees/AS-1' ]
+   relPaths vs as-given: [
+  '<outside repo>/repo#ff4a379b',
+  '<outside repo>/outside-wt#76ac8f49',
+  '<outside repo>/AS-1#55d1af1f'
+]
+P3 default-wired evaluate via link2: [[".",true],["<outside repo>/outside-wt#76ac8f49",false],[".worktrees/AS-1",false]] logs: []
+P4 prefix sibling: <outside repo>/wt#7c74e4d9 | 
+P5 after rm of outside-wt: [[".",null],["<outside repo>/outside-wt#76ac8f49",null],[".worktrees/AS-1",null]] error: null logs: 0
+P6 vanished root: {"error":"no-git","rows":0} logs: [
+  "WARN cannot realpath /private/tmp/as108-probe-j2Brt8/gone (ENOENT: no such file or directory, realpath '/private/tmp/as108-probe-j2Brt8/gone'); lanes use the path as given"
+]

@@ -1,0 +1,13 @@
+
+=== asc-review-as49-priya :: test ===
+BUILT:  Image asc-review-as49-priya-test Built 
+
+NOT OK: none
+EXIT: 0
+
+=== asc-review-as49-priya :: contract ===
+BUILT:  Image asc-review-as49-priya-contract Built 
+
+NOT OK: none
+EXIT: 0
+DOWN EXIT: 0  Image asc-review-as49-priya-contract:latest Removed   Image asc-review-as49-priya-test:latest Removed  

@@ -1,0 +1,18 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/pristine/docs/design/tokens/tokens.css	2026-09-12 17:14:48
++++ /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/p5b-supports-wraps-block1/docs/design/tokens/tokens.css	2026-09-12 17:14:50
+@@ -22,6 +22,7 @@
+  * aliasing layer.
+  * ============================================================================
+  */
++@supports (color: red) {
+ :root {
+   color-scheme: light dark;
+ 
+@@ -163,6 +164,7 @@
+   --focus-ring-width: 2px;        /* F5: WCAG 2.1 §2.4.7 needs a visible focus indicator. */
+   --focus-ring-offset: 2px;       /* F5: separates the ring from the control fill. */
+ }
++}
+ 
+ /*
+  * ============================================================================

@@ -1,0 +1,2 @@
+{"actor":"agent:qa-ruben","data":{"priority":"medium","short_id":"AS-97","status":"backlog","title":"Chat: the AS-93 link-site guard catches the literal, not the .url field \u2014 a fourth site stays fully green","type":"task"},"id":"ev_01M26C6K33JD1JTVF3WW464NKB","schema_version":1,"task_id":"task_01M26C6K3216ZTCNQZEAE3AKYD","ts":"2026-09-10T19:20:04Z","type":"task_created"}
+{"actor":"agent:qa-ruben","data":{},"id":"ev_01M26C77MFWQMW4EXSMZM4XSK5","schema_version":1,"task_id":"task_01M26C6K3216ZTCNQZEAE3AKYD","ts":"2026-09-10T19:20:25Z","type":"task_archived"}

@@ -1,0 +1,13 @@
+[
+  {
+    "name": "p10-block4-marker-inside-media-body",
+    "criterion": "probe",
+    "file": "docs/design/tokens/tokens.css",
+    "diffLines": 20,
+    "counts": "tests 39  pass 39  fail 0",
+    "predicted": "OTHER",
+    "observed": [],
+    "match": "n/a (probe)",
+    "firstErr": ""
+  }
+]

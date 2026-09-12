@@ -1,0 +1,50 @@
+{
+  "F1": {
+    "site": "apps/invoicing/lib/db/repositories/clients.js:41",
+    "built": true,
+    "exit": 1,
+    "tests": 494,
+    "pass": 473,
+    "fail": 2,
+    "skipped": 19,
+    "red": "C9,L4",
+    "expected": "C9,L4",
+    "match": true
+  },
+  "F2": {
+    "site": "apps/invoicing/lib/db/repositories/clients.js:99",
+    "built": true,
+    "exit": 1,
+    "tests": 494,
+    "pass": 474,
+    "fail": 1,
+    "skipped": 19,
+    "red": "C10",
+    "expected": "C10",
+    "match": true
+  },
+  "F3": {
+    "site": "apps/invoicing/lib/db/errors.js:150",
+    "built": true,
+    "exit": 1,
+    "tests": 494,
+    "pass": 468,
+    "fail": 7,
+    "skipped": 19,
+    "red": "C10,C9,H6,L4",
+    "expected": "C10,C9,H6,L4",
+    "match": true
+  },
+  "F4": {
+    "site": "apps/invoicing/lib/db/errors.js:136",
+    "built": true,
+    "exit": 1,
+    "tests": 494,
+    "pass": 472,
+    "fail": 3,
+    "skipped": 19,
+    "red": "C10,C9,H6",
+    "expected": "C9,H6",
+    "match": false
+  }
+}

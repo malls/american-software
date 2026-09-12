@@ -1,0 +1,38 @@
+$ node --version
+v24.13.1
+
+$ node --test 'tools/lanes/test/*.test.mjs'
+✔ (a) planted .lattice/ commit on a task branch FAILS with exactly that path (288.731292ms)
+✔ (a) clean twin: branch touching only app files PASSES with exact cardinality (231.116792ms)
+✔ (b) planted out-of-prefix commit FAILS with exactly that path (514.327167ms)
+✔ (b) planted dirty worktree FAILS with exactly that porcelain entry (348.02375ms)
+✔ (b) planted dirty main checkout FAILS with exactly that porcelain entry (323.312209ms)
+✔ (b) clean twin: confined diff, clean worktree, clean main PASSES with exact cardinality (315.717125ms)
+✔ (b') planted overlapping prefix sets FAIL with exactly that pair (482.973959ms)
+✔ (b') planted shared diff path FAILS with exactly that path (368.725667ms)
+✔ (b') clean twin: disjoint prefixes and disjoint diffs PASS with exact cardinality (322.268125ms)
+✔ (c) planted corrupted from-state FAILS with exactly that event (50.5185ms)
+✔ (c) planted duplicate claim FAILS with exactly that event (45.787042ms)
+✔ (c) planted unledgered in-window event FAILS the write-fence cross-check with exactly that event (45.279375ms)
+✔ (c) planted mis-attributed in-window comment FAILS against the expected-actor map (43.263375ms)
+✔ (c) clean twin: legal chains, legal reassignment, attributed and ledgered window PASS (40.978ms)
+✔ (f) planted AS-53 drift (developer-marcus-webb) FAILS with exactly that commit (330.903708ms)
+✔ (f) planted non-canonical email FAILS with exactly that commit (268.068042ms)
+✔ (f) clean twin: canonical identities on every commit PASS with exact cardinality (287.616708ms)
+✔ (d) clean twin: full durable resume set PASSES with exact cardinality (360.458875ms)
+✔ (d) planted branch-link removal FAILS with exactly {branch-link, worktree} (284.3945ms)
+✔ (d) planted scaffold plan (heading + verbatim description) FAILS with exactly {plan} (247.963ms)
+✔ (e) HIGH fixture: hand-computed R = 0.6 reproduced exactly, every number cited (54.238833ms)
+✔ (e) LOW fixture: hand-computed R = 0.4 reproduced exactly (54.610625ms)
+✔ (e) planted missing spawn marker: hard FAIL, no metric is fabricated (49.042625ms)
+✔ (e) planted ledger divergence > 60s: hard FAIL naming the marker (51.271584ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1656.460667
+
+exit code: 0

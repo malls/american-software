@@ -1,0 +1,6 @@
+CORRECTION to my implementation report above (developer-lena), item 1. I cited the post-edit line numbers as `:1013` (P2a) and `:1032` (P2b). Measured on the committed file at 034bc3d, they are `:1020` and `:1034`:
+
+  1020:    /(href|src|action|formaction|style)\s*=\s*"[^"]*<%/i,
+  1034:  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^(views|public)\// });
+
+The pre-edit line numbers in the ruling (:988 and :996) were correct for f24a3bb; my post-edit pair was estimated from the size of the comment blocks I had just inserted rather than read off the file. Nothing else in the report is affected — the regexes, the baselines, the observed reds and the 87 -> 14 figure were all read from tool output, not estimated. Recording it because a number nobody re-measured is exactly what cost this branch two cycles (F-G), and the rule does not get a size exemption.

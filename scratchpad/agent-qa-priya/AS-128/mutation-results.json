@@ -1,0 +1,54 @@
+[
+  {
+    "id": "M4",
+    "file": "routes/contracts.js",
+    "built": true,
+    "exit": 1,
+    "tests": "530",
+    "pass": "510",
+    "fail": "1",
+    "red": [
+      "add-client (AS-128) trims the email before the repository sees it: a padded address is created trimmed, and a padded match warns as the duplicate"
+    ],
+    "expect": [
+      "add-client (AS-128) trims"
+    ],
+    "exact": true
+  },
+  {
+    "id": "M5",
+    "file": "lib/screens/invoice-form-view.js",
+    "built": true,
+    "exit": 1,
+    "tests": "530",
+    "pass": "509",
+    "fail": "2",
+    "red": [
+      "clientEmailRefused (AS-128): the repository's shape refusal is S4-CLIENT-ERROR-VALIDATION on the email field alone, blank wins over it, and it means nothing outside add-client",
+      "S4-CLIENT-ERROR-VALIDATION (AS-128): a malformed client email re-renders the form with every value preserved, the email marked, and no client row created"
+    ],
+    "expect": [
+      "S4-CLIENT-ERROR-VALIDATION (AS-128)",
+      "clientEmailRefused (AS-128)"
+    ],
+    "exact": true
+  },
+  {
+    "id": "M6",
+    "file": "lib/screens/contract-form-view.js",
+    "built": true,
+    "exit": 1,
+    "tests": "530",
+    "pass": "509",
+    "fail": "2",
+    "red": [
+      "clientEmailRefused (AS-128): the repository's shape refusal is S6-CLIENT-ERROR-VALIDATION on the email field alone, blank wins over it, and it means nothing outside add-client",
+      "S6-CLIENT-ERROR-VALIDATION (AS-128): a malformed client email re-renders the form with every value preserved, the email marked, and no client row created"
+    ],
+    "expect": [
+      "S6-CLIENT-ERROR-VALIDATION (AS-128)",
+      "clientEmailRefused (AS-128)"
+    ],
+    "exact": true
+  }
+]

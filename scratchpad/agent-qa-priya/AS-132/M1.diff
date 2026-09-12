@@ -1,0 +1,12 @@
+diff --git a/apps/chat/watch/advance-watcher.mjs b/apps/chat/watch/advance-watcher.mjs
+index f119cd7..2fd5286 100644
+--- a/apps/chat/watch/advance-watcher.mjs
++++ b/apps/chat/watch/advance-watcher.mjs
+@@ -1752,7 +1752,6 @@ export function makeLoopOps({
+     rearm = null;
+     loop = { startedAt: now(), ticks: 0, noProgress: 0, failures: 0, armedBy };
+     pending = true;
+-    resumeHold = true; // AS-132
+     log(`LOOP-REARM armedBy messageId ${armedBy} after cap-hit cooldown`);
+     mirror();
+     return true;

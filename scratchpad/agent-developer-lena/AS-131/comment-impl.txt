@@ -1,0 +1,11 @@
+Implementation complete on feat/AS-131-lazy-load-messages, tip 04d0d5f (3 commits: 9f5e950 store+server+tests, e705ae2 live.js/scroll.js+tests, 04d0d5f app.js/css/README). Branch fast-forwarded onto master 0e895be first (no apps/ drift).
+
+Baseline (before any change, host bare `node --test`, cwd apps/chat): 647/644/0/3. After: host 659/656/0/3 (+12: store 4, api 4, live 2, scroll 2 — the plan's two ensureLoaded cases live in one live test; the AS-24 ?limit= test was extended, not added). Compose counted run: `Image asc-impl-as131-test Built`, 659/650/0/9, down/leak clean (`compose-impl.log`).
+
+Mutants M1–M10 (+M8b), all red, control green, each asserted at site in a detached scratch worktree, full suite per run — exact red sets in `scratchpad/agent-developer-lena/AS-131/mutant-table.md`: M1=5, M2=4, M3=2, M4=3, M5=1 (AS-24 limit test only), M6=2, M7=1 (source pin: selectConversation's /api/read has no upTo), M8=2, M8b=1, M9=2, M10=1. Wider sets are the same defect seen from store + HTTP sides.
+
+Boring choices recorded: (1) mergeOlderPage installs threads only for newly-added roots; an already-loaded root keeps its list (it may hold live replies newer than the page fetch). (2) ensureLoaded treats a reply id as loaded once it appears in a loaded root's thread, so `?m=<reply>` without `t=` stops at the root's page rather than walking to the cap. (3) selectConversation now drops a stale open (reader switched conversations while pages were in flight) instead of overwriting the newer payload — ensureLoaded widened that window. (4) Empty `before=` coerces to 0 like `since=`.
+
+Undone: plan step 4 (browser scroll-up on the compose app) — 8347 runs master, and a headless browser drive isn't cheap; left for review. Criteria 1–11 otherwise hold with observed reds.
+
+Follow-up filed per Decision 4: AS-135 (incremental message DOM, medium/medium, related_to AS-131). Scratchpad: scratchpad/agent-developer-lena/AS-131/ (progress.md, host-*.log, mutants*.log, mutant-table.md, compose-impl.log).

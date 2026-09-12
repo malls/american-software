@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/pristine/apps/invoicing/routes/connect.js	2026-09-12 01:29:08
++++ /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/r2_route_presence/apps/invoicing/routes/connect.js	2026-09-12 01:32:33
+@@ -84,7 +84,7 @@
+   // AS-69 adds members HERE if it wires the POST's failure into the screen.
+   router.get('/connect-stripe', (req, res) => {
+     const account = repos.connectedAccounts.getByFreelancer(actingFreelancerId(req));
+-    res.render('connect-stripe', connectLocals({ account, startFailed: req.query.error === 'start' }));
++    res.render('connect-stripe', connectLocals({ account, startFailed: req.query.error !== undefined }));
+   });
+ 
+   return router;

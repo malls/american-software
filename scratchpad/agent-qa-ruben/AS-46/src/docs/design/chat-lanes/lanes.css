@@ -1,0 +1,120 @@
+/*
+ * lanes.css — AS-99 Lanes pane wireframe, additive to docs/design/wireframes/wireframe.css
+ * Every value below is a var(--...) token reference (grayscale/tokens-neutral, per the
+ * AS-30 mould — this stays a low-fidelity layout sketch, not visual design). Only
+ * structural literals (flex/grid keywords, %, auto) are unwrapped, same convention as
+ * wireframe.css's own header note.
+ */
+
+.lanes-liveness {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-sunken);
+  padding: var(--space-3) var(--space-4);
+  margin: 0 0 var(--space-6) 0;
+  font-size: var(--font-size-sm);
+}
+
+.lanes-liveness__caption {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.lane-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+}
+
+@media (min-width: 768px) { /* --breakpoint-md */
+  .lane-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.lane-card {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.lane-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border-bottom: var(--border-width-hairline) solid var(--color-border-hairline);
+  padding-block-end: var(--space-2);
+}
+
+.lane-card__task {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-link);
+  text-decoration: underline;
+}
+
+.lane-field {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.lane-field__label {
+  color: var(--color-text-muted);
+}
+
+.lane-field__value {
+  font-family: var(--font-family-mono);
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+.lane-card__placeholders {
+  border-top: var(--border-width-hairline) dashed var(--color-border-hairline);
+  padding-block-start: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.lane-card__placeholder {
+  font-size: var(--font-size-xs);
+  font-style: italic;
+  color: var(--color-text-disabled);
+}
+
+.lane-card__now {
+  border-top: var(--border-width-hairline) solid var(--color-border-hairline);
+  padding-block-start: var(--space-3);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+}
+
+.lane-card__now--live {
+  color: var(--color-text-primary);
+}
+
+.lane-card__now--decayed {
+  color: var(--color-text-muted);
+}
+
+.lane-card__now--blank {
+  color: var(--color-text-disabled);
+  font-style: italic;
+}
+
+.lane-snapshot-age {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}

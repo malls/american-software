@@ -1,0 +1,10 @@
+ Container asc-inv-as90-stripe-mock-1 Stopping 
+ Container asc-inv-as90-stripe-mock-1 Stopped 
+ Container asc-inv-as90-stripe-mock-1 Removing 
+ Container asc-inv-as90-stripe-mock-1 Removed 
+ Network asc-inv-as90_default Removing 
+ Volume asc-inv-as90_invoicing-data Removing 
+ Network asc-inv-as90_stripe-mock Removing 
+ Volume asc-inv-as90_invoicing-data Resource is still in use 
+ Network asc-inv-as90_default Resource is still in use 
+ Network asc-inv-as90_stripe-mock Removed 

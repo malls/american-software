@@ -1,0 +1,228 @@
+diff --git a/apps/chat/test/stream.test.js b/apps/chat/test/stream.test.js
+index ceb2951..cd487c6 100644
+--- a/apps/chat/test/stream.test.js
++++ b/apps/chat/test/stream.test.js
+@@ -4,11 +4,14 @@
+ // want to depend on, and the raw frames are the actual contract).
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+-import { mkdtempSync, rmSync, cpSync, writeFileSync, unlinkSync } from 'node:fs';
++import {
++  mkdtempSync, rmSync, cpSync, writeFileSync, unlinkSync, mkdirSync, appendFileSync, truncateSync,
++} from 'node:fs';
+ import { tmpdir } from 'node:os';
+ import { join, resolve, dirname } from 'node:path';
+ import { fileURLToPath } from 'node:url';
+ import { createChatServer } from '../server.js';
++import { makeEvent, serialiseEvent } from '../lib/events.js';
+ 
+ const FIXTURE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'repo');
+ 
+@@ -494,6 +497,207 @@ test('stream-lanes-change-only: a rewritten snapshot pushes exactly one lanes fr
+   assert.equal(gone.data.lanes.lanes, null);
+ });
+ 
++// --- AS-100: company frames ---------------------------------------------------
++// Same cadence trick as AS-27/AS-99 above: EVENTS_POLL_MS is 2s in production
++// (pinned in api.test.js) and injected small here, because the property under
++// test is the frame COUNT, not the wall clock.
++
++/** Events land where the server tails them: <dataDir>/events/company.jsonl.
++ *  Built through makeEvent for the same reason api.test.js's fixture is — a
++ *  test must not be able to plant a line the producer could not emit. */
++function eventsFile(dataDir) {
++  const dir = join(dataDir, 'events');
++  mkdirSync(dir, { recursive: true });
++  return join(dir, 'company.jsonl');
++}
++
++let eventSeq = 0;
++// serialiseEvent returns the JSON with no trailing newline — the producer adds
++// it on append. The tail only ever reads up to the LAST newline (a partial line
++// is held as bytes until it completes), so a fixture that forgot the '\n' would
++// plant an event no reader can see. api.test.js's eventLines() adds it for the
++// same reason.
++const eventLine = (type, data, over = {}) =>
++  `${serialiseEvent(makeEvent({
++    type,
++    actor: over.actor ?? 'agent:developer-lena',
++    taskId: over.taskId ?? null,
++    data,
++    now: new Date(Date.now() - 60_000 + (eventSeq++) * 1_000),
++  })).trimEnd()}\n`;
++
++const stageStarted = (task, over = {}) => eventLine('stage_started', {
++  task, stage: 'implement', actor: 'agent:developer-lena',
++  worktree: `.worktrees/${task}`, branch: `feat/${task}-thing`, cycle: 1, ...over,
++});
++
++/** Drain every frame that arrives inside `ms`. Used where the assertion is a
++ *  COUNT over a window (including a count of zero) rather than "the next
++ *  frame" — nextFrame alone cannot prove nothing else followed. */
++async function drain(stream, ms = FAST_POLL_MS * 10 + 300) {
++  // Wait the window out FIRST, then take what buffered. Deliberately not a
++  // loop of nextFrame(): a nextFrame that times out leaves its waiter in the
++  // queue, and the next frame to arrive is handed to that dead waiter and
++  // lost — so a drain built that way silently eats the first frame of the
++  // next window.
++  await new Promise((ok) => setTimeout(ok, ms));
++  const out = [];
++  while (stream.pending()) out.push(await stream.nextFrame(1_000));
++  return out;
++}
++
++test('stream-company-change-only: each appended event pushes exactly one company frame, in file order; an untouched file pushes none', async (t) => {
++  const dataDir = loopDataDir(t);
++  const path = eventsFile(dataDir);
++  writeFileSync(path, '');
++  // The lanes poll is parked at a minute so this test counts `company` frames
++  // and nothing else: appending an event DOES move the lane projection, and
++  // that interleaving is AC-17's subject, not this one's.
++  const { base } = await bootServer(t, FIXTURE_ROOT, {
++    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: 60_000, eventsPollMs: FAST_POLL_MS,
++  });
++
++  const stream = await openStream(base, 'human:forrest');
++  t.after(() => stream.close());
++
++  // One append → exactly one frame carrying that id.
++  const first = stageStarted('AS-7');
++  appendFileSync(path, first);
++  const frame = await stream.nextFrame();
++  assert.equal(frame.event, 'company');
++  assert.equal(frame.data.id, JSON.parse(first).id);
++  assert.equal(frame.data.type, 'stage_started');
++  assert.equal(frame.data.data.task, 'AS-7');
++
++  // Ten polls with the file untouched. The tail re-stats the file on every one
++  // of them; a poll that re-emitted what it already read would show up here.
++  assert.deepEqual(await drain(stream), [], 'zero further frames while the file is unchanged');
++
++  // Two lines in ONE write → two frames, in file order (not (ts, id) order:
++  // the frames report arrivals, and a reordering would disagree with the file
++  // every other consumer reads).
++  const second = eventLine('subagent_spawned', {
++    task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', model: 'fable',
++  });
++  const third = stageStarted('AS-8', { actor: 'agent:qa-priya' });
++  appendFileSync(path, second + third);
++  const pair = await drain(stream, FAST_POLL_MS * 6 + 300);
++  assert.deepEqual(pair.map((f) => f.event), ['company', 'company']);
++  assert.deepEqual(
++    pair.map((f) => f.data.id),
++    [JSON.parse(second).id, JSON.parse(third).id],
++    'file order, one frame per line'
++  );
++});
++
++test('stream-company-truncation: a truncated stream is reported as a fact and the server stays up', async (t) => {
++  const dataDir = loopDataDir(t);
++  const path = eventsFile(dataDir);
++  writeFileSync(path, '');
++  const { base, get } = await bootServer(t, FIXTURE_ROOT, {
++    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS, eventsPollMs: FAST_POLL_MS,
++  });
++
++  const stream = await openStream(base, 'human:forrest');
++  t.after(() => stream.close());
++
++  appendFileSync(path, stageStarted('AS-7'));
++  appendFileSync(path, eventLine('subagent_spawned', {
++    task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', model: 'fable',
++  }));
++  const before = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
++  assert.equal(before.length, 2, 'two events, two frames');
++
++  // Someone rotates the file out from under the tail: the offset is now past
++  // the end. The contract is that this is a FACT the pane can show, never a
++  // crash and never a silent restart at zero.
++  truncateSync(path, 0);
++  const fresh = stageStarted('AS-9');
++  appendFileSync(path, fresh);
++  const after = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
++  assert.equal(after.length, 1, 'exactly one frame for the one line written after the truncate');
++  assert.equal(after[0].data.id, JSON.parse(fresh).id);
++
++  // The loss is visible where the pane reads it: the lanes projection's
++  // `events` block, which is the tail's own view. /api/events deliberately
++  // does NOT carry it — that endpoint re-reads the file, and the file it reads
++  // is intact; truncation is a fact about this process's cursor.
++  const lanes = await get('/api/lanes');
++  assert.equal(lanes.status, 200);
++  assert.equal(lanes.data.lanes.events.reason, 'truncated');
++  const events = await get('/api/events');
++  assert.equal(events.status, 200, 'the server is still up and still answering');
++  assert.equal(events.data.events.length, 1, 'and the file now holds exactly the post-truncate line');
++
++  // The next append clears it: one poll cannot both report the loss and
++  // pretend it is over, but the poll after it can.
++  appendFileSync(path, eventLine('stage_ended', {
++    task: 'AS-9', stage: 'implement', actor: 'agent:developer-lena', outcome: 'completed',
++    reason: null, closedBy: 'orchestrator', startedId: null, durationS: 30,
++  }));
++  await drain(stream, FAST_POLL_MS * 6 + 300);
++  const healed = await get('/api/lanes');
++  assert.equal(healed.data.lanes.events.reason, 'ok', 'the next append clears the reason');
++});
++
++test('stream-lanes-liveness-change-only: a stage event earns a lanes frame; elapsed time alone does not', async (t) => {
++  const dataDir = loopDataDir(t);
++  const path = eventsFile(dataDir);
++  writeFileSync(path, '');
++  writeFileSync(join(dataDir, 'worktrees.json'), laneSnapshot(new Date().toISOString(), {
++    worktrees: [
++      { relPath: '.', main: true, head: 'f6717b8', branch: 'master', detached: false, ahead: null, behind: null,
++        dirtyCount: null, dirtyLattice: null, merged: null, lastCommit: null, errors: [] },
++      { relPath: '.worktrees/AS-7', main: false, head: 'abc1234', branch: 'feat/AS-7-thing', detached: false,
++        ahead: 1, behind: 0, dirtyCount: 0, dirtyLattice: false, merged: false, lastCommit: null, errors: [] },
++    ],
++  }));
++  const { base } = await bootServer(t, FIXTURE_ROOT, {
++    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS, eventsPollMs: FAST_POLL_MS,
++  });
++
++  const stream = await openStream(base, 'human:forrest');
++  t.after(() => stream.close());
++  const laneWithAgent = (frame) => frame.data.lanes.lanes.find((l) => l.subAgent);
++  assert.equal(stream.initialLanes.data.lanes.lanes.some((l) => l.subAgent), false,
++    'no events yet: every lane says so rather than guessing');
++
++  // A stage opens. Exactly one lanes frame, and the lane it belongs to is live.
++  appendFileSync(path, stageStarted('AS-7'));
++  const framesA = await drain(stream, FAST_POLL_MS * 8 + 300);
++  const lanesA = framesA.filter((f) => f.event === 'lanes');
++  assert.equal(lanesA.length, 1, 'one stage event, one lanes frame');
++  const liveLane = laneWithAgent(lanesA[0]);
++  assert.ok(liveLane, 'the event joined a lane');
++  assert.equal(liveLane.subAgent.alive, true);
++  assert.equal(liveLane.subAgent.stage, 'implement');
++  assert.ok(liveLane.stageStartedAt);
++
++  // Ten polls with nothing appended. `subAgent.elapsedS` grows on every one of
++  // them — it is recomputed from the clock — so a key that carried it would
++  // emit ten frames here. That is the whole reason elapsedS is excluded.
++  assert.deepEqual(
++    (await drain(stream)).filter((f) => f.event === 'lanes'),
++    [],
++    'zero lanes frames while only elapsed time moves'
++  );
++
++  // The stage closes: a real change, one frame, and the lane goes quiet.
++  appendFileSync(path, eventLine('stage_ended', {
++    task: 'AS-7', stage: 'implement', actor: 'agent:developer-lena', outcome: 'completed',
++    reason: null, closedBy: 'orchestrator', startedId: null, durationS: 42,
++  }));
++  const framesB = await drain(stream, FAST_POLL_MS * 8 + 300);
++  const lanesB = framesB.filter((f) => f.event === 'lanes');
++  assert.equal(lanesB.length, 1, 'one close event, one lanes frame');
++  assert.equal(laneWithAgent(lanesB[0]).subAgent.alive, false);
++  assert.deepEqual(
++    (await drain(stream)).filter((f) => f.event === 'lanes'),
++    [],
++    'and a closed stage settles — no frame per poll'
++  );
++});
++
+ test('stream: AS-99 — lanes frames reach every viewer identically (no visibility gate)', async (t) => {
+   const dataDir = loopDataDir(t);
+   const { base } = await bootServer(t, FIXTURE_ROOT, {

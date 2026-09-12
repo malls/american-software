@@ -1,0 +1,65 @@
+[
+  {
+    "id": "M10",
+    "ac": "AC-10 (+AC-14)",
+    "what": "shutdown() never calls deployOps.abort() — the build is orphaned",
+    "anchor": "grep -c \"waits.push(deployOps.abort('SIGTERM'));\" => 0",
+    "counts": {
+      "tests": 522,
+      "pass": 519,
+      "fail": 3
+    },
+    "red": [
+      "AS-84 makeWatcher: shutdown with a deploy in flight aborts it and waits for it before exiting",
+      "AS-84 makeWatcher: the shutdown grace bounds the deploy child too — a build that ignores SIGTERM is SIGKILLed and we still exit 0",
+      "AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0"
+    ],
+    "clean": true
+  },
+  {
+    "id": "M14",
+    "ac": "AC-16 (+AC-18)",
+    "what": "finish() no longer fires abort('SIGKILL') at grace expiry — the deploy child is orphaned again (Ruben F1)",
+    "anchor": "grep -c \"log('STOP grace expired: killing deploy child');\" => 1\n      line 2521: log('STOP grace expired: killing deploy child');",
+    "counts": {
+      "tests": 522,
+      "pass": 520,
+      "fail": 2
+    },
+    "red": [
+      "AS-84 makeWatcher: the shutdown grace bounds the deploy child too — a build that ignores SIGTERM is SIGKILLed and we still exit 0",
+      "AS-84 entry point: a build that ignores SIGTERM is SIGKILLed at grace expiry — no orphan, no deploy lock, exit 0"
+    ],
+    "clean": true
+  },
+  {
+    "id": "M15",
+    "ac": "AC-18",
+    "what": "abort('SIGKILL') no longer releases the deploy lock synchronously — a dead-pid source:deploy lock is left behind",
+    "anchor": "grep -c \"if (signal === 'SIGKILL') lock.releaseLock();\" => 0",
+    "counts": {
+      "tests": 522,
+      "pass": 521,
+      "fail": 1
+    },
+    "red": [
+      "AS-84 entry point: a build that ignores SIGTERM is SIGKILLed at grace expiry — no orphan, no deploy lock, exit 0"
+    ],
+    "clean": true
+  },
+  {
+    "id": "M16",
+    "ac": "AC-17",
+    "what": "runDockerCompose drops the compose log stream 'error' listener (Ruben F2)",
+    "anchor": "grep -c \"out.on('error', (err) => log(`WARN deploy log stream error: ${err.message}`));\" => 0",
+    "counts": {
+      "tests": 522,
+      "pass": 521,
+      "fail": 1
+    },
+    "red": [
+      "AS-84 runDockerCompose: a compose log stream error is logged, not thrown — the build still resolves"
+    ],
+    "clean": true
+  }
+]

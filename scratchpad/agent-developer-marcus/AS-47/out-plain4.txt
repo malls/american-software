@@ -1,0 +1,11 @@
+no mutation
+RECEIPT project=asc-as47-plain4
+  built: Image asc-as47-plain4-test Built
+  tests=430 pass=411 fail=1 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=1
+
+RED SET (1):
+  ✖ every href and form action in the two contract templates names a route the app registers

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en" data-state="S4-CLIENT-ERROR-DUPLICATE">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoicing — New invoice — this looks like an existing client</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body>
+    
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <span class="app-label">Invoicing</span>
+      </div>
+      <div class="container">
+        <nav class="site-nav" aria-label="Primary">
+          <a class="site-nav__link" href="/invoices/new">New invoice</a>
+          <form class="site-nav__signout" method="post" action="/signout">
+            <button type="submit" class="btn-link">Sign out</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1 class="page-title">New invoice — this looks like an existing client</h1>
+
+      
+
+      
+      <form method="post">
+        <div class="client-picker">
+          
+            
+            
+            <input type="hidden" name="pickerMode" value="new" />
+            
+              <div class="field">
+                <label for="clientName">Client name</label>
+                <input type="text" id="clientName" name="clientName" value="Ada E." />
+              </div>
+            
+            
+              <div class="field">
+                <label for="clientEmail">Client email</label>
+                <input type="email" id="clientEmail" name="clientEmail" value="ADA@EXAMPLE.TEST" />
+              </div>
+            
+            
+              
+              <div class="banner banner-warning">
+                <p>This matches an existing client: <strong>Ada Example (ada@example.test)</strong>.</p>
+                <p>
+                  <button type="submit" name="intent" value="existing-client" class="btn btn-secondary">Use this client instead</button>
+                  <button type="submit" name="intent" value="add-client" class="btn-link">Create a new client anyway</button>
+                </p>
+              </div>
+              <input type="hidden" name="duplicateId" value="c1" />
+              <input type="hidden" name="clientConfirm" value="1" />
+            
+          
+        </div>
+
+        <fieldset>
+          <legend>Line items</legend>
+          <div class="line-items">
+            
+          </div>
+          
+          
+            <button type="submit" name="intent" value="add-row" class="btn btn-secondary">Add line item</button>
+          
+        </fieldset>
+
+        
+          <div class="field">
+            <label for="daysUntilDue">Due in (days)</label>
+            <input type="text" inputmode="numeric" id="daysUntilDue" name="daysUntilDue" value="" />
+            <span class="field-hint">Client must pay within this many days of receiving the invoice.</span>
+          </div>
+        
+
+        <div class="form-actions">
+          <button type="submit" name="intent" value="save" class="btn btn-secondary">Save draft</button>
+          <button type="submit" name="intent" value="send" class="btn btn-primary">Finalize &amp; send</button>
+        </div>
+        <p class="page-meta">Finalizing sends this invoice by email — <strong>Stripe</strong> sends it directly to the client. We do not see or store that email.</p>
+      </form>
+      
+    </main>
+  </body>
+</html>

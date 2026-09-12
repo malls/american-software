@@ -1,0 +1,46 @@
+{
+  "mutated": [
+    {
+      "tag": "m4-mutated-1",
+      "exit": 1,
+      "tests": 13,
+      "pass": 10,
+      "fail": 3,
+      "built": "Image as83test-test Built",
+      "failing": [],
+      "secs": 41
+    },
+    {
+      "tag": "m4-mutated-2",
+      "exit": 1,
+      "tests": 13,
+      "pass": 11,
+      "fail": 2,
+      "built": "Image as83test-test Built",
+      "failing": [],
+      "secs": 40
+    }
+  ],
+  "restored": [
+    {
+      "tag": "m4-restored-1",
+      "exit": 0,
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "built": "Image as83test-test Built",
+      "failing": [],
+      "secs": 86
+    },
+    {
+      "tag": "m4-restored-2",
+      "exit": 0,
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "built": "Image as83test-test Built",
+      "failing": [],
+      "secs": 90
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+merged demo: exit 0; receipt Image asc-c2-mergeddemo-demo Built; 171 lines; normalised == committed transcript: true; grep -c 'not built|404s': 0
+teardown exit 0; containers left: none
+images removed: asc-c2-mergeddemo-demo

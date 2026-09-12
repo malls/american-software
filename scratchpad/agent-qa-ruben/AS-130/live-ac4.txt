@@ -1,0 +1,16 @@
+=== variant ac4 @ 2026-09-12T16:56:28.715Z ===
+up: exit 0, receipt 'Image asc-review-as130-cap-demo Built' present: true
+healthz 200 after 1345 ms
+inspect asc-review-as130-cap-web: image asc-review-as130-cap-demo, cmd ["node","demo/serve.mjs"]
+  Env (5): ASC_STRIPE_MOCK_URL=http://stripe-mock:12111 ; PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin ; NODE_VERSION=24.20.0 ; YARN_VERSION=1.22.22 ; NODE_ENV=production
+  ASC_STRIPE_MOCK_URL present: true; INVOICING_STRIPE_* entries: 0; any INVOICING_*: none
+  networks: asc-review-as130-cap_default, asc-review-as130-cap_stripe-mock; port bindings: {"8348/tcp":[{"HostIp":"127.0.0.1","HostPort":"8349"}],"8350/tcp":[{"HostIp":"127.0.0.1","HostPort":"8350"}]}
+  merged config (profile tools) demo.networks: ["default","stripe-mock"]; demo.ports: null; web.networks: ["default"]; web.ports: ["8348"]
+  [ac4] mutation applied at intended site: true
+ac4: exit 1; PNGs written 18; capture.json written false; chrome profiles leaked: 0
+  stderr: capture: page landed on /signin?next=%2Fcontracts%2Fad798d47-5f40-4f39-8caf-1b0ddd434fe6, expected /contracts/ad798d47-5f40-4f39-8caf-1b0ddd434fe6 — a redirect is not the page it was asked for; refusing to write the screenshot
+  screen-7 PNGs present: 0; earlier PNGs: 18 (screen-1-error-validation-375.png, screen-1-signin-1280.png, screen-1-signin-375.png, screen-1-signup-1280.png, screen-1-signup-375.png, screen-2-default-notstarted-1280.png, screen-2-default-notstarted-375.png, screen-2-return-notready-1280.png, screen-2-return-notready-375.png, screen-2-return-ready-1280.png, screen-2-return-ready-375.png, screen-3-empty-firstrun-1280.png, screen-3-empty-firstrun-375.png, screen-4-gated-stripenotready-1280.png, screen-4-gated-stripenotready-375.png, screen-6-default-1280.png, screen-6-default-375.png, screen-6-error-validation-375.png)
+  mutant line ran: true
+down -v (as documented, no --profile): exit 0; stderr: Network asc-review-as130-cap_default Removing  |  Network asc-review-as130-cap_default Resource is still in use; containers still present: 2 [asc-review-as130-cap-web, asc-review-as130-cap-stripe-mock-1]
+down -v --profile tools: exit 0; 4 'Removed' lines
+leftovers after down: containers [] networks []

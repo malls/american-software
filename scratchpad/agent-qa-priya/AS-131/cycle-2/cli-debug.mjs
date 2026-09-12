@@ -1,0 +1,13 @@
+const { createChatServer } = await import('/Users/forrest/Code/american-software-company/.worktrees/AS-131/apps/chat/server.js');
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+const dir = mkdtempSync(join(tmpdir(), 'chat-cli-'));
+const s = createChatServer({ dbPath: join(dir, 'chat.db'), repoRoot: '/Users/forrest/Code/american-software-company/.worktrees/AS-131/apps/chat/test/fixtures/repo', dataDir: join(dir, 'd') });
+await new Promise((ok) => s.server.listen(0, '127.0.0.1', ok));
+const base = `http://127.0.0.1:${s.server.address().port}`;
+console.log('probe:', (await fetch(base + '/api/identities')).status);
+const r = spawnSync('node', ['/Users/forrest/Code/american-software-company/.worktrees/AS-131/apps/chat/bin/chat.js', 'channels', '--me', 'human:forrest', '--json'], { encoding: 'utf8', env: { ...process.env, CHAT_MODE: 'api', CHAT_API: base } });
+console.log(r.status, r.stdout.slice(0, 200), r.stderr);
+await s.close();

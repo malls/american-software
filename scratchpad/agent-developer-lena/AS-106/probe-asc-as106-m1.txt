@@ -1,0 +1,46 @@
+project=asc-as106-m1 cwd=/Users/forrest/Code/american-software-company/.worktrees/AS-106/apps/chat run.exit=0 secs=43
+Built lines: [" Image asc-as106-m1-test Built "]
+summary: []
+network ls (filtered ^asc-as106-m1) AFTER run, BEFORE down: ["asc-as106-m1_default"]
+down.exit=0
+network ls AFTER down: []
+
+--- raw tail ---
+ver blocks the loop forever (6.226833ms)
+✔ AS-75 makeDeployOps: a stale container is rebuilt with the right env, and success means the RUNNING id changed (4.588875ms)
+✔ AS-75 makeDeployOps: exit code 0 with a mismatched re-probe is a FAILURE, not a success (3.757292ms)
+✔ AS-75 makeDeployOps: a deploy takes advance.lock with source "deploy" for its duration (1.427167ms)
+✔ AS-75 makeDeployOps: a fresh foreign lock yields noop/busy and spawns nothing (3.142625ms)
+✔ AS-75 makeDeployOps: a dirty image-input tree refuses, and a broken git refuses differently (2.855916ms)
+✔ AS-75 makeDeployOps: no docker binary is a refusal that names the remedy, not a crash (0.719209ms)
+✔ AS-75 makeDeployOps: a watcher-source change exits 70 and leaves the pid file alone (2.180208ms)
+✔ AS-75 makeDeployOps: deploy-state.json is written on every poll, atomically, for the server to read (1.60325ms)
+✔ AS-84 makeDeployOps: lastAttempt is hydrated from deploy-state.json — a failed attempt at the desired id, inside the cooldown, refuses without building (2.25175ms)
+✔ AS-84 makeDeployOps: an interrupted attempt ('started' on disk) counts as a failure for the cooldown (5.921292ms)
+✔ AS-84 makeDeployOps: the 'started' record is on disk before compose is spawned (0.925333ms)
+✔ AS-84 makeDeployOps: abort() signals the running build, records an abort rather than a failure, and gives the lock back (40.37325ms)
+✔ AS-84 makeDeployOps: abort() while idle resolves immediately and touches nothing (0.97725ms)
+✔ AS-84 makeDeployOps: evaluate() never rejects — a throwing collaborator becomes {noop, error}, persisted, logged once (2.340583ms)
+✔ AS-84 runDockerCompose: a compose log stream error is logged, not thrown — the build still resolves (9.710292ms)
+✔ AS-87 evaluate heartbeats while deploying: every poll during a build rewrites deploy-state.json with a fresh computedAt and reason "deploying" (2.784041ms)
+✔ AS-87 runDockerCompose argv: compose is spawned with --progress plain, never quiet (0.673125ms)
+✔ AS-88 runDockerCompose names the caller's project: -p carries composeProject, not a literal (0.588333ms)
+✔ AS-88 runDockerCompose refuses an implicit project: no composeProject -> throws before opening the log or spawning (1.63175ms)
+✔ AS-88 performDeploy passes composeProject through to deploy() and names it in the DEPLOY building line (1.861834ms)
+✔ AS-88 makeDeployOps refuses a COMPOSE_PROJECT_NAME the scrub would discard (AS-75 review F8) (0.715583ms)
+✔ AS-88 makeDeployOps accepts an agreeing or empty COMPOSE_PROJECT_NAME (1.028708ms)
+✔ AS-88 makeDeployOps requires composeProject: no default, throws at construction (0.740833ms)
+ℹ tests 554
+ℹ suites 0
+ℹ pass 547
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 7
+ℹ todo 0
+ℹ duration_ms 40824.997144
+ Network asc-as106-m1_default Creating 
+ Network asc-as106-m1_default Created 
+ Image asc-as106-m1-test Building 
+ Image asc-as106-m1-test Built 
+ Container asc-as106-m1-test-run-2b378fb62cde Creating 
+ Container asc-as106-m1-test-run-2b378fb62cde Created 

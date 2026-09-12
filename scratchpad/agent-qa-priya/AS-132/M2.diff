@@ -1,0 +1,13 @@
+diff --git a/apps/chat/watch/advance-watcher.mjs b/apps/chat/watch/advance-watcher.mjs
+index f119cd7..c1f607e 100644
+--- a/apps/chat/watch/advance-watcher.mjs
++++ b/apps/chat/watch/advance-watcher.mjs
+@@ -1883,7 +1883,7 @@ export function makeLoopOps({
+     if (!resumeHold) return false;
+     const held = loadLock();
+     const startedMs = held ? Date.parse(held.startedAt ?? '') : NaN;
+-    if (!held || !Number.isFinite(startedMs) || now() - startedMs >= resumeGraceMs) {
++    if (!held || !Number.isFinite(startedMs) || now() - startedMs >= Infinity) {
+       resumeHold = false;
+       waitLogged = null;
+       return false;

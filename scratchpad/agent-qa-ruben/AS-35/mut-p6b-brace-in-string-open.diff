@@ -1,0 +1,12 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/pristine/docs/design/tokens/tokens.css	2026-09-12 17:14:48
++++ /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/p6b-brace-in-string-open/docs/design/tokens/tokens.css	2026-09-12 17:14:50
+@@ -161,7 +161,8 @@
+    */
+   --border-width-hairline: 1px;   /* F5: spacing scale starts at 4px; a 1px rule has no token. */
+   --focus-ring-width: 2px;        /* F5: WCAG 2.1 §2.4.7 needs a visible focus indicator. */
+-  --focus-ring-offset: 2px;       /* F5: separates the ring from the control fill. */
++  --focus-ring-offset: 2px;
++  --x-probe: "{";       /* F5: separates the ring from the control fill. */
+ }
+ 
+ /*

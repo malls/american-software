@@ -1,0 +1,14 @@
+Filed at AS-131 review per that plan's Decision 4 (the incremental-DOM half of the board's lazy-load request, split out so each task carries one risk).
+
+WHAT
+Stop rebuilding the whole main pane on every live frame in apps/chat. Today renderConversation() (public/app.js) does pane.replaceChildren(...data.messages.map(messageNode)) on EVERY re-render — every SSE push frame (AS-25), every send echo, every since= catch-up merge, every older-page prepend — not just on open. Replace it with an incremental update: append/insert only the node(s) for the message(s) that changed, update the affected root's reply count in place, and keep the anchor/highlight, thread-modal and sticky-bottom paths (AS-9, AS-17, AS-26) working.
+
+WHY
+AS-131 bounds the rebuild to the loaded set (50 top-level messages by default, more after scroll-up), which removes the symptom the board reported. The remaining cost is proportional to what is loaded: a reader who has paged back through #lattice-events (681 roots today, growing every tick) or the board DM again re-parses and re-renders every loaded row on each frame. Behaviour of shipped code, performance; not a correctness defect — priority medium.
+
+SHAPE (decision context for the planner, not the decision)
+- Keep renderConversation for navigation (open / conversation switch); add an applyFrame-style path for single-message merges that inserts one messageNode in id order and patches replyCount text.
+- Falsifiers to name: a frame must add exactly one node (count before/after); a reply frame must patch only its root's count; the sticky-bottom rule and the m= anchor must survive an incremental insert; an older-page prepend (AS-131 loadOlderPage) must still hold the reader's row.
+- Touches messageNode/applyAnchor/renderThread/highlight paths — its own review.
+
+complexity: medium

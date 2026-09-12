@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 1,
+  "complexity": null,
+  "created_at": "2026-09-11T02:36:46Z",
+  "created_by": "agent:qa-ruben",
+  "custom_fields": {},
+  "description": null,
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M27566XC3W67AHFZPGG7SBVG",
+  "last_event_id": "ev_01M2756C5R4H5R6J93DX0AJ7WK",
+  "last_status_changed_at": "2026-09-11T02:36:46Z",
+  "linked_files": [],
+  "priority": "low",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-11T02:36:51Z",
+      "created_by": "agent:qa-ruben",
+      "note": null,
+      "target_task_id": "task_01M25XTX7VPDQDTGRY69CJ7ANE",
+      "type": "related_to"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-104",
+  "status": "backlog",
+  "tags": null,
+  "title": "Chat watcher: resume() re-enters a stale advance-loop.json without evaluating the cap \u2014 one extra tick fires before settle() stops cap-hit",
+  "type": "task",
+  "updated_at": "2026-09-11T02:36:51Z",
+  "urgency": null
+}

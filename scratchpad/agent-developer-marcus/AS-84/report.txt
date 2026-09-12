@@ -1,0 +1,127 @@
+Implementation complete (developer-marcus, tick watcher:93997 loop tick 23). Branch feat/AS-84-shutdown-owns-its-children, three commits: c2074fc (the four mechanisms + AC-9..AC-13), fc6a9a9 (AC-1..AC-8), 8b9f0be (AC-14 + README). Findings first, sweep second (M5).
+
+== FINDINGS (7; 1 is a correctness deviation from the plan, 3 are red-set corrections to the plan's predictions, 3 are implementation notes a reviewer should know before reading the diff) ==
+
+F-1 (deviation from plan §2.1, and the plan is internally inconsistent here). The plan says performDeploy "sees signal !== null in the result and records outcome 'aborted'". I did NOT implement that test. A child that traps SIGTERM and exits with a code reports signal null and a code — and that is exactly what the plan's own AC-14 fake docker does (trap 'exit 143' TERM), and what a real `docker compose` child does when it handles the signal. Under the plan's literal rule the AS-84 process test would have recorded the interruption as outcome 'fail' and put the merged build in a 30-minute cooldown, which is the precise harm §2.1 exists to prevent. Implemented instead: `if (abortSignal !== null && !result.timedOut)` — "did WE ask for this", not "how did it die". A timeout stays a failure (nobody asked for that one). Covered twice: the AC-6 unit test gained an assertion for the trap shape (code 143 / signal null -> 'aborted'), and AC-14 exercises it in a real process. M6b is the falsifier for the outcome value.
+
+F-2 (red-set correction, AC-9's falsifier M9). Plan predicts red {AC-9, AC-10, AC-11}. Observed red {AC-9, AC-10, AC-12, AC-14}. AC-11 CANNOT participate in this mutant: it has no child and no deploy in flight, so shutdown takes the synchronous fast path both before and after the mutation — the prediction was wrong, the guard is not weak. AC-11's own falsifier is M1, and it is red there (observed, below). The two additions are honest kills: AC-12 asserts the async contract (assert.rejects on a shutdown that the mutant makes throw synchronously) and AC-14 loses the deploy wait.
+
+F-3 (red-set correction, AC-6's two falsifiers M6a/M6b). Plan predicts {AC-6} for each. Observed {AC-6, AC-14} for both — AC-14 asserts the orphan's absence AND lastAttempt.outcome === 'aborted', so it catches the un-signalled child and the mis-recorded outcome alike. Wider than predicted, in the good direction.
+
+F-4 (how M12's kill presents). AC-12's falsifier kills by TIMEOUT, which node:test reports as `cancelled 1`, not `fail 1`: the summary reads tests 511 / pass 510 / fail 0 / cancelled 1. A reviewer grepping only for "fail" would read that mutant as a survivor. It is not — the failing-tests block names AC-12 explicitly and the test output carries 'test timed out after 5000ms'.
+
+F-5 (implementation note, not in the plan). performDeploy takes a second parameter, `stateFields`, and the pre-build persist() repeats the fields evaluate() just wrote. A bare persist() writes persist's own defaults for everything it is not given, which would reset `reason` to 'no-git' and drop `runningId` for the whole duration of every build — the sidebar's build line would go wrong every time the watcher deployed. AC-5 asserts the record, not the surrounding fields, so this would not have been caught by the criteria list.
+
+F-6 (implementation note). main()'s two signal handlers are now `() => void watcher.shutdown(...)`; plan §2.1 said "main ignores it", and this is that, made explicit. Semantics unchanged.
+
+F-7 (test-harness changes a reviewer will see in the diff). (a) watcherHarness's teardown now calls shutdown, then emits 'exit' on a still-live fake child, then awaits — without it every test that leaves a child in flight would pay the full 10 s grace at teardown, and the injected exit()'s ExitSignal now arrives as a rejection rather than a throw on the async path. (b) deployHarness gained a `preState` option: ctor hydration can only be tested by a state file that exists BEFORE makeDeployOps runs. (c) h.stop() returns shutdown()'s promise.
+
+Seam (plan §6): nothing hard-codes the image-input count — AC-14 builds its fixture by iterating the exported IMAGE_INPUTS, and the new deploy-ops tests are appended at the TAIL of the deploy-ops block, away from the AS-75 parseLsTree test AS-86 is editing. The only shared file regions with AS-86 are makeDeployOps' parameter list (I added `readState`) and the deployHarness signature.
+
+== MUTATION BATTERY (13 mutants, one indivisible step each: backup, mutate, assert the mutation landed AT THE INTENDED SITE, run the FULL host suite, restore, git diff --exit-code) ==
+
+Every mutant asserted its `from` text occurred EXACTLY ONCE in the file before replacement, then a site regex anchored to the enclosing function, then a grep -c of the mutated literal with line numbers. Tree proven clean after every single mutant (13/13 git diff --exit-code clean), and clean again after the battery.
+
+M1 = AC-1's falsifier — releaseLock drops `&& held.source === source`.
+  grep -c "if (held && held.pid === pid) {" => 1 | line 601
+  511 tests, 509 pass, 2 fail. RED = {AC-1, AC-11}:
+    - AS-84 makeLockOps: release is by pid AND source — a deploy-source instance leaves a watcher-source lock alone, and vice versa
+    - AS-84 makeWatcher: shutdown never releases a lock it does not own — a deploy-source lock survives
+  Exactly the plan's prediction, including AC-11.
+
+M2 = AC-2's falsifier — verify-after-create drops `&& verify.nonce === nonce`.
+  grep -c "if (verify && verify.pid === pid) return true;" => 1 | line 581
+  511/510/1. RED = {AC-2}: AS-84 makeLockOps: verify-after-create requires our nonce, not just our pid. As predicted.
+
+M3 = AC-3's falsifier — the ctor hydration line is deleted (let lastAttempt = null).
+  grep -c "let lastAttempt = null;" => 1 | line 802
+  511/509/2. RED = {AC-3, AC-4}:
+    - AS-84 makeDeployOps: lastAttempt is hydrated from deploy-state.json — a failed attempt at the desired id, inside the cooldown, refuses without building
+    - AS-84 makeDeployOps: an interrupted attempt ('started' on disk) counts as a failure for the cooldown
+  As predicted.
+
+M4 = AC-4's falsifier — hydrateAttempt maps 'started' to itself.
+  grep -c "return { id: record.id, at, outcome: 'started', detail: 'interrupted: watcher exited mid-build' };" => 1 | line 733
+  511/510/1. RED = {AC-4} only, as predicted (AC-3 survives it, which is the point of having both).
+
+M5 = AC-5's falsifier — the pre-build persist() runs before the 'started' record is set, i.e. it is not on disk when compose spawns.
+  grep -c "persist(stateFields);" => 1 | line 923
+  511/510/1. RED = {AC-5}: AS-84 makeDeployOps: the 'started' record is on disk before compose is spawned. As predicted.
+
+M6a = AC-6's first falsifier — abort() resolves without signalling (if (null) in place of if (deployChild)).
+  grep -c "if (null) {" => 1 | line 994 (inside abort())
+  511/509/2. RED = {AC-6, AC-14} — wider than the plan's {AC-6}; see F-3.
+    - AS-84 makeDeployOps: abort() signals the running build, records an abort rather than a failure, and gives the lock back
+    - AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0
+
+M6b = AC-6's second falsifier — the abort is recorded as 'fail'.
+  grep -c "outcome = 'fail';" => 2 | line 916 (the `let outcome = 'fail'` initialiser, untouched) and line 957 (the mutated site). The site regex required `if (abortSignal !== null && !result.timedOut) {` immediately above, so the two-hit grep is not ambiguity — the mutation is pinned to the branch body.
+  511/509/2. RED = {AC-6, AC-14}, again wider than predicted.
+
+M7 = AC-7's falsifier — abort() persists even when idle.
+  grep -c "if (!deploying) { persist({}); return; }" => 1 | line 991
+  511/510/1. RED = {AC-7}: AS-84 makeDeployOps: abort() while idle resolves immediately and touches nothing. As predicted.
+
+M8 = AC-8's falsifier — evaluate()'s try/catch is bypassed. Per the AS-95 sharpening the site is asserted at the evaluate WRAPPER, never at evaluateInner: the site regex is /async function evaluate\(opts = \{\}\) \{\n    return await evaluateInner\(opts\);/ and the mutated region reads
+    1079:   async function evaluate(opts = {}) {
+    1080:     return await evaluateInner(opts);
+    1081:     // eslint-disable-next-line no-unreachable
+    1082:     try {
+  while evaluateInner sits untouched at line 1021.
+  511/510/1. RED = {AC-8}: AS-84 makeDeployOps: evaluate() never rejects — a throwing collaborator becomes {noop, error}, persisted, logged once. As predicted.
+
+M9 = AC-9's falsifier — shutdown() exits synchronously again (return finish(dying) unconditionally).
+  grep -c "return finish(dying);" => 2 | lines 2510 and 2521 — the second is the untouched tail of the async branch; the site regex pinned the mutation inside shutdown()'s body before the grace block.
+  511/507/4. RED = {AC-9, AC-10, AC-12, AC-14}; see F-2 for why this differs from the plan:
+    - AS-84 makeWatcher: shutdown clears the intervals, SIGTERMs the child and WAITS for its settle — tick_ended before exit 0
+    - AS-84 makeWatcher: shutdown with a deploy in flight aborts it and waits for it before exiting
+    - AS-84 makeWatcher: the shutdown grace is a bound — a child that ignores SIGTERM is SIGKILLed and we still exit 0
+    - AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0
+
+M10 = AC-10's and AC-14's falsifier — the deployOps.abort() call is removed from shutdown().
+  deletion mutant: grep -c "waits.push(deployOps.abort('SIGTERM'));" => 0 (was 1); the site regex confirmed the surviving log('STOP aborting in-flight deploy') line and its closing brace, so the log stayed and only the wait was cut.
+  511/509/2. RED = {AC-10, AC-14}, exactly as predicted. AC-14 fails on the pid-alive assertion — Ruben's orphan, observed in a real process.
+
+M12 = AC-12's falsifier — the grace timer is removed (unconditional wait).
+  grep -c "return Promise.all(waits).then(() => {" => 1 | line 2519
+  511 tests / 510 pass / fail 0 / cancelled 1 (see F-4). RED = {AC-12}: AS-84 makeWatcher: the shutdown grace is a bound — a child that ignores SIGTERM is SIGKILLed and we still exit 0, killed by its own 5000 ms per-test timeout.
+
+M13 = AC-13's falsifier — deployPoll()'s .catch is deleted.
+  grep -c "return deployOps.evaluate({ busy: Boolean(child) });" => 1 | line 2487
+  511/510/1. RED = {AC-13}: AS-84 makeWatcher: deployPoll() survives a rejecting evaluate — no unhandled rejection, one ERROR line. As predicted.
+
+M11 and M14 are not separate mutants: the plan names AC-1's mutant as AC-11's falsifier (M1, red above) and AC-10's mutant as AC-14's (M10, red above).
+
+== COUNTED RUN ==
+
+From the worktree, the exact command in plan §7:
+  node --test /Users/forrest/Code/american-software-company/.worktrees/AS-84/apps/chat/test/*.test.js
+  tests 511 | suites 0 | pass 511 | fail 0 | cancelled 0 | skipped 0 | todo 0 | duration_ms 7471.5
+Baseline on master was 498/498, measured in this worktree before the first edit. 511 = 498 + 13 new, 1 modified in place, 0 removed — the plan's prediction to the test. No compose run (plan §7 forbids it here and docker is off PATH for this lane); no image input changed, so the optional --build receipt is a main-checkout matter if the reviewer wants one.
+
+== 13 NEW TESTS (cardinality before quantification) ==
+
+apps/chat/test/watcher.test.js (8):
+ 1. AS-84 makeLockOps: release is by pid AND source — a deploy-source instance leaves a watcher-source lock alone, and vice versa
+ 2. AS-84 makeLockOps: verify-after-create requires our nonce, not just our pid
+ 3. AS-84 makeDeployOps: lastAttempt is hydrated from deploy-state.json — a failed attempt at the desired id, inside the cooldown, refuses without building
+ 4. AS-84 makeDeployOps: an interrupted attempt ('started' on disk) counts as a failure for the cooldown
+ 5. AS-84 makeDeployOps: the 'started' record is on disk before compose is spawned
+ 6. AS-84 makeDeployOps: abort() signals the running build, records an abort rather than a failure, and gives the lock back
+ 7. AS-84 makeDeployOps: abort() while idle resolves immediately and touches nothing
+ 8. AS-84 makeDeployOps: evaluate() never rejects — a throwing collaborator becomes {noop, error}, persisted, logged once
+apps/chat/test/watcher-main.test.js (4):
+ 9. AS-84 makeWatcher: shutdown with a deploy in flight aborts it and waits for it before exiting
+10. AS-84 makeWatcher: shutdown never releases a lock it does not own — a deploy-source lock survives
+11. AS-84 makeWatcher: the shutdown grace is a bound — a child that ignores SIGTERM is SIGKILLed and we still exit 0
+12. AS-84 makeWatcher: deployPoll() survives a rejecting evaluate — no unhandled rejection, one ERROR line
+apps/chat/test/watcher-process.test.js (1):
+13. AS-84 entry point: SIGTERM mid-build terminates the compose child, leaves no lock, records the abort, exits 0
+
+MODIFIED IN PLACE (1): 'AS-82 makeWatcher: shutdown clears the intervals, terminates the child, releases the lock, removes the pid file, exits 0' is now 'AS-84 makeWatcher: shutdown clears the intervals, SIGTERMs the child and WAITS for its settle — tick_ended before exit 0'. It still asserts the four distinct interval handles; it now also asserts that exit has NOT happened at SIGTERM time, and that after the child's exit there is exactly one tick_ended (signal SIGTERM), openItems().tick is null, the loop folded the tick, lock and pid file are gone, exit was 0, and 'STOP grace expired' was never logged.
+
+== ACCEPTANCE SWEEP (FLOOR CHECK — this is the list, not the review; the 7 findings above sit outside it) ==
+
+AC-1 PASS (test 1; M1 red). AC-2 PASS (test 2; M2 red). AC-3 PASS (test 3; M3 red). AC-4 PASS (test 4; M4 red, and five unparsable lastAttempt shapes hydrate to null and deploy rather than refuse). AC-5 PASS (test 5; M5 red). AC-6 PASS (test 6; M6a and M6b both red) — with F-1's change to how 'aborted' is decided. AC-7 PASS (test 7; M7 red). AC-8 PASS (test 8; M8 red, site-anchored at evaluate not evaluateInner). AC-9 PASS (modified test; M9 red). AC-10 PASS (test 9; M10 red). AC-11 PASS (test 10; red under M1). AC-12 PASS (test 11; M12 red by timeout). AC-13 PASS (test 12; M13 red). AC-14 PASS (test 13; red under M6a, M6b, M9 and M10) — the fake docker never contacts the daemon, the fixture repo and data dir are under mkdtemp, the stub /api/build server is on an ephemeral loopback port and closed in teardown, and a surviving fake-docker pid is SIGKILLed by the teardown as a belt. AC-15 PASS: 511, 0 failing, inside the plan's 510-512 band; the 13 new test names and the 1 modified one are listed above. 15 of 15 — and the list is a floor: F-1 and F-5 are both outside it.
+
+Files touched: apps/chat/watch/advance-watcher.mjs, apps/chat/test/watcher.test.js, apps/chat/test/watcher-main.test.js, apps/chat/test/watcher-process.test.js, apps/chat/public/loop-status.js, apps/chat/watch/README.md (env knob, the `error` refusal row, lastAttempt.outcome values, one shutdown-semantics paragraph — AS-88 still owns the rest). Working notes and the battery driver are in scratchpad/agent-developer-marcus/AS-84/ (progress.md, mutants.mjs, battery.mjs, run-<id>.txt, battery-report.json); nothing outside apps/chat is committed on the branch, and no .lattice/ file was touched from the worktree.

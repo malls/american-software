@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/.worktrees/AS-85/apps/chat/server.js	2026-09-11 05:50:33
++++ /tmp/as85-scratch/server.js	2026-09-11 14:16:49
+@@ -579,7 +579,7 @@
+       // its values move per poll in a steady state, so a `stale-build → busy`
+       // transition (the watcher started rebuilding) reaches a connected client
+       // when it happens instead of waiting for `current` to flip at the end.
+-      build: { id: s.build.id, desiredId: s.build.desiredId, current: s.build.current, reason: s.build.reason },
++      build: { id: s.build.id, current: s.build.current, reason: s.build.reason },
+       // AS-95: the tick COUNT is the thing that moves in the loop label, so a
+       // new loop tick must earn a frame; `startedAt` of the loop is already
+       // covered by `active` flipping. `lastLoop.stoppedAt` is included because

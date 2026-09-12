@@ -1,0 +1,8 @@
+no mutation
+RECEIPT project=asc-as47-p8b
+  built: Image asc-as47-p8b-test Built
+  tests=undefined pass=undefined fail=undefined skipped=undefined
+  run exit=0
+  down exit=0
+  leak check: clean
+RED SET (0):

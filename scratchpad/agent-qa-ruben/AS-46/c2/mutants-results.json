@@ -1,0 +1,67 @@
+[
+  {
+    "id": "M1-remove-slot",
+    "applied": true,
+    "built": true,
+    "failing": [],
+    "sum": {
+      "tests": 450,
+      "pass": 430,
+      "fail": 2,
+      "skipped": 18
+    },
+    "exit": 1,
+    "predicted": [
+      "in add-new picker mode a save or send without a client marks exactly the field the banner counts",
+      "(dependency-policy VIEW_START_TAGS: 336 -> 332)"
+    ]
+  },
+  {
+    "id": "M2-null-in-new-mode",
+    "applied": true,
+    "built": true,
+    "failing": [],
+    "sum": {
+      "tests": 450,
+      "pass": 431,
+      "fail": 1,
+      "skipped": 18
+    },
+    "exit": 1,
+    "predicted": [
+      "in add-new picker mode a save or send without a client marks exactly the field the banner counts"
+    ]
+  },
+  {
+    "id": "M3-select-copy-in-new-mode",
+    "applied": true,
+    "built": true,
+    "failing": [],
+    "sum": {
+      "tests": 450,
+      "pass": 431,
+      "fail": 1,
+      "skipped": 18
+    },
+    "exit": 1,
+    "predicted": [
+      "in add-new picker mode a save or send without a client marks exactly the field the banner counts"
+    ]
+  },
+  {
+    "id": "M4-unmarked-slot",
+    "applied": true,
+    "built": true,
+    "failing": [],
+    "sum": {
+      "tests": 450,
+      "pass": 431,
+      "fail": 1,
+      "skipped": 18
+    },
+    "exit": 1,
+    "predicted": [
+      "in add-new picker mode a save or send without a client marks exactly the field the banner counts"
+    ]
+  }
+]

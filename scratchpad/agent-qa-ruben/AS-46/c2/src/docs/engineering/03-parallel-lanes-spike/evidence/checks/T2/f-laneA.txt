@@ -1,0 +1,2 @@
+examined 3 commit(s) on feat/AS-41-connect-onboarding (master..feat/AS-41-connect-onboarding)
+PASS: all commit identities in expected set with canonical emails

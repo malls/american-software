@@ -1,0 +1,81 @@
+--- mutation diff ---
+diff --git a/apps/chat/bin/compose-run.mjs b/apps/chat/bin/compose-run.mjs
+index 97da7ad..f1363e3 100644
+--- a/apps/chat/bin/compose-run.mjs
++++ b/apps/chat/bin/compose-run.mjs
+@@ -115 +115 @@ async function main() {
+-  await new Promise((r) => setImmediate(r));
++  // M3: no yield
+
+
+--- test output ---
+✔ T1 isAllowedProject rejects production names (0.5665ms)
+✔ T2 isAllowedProject rejects non-asc and malformed names (0.082625ms)
+✔ T3 isAllowedProject accepts a scratch project (0.337417ms)
+✔ T4 buildDownArgs and buildRunArgs are exactly the recipe (0.082583ms)
+✔ T5a runCounted: run exits 0 -> down runs, status 0, receipt parsed (0.556958ms)
+✔ T5b runCounted: run exits 1 -> down still runs, status 1 preserved (0.215875ms)
+✔ T5c runCounted: run throws -> down still runs, error reported (0.210167ms)
+✔ T6 runCounted: a network or image surviving down is reported as LEAK, exit 4, anchored at ^<project>_ (0.133959ms)
+✔ T7a parseReceipt: Built line verbatim, counts from TAP and spec summaries (0.094ms)
+✔ T7b runCounted: a run with no Built line is exit 5 even when every test passes (0.139041ms)
+✔ T8 classifyNetworks: the plan §1 fixture splits 3 production / 1 live / 9 leftover (0.321458ms)
+✔ T9a runCounted refuses at exactly the ceiling: 20 asc-* networks -> exit 3, no run (0.145916ms)
+✔ T9b runCounted proceeds below the ceiling: 19 asc-* networks -> run happens (0.101708ms)
+✔ T10a runCheck exits 1 with leftovers and 0 when production+live only (0.106708ms)
+✔ T10b runCheck is read-only: never down, rm, or prune (0.146542ms)
+✖ T12a SIGTERM to the script alone mid-run: it survives, down runs after run, receipt prints, interrupted line, exit 143 (2424.728375ms)
+✖ T12b SIGINT to the whole process group (script + docker child): down runs after run, run exit=null, interrupted line, exit non-zero (328.33625ms)
+✔ T12c SIGTERM during the pre-flight (before the guard): default disposition — dies of the signal, no run, no down, no receipt (439.242333ms)
+﹣ T11 real run: the script leaves zero networks and zero images for its project and prints a Built line (0.956417ms) # opt-in: set AS106_REAL=1
+﹣ T13 real run, SIGTERM mid-container: zero networks and zero images survive, receipt printed, exit 143 (0.143709ms) # opt-in: set AS106_REAL=1
+ℹ tests 20
+ℹ suites 0
+ℹ pass 16
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 3257.248708
+
+✖ failing tests:
+
+test at test/compose-run.test.js:295:1
+✖ T12a SIGTERM to the script alone mid-run: it survives, down runs after run, receipt prints, interrupted line, exit 143 (2424.728375ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-121-mutant/apps/chat/test/compose-run.test.js:305:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at test/compose-run.test.js:310:1
+✖ T12b SIGINT to the whole process group (script + docker child): down runs after run, run exit=null, interrupted line, exit non-zero (328.33625ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt/. Input:
+  
+  'compose-run: no `Built` line — this run is not a receipt (CLAUDE.md --build corollary)\n'
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-121-mutant/apps/chat/test/compose-run.test.js:320:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'compose-run: no `Built` line — this run is not a receipt (CLAUDE.md --build corollary)\n',
+    expected: /compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+--- stderr ---
+
+exit=1

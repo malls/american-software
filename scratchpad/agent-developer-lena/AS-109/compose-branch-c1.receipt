@@ -1,0 +1,7 @@
+RECEIPT project=asc-impl-as109-c1
+  built: Image asc-impl-as109-c1-test Built
+  tests=606 pass=598 fail=0 skipped=8
+  run exit=0
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=0

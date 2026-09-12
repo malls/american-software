@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AS-30 — Core-loop UX wireframes</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="wireframe.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <span class="app-label">AS-30 wireframes</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <h1 class="page-title">D1 v1 — core-loop UX wireframes</h1>
+    <p class="page-meta">
+      Lattice AS-30. Author: Jonah Reyes (<code>agent:ux-jonah</code>). This page links
+      every wireframe in this directory. <strong>It is a design-doc artifact, not a
+      product screen — it does not count against the 7-screen budget</strong>
+      (<code>01-screens.md</code> §1; milestone plan §4.1).
+    </p>
+    <p class="wireframe-notice">
+      Static HTML, zero JavaScript, zero external requests. Opens correctly from
+      <code>file://</code> with no server and no build step — the same pattern
+      <code>docs/design/style-reference/index.html</code> uses at the same directory
+      depth for <code>tokens.css</code>.
+    </p>
+
+    <section class="state" aria-labelledby="docs-h">
+      <h2 id="docs-h" class="state__title">Written spec (read in this order)</h2>
+      <ul>
+        <li><a href="00-flows.md">00-flows.md</a> — numbered core-loop flows, words before pictures</li>
+        <li><a href="01-screens.md">01-screens.md</a> — the 7-screen inventory, provisional routes, shared chrome</li>
+        <li><a href="02-states-ledger.md">02-states-ledger.md</a> — the full states ledger, 65 rows across 7 screens</li>
+      </ul>
+    </section>
+
+    <section class="state" aria-labelledby="screens-h">
+      <h2 id="screens-h" class="state__title">The 7 screens</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">#</th><th scope="col">Screen</th><th scope="col">Capability</th><th scope="col">States</th><th scope="col">Wireframe</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Sign up / sign in</td><td>C-08</td><td>8 (7 rendered)</td><td><a href="screen-1-signin.html">screen-1-signin.html</a></td></tr>
+            <tr><td>2</td><td>Connect Stripe</td><td>C-12</td><td>9 (8 rendered)</td><td><a href="screen-2-connect-stripe.html">screen-2-connect-stripe.html</a></td></tr>
+            <tr><td>3</td><td>Dashboard / list</td><td>C-37</td><td>7 (6 rendered)</td><td><a href="screen-3-dashboard.html">screen-3-dashboard.html</a></td></tr>
+            <tr><td>4</td><td>Invoice create/edit</td><td>C-29</td><td>12 (12 rendered)</td><td><a href="screen-4-invoice-create.html">screen-4-invoice-create.html</a></td></tr>
+            <tr><td>5</td><td>Invoice detail + status</td><td>C-38</td><td>10 (8 rendered)</td><td><a href="screen-5-invoice-detail.html">screen-5-invoice-detail.html</a></td></tr>
+            <tr><td>6</td><td>Contract create</td><td>C-20</td><td>11 (10 rendered)</td><td><a href="screen-6-contract-create.html">screen-6-contract-create.html</a></td></tr>
+            <tr><td>7</td><td>Contract detail + print/download</td><td>C-21</td><td>8 (6 rendered)</td><td><a href="screen-7-contract-detail.html">screen-7-contract-detail.html</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="page-meta">65 ledger rows total, 8 explicit n/a rows, 57 rendered sections. Ceiling 9, target 7, landed 7 — two screens of headroom remain unspent (<code>02-states-ledger.md</code> §8; screen-budget authority in this task's Lattice comment, 2026-08-31T23:50:52Z).</p>
+    </section>
+
+    <section class="state" aria-labelledby="verify-h">
+      <h2 id="verify-h" class="state__title">Token source</h2>
+      <p>Every wireframe links <code>../tokens/tokens.css</code> relatively — the single
+      committed copy of that file (plan file §5.2). Nothing under this directory copies
+      or edits it, and nothing under this directory edits
+      <code>docs/design/style-reference/</code> or <code>BRANDING.md</code>.</p>
+    </section>
+  </main>
+</body>
+</html>

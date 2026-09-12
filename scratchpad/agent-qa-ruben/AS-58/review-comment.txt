@@ -1,0 +1,17 @@
+Plan and diff read cold; implementer's comment read LAST — independent agreement on all four red sets.
+
+FINDINGS — 4 outside the list, 0 behaviour defects.
+
+1. Stale wording, in the plan's own scope, missed: lib/config.js:14 still says "redacted from every log line and health body". Proposed: drop "and health body". Convention.
+
+2. Guard contract narrowed: a non-string body went from a typed refusal to "TypeError: text.replace is not a function". Measured both trees — master refuses a record object, array-of-pairs and URLSearchParams; 344ddf2 throws. Unreachable (buildUnsigned always passes encodeForm output); fails closed, without a custody code. A String(body) fix fails OPEN: {transfer_data:'x'} becomes "[object Object]", one key, no banned segment.
+
+3. Residual, outside the criteria and scoped out by the plan: a 503 /healthz still publishes path setting values unauthenticated ("/app/vendor/tokens.css: ENOENT", likewise viewsDir and dbPath), so item 4's motive is only partly discharged before the endpoint goes public.
+
+4. The new /healthz needles are key-shaped ('"bind":'), weaker than the criterion's "no setting name in the body text". All 5 reachable states driven: keys exactly [ok,checks], no setting or env-var name — true today, but a future bare name in a detail would pass.
+
+SWEEP — floor check, 5 of 5 met. Red sets all exact: F1 1 (client header pin; T1 green), F2 3, F3 1, F4 1. 534/515/0/19 with receipt; contract 534/534/0/0; 23 test files; lock untouched; four guards green. 24 extra custody probes: 8 refused at the right key/segment, 3 correct pass-throughs, no regex state across calls. Seam: master 8f40cd4 merges clean, suite identical, demo transcript unchanged modulo port/HMAC/UUIDs.
+
+Outcome, since the loop needs one: PASS. Nothing fixed inline; Finding 1 left to the orchestrator. Findings 2-4 are residuals for this record, not new tasks.
+
+Mutant procedure, probe logs, receipts and teardown: scratchpad/agent-qa-ruben/AS-58/battery.md

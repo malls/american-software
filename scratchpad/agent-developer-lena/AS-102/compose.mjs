@@ -1,0 +1,15 @@
+import { spawnSync } from 'node:child_process';
+const W = '/Users/forrest/Code/american-software-company/.worktrees/AS-102';
+const D = '/usr/local/bin/docker';
+const base = ['compose', '-f', 'apps/chat/compose.yaml', '-p', 'asc-impl-as102'];
+const run = spawnSync(D, [...base, 'run', '--build', '--rm', 'test'], { cwd: W, encoding: 'utf8', maxBuffer: 64 << 20 });
+const out = run.stdout + run.stderr;
+const built = out.split('\n').filter((l) => /Built/.test(l) || /Image .* Built/i.test(l));
+const counts = out.split('\n').filter((l) => /^ℹ (tests|pass|fail|skipped) /.test(l.trim()) || /^# (tests|pass|fail|skipped) /.test(l.trim()));
+const fails = out.split('\n').filter((l) => /^✖|^not ok/.test(l.trim()));
+console.log('exit', run.status);
+console.log('BUILT LINES:', built.length ? built.join('\n') : '(none — run is VOID)');
+console.log('COUNTS:', counts.join(' | '));
+console.log('FAILS:', fails.length ? fails.join('\n') : '(none)');
+const down = spawnSync(D, [...base, 'down', '-v', '--rmi', 'local'], { cwd: W, encoding: 'utf8' });
+console.log('teardown exit', down.status);

@@ -1,0 +1,140 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 642B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.83kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:24-slim
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 342B done
+#4 DONE 0.0s
+
+#5 [ 1/10] FROM docker.io/library/node:24-slim
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 33.11kB done
+#6 DONE 0.0s
+
+#7 [ 3/10] COPY package.json server.js ./
+#7 CACHED
+
+#8 [ 6/10] COPY public ./public
+#8 CACHED
+
+#9 [ 5/10] COPY bin ./bin
+#9 CACHED
+
+#10 [ 2/10] WORKDIR /app
+#10 CACHED
+
+#11 [ 8/10] COPY test ./test
+#11 CACHED
+
+#12 [ 4/10] COPY lib ./lib
+#12 CACHED
+
+#13 [ 7/10] COPY watch ./watch
+#13 CACHED
+
+#14 [ 9/10] COPY compose.yaml Dockerfile ./
+#14 CACHED
+
+#15 [10/10] RUN mkdir -p /app/data && chown -R node:node /app
+#15 CACHED
+
+#16 exporting to image
+#16 exporting layers done
+#16 writing image sha256:fb34a3def1b0619a58633f50e28a11a0a5cc469d5c0a1d15913e3c2353037e2f done
+#16 naming to docker.io/library/as83test-test done
+#16 DONE 0.0s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+✔ mode: AS-83 — a failed CLI exit is reported with status, signal, elapsed ms, stderr and stdout (11.899208ms)
+✖ mode: AS-24 — API-mode writes land in the server view; no DB file is ever created (3556.505669ms)
+✔ mode: AS-24 — probe timeout (something listening, not answering) refuses loudly, zero side effects (4325.527919ms)
+✔ mode: AS-83 — a live server that answers slower than the probe budget is refused as ambiguous (the flake signature) (1990.313459ms)
+✖ mode: AS-83 — the same slow server inside the budget is up: the write lands in the server view, no DB touched (2457.112293ms)
+✔ mode: AS-83 — CHAT_PROBE_TIMEOUT_MS must be a positive integer of milliseconds; anything else is a usage error on every path (4738.689627ms)
+✔ mode: AS-24 — squatted port (wrong-shaped JSON) refuses loudly, zero side effects (1608.806917ms)
+✔ mode: AS-24 — hard connection-refused falls back to direct mode against CHAT_DB (1207.405501ms)
+✔ mode: AS-24 — CHAT_MODE=direct skips the probe entirely (poisoned CHAT_API never contacted) (1327.241501ms)
+✔ mode: AS-24 — CHAT_MODE=api with a down server is a loud exit 1 (981.916334ms)
+✔ mode: AS-24 — invalid CHAT_MODE is a usage error (880.550876ms)
+✖ mode: AS-24 — full command sweep in API mode (no DB file, direct-mode shapes) (10411.142505ms)
+✔ mode: AS-24 — CHAT_DB alone (rule 4) stays direct with no probe: the suite is hermetic (1851.798001ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 10
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 37583.795101
+
+✖ failing tests:
+
+test at test/mode.test.js:171:1
+✖ mode: AS-24 — API-mode writes land in the server view; no DB file is ever created (3556.505669ms)
+  AssertionError [ERR_ASSERTION]: post: exit 1 signal null after 1578 ms
+  --- stderr ---
+  chat: something is listening at http://127.0.0.1:33845 but the probe failed; refusing to touch the shared DB directly — host-side access can silently fork it (AS-24). If the server is really down, retry or set CHAT_MODE=direct. (timed out after 500 ms)
+  
+  --- stdout ---
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///app/test/mode.test.js:196:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/mode.test.js:273:1
+✖ mode: AS-83 — the same slow server inside the budget is up: the write lands in the server view, no DB touched (2457.112293ms)
+  AssertionError [ERR_ASSERTION]: dm (150 ms server, 20 s budget): exit 1 signal null after 2186 ms
+  --- stderr ---
+  chat: something is listening at http://127.0.0.1:40101 but the probe failed; refusing to touch the shared DB directly — host-side access can silently fork it (AS-24). If the server is really down, retry or set CHAT_MODE=direct. (timed out after 500 ms)
+  
+  --- stdout ---
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///app/test/mode.test.js:282:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/mode.test.js:416:1
+✖ mode: AS-24 — full command sweep in API mode (no DB file, direct-mode shapes) (10411.142505ms)
+  SyntaxError: Unexpected end of JSON input
+      at JSON.parse (<anonymous>)
+      at TestContext.<anonymous> (file:///app/test/mode.test.js:453:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7)
+ Image as83test-test Building 
+ Image as83test-test Built 
+ Container as83test-test-run-966585bbfe9a Creating 
+ Container as83test-test-run-966585bbfe9a Created 
+

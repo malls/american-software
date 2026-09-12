@@ -1,0 +1,37 @@
+baseline: 19 containers on host (none named asc-capture-c2: true), chrome profiles ["asc-demo-chrome-i5vyAj"]
+== Round A: run → capture → inspect → OLD down (red) → NEW down (green)
+A: run line exit 0; receipt: Image asc-capture-c2-demo Built
+A: healthz 200 within 60 s: true
+  [after run] containers=2 networks=2 volumes=0
+     asc-capture-c2-web	Up 1 second	127.0.0.1:8350->8350/tcp, 127.0.0.1:8349->8348/tcp
+     asc-capture-c2-stripe-mock-1	Up 2 seconds	12111-12112/tcp
+     net asc-capture-c2_default
+     net asc-capture-c2_stripe-mock
+A: capture.mjs exit 0, wrote 34 PNGs; chrome profiles after: ["asc-demo-chrome-i5vyAj"] (baseline ["asc-demo-chrome-i5vyAj"])
+A: committed PNGs 34; re-captured byte-identical 34/34; differing 0 []; extra 0
+A: capture.json (file,state,width,height,layer,media,url/UUID) identical: true; branchCommit committed=958be42 now=d4cd9a5; bytes equal per entry: true
+A: inspect Env (5): ASC_STRIPE_MOCK_URL, PATH, NODE_VERSION, YARN_VERSION, NODE_ENV — INVOICING_STRIPE_* entries: 0; ASC_STRIPE_MOCK_URL present: true
+A: networks attached: asc-capture-c2_default, asc-capture-c2_stripe-mock
+A: OLD bare down -v exit 0; stderr mentions "still in use": true
+  [after OLD down] containers=2 networks=2 volumes=0
+     asc-capture-c2-web	Up 15 seconds	127.0.0.1:8350->8350/tcp, 127.0.0.1:8349->8348/tcp
+     asc-capture-c2-stripe-mock-1	Up 16 seconds	12111-12112/tcp
+     net asc-capture-c2_default
+     net asc-capture-c2_stripe-mock
+A: OLD line red as predicted (2 containers + 2 networks remain): true
+A: NEW down exit 0
+  [after NEW down] containers=0 networks=0 volumes=0
+A: NEW line leaves nothing (SKILL's check "docker ps -a --filter name=asc-capture-c2" empty, networks 0, volumes 0): true
+== Round B: run → NEW down straight from a pristine state
+B: run line exit 0; receipt: Image asc-capture-c2-demo Built
+B: healthz 200 within 60 s: true
+  [after run] containers=2 networks=2 volumes=0
+     asc-capture-c2-web	Up 1 second	127.0.0.1:8350->8350/tcp, 127.0.0.1:8349->8348/tcp
+     asc-capture-c2-stripe-mock-1	Up 2 seconds	12111-12112/tcp
+     net asc-capture-c2_default
+     net asc-capture-c2_stripe-mock
+B: NEW down exit 0; removed lines: 4
+  [after NEW down] containers=0 networks=0 volumes=0
+B: NEW line leaves nothing: true
+hygiene: 8349 refuses after teardown: true; host containers 19 → 19, same set: true; chrome profiles unchanged: true
+hygiene: removed images asc-capture-c2-demo

@@ -1,0 +1,14 @@
+REVIEW AS-121 (qa-priya, cold: plan + diff @ 449571c; implementer comment and daemon output not read).
+
+FINDINGS (2 outside the list; 1 blocks)
+F1 — BLOCKS (implementation-level, behaviour): the handler is registered before `runCounted`, which contains observe/preflight/guard, so a SIGINT/SIGTERM arriving during `network ls`/`compose ls` (before the run) is swallowed and the `compose run --build` then STARTS. Observed with a stub docker sleeping on `network ls`: SIGTERM at that point -> run, down, exit 143, stderr "interrupted … during the run" (false — it was before). Plan §2.1 "not before the guard", AC-4 "a signal before the run still terminates by default", and the new README sentence all claim otherwise. Consequence under the watcher's 15 s SIGTERM->SIGKILL: a tick-cutoff signal in that window starts a multi-minute build that is then SIGKILLed — the original leak. Fix shape is the implementer's; a bin-only one is to install the handler in the `exec` wrapper only when argv includes `run` (keep the post-run yield + off in main), and correct the README/stderr wording. Add a stub test (sleep on `network ls`, expect death by signal, no `run` line).
+R1 — residual, not blocking (test hygiene): when the script dies mid-container (M1 under AS106_REAL), T13's `t.after` `down` races the still-running container and leaves `<project>_default` + `<project>-test` behind (attributed by timestamp; removed by hand). Fold into the next task touching this file.
+Probes that held: three signals mid-run -> survives all, first wins, 130; `--check` under SIGTERM dies by default.
+
+FLOOR CHECK (criteria sweep, after findings): AC-1 pass, AC-2 pass, AC-3 pass, AC-5 pass (T13 real, 12.2 s, zero networks/images), AC-4 FAIL on the "signal before the run terminates by default" clause (F1); T1–T11 green, `--check` clause holds. 4/5.
+
+NUMBERS: host suite in worktree 627 tests / 624 pass / 0 fail / 3 skipped. AS106_REAL=1 compose-run file: 19/19 (T11, T13 live). Counted run `-p asc-review-as121` receipt: `Image asc-review-as121-test Built`, tests=627 pass=618 fail=0 skipped=9, run 0 / down 0 / leak check clean / exit 0. Mutants (scratch worktree, each asserted at site, restored, diff clean): M1 red {T12a,T12b,T13} = plan; M2 red {T12a} = plan; M3 red {T12a,T12b} = plan.
+
+Left behind: nothing (scratch worktree removed; asc-review-as121 / asc-as121-real-* / asc-probe-* all gone). Logs, receipts, probe.mjs, probe-out.txt: scratchpad/agent-qa-priya/AS-121/.
+
+VERDICT: implementation-level rework (F1).

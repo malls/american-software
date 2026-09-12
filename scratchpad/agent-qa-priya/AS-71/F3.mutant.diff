@@ -1,0 +1,12 @@
+diff --git a/apps/invoicing/Dockerfile b/apps/invoicing/Dockerfile
+index 04fe7fa..67359c1 100644
+--- a/apps/invoicing/Dockerfile
++++ b/apps/invoicing/Dockerfile
+@@ -52,7 +52,6 @@ COPY docs/design/tokens/tokens.css ./vendor/tokens.css
+ # served, never health-checked (it is not in VENDOR_ASSETS; see
+ # lib/vendor.js VENDOR_DOCUMENTS). Pinned by test/deploy-shape.test.js —
+ # update both together. Deleting this line must turn the suite RED.
+-COPY docs/design/wireframes/02-states-ledger.md ./vendor/states-ledger.md
+ 
+ # Deployment manifests as DATA, not as anything the runtime reads (AS-26).
+ # test/deploy-shape.test.js parses these to assert the deployed shape — the

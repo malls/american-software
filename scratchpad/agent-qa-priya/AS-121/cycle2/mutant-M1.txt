@@ -1,0 +1,81 @@
+--- mutation diff ---
+diff --git a/apps/chat/bin/compose-run.mjs b/apps/chat/bin/compose-run.mjs
+index 97da7ad..1ce2394 100644
+--- a/apps/chat/bin/compose-run.mjs
++++ b/apps/chat/bin/compose-run.mjs
+@@ -80 +80 @@ function armedExec(onSignal) {
+-      for (const sig of RUN_SIGNALS) process.on(sig, onSignal);
++      // M1: no registration
+
+
+--- test output ---
+✔ T1 isAllowedProject rejects production names (0.592542ms)
+✔ T2 isAllowedProject rejects non-asc and malformed names (0.0885ms)
+✔ T3 isAllowedProject accepts a scratch project (0.3455ms)
+✔ T4 buildDownArgs and buildRunArgs are exactly the recipe (0.085209ms)
+✔ T5a runCounted: run exits 0 -> down runs, status 0, receipt parsed (0.576125ms)
+✔ T5b runCounted: run exits 1 -> down still runs, status 1 preserved (0.277916ms)
+✔ T5c runCounted: run throws -> down still runs, error reported (0.210625ms)
+✔ T6 runCounted: a network or image surviving down is reported as LEAK, exit 4, anchored at ^<project>_ (0.1335ms)
+✔ T7a parseReceipt: Built line verbatim, counts from TAP and spec summaries (0.094584ms)
+✔ T7b runCounted: a run with no Built line is exit 5 even when every test passes (0.141709ms)
+✔ T8 classifyNetworks: the plan §1 fixture splits 3 production / 1 live / 9 leftover (0.331666ms)
+✔ T9a runCounted refuses at exactly the ceiling: 20 asc-* networks -> exit 3, no run (0.142083ms)
+✔ T9b runCounted proceeds below the ceiling: 19 asc-* networks -> run happens (0.100375ms)
+✔ T10a runCheck exits 1 with leftovers and 0 when production+live only (0.116084ms)
+✔ T10b runCheck is read-only: never down, rm, or prune (0.089958ms)
+✖ T12a SIGTERM to the script alone mid-run: it survives, down runs after run, receipt prints, interrupted line, exit 143 (433.729083ms)
+✖ T12b SIGINT to the whole process group (script + docker child): down runs after run, run exit=null, interrupted line, exit non-zero (248.76725ms)
+✔ T12c SIGTERM during the pre-flight (before the guard): default disposition — dies of the signal, no run, no down, no receipt (436.163959ms)
+﹣ T11 real run: the script leaves zero networks and zero images for its project and prints a Built line (2.977333ms) # opt-in: set AS106_REAL=1
+﹣ T13 real run, SIGTERM mid-container: zero networks and zero images survive, receipt printed, exit 143 (0.123834ms) # opt-in: set AS106_REAL=1
+ℹ tests 20
+ℹ suites 0
+ℹ pass 16
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 1186.2265
+
+✖ failing tests:
+
+test at test/compose-run.test.js:295:1
+✖ T12a SIGTERM to the script alone mid-run: it survives, down runs after run, receipt prints, interrupted line, exit 143 (433.729083ms)
+  AssertionError [ERR_ASSERTION]: the script must not die of the signal: 
+  
+  'SIGTERM' !== null
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-121-mutant/apps/chat/test/compose-run.test.js:301:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'SIGTERM',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/compose-run.test.js:310:1
+✖ T12b SIGINT to the whole process group (script + docker child): down runs after run, run exit=null, interrupted line, exit non-zero (248.76725ms)
+  AssertionError [ERR_ASSERTION]: the script must not die of the signal: 
+  
+  'SIGINT' !== null
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-121-mutant/apps/chat/test/compose-run.test.js:316:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'SIGINT',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+--- stderr ---
+
+exit=1

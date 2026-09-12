@@ -1,0 +1,39 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/pristine/docs/design/tokens/tokens.css	2026-09-12 17:14:48
++++ /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/p7b-block4-rule-deleted-bare-decl-left/docs/design/tokens/tokens.css	2026-09-12 17:14:51
+@@ -258,35 +258,5 @@
+  * duplication is checked by tokens.test.mjs, not hidden.
+  * ============================================================================
+  */
+-[data-theme="dark"] {
+-  color-scheme: dark;
++--color-bg-canvas: var(--color-ink-950);
+ 
+-  --color-bg-canvas: var(--color-ink-950);
+-  --color-bg-surface: var(--color-ink-900);
+-  --color-bg-surface-sunken: var(--color-ink-800);
+-  --color-text-primary: var(--color-ink-50);
+-  --color-text-secondary: var(--color-ink-300);
+-  --color-text-muted: var(--color-ink-400);
+-  --color-text-disabled: var(--color-ink-600);
+-  --color-text-on-accent: var(--color-ink-white);
+-  --color-text-on-danger: var(--color-ink-white);
+-  --color-border-hairline: var(--color-ink-800);
+-  --color-border-interactive: var(--color-ink-500);
+-  --color-link: var(--color-accent-300);
+-  --color-accent-solid: var(--color-accent-400);
+-  --color-accent-solid-hover: var(--color-accent-500);
+-  --color-accent-bg-subtle: var(--color-accent-900);
+-  --color-accent-text-on-subtle: var(--color-accent-300);
+-  --color-focus-ring: var(--color-accent-solid);
+-  --color-success-text: var(--color-success-300);
+-  --color-success-bg-subtle: var(--color-success-900);
+-  --color-success-text-on-subtle: var(--color-success-300);
+-  --color-warning-text: var(--color-warning-300);
+-  --color-warning-bg-subtle: var(--color-warning-900);
+-  --color-warning-text-on-subtle: var(--color-warning-300);
+-  --color-danger-text: var(--color-danger-300);
+-  --color-danger-bg-subtle: var(--color-danger-900);
+-  --color-danger-text-on-subtle: var(--color-danger-300);
+-  --color-danger-solid: var(--color-danger-400);
+-  --color-danger-solid-hover: var(--color-danger-600);
+-}

@@ -1,0 +1,21 @@
+AS-85: isolate `current` in Test B, and name the step in a missing-frame red
+
+M2 (delete `current` from the build projection) survived the first battery.
+The mutation applied at the intended site, so the survivor was a lead, not a
+line to report: driving composeBuild over 6,656 inputs found 119 distinct
+(id, desiredId, reason) triples, of which 12 map to more than one `current`.
+All 12 share one shape — the file spells a reason that is ALSO the name of one
+of composeBuild's own overrides, so the reason survives the edge that moves
+`current`. Every reason the watcher actually writes leaves `current` a function
+of fields already in the key, which is why B1-B4 could not kill M2.
+
+B5/B6 encode that shape: a fresh deploy-state whose reason is 'stale-state'
+(current true), then the same body 11 minutes old (current null, reason
+unchanged by the override because it already matched). `id`, `desiredId`,
+`reason`, `listening` and `state` all hold; `current` alone crosses. With M2
+applied, B6 pushes nothing and Test B is the only red.
+
+The step helper now wraps a missing frame with its own label — the bare
+nextFrame timeout carries a timer stack and no step name.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>

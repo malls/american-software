@@ -1,0 +1,13 @@
+diff --git a/docs/design/wireframes/02-states-ledger.md b/docs/design/wireframes/02-states-ledger.md
+index d31a0b0..e056820 100644
+--- a/docs/design/wireframes/02-states-ledger.md
++++ b/docs/design/wireframes/02-states-ledger.md
+@@ -77,7 +77,7 @@ scale). First-run empty state is the post-onboarding landing.
+ | Row ID | Category | Trigger | What renders |
+ |---|---|---|---|
+ | `S3-DEFAULT-POPULATED` | DEFAULT | At least one contract or invoice exists | Two tables (Contracts, Invoices), each row linking to its detail screen; status column on the invoice table |
+-| `S3-LOADING` | LOADING | Initial fetch | Labeled loading placeholder in place of each table |
++| `S3-LOADING` | DEFAULT | Initial fetch | Labeled loading placeholder in place of each table |
+ | `S3-EMPTY-FIRSTRUN` | EMPTY | Zero contracts and zero invoices (always true immediately post-Screen-2) | Both tables replaced by one message pointing at the loop's actual next action: "Create your first contract" (primary) with "or create an invoice directly" (secondary) — see `00-flows.md` Flow 1a |
+ | `S3-ERROR-SYSTEM` | ERROR | List fetch fails | Error banner in place of both tables, "Retry" |
+ | `S3-GATED-STRIPENOTREADY` | GATED | Stripe account not ready | Layers on top of whichever DEFAULT/EMPTY state is otherwise active: "New invoice" nav action is disabled with an inline note + link to Screen 2; "New contract" is unaffected (`01-screens.md` §5) |

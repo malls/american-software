@@ -1,0 +1,16 @@
+AS-131: page the conversation view — newest page on open, older pages on scroll-up
+
+app.js: selectConversation fetches ?before=0&limit=50 (PAGE_SIZE) and, when a
+permalink / thread link / msg-ref names a target (`ensure`), pages back through
+ensureLoaded BEFORE the first render so applyAnchor and the t= root check see it;
+a stale open (reader moved on mid-walk) no longer overwrites the newer payload.
+loadOlderPage() merges the next page (guarded: hasMore, one in flight, same
+payload) and re-renders through prependPreservingScroll so the reader's row holds.
+A scroll listener on #messages (scrollTop < 200 px) and a top-of-pane "Load
+earlier messages" button (rendered only while hasMore) trigger it. Live frames,
+since= catch-up, noteRead and the open-time POST /api/read (no upTo) are unchanged.
+
+style.css: .load-earlier on tokens.css tokens. README: page-mode section and
+the /api/messages mode table.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>

@@ -1,0 +1,7 @@
+RECEIPT project=asc-plan-as47
+  built: Image asc-plan-as47-test Built
+  tests=406 pass=388 fail=0 skipped=18
+  run exit=0
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=0

@@ -1,0 +1,65 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": "agent:qa-ruben",
+  "branch_links": [
+    {
+      "branch": "feat/AS-94-dashboard-launchd",
+      "linked_at": "2026-09-10T19:58:10Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 10,
+  "complexity": "low",
+  "created_at": "2026-09-09T21:59:52Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": "SOURCE: board DM msg 614 (human:forrest, 2026-09-09T21:53Z): 'We can auto start, your call' -- the yes to the offer in msg 613 to file dashboard supervision as its own item. Filed by the CTO on the board member's behalf.\n\nWHAT: install the Lattice dashboard as a supervised launchd user agent on the host, on the exact pattern of the advance watcher (apps/chat/watch/com.american-software.advance-watcher.plist.template + the Install/Uninstall/Restart sections of apps/chat/watch/README.md). Deliverables are a plist template, a render/validate recipe, README sections, and a guard -- NOT the host install itself (decision 3).\n\nWHY: AS-93 makes chat's AS-n deep links infer the dashboard host from the page (loopback -> :8799, tailnet -> :8443). That is useless from the phone unless something is listening. Today the ONLY thing serving :8799 is a hand-started process in a Claude Code live session: at filing time pid 37867 is '/Users/forrest/.local/bin/lattice dashboard --host 127.0.0.1 --port 8799', parented by a Claude Code zsh snapshot shell (pid 37865). When that session ends, every link dies -- on the phone and on the Mac. No launchd job exists for it; the advance watcher got one on AS-7, the dashboard never did. AS-10 deliberately kept the dashboard out of compose (vendor tooling that ships with the pipx-installed Lattice CLI, same category as git -- apps/chat/README.md 'Links to Lattice'); that decision stands. Host supervision is the consistent answer: the watcher is the precedent, not compose.\n\nHOW IT IS SERVED TODAY (facts the plan must not re-derive):\n  - Binary: /Users/forrest/.local/bin/lattice (pipx; python 3.14 from homebrew). Command in use: lattice dashboard --host 127.0.0.1 --port 8799. It is read-only and finds .lattice/ by walking up from its cwd, so WorkingDirectory MUST be the repo root (the main checkout, pinned to master).\n  - Tailnet path: https://forrests-newer-macbook.tail3f3c29.ts.net:8443 -> 127.0.0.1:8799 via Tailscale serve (chat itself is served on 443 -> 8347 the same way). The serve mapping lives in tailscaled's state, not in this repo. ASSUMPTION to verify in planning ('tailscale serve status' -- a host action): it persists across reboot on its own. If it does not, that is a second, separate host record; note it, do not fold it in.\n  - The dashboard supports graceful restart on SIGHUP ('lattice restart' from another terminal), so the supervised job can be bounced without bootout/bootstrap.\n\nDECISIONS (CTO):\n  1. Bind stays 127.0.0.1. The dashboard exposes the whole board; tailnet reach goes ONLY through Tailscale serve (Tailscale-authenticated). Never 0.0.0.0. This is a property with a falsifier (AC-2).\n  2. The launchd job becomes the ONE owner of :8799. Hand-running 'lattice dashboard' beside it is what the README now tells you not to do; use 'lattice restart' to bounce it. Today's live-session process must be stopped before bootstrap or the job crash-loops on EADDRINUSE (AC-4).\n  3. Installing is a host action (launchctl, ~/Library/LaunchAgents) that a headless tick cannot perform -- same as the watcher (apps/chat/watch/README.md 'After any change to this watcher: restart it'). The task ends in needs_human with the exact bootstrap commands; the board or a live session runs them and records the observation (AC-3). Do not force past this.\n  4. Placement: this is chat tooling under apps/chat/watch/ (the tooling directory the board's msg 557 rule names), so it is IN the critical Chat set. Ordering within the set is recorded on AS-93 (comment) and in CLAUDE.md section 'Scheduling priority': AS-93 first, this task second, then the rest by age.\n  5. Suggested file: apps/chat/watch/com.american-software.lattice-dashboard.plist.template with __REPO_ROOT__ / __LATTICE_BIN__ / __PATH__ placeholders, KeepAlive + RunAtLoad, stdout/stderr to apps/chat/data/logs/lattice-dashboard.out.log and .err.log. Planner may restructure; the label prefix com.american-software. and the logs directory are fixed.\n\nACCEPTANCE CRITERIA (M4: each property names the input that must make the mechanism report a violation; satisfied only by an OBSERVED red, never by an argument):\n  AC-1  The README's render recipe (sed over the template) produces a plist that 'plutil -lint' accepts. Falsifier: in a scratch copy, break the template XML and observe plutil red.\n  AC-2  A guard (test or script, runnable by the reviewer) asserts the rendered ProgramArguments are exactly [<lattice bin>, dashboard, --host, 127.0.0.1, --port, 8799] and WorkingDirectory is the repo root. Falsifier: mutate a scratch copy to --host 0.0.0.0 and observe the guard red; restore; prove with git diff --exit-code.\n  AC-3  Host verification, recorded on this task by whoever runs the bootstrap: 'launchctl print gui/<uid>/com.american-software.lattice-dashboard' shows state = running; GET http://127.0.0.1:8799/ returns 200; kill the dashboard pid; KeepAlive relaunches it and 8799 returns 200 again within 30 s. Quote all four observations.\n  AC-4  Single owner of the port: with the job up, a manual 'lattice dashboard --host 127.0.0.1 --port 8799' fails to bind (observed, quoted) -- and the README says so, plus the pre-bootstrap step 'stop any live-session dashboard first' with the pgrep line that finds it.\n  AC-5  Docs: apps/chat/watch/README.md gains Install/Uninstall/Restart sections for the dashboard mirroring the watcher's (including 'lattice restart' for SIGHUP), and apps/chat/README.md 'Links to Lattice' replaces 'run lattice dashboard to make them resolve' with the supervised service (keep the AS-10 not-in-compose rationale). Review compares the two README sections side by side.\n  AC-6  If any suite numbers are quoted: docker compose run --rm --build test with the 'Image ... Built' line quoted (CLAUDE.md corollary). If nothing in the compose suite is touched, say so explicitly instead of quoting a number.\n\nOUT OF SCOPE: containerizing the dashboard (AS-10 decision stands); making Tailscale serve config a repo artifact; the chat sidebar reporting dashboard liveness (a follow-up if the board wants the indicator).\n\nRELATION: independent in build terms from AS-93 (either merges first without breaking the other); they are the two halves of one board-facing outcome -- links that work from the phone without a live session. Linked to AS-93 and AS-10 as related work, deliberately NOT depends_on in either direction so neither holds the other back in lattice next.",
+  "done_at": "2026-09-11T05:08:18Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01M26GGRSBN5F9K4D03XGCSACQ",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "art_01M27E4A2QKHZVXNV7MW6HSSQQ",
+      "role": "review",
+      "source_type": "artifact"
+    }
+  ],
+  "id": "task_01M242YFRTYP81D4DK0758RT6Z",
+  "last_event_id": "ev_01M27E4A2YYTMEZTR4NBMCQ97Y",
+  "last_status_changed_at": "2026-09-11T05:08:18Z",
+  "linked_files": [],
+  "priority": "critical",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-09T22:00:19Z",
+      "created_by": "agent:cto-owen",
+      "note": "two halves of one outcome (phone links that answer without a live session); independent in build terms, so not depends_on in either direction",
+      "target_task_id": "task_01M242A2JX5AS5W44SAWA71MAW",
+      "type": "related_to"
+    },
+    {
+      "created_at": "2026-09-09T22:00:19Z",
+      "created_by": "agent:cto-owen",
+      "note": "AS-10 introduced the deep links and decided the dashboard stays out of compose; AS-94 supervises it on the host instead",
+      "target_task_id": "task_01M18DNFKVP22J5PRW7EZ89J95",
+      "type": "related_to"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-94",
+  "status": "done",
+  "tags": [
+    "chat",
+    "tooling",
+    "launchd"
+  ],
+  "title": "Chat tooling: supervise the Lattice dashboard (:8799) under launchd so tailnet :8443 deep links answer without a live session",
+  "type": "task",
+  "updated_at": "2026-09-11T05:13:01Z",
+  "urgency": "high"
+}

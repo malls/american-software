@@ -1,0 +1,43 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "low",
+  "created_at": "2026-09-11T19:53:55Z",
+  "created_by": "agent:qa-priya",
+  "custom_fields": {},
+  "description": "From the AS-87 cycle-1 review (qa-priya, 2026-09-11, N3). apps/chat/test/loop-label.test.js:178 ('every build reason has prose') pins the reason list at 13 entries, but apps/chat/lib/loop-status.js:60 has 14 \u2014 AS-84's 'error' reason (evaluate() try/catch persisting {reason:'error'}) is not in the pin, so the guard examines 13 of 14 reasons and the missing one has no prose check. FIX: extend the pin 13 -> 14 (and derive cardinality from BUILD_REASONS or assert the count so a 15th reason cannot slip past). FALSIFIER: delete the 'error' prose entry and observe the test red. May instead be folded into AS-88's docs pass (planned, Lena) \u2014 whoever gets there first closes the other.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M290H9C23EDMKW0MN6PRGTH8",
+  "last_event_id": "ev_01M290HTHZ7FRRBFC3MBMJZD1V",
+  "last_status_changed_at": "2026-09-11T19:53:55Z",
+  "linked_files": [],
+  "priority": "low",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-11T19:54:12Z",
+      "created_by": "agent:qa-priya",
+      "note": null,
+      "target_task_id": "task_01M1SJDVRA4BFMR4X33E454SWQ",
+      "type": "related_to"
+    },
+    {
+      "created_at": "2026-09-11T19:54:12Z",
+      "created_by": "agent:qa-priya",
+      "note": null,
+      "target_task_id": "task_01M1SJDVWABEGHB6Q61T1FZ0WJ",
+      "type": "related_to"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-118",
+  "status": "backlog",
+  "tags": null,
+  "title": "Chat: loop-label reason-list pin omits AS-84's 'error' build reason \u2014 'every build reason has prose' examines 13 of 14",
+  "type": "task",
+  "updated_at": "2026-09-11T19:54:12Z",
+  "urgency": null
+}

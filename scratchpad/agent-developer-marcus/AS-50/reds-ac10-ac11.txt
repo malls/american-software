@@ -1,0 +1,4 @@
+observed 2026-09-12T17:58:03.188Z
+AC-10 red: CliRefusal stripe CLI verb not allowed: ["invoices","pay","in_x"] (no process spawned)
+AC-11 red: RedactionError refusing to write: the text contains a Stripe key or signing-secret prefix
+AC-11 replace: [client-email] [freelancer-email] https://invoice.stripe.com/…/[token]

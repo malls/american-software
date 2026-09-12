@@ -1,0 +1,3 @@
+# AS-73 review progress (qa-ruben)
+- 08:10Z start; plan read; reading diff cold next
+- host 474/474 exit 0; M6 probe 13 entries 0 disagreements (AS-73-m6-probe.txt); real root Examined 11, 10/10, 0 unparsed, no violations, exit 0; AC-11 byte-identical both roots; AC-8/9 confirmed on master copy (TypeError; who is departed); AC-1 grep hits lines 40 AND 54 (closing fence) -> wording issue, judge after Lena comment; compose Built 474/474 exit 0 (plan expected 470/delta 4 -> baseline mismatch b0763ad vs b1bba80, finding non-blocking); merge seam vs master e5de119: no overlapping files, merge-tree clean; battery running (AS-73-mutations.log)

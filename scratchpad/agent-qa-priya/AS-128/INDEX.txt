@@ -1,0 +1,27 @@
+AS-128 review battery — qa-priya, 2026-09-12, tick watcher:23610 loop 3 tick 12
+Branch feat/AS-128-add-client-validation-state tip cf0a02a; base 3bdd3ee (master moved only in .lattice since).
+
+Counted runs (all --build; receipt = the "Image … Built" line in each log):
+  master-baseline.log            Image asc-review-as128-master-test Built   524 tests / 505 pass / 0 fail / 19 skipped
+  branch-green.log               Image asc-review-as128-test Built          530 / 511 / 0 / 19   (+6: 1 view-model + 2 screen tests per screen)
+  branch-green-after-restore.log Image asc-review-as128-test Built          530 / 511 / 0 / 19
+  probe-m6.log                   Image asc-review-as128-test Built          45 probe cases / 45 pass (probe file was untracked, deleted after)
+
+Falsifiers, in place with backup + restore; each <Mn>.mutation.diff is the applied mutation (asserted single hit, single file):
+  M1 routes/invoices.js try/catch -> bare create      fail 1  {S4-CLIENT-ERROR-VALIDATION (AS-128) screen test}                       exact
+  M2 routes/invoices.js trim removed                  fail 1  {add-client (AS-128) trims … invoice}                                   exact
+  M3 routes/contracts.js try/catch -> bare create     fail 1  {S6-CLIENT-ERROR-VALIDATION (AS-128) screen test}                       exact
+  M4 routes/contracts.js trim removed                 fail 1  {add-client (AS-128) trims … contract}                                  exact
+  M5 invoice-form-view.js clientEmailRefused=false    fail 2  {S4 screen test, clientEmailRefused (AS-128) invoice view-model test}   exact
+  M6 contract-form-view.js clientEmailRefused=false   fail 2  {S6 screen test, clientEmailRefused (AS-128) contract view-model test}  exact
+  After each: git -C .worktrees/AS-128 diff --exit-code clean. mutation-results.json has the machine record.
+
+Probe inputs (both screens, intent=add-client): not-an-email, '', '   ', '\t', ' dee@example.test ', '\tdee@example.test\n',
+  '@example.test', 'dee@', 'a@@b', 'dee @example.test', NBSP inside, NBSP leading, unicode, exactly 254, 255, 2000 chars,
+  HTML in refused email, HTML in name; clientConfirm=1 + malformed; same malformed body twice; repeated clientEmail field
+  (array); save/generate with a stray malformed clientEmail; invoice edit-mode POST add-client.
+  Every refusal: 400 text/html, S{4,6}-CLIENT-ERROR-VALIDATION, one clientEmail-error, the right sentence once, name/items/
+  description/date/pickerMode preserved as typed and HTML-escaped (no raw <script>/<b>/<i>), 0 client rows, 0 invoice/
+  contract rows. Every trim-valid input: 200, one row stored trimmed, selected.
+
+Teardown: both compose projects down, local images removed, no asc-review-as128* containers remain.

@@ -1,0 +1,16 @@
+# AS-47 planning progress (agent:cto-owen, tick watcher:79108 loop tick 5, Opus under Fable fallback)
+- [ ] read plans AS-45/AS-70/AS-46, design docs, app code
+- [ ] baseline counted run (asc-plan-as47), log at scratchpad/agent-cto-owen/AS-47/baseline-test.log
+- [ ] plan file written
+- [ ] branch + worktree + branch-link
+- [ ] lattice comment
+- [ ] #engineering note
+- baseline DONE: 406/388/0/18, Image asc-plan-as47-test Built, torn down clean (receipt in AS-47/baseline-receipt.txt)
+- read: AS-70 plan, AS-46 plan, ledger s6/s7, wireframes 6/7, contracts routes/generation/render/templates/repo
+- key finding: render.js says AS-47 emits renderedHtml with EJS raw output once; RAW_OUTPUT_SANCTIONED allowlist is EMPTY (AS-45) -> one sanctioned entry is the plan center
+- next: view layer (signin-view.js, signin.ejs, views.js, app.css), dependency-policy rows, auth/health/harness/screens literals, README regions, clients repo
+- design decided: raw-output sanctioned line (1 entry), Download = same template isDownload + Content-Disposition via GET form no-action ?download=1 presence flag, no Print control (browser print + @media print in app.css; mobile-first case learns print prelude), screen owns POST /contracts/new with intents (AS-46 ruling), validateFormValue exported from generation.js, contracts.test.js P8 recount 1->4, S6/S7-ERROR-SYSTEM via direct sqlite fault injection
+- staffing: Marcus implement (AS-42+AS-70 author), Priya review
+- NOW: writing plan file
+- DONE: plan file written; branch feat/AS-47-contract-screens + worktree .worktrees/AS-47 + branch-link; lattice comment posted; #engineering msg 968 posted
+- NOT done by design: no planned transition, no master commit (orchestrator)

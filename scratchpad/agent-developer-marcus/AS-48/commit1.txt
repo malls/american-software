@@ -1,0 +1,26 @@
+AS-48: screens 3 and 5 — Dashboard and invoice detail, read from the mirror
+
+Two pure view models (lib/screens/dashboard-view.js, invoice-detail-view.js)
+over the invoice mirror, two templates, and the routes: GET / renders the
+Dashboard for every signed-in freelancer (the AS-70 interim 303 is
+discharged; S3-GATED-STRIPENOTREADY layers on the list state by one boolean);
+GET /invoices/:id renders screen 5 from the row the webhook maintains; the
+two redirectors GET /invoices/view and GET /contracts/view turn a Dashboard
+row's hidden-id GET form into a bounded 303 (an id never sits in an href);
+POST /invoices/send resumes the pipeline from the detail page. Stripe's
+hosted_invoice_url and invoice_pdf are surfaced as escaped copyable text,
+never rebuilt and never an href (plan §3.4). formatDisplayMinorUnits joins
+money.js; formatDate (UTC) joins lib/screens/dates.js. The two nav
+obligations land: the Dashboard anchor on screen 4 and screen 2's
+"Continue to Dashboard" on READY.
+
+test/read-screens.test.js: 24 cases (plan §7 cases 1-22, 24, 25); the six
+AS-70 terminus assertions in screens.test.js and auth.test.js now end on /
+at 200; every cardinality literal recounted (routes 26, source 59, VIEWS 5,
+VIEW_START_TAGS 574, APP_CSS 189/152, TEMPLATE_LINKS 32, harness 20, P8 2,
+Y2 2). Counted run: 475/457/0/18, Image asc-impl-as48-2-test Built.
+
+Split line (plan §6): measured 2,265 changed lines at this commit, Unit B
+included; recorded on the task for the CTO's ruling.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

@@ -1,0 +1,10 @@
+assert-applied the NotFound branch of the detail route: 1 -> 0 (expected 1 -> 0)
+docker compose -p asc-impl-as48-f12 run --rm --build test
+RECEIPT project=asc-impl-as48-f12
+  built: Image asc-impl-as48-f12-test Built
+  tests=475 pass=456 fail=1 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (1):
+  ✖ S5-DENIED-NOTOWNER is byte-identical to S5-ERROR-NOTFOUND

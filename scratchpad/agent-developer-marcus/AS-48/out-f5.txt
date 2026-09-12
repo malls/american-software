@@ -1,0 +1,15 @@
+assert-applied stripeReady in dashboard-view.js: 1 -> 0 (expected 1 -> 0)
+docker compose -p asc-impl-as48-f5 run --rm --build test
+RECEIPT project=asc-impl-as48-f5
+  built: Image asc-impl-as48-f5-test Built
+  tests=475 pass=451 fail=6 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (6):
+  ✖ a successful sign-up with no next lands on a page that exists
+  ✖ a successful sign-in with no next lands on a page that exists
+  ✖ S3-GATED-STRIPENOTREADY layers on both list states: New invoice is a span with the finish-setup link, not an anchor
+  ✖ S3-EMPTY-FIRSTRUN: zero records render the first-run copy with the invoice CTA and no table
+  ✖ a signed-in GET /signin lands on a page that exists
+  ✖ GET / renders the Dashboard for a signed-in caller who has not connected Stripe

@@ -1,0 +1,11 @@
+assert-applied UUID_SHAPE test in the invoices redirector: 1 -> 0 (expected 1 -> 0)
+assert-applied UUID_SHAPE test in the contracts redirector: 1 -> 0 (expected 1 -> 0)
+docker compose -p asc-impl-as48-f8 run --rm --build test
+RECEIPT project=asc-impl-as48-f8
+  built: Image asc-impl-as48-f8-test Built
+  tests=475 pass=456 fail=1 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (1):
+  ✖ GET /invoices/view and GET /contracts/view redirect a UUID-shaped id and refuse everything else with a bounded response

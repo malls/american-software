@@ -1,0 +1,13 @@
+assert-applied max-width preludes: 0 -> 1 (expected 0 -> 1)
+RECEIPT project=asc-as47-fprint-c
+  built: Image asc-as47-fprint-c-test Built
+  tests=430 pass=409 fail=3 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=1
+
+RED SET (3):
+  ✖ every visual value in public/ CSS traces to a token that exists
+  ✖ every href and form action in the two contract templates names a route the app registers
+  ✖ app.css is mobile-first: every media condition is min-width, and none is below 480px

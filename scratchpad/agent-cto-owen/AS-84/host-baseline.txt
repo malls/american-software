@@ -1,0 +1,12 @@
+✔ AS-75 makeDeployOps: a dirty image-input tree refuses, and a broken git refuses differently (1.605667ms)
+✔ AS-75 makeDeployOps: no docker binary is a refusal that names the remedy, not a crash (0.588ms)
+✔ AS-75 makeDeployOps: a watcher-source change exits 70 and leaves the pid file alone (2.142208ms)
+✔ AS-75 makeDeployOps: deploy-state.json is written on every poll, atomically, for the server to read (1.163875ms)
+ℹ tests 498
+ℹ suites 0
+ℹ pass 498
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7459.884542

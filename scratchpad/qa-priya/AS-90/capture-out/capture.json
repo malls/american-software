@@ -1,0 +1,50 @@
+{
+  "screen1MergeCommit": "95b5ee5",
+  "branchCommit": "afac7a0",
+  "capturedAt": "2026-09-12T04:54:22.364Z",
+  "chrome": "Chrome/152.0.7977.83",
+  "method": "cdp (node built-in WebSocket; Page.captureScreenshot full page)",
+  "base": "http://127.0.0.1:8349",
+  "captures": [
+    {
+      "file": "screen-1-signin-375.png",
+      "state": "S1-DEFAULT-SIGNIN",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/signin",
+      "bytes": 13695
+    },
+    {
+      "file": "screen-1-signin-1280.png",
+      "state": "S1-DEFAULT-SIGNIN",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/signin",
+      "bytes": 16796
+    },
+    {
+      "file": "screen-1-signup-375.png",
+      "state": "S1-DEFAULT-SIGNUP",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/signin?mode=signup",
+      "bytes": 19012
+    },
+    {
+      "file": "screen-1-signup-1280.png",
+      "state": "S1-DEFAULT-SIGNUP",
+      "width": 1280,
+      "height": 800,
+      "url": "http://127.0.0.1:8349/signin?mode=signup",
+      "bytes": 23365
+    },
+    {
+      "file": "screen-1-error-validation-375.png",
+      "state": "S1-ERROR-VALIDATION",
+      "width": 375,
+      "height": 812,
+      "url": "http://127.0.0.1:8349/signin",
+      "bytes": 26390
+    }
+  ]
+}

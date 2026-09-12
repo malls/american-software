@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/pristine/apps/invoicing/lib/screens/connect-view.js	2026-09-12 01:29:08
++++ /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/f7vm/apps/invoicing/lib/screens/connect-view.js	2026-09-12 01:31:14
+@@ -92,7 +92,7 @@
+ const COPY = Object.freeze({
+   'S2-DEFAULT-NOTSTARTED': Object.freeze({
+     title: 'Connect your Stripe account',
+-    lede: "You'll be taken to Stripe to verify your identity and add payout details. We never hold or move your clients' funds — Stripe pays you directly.",
++    lede: "You'll be taken to Stripe to verify your identity and add payout details. We never hold or move your clients' money — Stripe pays you directly.",
+     banner: null,
+     action: Object.freeze({ label: 'Connect with Stripe' }),
+   }),

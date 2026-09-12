@@ -1,0 +1,2 @@
+examined 12 changed file(s) on feat/AS-41-connect-onboarding / 2 working tree(s)
+PASS: diff confined to allowed prefixes; worktree and main checkout clean

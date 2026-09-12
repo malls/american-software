@@ -1,0 +1,12 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/pristine/apps/invoicing/lib/screens/connect-view.js	2026-09-12 01:29:08
++++ /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/r3_precedence_flip/apps/invoicing/lib/screens/connect-view.js	2026-09-12 01:32:50
+@@ -129,8 +129,8 @@
+  *  state: no row creates, not-ready resumes, ready short-circuits back here
+  *  with zero Stripe calls (routes/connect.js R5). */
+ function selectState(account, startFailed) {
+-  if (startFailed) return 'S2-ERROR-SYSTEM';
+   if (account === null) return 'S2-DEFAULT-NOTSTARTED';
++  if (startFailed) return 'S2-ERROR-SYSTEM';
+   return account.ready === true ? 'S2-RETURN-READY' : 'S2-RETURN-NOTREADY';
+ }
+ 

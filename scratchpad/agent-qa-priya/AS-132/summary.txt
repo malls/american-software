@@ -1,0 +1,29 @@
+AS-132 QA review — Priya Raman (agent:qa-priya) — 2026-09-12
+Branch feat/AS-132-rearm-resume-hold tip 1f9ae7f, worktree .worktrees/AS-132
+
+HOST (node --test, apps/chat)
+  master   : tests 660 pass 657 fail 0 skipped 3   (host-master.log)
+  worktree : tests 663 pass 660 fail 0 skipped 3   (host-worktree.log)   +3
+
+COMPOSE (bin/compose-run.mjs, --build, ADVANCE_DOCKER_BIN=/usr/local/bin/docker)
+  master   : Image asc-qa-as132base-test Built  tests=660 pass=651 fail=0 skipped=9  leak check clean (compose-master.log)
+  worktree : Image asc-qa-as132-test Built      tests=663 pass=654 fail=0 skipped=9  leak check clean (compose-worktree.log)   +3
+
+PROBES (probes.mjs, driven against both modules)
+  branch: 10/10 pass. master: P0 (Ruben P5 through poll()) FAILS — fire-loop where branch says wait-lock: bug reproduced on master, closed on branch.
+  P1 ordinary re-arm vs live fresh foreign lock: wait-lock, one line across 6 polls, fire-loop at grace, resumeHold false after.
+  P2 restart during the re-armed wait: mirror active:true ticks 0, no resumeHold key; second process resume() re-raises the hold.
+  P3 message during the wait: fire-message (F2 design), start() clears the hold.
+  P4 no leak past the re-armed loop's own first tick (foreign lock between our ticks -> fire-loop, F1 path).
+  P5 undatable lock at re-arm: not held.  P6 lock vanishing mid-wait: clears next poll.  P7 rearmIfDue twice: no-op.
+  P8 held re-arm outranks pending deploy.  P9 gate opens at exactly resumeGraceMs (>=), 1 ms short still held.
+
+MUTANTS (mutants.mjs — in place, backup + restore on exit/signal, site asserted by hunk line, git diff --exit-code clean after each)
+  M1 L1755 delete resumeHold=true in rearmIfDue      -> 663/659/1  red {as132-t1}                                                            = plan
+  M2 L1886 >= resumeGraceMs -> >= Infinity           -> 663/658/2  red {as132-t1, f2-resume-fires-when-the-lock-aged-out}                   = plan
+  M3 L1884 loadLock() ?? fresh                       -> 663/657/3  red {as132-t2, f2-resume-fires-with-no-lock, AS-129 T11 makeWatcher}     = plan
+  M4 L1940 delete resumeHold=true in resume()        -> 663/656/4  red {as132-t3, f2-resume-waits-out-a-live-lock, f2-gate-is-age-not-pid, f2-gate-is-resume-only}; as132-t1 green = plan
+  Full logs: M1.log..M4.log, diffs M1.diff..M4.diff, mutants-report.txt
+
+FINDINGS outside the list: 1 non-blocking (log wording), 2 observations (pre-existing design, no action).
+VERDICT: pass. No inline fixes made.

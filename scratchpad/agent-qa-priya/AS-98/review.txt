@@ -1,0 +1,58 @@
+REVIEW — AS-98 (qa-priya, tick watcher:86819 loop tick 13, on Opus per the Fable fallback). Branch feat/AS-98-href-allowlist-guard, head 156faa5 (f4ad8c2 tests, 156faa5 README). Diff read cold: 3 files, +161/-6 — link-sites.test.js (new, 145 lines), api.test.js T7a/T7b (13 lines), README (9 lines). Marcus's comment read AFTER my mutant runs, for his counts and the M11 deviation only.
+
+VERDICT: PASS. 0 blocking findings. 4 findings outside the criteria list, all non-blocking (below). No inline fix committed — nothing in the diff is trivia-level wrong. Recommend done.
+
+== FINDINGS FIRST (M5) ==
+
+F1 (non-blocking, backlog) — a logical-assignment operator on a NEW anchor survives every guard. Probe P1: insert after A-panel `const p1 = el('a'); p1.href ||= task.taskId;` → 67/67 green, red set {}. HREF_ASSIGN matches only `=` and `+=` (`\+?=`), and the mechanism ban lists `.href +=` only, so `||=`, `??=`, `&&=` are invisible to T8/T9 and the count pin does not fire (the classifier never saw an assignment). Narrowed by P8: the same operator on an EXISTING site (`open.href ??= dashHref(...)` replacing A-panel) IS red {T7, T8} — the count drops 9→8 — so the survivor is only "added anchor + logical assignment". Classification: not an honest-mistake spelling for a fresh element (nobody writes `||=` on an element they just created), so it is a §1.4-class boundary, not a blocker. Cheapest close is one regex in MECHANISMS: `/\.href\s*(\|\||\?\?|&&)=/`. I am not making that inline — it changes what the guard catches, and the reviewer proving her own patch is the conflict this loop exists to prevent. Backlog task, or fold into the next touch of link-sites.test.js.
+
+F2 (plan correction, non-blocking) — M11's §3 prediction ("all GREEN by design") is wrong; observed RED {T8, T11}, confirming Marcus. Two independent reasons, both in the guard's favour: (a) M6's insertion is a tenth `.href =`, and the count pin fires regardless of what ALLOWED_RHS says — so NO insertion mutant can ever demonstrate the boundary; (b) the loosened `/^url\b/` makes T11's rejected input `shadow.href = url;` pass, and the self-test counts it. So the "one silent edit" §1 describes is not silent: loosening the allowlist trips the classifier self-test, and the count pin has to be loosened in the same edit. The §1.4 boundary itself IS real — P7 (count-preserving: A-panel replaced by `const { url } = task; open.href = url;`) is red {T7, T8} only because T8's RHS check and T7's named-site assertion fire; T10 stays green on the destructured read, exactly as §1.4 says. To OBSERVE M11 as green you would need three edits (replace a site, loosen ALLOWED_RHS, and delete the T11 input), which is no longer a "casual" edit. Ruling: Marcus was right not to edit the prediction; the plan's §3 M11 row should get a correcting note from the orchestrator (as AS-93's §5 did), reading "observed {T8, T11}; the boundary is demonstrated by P7 not M11". Plan-level shape, but an error in a prediction table, not in the design — does not block.
+
+F3 (housekeeping, fixed) — AC-11 says no `asc-as98-*` images remain; the implementer's comment says `asc-impl-as98` was torn down with `--rmi local`, but `asc-impl-as98-test:latest` (sha256:4959e282…) was still present when I checked. Attributable to Marcus's run by name, so I removed it (`docker rmi asc-impl-as98-test`, exit 0). No `/tmp/AS-98-*` left; `git worktree list` = master + AS-102 + AS-115 + AS-98 (the two siblings are other lanes, not mine).
+
+F4 (boundary, recorded not blocking) — P2 `p2.href = dashHref(task.taskId) + '?x=' + task.url` on a new anchor is red {T7, T8, T10}, but T8 is red on the COUNT only: the RHS begins with `dashHref(` so the allowlist accepts a hand-appended tail. If the tail were a destructured `url` on a replaced site, only the named-site assertion in T7 would catch it, and only at one of the four named sites. Adversarial (§1.4), confirms the boundary; the allowlist is "begins with", and its English says so. No action.
+
+Other probes, all red as the guard should: P3 RHS on the next line {T7, T8, T10}; P4 `/* comment */ task.url` {T8, T10} (T7a's pattern is broken by the comment — T8 is the control that survives it, which is the §1 argument holding); P5 `p5["href"] = …` double-quoted bracket {T9}; P6 `` `${location.origin}/x` `` — no literal, no .url — {T8}: the allowlist catches the hand-assembled origin that nothing else could.
+
+== MUTANTS (M4 / AC-10) — my own runs, scratch worktree /tmp/AS-98-priya detached at 156faa5, host `node --test --test-reporter=tap test/link-sites.test.js test/api.test.js` (67 tests in the two guard files), NOT per-mutant compose builds (same choice Marcus made; the compose receipt below proves the image sees the same public/). Applied-assertion per run: marker 0→1, diff-stat names exactly the expected file(s), anchor count 1→1 (M8/P7/P8: anchor 1→0), `git checkout -- .` between runs, final scratch status empty. Runner and log: scratchpad/agent-qa-priya/AS-98/mutants.mjs.
+
+  M1  {T7, T8, T10}  as predicted (AC-1: Ruben's M-M6 verbatim, `shadow.href=task.url;`)
+  M2  {T9, T10}      as predicted — T7 and T8 GREEN, quoted: the reason T9 exists
+  M3  {T9, T10}      as predicted
+  M4  {T7, T8}       as predicted (T10 green)
+  M5  {T7, T8}       as predicted
+  M6  {T8}           as predicted — every denylist green; the row that justifies §1
+  M7  {T8}           as predicted
+  M8  {T7, T8, T10}  as predicted; T7 message names rosterRow (AC-7)
+  M9  {T8}           as predicted (the AS-115 seam spelling)
+  M10 {T9}           as predicted
+  M11 {T8, T11}      plan predicted GREEN — see F2; M11-revert (test restored, M6 kept) {T8} as predicted
+  AC-5 extra ((?!=) removed from HREF_ASSIGN) {T11} as predicted
+  11 plan runs + 1 revert + 1 AC-5 extra + 8 probes = 21 runs; 10 of 10 red-expected plan mutants red on EXACTLY the predicted set; 0 survivors among plan mutants; 1 survivor among my probes (F1).
+
+== COUNTS, cardinality before quantification ==
+Host, worktree apps/chat, `node --test`: 554 tests / 553 pass / 0 fail / 1 skipped. Baseline master (previous tick) 550/549/1 → +4, as §5 predicts (four new tests, none removed, none retitled — verified in the diff).
+Compose, `-p asc-review-as98 run --build --rm test`, receipt line quoted: `Image asc-review-as98-test Built` — 554 tests / 547 pass / 0 fail / 7 skipped (+4 over the 550/543/7 AS-88 review run). Torn down with `down --rmi local`; image removed; no asc-review-as98 image remains. T8 ran inside the image (the 12-file / 9-assignment classifier is wired to the served public/ the image copies — the vacuous-path check in §4).
+Marcus's numbers (554/553/1 host; 554/547/7 compose) match mine.
+
+== AS-115 SEAM (plan §7) — scratch check ==
+In the scratch worktree: `git merge --no-commit --no-ff feat/AS-115-copy-refs` onto 156faa5 → clean, 0 conflicts (README and api.test.js auto-merged). Guard files on the merged tree: 67/67/0, red {}. Independent count of `.href =` assignments across the merged public/*.js: 9 — AS-115's copy chip adds no href site, as §7 requires. Merge aborted, scratch worktree removed. So AS-98 can merge first and AS-115's plan §7 expectation holds.
+
+== ACCEPTANCE CRITERIA — floor check (11 of 11 pass; 4 findings OUTSIDE this list, above) ==
+AC-1 PASS — M1 red {T7, T8, T10}, my run.
+AC-2 PASS — T8 green on tip; M6/M7/M9 each red on exactly {T8}; P7 additionally proves the RHS check without the count pin.
+AC-3 PASS — M2/M3 {T9, T10}, M10 {T9}.
+AC-4 PASS — T10 in M1 and M8 red sets.
+AC-5 PASS — T11 green on tip with 9 rejected / 4 allowed + 1 comparison (Marcus's reading of "5 accepted" is the sensible one; the message text says so); AC-5 extra red {T11}.
+AC-6 PASS — T7 in M1 (spacing), M4/M5 (literals); literal list is the six named.
+AC-7 PASS — M8 {T7, T8, T10}, T7 failure names rosterRow.
+AC-8 PASS — counts above; §5's 546 was pre-AS-88 and the plan told the implementer to re-baseline; 550→554 is the +4.
+AC-9 PASS — README paragraph present, verbatim §6, in the Links section after the `url`-field sentence.
+AC-10 PASS — 21 runs recorded above with applied-assertions; M11 recorded as observed {T8, T11} (not expected-green — F2), revert re-red {T8}.
+AC-11 PASS after F3 — no asc-*as98* images, no /tmp/AS-98-*, task worktree clean at 156faa5, the AS-10 server-side `url` assertions untouched (diff does not touch lattice.test.js; api.test.js edit is inside T7 only) and green in both runs.
+
+§9 open questions: Q1 (destructured url in T10) — default "no" stands; P7 shows the href consequence is T8's, as argued. Q2 T7's .url pattern kept and widened — confirmed in the diff. Q3/Q4 nothing to add.
+
+Process notes: I did not read scratchpad/agent-developer-marcus, scratchpad/agent-cto-owen or review-AS-93.txt; no Lattice auto-review artifact existed. My first mutant pass parsed the spec reporter and reported every red set as empty — a harness bug on my side, caught because M1 cannot be green; re-run with the TAP reporter. Recorded so nobody reads the first log (scratchpad/agent-qa-priya/AS-98/) as a survivor sweep.
+
+Not done / for the orchestrator: append the F2 correcting note to plan §3 M11; file F1 as a backlog task (one-regex widening of MECHANISMS to logical-assignment operators) or fold into the next link-sites edit. Status transition, merge, and board reply are Owen's.

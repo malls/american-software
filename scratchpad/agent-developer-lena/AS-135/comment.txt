@@ -1,0 +1,11 @@
+Implementation complete on feat/AS-135-incremental-dom (fast-forwarded onto 86f1529): df1ebaa, d126e26, fc0d3d1, bb0f43a.
+
+Built: new pure module public/message-pane.js (messageIdOf, replyLabel, insertMessageNode, setReplyCount, frameTargets, applyFrameToPanes; only id/classList/children/insertBefore/appendChild/removeChild/textContent + scroll metrics touched; each insert composed under renderPreservingScroll). app.js: threadLinkNode extracted from messageNode (replyLabel is the one label source), renderFrame(msg) = applyFrameToPanes + applyAnchor; handleFrame, sendMessage and catchUp (per merged row) call it; renderConversation keeps selectConversation as its single caller; loadOlderPage/prepend and navigation unchanged. live.js: R5 union in mergeOlderPage for a fresh root with orphan replies, replyCount = merged length; loaded roots unchanged. README: rendering rule line. Tests: test/message-pane.test.js T1-T10 (plain-object fake element, source pins on app.js), one additive live test.
+
+Deviation, boring and necessary: server.js STATIC_FILES gained /message-pane.js (else the browser 404s the import) and the AS-74 served-module pin moved 14 -> 15 as that test demands (bb0f43a). The first full host run and first compose run were red on exactly that pin.
+
+Counts: host baseline 663/660/0/3 -> 674/671/0/3 (+11, as predicted). Compose: `Image asc-impl-as135-test Built`, 674/665/0/9, leak check clean, project asc-impl-as135.
+
+Mutants: 13 run (M1-M9, M5b, M6b, plus M7b thread-side and the AS-131 M9 prepend re-run), all red, every site asserted in a detached scratch worktree, scratch diff clean after. M9-prepend red set exactly {prependPreservingScroll x2}. Three sets wider than the plan predicted (M5 +T9, M5b +T7/T9, M6 +T7) — same defect seen by more observers, none narrower. Table: scratchpad/agent-developer-lena/AS-135/mutant-table.md; logs alongside.
+
+Left undone: the interactive browser check (plan step 4 — scroll-up + frame, thread reply, permalink + frame) was not done; a worktree-server module-graph smoke on port 8399 passed (app.js's 12 imports and message-pane.js -> scroll.js all served; smoke.mjs). Q1 default taken (no empty-note handling on the thread pane); Q2 not triggered.

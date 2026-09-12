@@ -1,0 +1,60 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 729B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.83kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:24-slim
+#3 DONE 0.0s
+
+#4 [ 1/10] FROM docker.io/library/node:24-slim
+#4 DONE 0.0s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 342B done
+#5 DONE 0.0s
+
+#6 [ 2/10] WORKDIR /app
+#6 CACHED
+
+#7 [internal] load build context
+#7 transferring context: 1.12MB 0.0s done
+#7 DONE 0.0s
+
+#8 [ 3/10] COPY package.json server.js ./
+#8 DONE 0.0s
+
+#9 [ 4/10] COPY lib ./lib
+#9 DONE 0.0s
+
+#10 [ 5/10] COPY bin ./bin
+#10 DONE 0.0s
+
+#11 [ 6/10] COPY public ./public
+#11 DONE 0.0s
+
+#12 [ 7/10] COPY watch ./watch
+#12 DONE 0.0s
+
+#13 [ 8/10] COPY test ./test
+#13 DONE 0.0s
+
+#14 [ 9/10] COPY compose.yaml Dockerfile ./
+#14 DONE 0.0s
+
+#15 [10/10] RUN mkdir -p /app/data && chown -R node:node /app
+#15 DONE 0.3s
+
+#16 exporting to image
+#16 exporting layers 0.0s done
+#16 writing image sha256:52bff707335d5749789778bab3f7cccddc6cc16f66957c2e82408125fa213b82 0.1s done
+#16 naming to docker.io/library/as83test-server
+#16 naming to docker.io/library/as83test-server done
+#16 DONE 0.2s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+ Image as83test-server Building 
+ Image as83test-server Built 

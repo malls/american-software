@@ -1,0 +1,808 @@
+(node:12932) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ api: identities, CSP header, static page (67.064333ms)
+✔ api: startup ingestion fills lattice-events; channel guarded from non-system posts (27.798958ms)
+✔ api: channels, messages, threads, refs, unread, read watermark (60.331375ms)
+✔ api: AS-3 — POST /api/read with over-max upTo is 400 and moves nothing (45.245084ms)
+✔ api: task resolution endpoint and clear 4xx errors (13.285417ms)
+✔ api: AS-6 — #board is hidden from non-members, byte-identically to nonexistent (87.777666ms)
+✔ api: AS-11 — cross-conversation threadRoot rejection is type-blind over HTTP (36.782792ms)
+✔ api: AS-9 — url-state.js is served; query string never affects static routing (13.695459ms)
+✔ api: AS-17 — scroll.js is served (app.js module graph must not 404) (9.777209ms)
+✔ api: AS-19 — thread-modal.js is served; index.html ships the modal, not the sidebar (11.380458ms)
+✔ api: AS-23 — served page and CSS carry the mobile layout artifacts (16.092375ms)
+✔ api: AS-8 — roster joins personnel, lattice work status, and DM state (86.618375ms)
+✔ api: AS-8 — roster degrades to empty when personnel/ is absent (12.812375ms)
+✔ api: AS-24 — POST /api/channels honors visibility/members; members-without-private is a store-level 400 (52.166959ms)
+✔ api: AS-24 — POST /api/catchup marks everything read (30.4555ms)
+✔ api: AS-24 — POST /api/sync ingests new lattice events immediately (no 10s throttle) (41.758042ms)
+✔ api: AS-24 — GET /api/messages honors ?limit= (CLI history --limit parity) (18.019917ms)
+✔ api: AS-24 — GET /api/dump and /api/export are byte-faithful to the store (31.747417ms)
+✔ api: malformed JSON body is a 400 with a clear message (40.2075ms)
+✔ api: AS-25 — GET /api/messages?since= returns the flat delta; hidden-channel parity holds for since= (58.594125ms)
+✔ api: AS-25 — live.js is served (app.js module graph must not 404); the 5s poll is retired (16.869542ms)
+✔ api: AS-72 — app.js schedules exactly two intervals (balanced-paren scan): one >=30s reconcile, one render-only tick (13.054167ms)
+✔ api: AS-18 — dm-sort.js is served (app.js module graph must not 404) (27.513792ms)
+✔ api: AS-26 — msg-refs.js and markdown.js are served; index.html ships the file modal (17.571125ms)
+✔ api: AS-26 — GET /api/message/<id> resolves navigation data; hidden = nonexistent byte-identically (51.009959ms)
+✔ api: AS-26 — GET /api/file serves allowlisted repo markdown; every probe 404s byte-identically (176.479666ms)
+✔ api: AS-61 — GET /api/file refuses hard links (nlink > 1) byte-identically, and .claude/ stays unreachable by name (55.534458ms)
+✔ api: AS-54 — served app.js autolinks through markdown.js and never inside a markdown link (14.663958ms)
+✔ api: AS-33 — /api/org reports violations from the fixture root (17.797958ms)
+✔ api: AS-33 — /api/org degrades to empty on a root with no personnel/ (33.083ms)
+✔ api: AS-33 — /api/roster keeps its envelope while gaining the reporting edge (8.096917ms)
+✔ api: AS-33 — org-chart.js is served, imported, and holds the no-innerHTML line (11.574167ms)
+✔ api: AS-33 — index.html ships the org chart control and modal skeleton (6.721625ms)
+✔ api: AS-33 — check-org --json matches GET /api/org for the same root (56.745958ms)
+✔ api: AS-32 — served app.js renders the roster title through el() and shows title alone (22.256292ms)
+✔ api: AS-32 — style.css truncates the roster title to one line (6.541167ms)
+✔ api: AS-28 — /favicon.svg is served with the SVG content type (6.571791ms)
+✔ api: AS-28 — index.html links the favicon (6.464042ms)
+✔ api: AS-28 — the favicon uses only palette hex values (7.032792ms)
+✔ api: AS-27 — GET /api/loop-status reports each of the four states from its own file configuration (14.030542ms)
+✔ api: AS-95 — a watcher loop is observable over /api/loop-status, with its tick count and its stop reason (18.318ms)
+✔ api: AS-27 — the AS-16 nonce never leaves the server, and malformed files never 500 (10.797ms)
+✔ api: AS-27 — a pre-AS-27 watcher pid file (no heartbeatAt) reads as off, honestly (7.61925ms)
+✔ api: AS-27 — loop-status.js is served and imported; the production poll cadence is 2s (7.362625ms)
+✔ api: AS-75 — GET /api/build reports the baked id, and "unknown"/absent as not-an-id (22.524ms)
+✔ api: AS-75 — /api/loop-status carries build, and current is null (never false) whenever we cannot know (16.195375ms)
+✔ api: AS-75 — a malformed deploy-state.json never throws and never changes state (8.915708ms)
+✔ api: AS-75 — composeBuild is pure and tri-state at the unit level (0.3195ms)
+✔ api: AS-93 — /api/config exposes exactly the dashboard override; dashboard-link.js is served, imported, and pure (10.906083ms)
+✔ api: AS-93 — all four dashboard link sites go through the helper (4 examined, 4 covered) (7.505667ms)
+✔ api: AS-99 — GET /api/lanes joins the watcher snapshot to the live board (7.759833ms)
+✔ api: AS-99 — api-lanes-stale-boundary: age comes from generatedAt, never the file mtime (7.712958ms)
+✔ api: AS-99 — every degraded feed is a named reason, never a short list (9.135834ms)
+✔ api: AS-99 — api-lanes-git-error-badge: a refused git enumeration reaches the board as a dash, not a zero (7.338083ms)
+✔ api: AS-99 — api-lanes-key-whitelist: the payload carries no field the contract does not name (7.151875ms)
+✔ api: AS-99 — /lanes.js is served, and the client edges are real (5.571ms)
+✔ api: AS-99 — LANES_POLL_MS is the pinned production cadence (0.185667ms)
+✔ api-events-since-exclusive: AS-100 — /api/events filters by since, task and limit, and reports its own stream reason (10.585375ms)
+✔ api-events-key-whitelist: AS-100 — a line that grew a field reaches no reader (6.260875ms)
+✔ api: AS-100 — EVENTS_POLL_MS is the pinned production cadence (0.1965ms)
+(node:12933) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cli: chat channels never lists #board for a non-member; members see it (346.26475ms)
+✔ cli: hidden probes fail string-identically to nonexistent ones (modulo the echoed name) (749.441417ms)
+✔ cli: inbox and catchup never touch #board for a non-member (205.06875ms)
+✔ cli: create-channel collision on the hidden name is uninformative (88.713875ms)
+✔ cli: roster prints the active company roster with work status (AS-8) (200.192042ms)
+✔ cli: members use #board normally (post, history, reply, read) (175.295417ms)
+✔ cli: AS-3 — history/read/reply on a nonexistent DM never create a row (206.164ms)
+✔ cli: AS-3 — DM read-path error quality is preserved (typo, self-DM) (84.172083ms)
+✔ cli: AS-22 acceptance — five-seat private #bizdev is created, usable by members, invisible to others (501.934ms)
+✔ cli: AS-22 — --members without --visibility private is a usage error (132.598417ms)
+✔ cli: AS-22 — store validation errors pass through unchanged (177.427125ms)
+✔ cli: AS-22 — flagged create on a hidden name stays uninformative (oracle regression) (48.689917ms)
+✔ cli: AS-22 — flagless public create-channel is unchanged, including --json shape (144.165875ms)
+✔ cli: AS-3 — chat dm still creates the conversation and posts (regression guard) (131.953166ms)
+✔ dashboard-link: AS-93 — a tailnet page links to the same host on :8443 (0.480125ms)
+✔ dashboard-link: AS-93 — a loopback page links to :8799 (all four loopback spellings) (0.096625ms)
+✔ dashboard-link: AS-93 — fails closed: the href host is ALWAYS the page host, never a loopback fallback (0.1885ms)
+✔ dashboard-link: AS-93 — an explicit override wins; blank and non-http overrides fall back to inference (0.692292ms)
+✔ dashboard-link: AS-93 — a blank page hostname yields a host-less link, never a loopback one (0.073792ms)
+✔ deploy-shape: parser sees the manifests it is about to assert on (1.2505ms)
+✔ deploy-shape: /api/file reaches every repo markdown path the app links (7.03875ms)
+✔ deploy-shape: the repo mount is the whole checkout, read-only (0.14425ms)
+✔ deploy-shape: cli keeps its lattice + personnel reads; test service stays mountless (0.103417ms)
+✔ deploy-shape: IMAGE_INPUTS is exactly the set the Dockerfile COPYs (0.355542ms)
+✔ deploy-shape: the COPY parser throws on forms it does not understand (0.294917ms)
+✔ deploy-shape: the server image is stamped with the build id the deployer computes (0.21ms)
+✔ deploy-shape: `up -d --build` starts the server alone — cli and test stay behind the tools profile (0.22475ms)
+✔ dm-sort: teamPrefix — agent, human, system, multi-hyphen, no-hyphen (1.225625ms)
+✔ dm-sort: teamPrefix — malformed input degrades to empty string (0.086208ms)
+✔ dm-sort: rosterOrder — no pins: prefix groups lexicographic, name tie-break (14.387375ms)
+✔ dm-sort: rosterOrder — pinned float to top, comparator-sorted within tiers (0.110458ms)
+✔ dm-sort: rosterOrder — pins referencing absent ids are ignored (0.085042ms)
+✔ dm-sort: rosterOrder — never mutates input; junk degrades to [] (0.104ms)
+✔ dm-sort: dmOrder — sorts by other-member prefix, then display name; no pins (0.126ms)
+✔ dm-sort: dmOrder — stable over identical keys (0.07025ms)
+✔ dm-sort: togglePin — add, remove, dedupe, input untouched (0.090208ms)
+✔ dm-sort: sanitizePins — arrays keep string members deduped; junk -> [] (0.13025ms)
+✔ events-cli-creates-dir (55.297333ms)
+✔ events-cli-rejects-cut (726.55ms)
+✔ events-cli-unresolved-task-still-emits (202.070958ms)
+✔ events-cli-open-and-tail (350.267792ms)
+✔ events-envelope-keys (10.726625ms)
+✔ lattice-events-share-parser (0.633958ms)
+✔ events-id-monotonic (9.693916ms)
+✔ events-append-only (0.47075ms)
+✔ events-no-truncating-path (0.584083ms)
+✔ events-make-validates (0.246542ms)
+✔ watcher-events-outcome-timeout (0.107666ms)
+✔ events-open-derived-from-stream (0.322459ms)
+✔ events-liveness-bound (0.243667ms)
+✔ events-liveness-shapes (0.287791ms)
+✔ events-fold-incremental-equals-batch (0.213709ms)
+✔ events-project-whitelists-keys (0.222375ms)
+✔ events-read-stream-reasons (0.188125ms)
+(node:12939) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ export round-trips the messages table faithfully (15.821958ms)
+✔ export is deterministic and ignores read_state churn (5.45275ms)
+✔ export is append-only: prior files are strict prefixes after new messages (6.313083ms)
+✔ DM filenames use the ~ scheme, are safe, and never collide (6.216917ms)
+✔ cli: chat export writes files, prints summary, and re-runs byte-identically (359.54225ms)
+✔ AS-6: #board never produces an export file, even with messages in it (11.635958ms)
+✔ AS-6: the export header line format is unchanged (no visibility key) (4.950666ms)
+✔ AS-6: interleaved board traffic never perturbs public export files (9.050791ms)
+✔ cli: AS-6 — chat export skips #board: no file, no counts, still byte-identical on re-run (236.329625ms)
+✔ AS-91: a DM with a human participant produces no export file; the sibling agent-agent DM still does (16.171292ms)
+✔ AS-91: any human identity is excluded, not just human:forrest (human-second and human-first keys) (11.750291ms)
+✔ cli: AS-91 — chat export skips human DMs: no file, no counts, still byte-identical on re-run (278.869416ms)
+✔ cli: AS-3 — history on a nonexistent DM adds no export file (273.986792ms)
+✔ lanes-label-null-is-dash: an unanswered fetch is a dash, never a zero (6.518208ms)
+✔ lanes-label-reason-table: every snapshot reason has a sentence, and no sentence is orphaned (0.491792ms)
+✔ lanes-label-git-error-is-not-a-measured-zero: git refusing is not "nothing in flight" (0.192083ms)
+✔ lanes-label-empty-state-table: every reason has its own empty-state sentence, and only `ok` claims a measurement (0.180833ms)
+✔ lanes-label-stale-caption: a stale snapshot says so, in age and in words (0.165917ms)
+✔ lanes-label-task-only-not-cut-yet: a lane with no branch never reads 0 or clean (0.887875ms)
+✔ lanes-label-card-fields: a worktree lane renders all eight durable fields in words (0.33825ms)
+✔ lanes-label-employee-disagreement-is-shown: two identities, assignee first (0.177167ms)
+✔ lanes-label-dirty-lattice-and-errors: the two-plane violation and a failed git call are said out loud (0.151375ms)
+✔ lanes-label-unknown-task-and-detached: a lane with no join still renders a card (0.155708ms)
+✔ lanes-label-stale-badge-says-why: the STALE flag is never a bare word (0.135292ms)
+✔ lanes-label-tick-line-is-whole-company: the liveness line refuses to imply per-lane (0.108ms)
+✔ lanes-label-activity-has-no-producer-yet: blank, live and decayed at the 15 s boundary (0.085708ms)
+✔ lanes-label-events-reason-table: every stream reason has a sentence, and no sentence is orphaned (0.138542ms)
+✔ lanes-label-outcome-tables: every stage outcome and sub-agent exit has a sentence (0.09925ms)
+✔ lanes-label-no-stream-fills-both-slots: the missing input is named, not blanked (0.080458ms)
+✔ lanes-label-stale-open-not-running: an expired tick box is never reported as running (0.236125ms)
+✔ lanes-label-live-counts-up-and-ended-says-its-outcome (0.112084ms)
+✔ lanes-parse-detached: main + linked + detached rows parse to three rows (1.727833ms)
+✔ lanes-parse-tolerant: a record missing HEAD is a row with an error, never a throw (0.1475ms)
+✔ lanes-parse-trailer: the final record survives a missing trailing blank line (0.076125ms)
+✔ lanes-relpath: the absolute host path is stripped to a repo-relative one (0.145792ms)
+✔ lanes-relpath-outside-repo: a worktree outside the root is marked, never carried as a host path (0.121958ms)
+✔ lanes-status-summary: dirty count, and .lattice dirt called out by name (4.0785ms)
+✔ lanes-merged-fresh-branch-is-not-merged: all three facts are needed (0.357542ms)
+✔ lanes-compose-shape: a joined lane carries exactly the projection keys (15.376541ms)
+✔ lanes-compose-unknown-task-kept: N worktree rows in, N worktree lanes out (8.007625ms)
+✔ lanes-compose-link-beats-name: an explicit branch-link wins over a parsed short code (0.205542ms)
+✔ lanes-compose-branch-name-fallback: no link, so the short code in the name joins (0.211791ms)
+✔ lanes-compose-task-only-membership: mid-lifecycle without a worktree is a lane; a queue is not (0.193208ms)
+✔ lanes-compose-task-only-with-worktree: needs_human WITH a worktree is a lane (0.089375ms)
+✔ lanes-compose-no-double-count: a mid-lifecycle task joined to a worktree yields ONE lane (0.073084ms)
+✔ lanes-compose-order: worktree lanes by path, then task-only lanes by short id (0.108125ms)
+✔ lanes-stale-reasons: done, cancelled and merged each flag; a live lane does not (0.170541ms)
+✔ lanes-employee-both-fields: assignee and git author are never merged (0.102666ms)
+✔ lanes-stale-boundary: the boundary is LANES_STALE_MS, taken from generatedAt (0.094ms)
+✔ lanes-degradation: every unreadable feed is a named reason, never a short list (0.156958ms)
+✔ lanes-compose-tolerant: hostile and half-written rows never throw (0.110542ms)
+✔ lanes-liveness-shape-unchanged (0.140041ms)
+(node:12944) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ resolveShortId resolves existing tasks and flags missing ones (1.064291ms)
+✔ dashboardTaskUrl: default base, env override, trailing-slash trim (AS-10) (0.232083ms)
+✔ resolveRefs extracts unique refs; unresolvable codes are flagged, not dropped (0.252041ms)
+✔ readTaskEvents: per-task files only, ordered by ts, malformed lines skipped (0.320958ms)
+✔ formatEvent formats creations and transitions; truncates long titles (0.417125ms)
+✔ assignmentsByActor: in-flight only, priority ranking, recency tie-break (AS-8) (8.163667ms)
+✔ assignmentsByActor: missing tasks dir yields an empty map (0.686666ms)
+✔ assignmentsByActor: prototype-chain status "constructor" is not in-flight (AS-12) (2.918ms)
+✔ assignmentsByActor: assigned_to "__proto__" is a safe own key, no throw (AS-12) (1.413ms)
+✔ ingestNewEvents is idempotent: five runs post each event exactly once (T6) (26.65275ms)
+✔ launchd: AS-94 — every plist template under watch/ renders clean and carries the common job shape (2.195333ms)
+✔ launchd: AS-94 — the dashboard job binds loopback :8799 from the repo root, exactly (0.216542ms)
+✔ launchd: AS-94 — the README install recipe substitutes exactly each template's placeholders (0.487458ms)
+✔ launchd: AS-94 — the plist reader throws on forms it does not understand (0.445291ms)
+✔ AS-25 live: maxLoadedId spans top-level messages and thread replies; 0 when empty (0.471791ms)
+✔ AS-25 live: top-level merge — appends id-ordered, normalizes replyCount, dedupes by id (0.471833ms)
+✔ AS-25 live: reply merge — appends to threads[root], bumps loaded root replyCount exactly once (0.129375ms)
+✔ AS-25 live: catch-up idempotency — replaying the same delta changes nothing (2.764166ms)
+✔ AS-27 label: the four states produce four distinct tones and labels (6.053958ms)
+✔ AS-27 label: detail carries the evidence — ages, pid, and the source (0.421709ms)
+✔ AS-27 label: a stale lock names its source and says stale, without becoming a tick (0.177208ms)
+✔ AS-27 label: the no-heartbeat watcher yields the off tone and names the restart (0.224584ms)
+✔ AS-27 label: the between-ticks gap is described as a limit, not hidden (0.124ms)
+✔ AS-27 label: an unavailable status degrades to off/unavailable, never a throw (0.086625ms)
+✔ AS-75 label: exactly one build sentence, distinct per case, silent when current (0.186542ms)
+✔ AS-75 label: every build reason has prose, and null is never rendered as behind (0.233458ms)
+✔ AS-75 label: a deploy holds the lock and says so — "Tick in flight · deploy" (0.087333ms)
+✔ AS-95 label: a watcher loop is "Loop active · watcher, tick N", and the count comes from the lock first (0.157959ms)
+✔ AS-95 label: a stopped loop says WHY, in words, and only while no loop is running (0.1565ms)
+✔ AS-95 label: an absent or malformed loop key changes nothing (pre-AS-95 server parity) (0.105916ms)
+✔ AS-75 label: an absent or malformed build key changes nothing (0.077583ms)
+✔ f5-between-ticks-label: the gap between loop ticks reads as a loop, and says it is a gap (0.065125ms)
+✔ f5-idle-keeps-its-own-words: a session loop between ticks still gets C5’s explanation (0.049417ms)
+✔ AS-27 loop-status: the four states, each from the inputs that produce it (10.763292ms)
+✔ AS-27 loop-status: staleness boundary is the watcher's, not a second comparison (1.009291ms)
+✔ AS-27 loop-status: watcher freshness window is WATCHER_STALE_MS (12 watcher polls) (0.114417ms)
+✔ AS-27 loop-status: malformed lock and pid files degrade to a reason, never a throw (0.235667ms)
+✔ AS-27 loop-status: the AS-16 nonce is never copied into the derived object (0.152209ms)
+✔ AS-27 loop-status: a startedAt in the future (host clock skew) reads as age 0, never negative (0.080708ms)
+✔ AS-95 loop-status: a watcher tick inside a loop derives state watcher-loop, from either witness alone (0.129541ms)
+✔ AS-95 loop-status: watcher-loop never displaces the states that already existed (0.089334ms)
+✔ f5-between-ticks: a live loop between its ticks is a loop, not idle (0.080166ms)
+✔ f5-needs-a-live-watcher: an active mirror with a dead watcher is off, never a loop (0.118542ms)
+✔ f5-does-not-touch-the-lock-states: a fresh lock still decides who holds it (0.090042ms)
+✔ AS-95 loop-status: lastLoop survives a stopped loop, and a garbage loop file degrades to null (0.145458ms)
+✔ inline: strong, em (both delimiters), code, link — delimiters dropped from inner (1.372334ms)
+✔ inline: mixed body tokenizes in order with text between (0.126625ms)
+✔ inline: javascript: and other non-http schemes stay literal (edge case 16) (0.126084ms)
+✔ inline: false positives stay literal (edge case 14) (0.0925ms)
+✔ inline: code has precedence — styling never fires inside a code span (0.335208ms)
+✔ inline: refs inside styling keep their text for the per-leaf ref passes (edge case 15) (0.082792ms)
+✔ inline: single level — inner is not re-tokenized by the caller contract (0.065375ms)
+✔ inline: junk-tolerant on non-strings and empty input (0.05975ms)
+✔ blocks: headings, fenced code, paragraphs on blank lines, list lines stay plain (3.943666ms)
+✔ blocks: unclosed fence runs to EOF; ####### is a paragraph, not a heading (0.167791ms)
+✔ urls: bare http/https autolink — the corpus cases from chat history (1.25525ms)
+✔ urls: trailing sentence punctuation stays literal text (0.132667ms)
+✔ urls: closing brackets belong to the URL only when balanced (0.178916ms)
+✔ urls: scheme allowlist — non-http(s) schemes never produce a url token (0.073375ms)
+✔ urls: scheme parity — bare URLs and markdown links accept the same schemes (0.101375ms)
+✔ urls: href is a verbatim source slice; round-trip holds over a fuzz corpus (155.802375ms)
+✔ urls: AS-72 — a trailing en dash / em dash / ellipsis is prose; mid-URL it is not (D3) (0.163625ms)
+✔ urls: AS-72 — no invisible format (Cf) code point enters an href (D4) (8.016416ms)
+✔ urls: pass order — refs inside a URL are never linkified; refs outside still are (0.661834ms)
+✔ urls: junk-tolerant on non-strings and empty input (0.0605ms)
+(node:12955) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ mode: AS-24 — API-mode writes land in the server view; no DB file is ever created (919.09975ms)
+✔ mode: AS-24 — probe timeout (something listening, not answering) refuses loudly, zero side effects (544.890042ms)
+✔ mode: AS-24 — squatted port (wrong-shaped JSON) refuses loudly, zero side effects (57.053916ms)
+✔ mode: AS-24 — hard connection-refused falls back to direct mode against CHAT_DB (61.525208ms)
+✔ mode: AS-24 — CHAT_MODE=direct skips the probe entirely (poisoned CHAT_API never contacted) (42.207125ms)
+✔ mode: AS-24 — CHAT_MODE=api with a down server is a loud exit 1 (53.198958ms)
+✔ mode: AS-24 — invalid CHAT_MODE is a usage error (39.801833ms)
+✔ mode: AS-24 — full command sweep in API mode (no DB file, direct-mode shapes) (2727.560166ms)
+✔ mode: AS-24 — CHAT_DB alone (rule 4) stays direct with no probe: the suite is hermetic (41.898666ms)
+✔ msg-refs: single reference, keyword variants, optional # (6.423042ms)
+✔ msg-refs: list idioms yield one token per number (edge case 8) (0.204333ms)
+✔ msg-refs: list consumption stops at the first non-integer (0.089834ms)
+✔ msg-refs: AS-n adjacency — task codes never feed msg refs (edge case 7) (0.117458ms)
+✔ msg-refs: bare numbers without a keyword never match (0.081167ms)
+✔ msg-refs: ids must be positive safe integers (0.092458ms)
+✔ msg-refs: multiple separate references in one body (0.067958ms)
+✔ msg-refs: junk-tolerant on non-strings and empty input (0.0575ms)
+✔ file-refs: bare filenames, nested paths, and .lattice paths match (0.296208ms)
+✔ file-refs: trailing punctuation and backtick context stay outside the token (0.137917ms)
+✔ file-refs: traversal, absolute, dot-leading, and non-md candidates stay literal (0.217ms)
+✔ file-refs: multiple refs in one body, junk-tolerant input (0.078667ms)
+✔ org: the module is pure — no imports, no fs, no fetch, no DOM, no clock (17.803042ms)
+✔ org: ORG_RULES is exactly the nine documented codes (0.896583ms)
+✔ org: orphan_reports_to fires on an edge pointing at no dossier (0.902708ms)
+✔ org: orphan_reports_to names a departed manager as the reason (0.24625ms)
+✔ org: missing_reports_to fires on an empty reporting line (0.215541ms)
+✔ org: reporting_cycle fires once per cycle and returns (3.477541ms)
+✔ org: reports_to_ic fires when a manager is class ic (0.25875ms)
+✔ org: reports_to_ic does not fire for cofounder, c-level or manager (0.08625ms)
+✔ org: unparsed_dossier fires on fenced-but-broken dossiers and spares README.md (12.258083ms)
+✔ org: duplicate_actor_id fires when two files declare one identity (0.271958ms)
+✔ org: invalid_class fires on a class outside the four (0.109208ms)
+✔ org: invalid_status fires on the unfiltered roster (0.238958ms)
+✔ org: multiple_board_reports fires on a second board report (0.100167ms)
+✔ org: violations sort by (rule, actorId, file) (0.109083ms)
+✔ org: a clean roster yields zero violations (0.627541ms)
+✔ org: the tree roots at the board node and nests reports by name (0.3765ms)
+✔ org: every active employee appears exactly once — tree plus unplaced (0.312333ms)
+✔ org: an orphaned employee is still shown, under Not placed (0.081208ms)
+✔ org: cycle members land in unplaced, never in the tree (0.0795ms)
+✔ org: an empty roster still yields the board node, and junk degrades (0.389209ms)
+✔ check-org: exits 0 on a clean fixture root (89.309459ms)
+✔ check-org: exits 1 and names every violation on the dirty fixture root (84.700083ms)
+✔ check-org: exits 2 on an unknown flag and on --root without a value (240.275875ms)
+✔ check-org: a root with no personnel/ is exit 0 and says so (194.561458ms)
+✔ readRoster: valid dossiers parsed with all 8 fields, sorted by name (20.535125ms)
+✔ readRoster: inline # comments and surrounding quotes are stripped (0.616917ms)
+✔ readRoster: missing personnel/ directory yields [] (degradation contract) (1.609709ms)
+✔ parseFrontmatter: fences, junk lines, quotes, and comments (0.17225ms)
+✔ scroll: isAtBottom — slack boundary at default slack (40) (0.495667ms)
+✔ scroll: isAtBottom — explicit slack overrides the default (0.075ms)
+✔ scroll: isAtBottom — degenerate metrics count as at-bottom (0.066792ms)
+✔ scroll: renderPreservingScroll — forceBottom jumps to the new bottom (0.683875ms)
+✔ scroll: renderPreservingScroll — at bottom stays stuck to new content (0.074875ms)
+✔ scroll: renderPreservingScroll — scrolled up restores position exactly (0.056375ms)
+✔ scroll: renderPreservingScroll — unchanged content, scrolled up: no movement (0.070417ms)
+✔ scroll: renderPreservingScroll — empty/hidden pane is a safe no-op-to-bottom (0.053375ms)
+(node:12968) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ seeds four identities and four channels (#board private), idempotently (15.94225ms)
+✔ registerIdentity validates and rejects duplicates (6.929667ms)
+✔ createChannel validates name and uniqueness (8.013459ms)
+✔ dmConversationFor: null pre-DM, the conv id post-openDm, never creates (AS-8) (10.783458ms)
+✔ DM is get-or-create on the normalized pair (7.0565ms)
+✔ posting, threads flatten to one level, reply counts (18.475959ms)
+✔ lattice-events channel: only system posts top-level; threads open to all (8.605458ms)
+✔ unread semantics: exactly the AC6 scenario (25.2225ms)
+✔ markRead advances the watermark monotonically (15.021166ms)
+✔ AS-3: markRead rejects upTo beyond the conversation max; watermark untouched (14.387667ms)
+✔ data survives close and reopen (restart durability) (16.331208ms)
+✔ two connections interleave writes under WAL (concurrency smoke) (55.940042ms)
+✔ ingestEvent is idempotent per event id (6.067916ms)
+✔ dumpLines emits valid JSONL covering every table (12.630625ms)
+✔ AS-6: #board is invisible to non-members on every store read path (18.754417ms)
+✔ AS-6: hidden probes fail byte-identically to nonexistent ones (same template, same code) (9.499666ms)
+✔ AS-11: cross-conversation threadRoot rejection is type-blind and non-attributing (5.859541ms)
+✔ AS-6: name collision with a hidden channel is uninformative; visible collision unchanged (16.920708ms)
+✔ AS-6: createChannel supports private channels at store level, with validation (19.048791ms)
+✔ AS-6: founders are re-seeded into #board on every open (lockout-proof) (36.21375ms)
+✔ AS-6: lattice ingestion only ever posts to #lattice-events, never #board (11.143208ms)
+✔ AS-6: v0 database migrates in place to v1, preserving all data; re-open is a no-op (32.364917ms)
+✔ AS-7 sentinel: human post writes last-human-message.json; later human post overwrites (10.705625ms)
+✔ AS-7 sentinel: agent and system authors (incl. ingestEvent) never touch it (12.172208ms)
+✔ AS-7 sentinel: a human thread reply updates it (any human message counts) (51.442916ms)
+✔ AS-7 sentinel: :memory: store never writes; a failing write never fails the post (11.28375ms)
+✔ AS-13 sentinel: two stores on one data dir interleave posts without tmp collisions (27.942125ms)
+✔ AS-25: onMessage fires post-commit for postMessage and ingestEvent; a subscriber throw never fails the write (13.498375ms)
+✔ AS-25: visibleTo — public true, hidden channel members-only, DM members-only, unknown false (6.972ms)
+✔ AS-25: messagesSince returns the flat id-ordered delta (replies included) behind the same gate as getMessages (17.635958ms)
+✔ AS-26: resolveMessage returns navigation data only, gated on visibility (16.821917ms)
+✔ AS-26: resolveMessage — hidden and nonexistent targets fail byte-identically (11.760958ms)
+(node:12970) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ stream: AS-25 — two connected clients both receive a posted message as a push frame (no GET issued) (123.142666ms)
+✔ stream: AS-25 — hidden-channel parity: a non-member receives zero #board bytes (proved by ordering) (93.151375ms)
+✔ stream: AS-25 — endpoint gating: unknown me is a 404 JSON envelope (no stream), missing me a 400 (16.770542ms)
+✔ stream: AS-25 — lattice ingestion pushes too (single event source covers ingestEvent) (36.733917ms)
+✔ stream: AS-25 — close() reaps live streams and the heartbeat; shutdown never wedges (55.396958ms)
+✔ stream: AS-27 — a new lock pushes exactly one loop frame; an unchanged lock pushes none over ten polls (951.868ms)
+✔ stream: AS-27 — loop frames reach every viewer identically (no visibility gate) (34.055625ms)
+✖ stream: AS-27/AS-80 — close() clears every interval the server armed, the loop poll included (10.763125ms)
+✔ stream-lanes-change-only: a rewritten snapshot pushes exactly one lanes frame; an untouched one pushes none over ten polls (996.288375ms)
+✔ stream-company-change-only: each appended event pushes exactly one company frame, in file order; an untouched file pushes none (1038.883167ms)
+✔ stream-company-truncation: a truncated stream is reported as a fact and the server stays up (1471.721041ms)
+✔ stream-lanes-liveness-change-only: a stage event earns a lanes frame; elapsed time alone does not (2122.4195ms)
+✔ stream: AS-99 — lanes frames reach every viewer identically (no visibility gate) (33.925459ms)
+✔ stream: AS-81 — no on-connect frame at all: openStream rejects naming the contract AND hangs up (206.273541ms)
+✔ stream: AS-81 — on-connect frames out of order: openStream rejects naming the order AND hangs up (6.009625ms)
+✔ thread-modal: Escape closes only while the modal is visible (0.502375ms)
+✔ thread-modal: defaultPrevented events never close (DM typeahead contract) (3.007709ms)
+✔ thread-modal: only the Escape key qualifies (0.148333ms)
+✔ thread-modal: click on the overlay itself is a backdrop click (2.574708ms)
+✔ thread-modal: clicks inside the dialog are not backdrop clicks (1.259708ms)
+✔ thread-modal: gesture down+click both on the backdrop closes (0.337416ms)
+✔ thread-modal: selection drag from dialog to backdrop does NOT close (0.14175ms)
+✔ thread-modal: null down-target falls back to the click-target check alone (0.073958ms)
+✔ url-state: parse — every grammar production (1.2365ms)
+✔ url-state: parse — junk tolerance, never throws (0.798708ms)
+✔ url-state: serialize — roundtrip property for valid selections (0.280625ms)
+✔ url-state: serialize — owns only c/t/m; foreign params preserved (0.108125ms)
+✔ url-state: resolve — channel and dm hits (0.107041ms)
+✔ url-state: resolve — oracle-safety contract: hidden === nonexistent (0.059875ms)
+✔ url-state: resolve — null-safe on empty/missing inputs (0.054625ms)
+✔ watcher-events-tick-started-shape (6.551583ms)
+✔ watcher-events-timeout-closes-as-cut (14.992125ms)
+✔ watcher-events-close-before-tick-ended (0.373ms)
+✔ watcher-events-timeout-closes-subagent-as-cut (0.287ms)
+✔ watcher-events-unclosed-not-completed (0.223584ms)
+✔ watcher-events-error-exit-closes-as-error (0.216541ms)
+✔ watcher-events-tick-ended-noop-and-no-stream (0.196209ms)
+✔ watcher-events-sweep-boundary (0.549875ms)
+✔ watcher-events-sweep-respects-lock (0.18525ms)
+✔ watcher-events-sweep-closes-open-tick-as-error (0.303792ms)
+✔ watcher-events-open-derived-from-stream (0.258834ms)
+✔ watcher-events-append-failure-degrades-feed-not-tick (2.423583ms)
+✔ watcher-lanes-happy-path: one snapshot row per linked worktree, main flagged and kept (11.732959ms)
+✔ watcher-lanes-merged: an ancestor tip off master's first-parent chain is merged (0.305125ms)
+✔ watcher-lanes-generatedAt-advances: every poll writes, even with byte-identical git output (1.59025ms)
+✔ watcher-lanes-git-down: a failed worktree list is a timestamped fact, not a crash (1.080708ms)
+✔ watcher-lanes-never-rejects: a git runner that THROWS is still a timestamped fact (0.167291ms)
+✔ watcher-lanes-never-rejects-midway: a throw inside the row loop degrades to the error shape, never a partial list (0.141041ms)
+✔ watcher-lanes-row-isolation: one broken worktree never blanks its neighbours (0.243042ms)
+✔ watcher-lanes-argv-pin: the status call carries --no-optional-locks, always (0.143791ms)
+✔ watcher-lanes-dirty-lattice: board state on a task branch is surfaced by name (0.101375ms)
+✔ watcher-lanes-unwritable: an unwritable snapshot warns once and never throws (0.209125ms)
+✔ watcher-lanes-detached: a worktree with no branch is still measured, off its HEAD (0.129625ms)
+✔ a-statuses: any mid-lifecycle status continues the loop (1.266583ms)
+✔ a-review: a task in review alone keeps the loop alive (0.119541ms)
+✔ a-terminal-only: done/cancelled/needs_human/blocked are not mid-lifecycle (0.130667ms)
+✔ b-ready: a ready backlog task continues the loop (0.099792ms)
+✔ b-chatset-detail: chat-set membership is counted (title prefix or critical) (0.082334ms)
+✔ b-not-ready-statuses: needs_human/blocked-only board is dry (0.065417ms)
+✔ c-new-message: sentinel above highwater continues, ranked above mid-lifecycle (0.071208ms)
+✔ c-equal-not-new: sentinel equal to highwater is not a new message (0.062667ms)
+✔ c-no-highwater: a first message with no highwater is new (0.081083ms)
+✔ c-single-fire: a poll fires the message OR the loop, never both (0.251166ms)
+✔ c-single-fire-deploy-yield: the loop waits for a pending rebuild, but only when it owes a tick (0.060875ms)
+✔ d-dry: an empty board with nothing new stops the loop (0.045875ms)
+✔ e-one-continues: one unmoved HEAD continues with noProgress 1 (0.048667ms)
+✔ e-two: two consecutive unmoved HEADs stop the loop even with work left (0.0625ms)
+✔ e-reset: a moved HEAD resets the no-progress counter (0.040542ms)
+✔ e-unknown-head: an unreadable HEAD counts as no progress (0.048875ms)
+✔ f-23: the 23rd tick still continues (0.035958ms)
+✔ f-24: the 24th tick hits the cap (0.04075ms)
+✔ f-8h: eight hours elapsed hits the cap regardless of tick count (0.042708ms)
+✔ f-limits-injectable: a caller can tighten the caps (0.041417ms)
+✔ g-one: a single failed tick continues with failures 1 (0.051666ms)
+✔ g-two: two failed ticks stop the loop (0.050625ms)
+✔ g-timeout: a timed-out tick counts as a failure, as does a signal (0.066042ms)
+✔ g-reset: a clean tick resets the failure counter (0.037667ms)
+✔ g-precedence: failures stop the loop even when a new message is waiting (0.039ms)
+✔ dep-unmet-out: a backlog task with an unmet depends_on is not ready (0.058167ms)
+✔ dep-met: a backlog task whose deps are done/cancelled is ready (0.050416ms)
+✔ dep-missing-target: an unresolvable dependency is unmet, not ignored (0.049ms)
+✔ dep-unmet-in: an inverse "blocks" edge makes the blocked task unready (0.45625ms)
+✔ reader-shape: readBoard projects the fields the predicate needs (0.233542ms)
+✔ reader-unparsable: a half-written task file is skipped and counted (0.084ms)
+✔ reader-missing-dir: a missing tasks dir yields an empty board, no throw (0.148333ms)
+✔ head-ref: a symbolic HEAD resolves through .git/refs (0.243541ms)
+✔ head-packed: a HEAD with no loose ref falls back to packed-refs (0.129166ms)
+✔ head-detached: a detached HEAD returns the sha itself (0.05825ms)
+✔ head-worktree: a gitdir: pointer file is followed (3.295417ms)
+✔ lock-marker: a loop tick stamps loop.ticks into the lock body, source unchanged (0.775625ms)
+✔ lock-marker-absent: acquiring without the marker leaves the body exactly as it was (0.7345ms)
+✔ head-unreadable: an unreadable repo yields null, never a throw (0.115042ms)
+✔ f3-mirror-at-start: arming a loop mirrors it immediately, before its first tick runs (0.210959ms)
+✔ f3-mirror-is-resumable: what start() writes is what resume() re-enters (0.153542ms)
+✔ f1-abort-retries: an aborted loop fire keeps the debt and says so once (0.121375ms)
+✔ f1-abort-bounded: a lock that never frees stops the loop with a reason the board can read (0.16525ms)
+✔ f1-abort-clears-on-success: a fire that gets the lock ends the wait episode (0.091792ms)
+✔ f1-abort-outside-a-loop: an aborted message fire arms nothing and stops nothing (0.042208ms)
+✔ f1-limit-default: the lock wait outlives both the tick timeout and the lock staleness rule (0.038291ms)
+✔ f2-resume-waits-out-a-live-lock: a young lock blocks the resumed fire, once, loudly (0.111292ms)
+✔ f2-resume-fires-when-the-lock-aged-out: older than a whole tick timeout is not a live tick (0.157708ms)
+✔ f2-resume-fires-with-no-lock: nothing held means nothing to wait for (0.094042ms)
+✔ f2-gate-is-age-not-pid: a young lock whose owner pid is long dead still blocks (0.070625ms)
+✔ f2-undatable-lock-does-not-block-forever: a lock with no readable age is left to the steal rule (0.054125ms)
+✔ f2-gate-is-resume-only: once the resumed loop fires its own tick, the gate is gone (0.057209ms)
+✔ f2-poll-order: a held lock outranks a pending deploy, and a message outranks both (0.065208ms)
+✔ f1-retry-is-quiet: the retries inside a wait episode do not re-announce the tick (0.067584ms)
+✔ f3-mirror-after-every-settle: a settled tick is in the file before the next one fires (0.141542ms)
+✔ f3-mirror-records-the-stop: the file says the loop ended and why (1.754041ms)
+✔ f3-mirror-outside-a-loop: a tick with no loop still refreshes lastTick (0.086833ms)
+✔ AS-82 makeWatcher: start() refuses to run beside a live watcher, and otherwise writes the pid file with startedAt === heartbeatAt (26.05325ms)
+✔ AS-82 makeWatcher: every poll rewrites heartbeatAt — including while our own tick is running — and never touches pid/startedAt (29.493625ms)
+✔ AS-82 makeWatcher: a message fires exactly one tick — lock taken with our pid/source/nonce/loop marker, highwater advanced, tick_started emitted (14.126583ms)
+✔ AS-82 makeWatcher: the spawn call site passes tickArgv() and tickChildEnv() verbatim, with the settings-file grants, from the repo root (18.816292ms)
+✔ AS-82 makeWatcher: settle releases the lock, then records tick_ended, then folds the tick into the loop — in that order (12.448083ms)
+✔ AS-82 makeWatcher: a tick that outlives the box is SIGTERMed and settles as timedOut (172.070333ms)
+✔ AS-82 makeWatcher: a fire that loses the lock spawns nothing and leaves the highwater alone (10.077125ms)
+✔ AS-82 makeWatcher: shutdown clears the intervals, terminates the child, releases the lock, removes the pid file, exits 0 (5.908333ms)
+✔ AS-82 makeWatcher: a spawn error settles the tick and frees the lock (6.385458ms)
+✔ AS-82 entry point: the real process heartbeats on its own interval against a temp data dir, and SIGTERM removes the pid file with exit 0 (130.643875ms)
+✔ decide: missing or unparsable sentinel is a noop (0.6885ms)
+✔ decide: sentinel at or below highwater is a noop (already fired) (3.15975ms)
+✔ decide: first advance arms a 15s trailing window; further advances never extend it (0.122208ms)
+✔ decide: two advances inside one window collapse to one fire at the latest messageId (0.128792ms)
+✔ decide: expired window with a fresh foreign lock skips, then fires once the lock clears (0.150916ms)
+✔ decide: stale locks (dead pid / age) are fired over, not respected (0.100209ms)
+✔ decide: missed-while-down recovery fires exactly once from persisted state (0.14375ms)
+✔ isLockStale: fresh, dead-pid, over-age, and unparsable startedAt (0.505125ms)
+✔ makeLockOps: clean acquire creates the lock with our pid; release removes it (1.315791ms)
+✔ makeLockOps: fresh foreign lock is respected — acquire false, file untouched (0.965125ms)
+✔ makeLockOps: stale locks (dead pid / old startedAt / unparsable) are stolen; verify passes (11.062958ms)
+✔ makeLockOps: foreign overwrite between create and verify yields without unlink (0.672459ms)
+✔ tickChildEnv: pins exactly {PATH, HOME, USER, LOGNAME, ADVANCE_TICK_PARENT} — no more, no less (0.226875ms)
+✔ tickArgv: pins the exact spawn argv — marker rides as the /advance prompt argument (0.104875ms)
+✔ tickArgv: injected rules append --allowedTools/--disallowedTools, each rule its own element, denies last (0.073333ms)
+✔ loadPermissionRules: valid settings file yields exact {allow, deny} from one parse (0.615542ms)
+✔ loadPermissionRules: missing file, malformed JSON, and non-object JSON all yield null (1.707625ms)
+✔ loadPermissionRules: absent/partial permissions default to empty lists; non-strings filtered (8.208084ms)
+✔ loadPermissionRules -> tickArgv composition: force-push denies ride as trailing argv elements whenever allows do (0.711458ms)
+✔ fireNonce: 16 lowercase hex chars (64 bits), fresh per call (0.271167ms)
+✔ nonce threading: one fire's nonce is identical across lock body, argv marker, and env marker (0.70475ms)
+✔ config: defaults match the plan; env overrides apply; junk env falls back (0.211041ms)
+✔ writeWatcherPid: atomic {pid, startedAt, heartbeatAt}; heartbeats advance without losing startedAt (12.931917ms)
+✔ AS-75 resolveDockerBin: an override that does not exist is loud, never a fall-through (0.178583ms)
+✔ AS-75 resolveGitBin: absolute when it exists, bare name otherwise, override always wins (0.05725ms)
+✔ AS-75 parseLsTree: a short input set is a refusal, and the digest ignores git output order (0.622042ms)
+✔ AS-75 watchSourceDigest: order-independent, content-sensitive, and name-boundary safe (0.311375ms)
+✔ AS-75 pruneLogs: tick and deploy logs share one retention rule (2.456708ms)
+✔ AS-75 decideDeploy: every rule in the table, in the table's order (0.201875ms)
+✔ AS-75 decideDeploy: the cooldown suppresses only a repeat of a FAILED attempt at the SAME id (0.071708ms)
+✔ AS-75 decideDeploy: an unreadable running id is not-current, never accidentally current (0.072834ms)
+✔ AS-95 makeDeployOps: pendingDeploy() answers "a rebuild is owed and can run", and never blocks the loop forever (7.216083ms)
+✔ AS-75 makeDeployOps: a stale container is rebuilt with the right env, and success means the RUNNING id changed (3.119541ms)
+✔ AS-75 makeDeployOps: exit code 0 with a mismatched re-probe is a FAILURE, not a success (5.072667ms)
+✔ AS-75 makeDeployOps: a deploy takes advance.lock with source "deploy" for its duration (3.017ms)
+✔ AS-75 makeDeployOps: a fresh foreign lock yields noop/busy and spawns nothing (6.551209ms)
+✔ AS-75 makeDeployOps: a dirty image-input tree refuses, and a broken git refuses differently (5.88575ms)
+✔ AS-75 makeDeployOps: no docker binary is a refusal that names the remedy, not a crash (1.66425ms)
+✔ AS-75 makeDeployOps: a watcher-source change exits 70 and leaves the pid file alone (6.157208ms)
+✔ AS-75 makeDeployOps: deploy-state.json is written on every poll, atomically, for the server to read (1.686792ms)
+ℹ tests 480
+ℹ suites 0
+ℹ pass 479
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7709.270708
+
+✖ failing tests:
+
+test at .worktrees/AS-80/apps/chat/test/stream.test.js:449:1
+✖ stream: AS-27/AS-80 — close() clears every interval the server armed, the loop poll included (10.763125ms)
+  AssertionError [ERR_ASSERTION]: close() left 1 interval(s) armed
+  + actual - expected
+  
+  + [
+  +   <ref *2> Timeout {
+  +     Symbol(asyncId): 3725,
+  +     Symbol(kAsyncContextFrame): undefined,
+  +     Symbol(kHasPrimitive): false,
+  +     Symbol(refed): false,
+  +     Symbol(triggerId): 41,
+  +     _destroyed: false,
+  +     _idleNext: <ref *11> Timeout {
+  +       Symbol(asyncId): 3312,
+  +       Symbol(kAsyncContextFrame): undefined,
+  +       Symbol(kHasPrimitive): false,
+  +       Symbol(refed): false,
+  +       Symbol(triggerId): 38,
+  +       _destroyed: false,
+  +       _idleNext: <ref *3> Timeout {
+  +         Symbol(asyncId): 2955,
+  +         Symbol(kAsyncContextFrame): undefined,
+  +         Symbol(kHasPrimitive): false,
+  +         Symbol(refed): false,
+  +         Symbol(triggerId): 35,
+  +         _destroyed: false,
+  +         _idleNext: <ref *4> Timeout {
+  +           Symbol(asyncId): 2851,
+  +           Symbol(kAsyncContextFrame): undefined,
+  +           Symbol(kHasPrimitive): false,
+  +           Symbol(refed): true,
+  +           Symbol(triggerId): 2799,
+  +           _destroyed: false,
+  +           _idleNext: <ref *5> Timeout {
+  +             Symbol(asyncId): 2548,
+  +             Symbol(kAsyncContextFrame): undefined,
+  +             Symbol(kHasPrimitive): false,
+  +             Symbol(refed): false,
+  +             Symbol(triggerId): 32,
+  +             _destroyed: false,
+  +             _idleNext: <ref *6> Timeout {
+  +               Symbol(asyncId): 2064,
+  +               Symbol(kAsyncContextFrame): undefined,
+  +               Symbol(kHasPrimitive): false,
+  +               Symbol(refed): false,
+  +               Symbol(triggerId): 29,
+  +               _destroyed: false,
+  +               _idleNext: <ref *7> Timeout {
+  +                 Symbol(asyncId): 1709,
+  +                 Symbol(kAsyncContextFrame): undefined,
+  +                 Symbol(kHasPrimitive): false,
+  +                 Symbol(refed): false,
+  +                 Symbol(triggerId): 26,
+  +                 _destroyed: false,
+  +                 _idleNext: <ref *8> Timeout {
+  +                   Symbol(asyncId): 868,
+  +                   Symbol(kAsyncContextFrame): undefined,
+  +                   Symbol(kHasPrimitive): false,
+  +                   Symbol(refed): false,
+  +                   Symbol(triggerId): 23,
+  +                   _destroyed: false,
+  +                   _idleNext: <ref *9> Timeout {
+  +                     Symbol(asyncId): 104,
+  +                     Symbol(kAsyncContextFrame): undefined,
+  +                     Symbol(kHasPrimitive): false,
+  +                     Symbol(refed): false,
+  +                     Symbol(triggerId): 19,
+  +                     _destroyed: false,
+  +                     _idleNext: <ref *10> TimersList {
+  +                       _idleNext: <ref *1> Timeout {
+  +                         Symbol(asyncId): 3943,
+  +                         Symbol(kAsyncContextFrame): undefined,
+  +                         Symbol(kHasPrimitive): false,
+  +                         Symbol(refed): true,
+  +                         Symbol(triggerId): 3784,
+  +                         _destroyed: false,
+  +                         _idleNext: [Circular *2],
+  +                         _idlePrev: [Circular *10],
+  +                         _idleStart: 1362,
+  +                         _idleTimeout: 5000,
+  +                         _onTimeout: [Function (anonymous)],
+  +                         _repeat: null,
+  +                         _timerArgs: undefined
+  +                       },
+  +                       _idlePrev: [Circular *9],
+  +                       expiry: 5060,
+  +                       id: -9007199254740989,
+  +                       msecs: 5000,
+  +                       priorityQueuePosition: 6
+  +                     },
+  +                     _idlePrev: [Circular *8],
+  +                     _idleStart: 60,
+  +                     _idleTimeout: 5000,
+  +                     _onTimeout: [Function (anonymous)],
+  +                     _repeat: 5000,
+  +                     _timerArgs: undefined
+  +                   },
+  +                   _idlePrev: [Circular *7],
+  +                   _idleStart: 187,
+  +                   _idleTimeout: 5000,
+  +                   _onTimeout: [Function (anonymous)],
+  +                   _repeat: 5000,
+  +                   _timerArgs: undefined
+  +                 },
+  +                 _idlePrev: [Circular *6],
+  +                 _idleStart: 269,
+  +                 _idleTimeout: 5000,
+  +                 _onTimeout: [Function (anonymous)],
+  +                 _repeat: 5000,
+  +                 _timerArgs: undefined
+  +               },
+  +               _idlePrev: [Circular *5],
+  +               _idleStart: 292,
+  +               _idleTimeout: 5000,
+  +               _onTimeout: [Function (anonymous)],
+  +               _repeat: 5000,
+  +               _timerArgs: undefined
+  +             },
+  +             _idlePrev: [Circular *4],
+  +             _idleStart: 333,
+  +             _idleTimeout: 5000,
+  +             _onTimeout: [Function (anonymous)],
+  +             _repeat: 5000,
+  +             _timerArgs: undefined
+  +           },
+  +           _idlePrev: [Circular *3],
+  +           _idleStart: 355,
+  +           _idleTimeout: 5000,
+  +           _onTimeout: [Function (anonymous)],
+  +           _repeat: null,
+  +           _timerArgs: undefined
+  +         },
+  +         _idlePrev: [Circular *11],
+  +         _idleStart: 380,
+  +         _idleTimeout: 5000,
+  +         _onTimeout: [Function (anonymous)],
+  +         _repeat: 5000,
+  +         _timerArgs: undefined
+  +       },
+  +       _idlePrev: [Circular *2],
+  +       _idleStart: 1326,
+  +       _idleTimeout: 5000,
+  +       _onTimeout: [Function (anonymous)],
+  +       _repeat: 5000,
+  +       _timerArgs: undefined
+  +     },
+  +     _idlePrev: <ref *1> Timeout {
+  +       Symbol(asyncId): 3943,
+  +       Symbol(kAsyncContextFrame): undefined,
+  +       Symbol(kHasPrimitive): false,
+  +       Symbol(refed): true,
+  +       Symbol(triggerId): 3784,
+  +       _destroyed: false,
+  +       _idleNext: [Circular *2],
+  +       _idlePrev: <ref *10> TimersList {
+  +         _idleNext: [Circular *1],
+  +         _idlePrev: <ref *9> Timeout {
+  +           Symbol(asyncId): 104,
+  +           Symbol(kAsyncContextFrame): undefined,
+  +           Symbol(kHasPrimitive): false,
+  +           Symbol(refed): false,
+  +           Symbol(triggerId): 19,
+  +           _destroyed: false,
+  +           _idleNext: [Circular *10],
+  +           _idlePrev: <ref *8> Timeout {
+  +             Symbol(asyncId): 868,
+  +             Symbol(kAsyncContextFrame): undefined,
+  +             Symbol(kHasPrimitive): false,
+  +             Symbol(refed): false,
+  +             Symbol(triggerId): 23,
+  +             _destroyed: false,
+  +             _idleNext: [Circular *9],
+  +             _idlePrev: <ref *7> Timeout {
+  +               Symbol(asyncId): 1709,
+  +               Symbol(kAsyncContextFrame): undefined,
+  +               Symbol(kHasPrimitive): false,
+  +               Symbol(refed): false,
+  +               Symbol(triggerId): 26,
+  +               _destroyed: false,
+  +               _idleNext: [Circular *8],
+  +               _idlePrev: <ref *6> Timeout {
+  +                 Symbol(asyncId): 2064,
+  +                 Symbol(kAsyncContextFrame): undefined,
+  +                 Symbol(kHasPrimitive): false,
+  +                 Symbol(refed): false,
+  +                 Symbol(triggerId): 29,
+  +                 _destroyed: false,
+  +                 _idleNext: [Circular *7],
+  +                 _idlePrev: <ref *5> Timeout {
+  +                   Symbol(asyncId): 2548,
+  +                   Symbol(kAsyncContextFrame): undefined,
+  +                   Symbol(kHasPrimitive): false,
+  +                   Symbol(refed): false,
+  +                   Symbol(triggerId): 32,
+  +                   _destroyed: false,
+  +                   _idleNext: [Circular *6],
+  +                   _idlePrev: <ref *4> Timeout {
+  +                     Symbol(asyncId): 2851,
+  +                     Symbol(kAsyncContextFrame): undefined,
+  +                     Symbol(kHasPrimitive): false,
+  +                     Symbol(refed): true,
+  +                     Symbol(triggerId): 2799,
+  +                     _destroyed: false,
+  +                     _idleNext: [Circular *5],
+  +                     _idlePrev: <ref *3> Timeout {
+  +                       Symbol(asyncId): 2955,
+  +                       Symbol(kAsyncContextFrame): undefined,
+  +                       Symbol(kHasPrimitive): false,
+  +                       Symbol(refed): false,
+  +                       Symbol(triggerId): 35,
+  +                       _destroyed: false,
+  +                       _idleNext: [Circular *4],
+  +                       _idlePrev: Timeout {
+  +                         Symbol(asyncId): 3312,
+  +                         Symbol(kAsyncContextFrame): undefined,
+  +                         Symbol(kHasPrimitive): false,
+  +                         Symbol(refed): false,
+  +                         Symbol(triggerId): 38,
+  +                         _destroyed: false,
+  +                         _idleNext: [Circular *3],
+  +                         _idlePrev: [Circular *2],
+  +                         _idleStart: 1326,
+  +                         _idleTimeout: 5000,
+  +                         _onTimeout: [Function (anonymous)],
+  +                         _repeat: 5000,
+  +                         _timerArgs: undefined
+  +                       },
+  +                       _idleStart: 380,
+  +                       _idleTimeout: 5000,
+  +                       _onTimeout: [Function (anonymous)],
+  +                       _repeat: 5000,
+  +                       _timerArgs: undefined
+  +                     },
+  +                     _idleStart: 355,
+  +                     _idleTimeout: 5000,
+  +                     _onTimeout: [Function (anonymous)],
+  +                     _repeat: null,
+  +                     _timerArgs: undefined
+  +                   },
+  +                   _idleStart: 333,
+  +                   _idleTimeout: 5000,
+  +                   _onTimeout: [Function (anonymous)],
+  +                   _repeat: 5000,
+  +                   _timerArgs: undefined
+  +                 },
+  +                 _idleStart: 292,
+  +                 _idleTimeout: 5000,
+  +                 _onTimeout: [Function (anonymous)],
+  +                 _repeat: 5000,
+  +                 _timerArgs: undefined
+  +               },
+  +               _idleStart: 269,
+  +               _idleTimeout: 5000,
+  +               _onTimeout: [Function (anonymous)],
+  +               _repeat: 5000,
+  +               _timerArgs: undefined
+  +             },
+  +             _idleStart: 187,
+  +             _idleTimeout: 5000,
+  +             _onTimeout: [Function (anonymous)],
+  +             _repeat: 5000,
+  +             _timerArgs: undefined
+  +           },
+  +           _idleStart: 60,
+  +           _idleTimeout: 5000,
+  +           _onTimeout: [Function (anonymous)],
+  +           _repeat: 5000,
+  +           _timerArgs: undefined
+  +         },
+  +         expiry: 5060,
+  +         id: -9007199254740989,
+  +         msecs: 5000,
+  +         priorityQueuePosition: 6
+  +       },
+  +       _idleStart: 1362,
+  +       _idleTimeout: 5000,
+  +       _onTimeout: [Function (anonymous)],
+  +       _repeat: null,
+  +       _timerArgs: undefined
+  +     },
+  +     _idleStart: 1360,
+  +     _idleTimeout: 5000,
+  +     _onTimeout: [Function (anonymous)],
+  +     _repeat: 5000,
+  +     _timerArgs: undefined
+  +   }
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-80/apps/chat/test/stream.test.js:508:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { _idleTimeout: -1, _idlePrev: null, _idleNext: null, _idleStart: 1360, _onTimeout: null, _timerArgs: undefined, _repeat: 5000, _destroyed: true } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+===STATUS 1 SIGNAL null===

@@ -1,0 +1,17 @@
+run 1: exit 0, built receipt true, transcript start found true, 171 lines
+run 2: exit 0, built receipt true, transcript start found true, 171 lines
+two runs normalised byte-identical: true
+run 1 normalised == committed normalised: true
+committed raw == run 1 raw: false (expected false: ids/timestamps differ)
+  [after the two runs (run --rm removed each demo one-off; the mock depends_on started stays)] containers=1 networks=1
+     asc-c2-step1-stripe-mock-1	Up 6 seconds
+     net asc-c2-step1_stripe-mock
+bare "docker compose down" exit 0; "still in use": false
+  [after bare down] containers=1 networks=1
+     asc-c2-step1-stripe-mock-1	Up 6 seconds
+     net asc-c2-step1_stripe-mock
+step 1 OLD line red as predicted (mock + its network remain): true
+"docker compose --profile tools down" exit 0
+  [after --profile tools down] containers=0 networks=0
+step 1 NEW line leaves nothing (SKILL's check "docker ps -a --filter name=<project>" empty): true
+hygiene: removed images asc-c2-step1-demo

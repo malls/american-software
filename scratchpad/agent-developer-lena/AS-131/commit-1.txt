@@ -1,0 +1,17 @@
+AS-131: add id-cursor page mode to /api/messages (store.getMessagesPage, ?before=&limit=)
+
+Server side of lazy-loading: `getMessagesPage(conversation, me, { before, limit })`
+returns the `limit` (default 50, cap 200) newest top-level messages with id < before
+(before=0 = newest page) in ascending order, `threads` holding every reply of the
+page's roots and nothing else, plus `hasMore` (fetched limit+1) and `nextBefore`
+(lowest page id, null when empty). The visibility gate runs before cursor/limit
+validation so a malformed cursor cannot distinguish hidden from missing.
+`GET /api/messages?before=` selects page mode; `?limit=` alone, `?since=`,
+getMessages, the CLI and export are untouched.
+
+Tests: store 4 (walk/boundary/empty, thread scoping, gate-before-validation,
+getMessages unchanged), api 4 (walk over HTTP, scoping + 400s, hidden parity,
+conversation-wide read watermark + the client's open-time mark carries no upTo),
+and the AS-24 ?limit= test now pins conversation-wide threads and no cursor keys.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>

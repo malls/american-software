@@ -1,0 +1,134 @@
+<%#
+  contract-detail.ejs — Screen 7, Contract detail with print and download
+  (AS-47).
+
+  Built to docs/design/wireframes/screen-7-contract-detail.html and its ledger,
+  02-states-ledger.md §7. Every element the wireframe marks `data-wf-note` is
+  wireframe annotation and is deliberately NOT built (01-screens.md §6).
+
+  PRESENTATION ONLY. Every decision was made in
+  lib/screens/contract-detail-view.js; this file branches on precomputed
+  booleans (isDownload, isDefault, isNotFound, isSystem) and reads properties.
+  It does NOT branch on state ids. Four properties hold over it, each a concept
+  row in test/dependency-policy.test.js rather than a convention (README.md
+  § The view layer):
+
+    P1  no raw-output tag anywhere — EXCEPT ONE LINE. THIS FILE CARRIES THE ONE
+        SANCTIONED RAW-OUTPUT LINE IN THIS APP: the line that emits
+        renderedHtml inside the document region. It is pinned by the
+        RAW_OUTPUT_SANCTIONED allowlist to its exact text as the WHOLE line,
+        count 1 — a second expression on that line un-sanctions it, and a
+        second such line anywhere is a finding. The value is the stored
+        document produced by lib/contracts/render.js: every text node in it
+        went through that file's one escaper and no data reaches an attribute
+        position there, so it is safe in element content — the only position
+        this line puts it in. Escaping it AGAIN would render the document's own
+        tags as text.
+    P2  no interpolation in an href/src/action/formaction/style attribute, no
+        event-handler attribute, no script or style element
+    P3  every attribute value carrying data is DOUBLE-quoted
+    P4  within any start tag, every output tag sits inside an attribute value
+
+  NOTE FOR ANYONE EDITING THIS COMMENT: do not spell the raw-output tag or a
+  closing EJS tag inside it. The dependency-policy scanner strips an EJS
+  comment up to its FIRST closing tag, so a spelled-out example would both
+  truncate the strip and plant an unsanctioned hit.
+
+  THE DOWNLOAD VARIANT (plan §3.4). When isDownload is true the body is the
+  document region alone — no header, no nav, no heading, no actions — and the
+  route answers it as an attachment. The head is identical in both variants,
+  so the shared "every registered template links both stylesheets" check stays
+  literally true and this template has one head; opened from disk the two
+  root-relative links resolve against file:// and reach nothing, so the
+  downloaded file phones nobody and is unstyled by construction.
+
+  NO PRINT CONTROL (plan §3.5). window.print() needs a script and this app has
+  none (P2c). One sentence points at the browser's Print command, and the
+  @media print block in public/app.css hides the chrome, the heading and the
+  actions so the sheet carries the document alone.
+
+  THE NAV (01-screens.md §3: screens 3-7 carry it). Constant markup: New
+  invoice (/invoices/new, AS-46's screen) and Sign out. The "New contract"
+  entry (/contracts/new) is AS-127's, with the route it points at: screen 6
+  was split out of AS-47, and a nav link to a route that does not exist is a
+  shipped path ending on a 404 — the defect the split order was chosen to
+  avoid. Dashboard (`/`) is AS-48's screen 3, and its anchor landed with it,
+  first in the nav; NOTFOUND's "Back to Dashboard" line (the wireframe's)
+  landed in the same commit — a constant href to a route that now exists.
+-%>
+<!doctype html>
+<html lang="en" data-state="<%= state %>">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoicing — <%= title %></title>
+    <%# The vendored single source of visual truth, served byte-identical by
+        routes/assets.js. Never a local copy. %>
+    <link rel="stylesheet" href="/tokens.css" />
+    <%# App-owned styles, served from public/ by express.static. %>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <% if (!isDownload) { %>
+      <header class="site-header">
+        <div class="container site-header__inner">
+          <span class="app-label">Invoicing</span>
+        </div>
+        <div class="container">
+          <nav class="site-nav" aria-label="Primary">
+            <a class="site-nav__link" href="/">Dashboard</a>
+            <a class="site-nav__link" href="/invoices/new">New invoice</a>
+            <form class="site-nav__signout" method="post" action="/signout">
+              <button type="submit" class="btn-link">Sign out</button>
+            </form>
+          </nav>
+        </div>
+      </header>
+    <% } %>
+
+    <main class="container">
+      <% if (!isDownload) { %>
+        <h1 class="page-title"><%= title %></h1>
+      <% } %>
+
+      <% if (isNotFound) { %>
+        <div class="banner banner-error">
+          <p><%= banner %></p>
+        </div>
+        <p><a href="/">Back to Dashboard</a></p>
+      <% } %>
+
+      <% if (isSystem) { %>
+        <div class="banner banner-error">
+          <p><%= banner %></p>
+        </div>
+        <%# Retry is a GET of the page's own URL: no action attribute, so no
+            id sits in a URL position (P2a). The wireframe's type="button" is a
+            script affordance and is not built. %>
+        <form method="get">
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary"><%= retryLabel %></button>
+          </div>
+        </form>
+      <% } %>
+
+      <% if (isDefault) { %>
+        <% if (!isDownload) { %>
+          <div class="doc-actions">
+            <p class="page-meta"><%= printHelp %></p>
+            <%# Download submits ONE CONSTANT to the page's own URL (no action
+                attribute): a presence flag the route reads as a boolean.
+                Nothing user-supplied travels in a URL. %>
+            <form method="get">
+              <input type="hidden" name="download" value="1" />
+              <button type="submit" class="btn btn-secondary"><%= downloadLabel %></button>
+            </form>
+          </div>
+        <% } %>
+        <div class="doc-region">
+<%- renderedHtml %>
+        </div>
+      <% } %>
+    </main>
+  </body>
+</html>

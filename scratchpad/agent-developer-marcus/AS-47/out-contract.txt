@@ -1,0 +1,10 @@
+no mutation
+docker compose -p asc-as47-contract run --rm --build contract
+RECEIPT project=asc-as47-contract
+  built: Image asc-as47-contract-contract Built
+  tests=430 pass=429 fail=1 skipped=0
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (1):
+  ✖ every href and form action in the two contract templates names a route the app registers

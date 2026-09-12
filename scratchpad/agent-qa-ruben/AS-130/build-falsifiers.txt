@@ -1,0 +1,27 @@
+OK  control: unmutated scratch copy builds (branch build.mjs): exit 0 — screenshots: 34 of 34, 1447710 bytes total, 7 screens
+  [AC-1] mutation applied: "by design" -> "by choice" in the CANNOT block
+OK  AC-1: one word changed inside the block -> digest mismatch: exit 1 — CAN/CANNOT block digest mismatch: got 15fac01ee191a19eea4ed6214e7049e529114fb691c136c338393a64a8456fd0, expected 4021fa1c3d7ee56321c0b1e7acfb5406904e3e3c8c9964b
+  [AC-2] mutation applied on branch transcript at offset 1300; next chars after it: "\n\nT"
+OK  AC-2 (branch build.mjs): bullet appended after the block -> digest mismatch: exit 1 — CAN/CANNOT block digest mismatch: got 4f7506872a65075b507c2bededa265c943c409c346190022a1f3e436943deccc, expected 4021fa1c3d7ee56321c0b1e7acfb5406904e3e3c8c9964b
+  [AC-2 before] mutation applied on master transcript
+OK  AC-2 before (master build.mjs, master record): same mutant BUILDS (F3 survivor, the before): exit 0 — screenshots: 5 of 5, 99258 bytes total
+  [AC-2 before] appended bullet present on master's page: true (F3: the digest passed and the bullet is missing from the page)
+OK  control: master build.mjs on master record builds: exit 0 — screenshots: 5 of 5, 99258 bytes total
+  [AC-3a] mutation applied: screen-5-default-paid-1280.png exists = false
+OK  AC-3a: one PNG removed -> missing screenshot: exit 1 — missing screenshot /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-130/scratch-build/ac3-png/docs/demo/d1/screen-5-default-paid-1280.
+  [AC-3b] mutation applied: capture.json now says screen-2-return-ready-375.png is S2-RETURN-NOTREADY
+OK  AC-3b: one state renamed in capture.json -> does not record: exit 1 — capture.json does not record screen-2-return-ready-375.png as S2-RETURN-READY at 375px — re-run capture.mjs
+  [probe] capture.json now records 35
+OK  probe: capture.json records 35, script lays out 34 -> the two lists disagree: exit 1 — capture.json records 35 captures, this script lays out 34 — the two lists disagree
+  [probe] layer removed from screen-3-empty-firstrun-375.png
+OK  probe: layer dropped from capture.json -> does not record (layer): exit 1 — capture.json does not record screen-3-empty-firstrun-375.png as S3-EMPTY-FIRSTRUN at 375px with layer S3-GATED-STRIPENOTREADY — re-run capture.mjs
+  [probe] media removed from screen-7-default-1280-print.png
+OK  probe: media dropped from capture.json -> does not record (media): exit 1 — capture.json does not record screen-7-default-1280-print.png as S7-DEFAULT at 1280px under print media — re-run capture.mjs
+  [probe] screenMergeCommits[6] removed
+OK  probe: no merge commit for screen 6 -> names no merge commit: exit 1 — capture.json names no merge commit for screen 6
+  [probe] blank line after the block removed (block now runs into the intro paragraph)
+OK  probe: blank line after block removed -> digest mismatch (block extends to next blank line): exit 1 — CAN/CANNOT block digest mismatch: got 271b3fcc9808f32c6cb44541738d503901bde80fca358100b520e01c9333cd5d, expected 4021fa1c3d7ee56321c0b1e7acfb5406904e3e3c8c9964b
+  [probe] screen-1-signin-375.png truncated to 0 bytes
+OK  probe: empty PNG -> empty screenshot: exit 1 — empty screenshot /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-130/scratch-build/probe-empty/docs/demo/d1/screen-1-signin-375.png
+
+mutants+controls: 13; behaved as predicted: 13; unexpected: 0

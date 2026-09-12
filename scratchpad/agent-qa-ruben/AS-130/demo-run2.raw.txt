@@ -1,0 +1,253 @@
+$ docker compose -p asc-review-as130 -f /Users/forrest/Code/american-software-company/.worktrees/AS-130/apps/invoicing/compose.yaml run --rm --build demo
+exit 0
+--- stdout ---
+#1 [internal] load local bake definitions
+#1 reading from stdin 655B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 4.30kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:24.20.0-slim
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 1.29kB done
+#4 DONE 0.0s
+
+#5 [ 1/15] FROM docker.io/library/node:24.20.0-slim
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 6.80kB 0.0s done
+#6 DONE 0.0s
+
+#7 [ 7/15] COPY apps/invoicing/routes ./routes
+#7 CACHED
+
+#8 [12/15] COPY docs/design/tokens/tokens.css ./vendor/tokens.css
+#8 CACHED
+
+#9 [ 9/15] COPY apps/invoicing/public ./public
+#9 CACHED
+
+#10 [ 3/15] COPY apps/invoicing/package.json apps/invoicing/package-lock.json ./
+#10 CACHED
+
+#11 [11/15] COPY apps/invoicing/demo ./demo
+#11 CACHED
+
+#12 [10/15] COPY apps/invoicing/test ./test
+#12 CACHED
+
+#13 [14/15] COPY apps/invoicing/compose.yaml apps/invoicing/Dockerfile .dockerignore ./
+#13 CACHED
+
+#14 [ 8/15] COPY apps/invoicing/views ./views
+#14 CACHED
+
+#15 [ 4/15] RUN npm ci --omit=dev --no-audit --no-fund
+#15 CACHED
+
+#16 [ 6/15] COPY apps/invoicing/lib ./lib
+#16 CACHED
+
+#17 [13/15] COPY docs/design/wireframes/02-states-ledger.md ./vendor/states-ledger.md
+#17 CACHED
+
+#18 [ 5/15] COPY apps/invoicing/app.js apps/invoicing/server.js ./
+#18 CACHED
+
+#19 [ 2/15] WORKDIR /app
+#19 CACHED
+
+#20 [15/15] RUN mkdir -p /app/data && chown node:node /app/data
+#20 CACHED
+
+#21 exporting to image
+#21 exporting layers done
+#21 writing image sha256:8ed72b5e6c45f48d42281caa939474223208d0cbc363b5173866100cbe3d66ec done
+#21 naming to docker.io/library/asc-review-as130-demo done
+#21 DONE 0.0s
+
+#22 resolving provenance for metadata file
+#22 DONE 0.0s
+D1 core-loop walkthrough (AS-90)
+================================
+
+WHAT THIS DEMO CAN SHOW
+- The whole server-side core loop working end to end on this codebase: sign up, session,
+  Connect onboarding start, readiness, client, contract, invoice draft -> finalize -> send -> paid.
+- All seven screens in a real browser, in the states this same walk reaches, at phone and desktop
+  widths: sign in / sign up, Connect Stripe, dashboard, invoice form, invoice detail, contract form,
+  contract detail (with its print view).
+- The contract document the app generates.
+- The custody guard: the platform key never charges anyone. Every Stripe request the app made
+  is listed at the end, and none of them moves money.
+WHAT THIS DEMO CANNOT SHOW
+- A real Stripe onboarding round trip, a real hosted invoice page, a real payment, or a real
+  webhook delivery. There is no Stripe account in this run, by design; a run against a Stripe
+  test-mode account is a separate, later step; every Stripe call here goes to Stripe's own
+  request validator (stripe-mock), which checks shapes and answers with fixtures.
+- Email of any kind. There is no email provider, by design.
+- The "connected" and "paid" states are produced by events WE signed. They prove our receiver and our
+  state machine, not Stripe's delivery.
+
+This walkthrough boots the same application code, from the same shipped image, inside a container that sits next to a Stripe request validator and has no route to the internet. Every request below is a real HTTP request to the real routes; the database is a fresh file created for this run.
+
+Every step carries one of three labels:
+  REAL APP BEHAVIOUR — the app's own code did this; it would do the same against real Stripe.
+  STRIPE-MOCK STAND-IN — Stripe's request validator answered with a fixture; real Stripe would answer with real data, and the step says what would differ.
+  SYNTHESIZED EVENT — we built and signed this event ourselves; it proves our receiver and state machine, not Stripe's delivery.
+
+App: http://127.0.0.1:37935 (loopback, inside the container). Stripe host: http://stripe-mock:12111 (stripe-mock).
+Freelancer: Dana Reyes <dana@demo.example>. Client: Northwind Studio <billing@northwind.example>.
+
+[1/12] Sign up
+REAL APP BEHAVIOUR
+  A freelancer creates an account with a display name, an email address and a password. The password is hashed with scrypt before it is stored; the response sets an HttpOnly session cookie and sends the browser to the landing page.
+  > POST /signup  displayName=Dana Reyes  email=dana@demo.example  password=••••••••
+  < 303  Location: /  Set-Cookie: invoicing_session=… (Path=/; HttpOnly; SameSite=Lax)
+
+[2/12] Session
+REAL APP BEHAVIOUR
+  The same browser asks for the landing page. With the cookie it is let in; without it, the auth boundary sends it to sign in. (The landing page is the dashboard, screen 3; with nothing created yet it renders its first-run empty state.)
+  > GET /  (with the session cookie)
+  < 200  body: text/html, 1649 bytes, page state S3-EMPTY-FIRSTRUN
+  > GET /  (without a cookie)
+  < 303  Location: /signin?next=%2F
+
+[3/12] Connect onboarding start
+STRIPE-MOCK STAND-IN
+  The freelancer clicks "Connect Stripe". The app creates a connected account on the platform and asks Stripe for a one-time hosted-onboarding link, then redirects the browser to it. Here Stripe's request validator checked both request shapes and answered with fixtures: the Location below is a fixture URL, not a page anyone can open, and no hosted onboarding happens.
+  > POST /connect-stripe/start
+  < 303  Location: https://sangeekp-15t6ai--manage-mydev.dev.stripe.me/setup/s/acct_1PgafTB7WZ01zgkW/MerI6itPZo2K
+  Stripe requests the app made:
+    POST /v1/accounts
+    POST /v1/account_links
+  connected account recorded: acct_RM28RDn6JUJ0kW4 (read from the app's database)
+
+[4/12] Connect onboarding return
+STRIPE-MOCK STAND-IN
+  Stripe sends the freelancer back after hosted onboarding. The app never trusts the return itself: it re-reads the account from Stripe and stores what it finds. The validator's account fixture is NOT ready — requirements still due, charges disabled — which is exactly how a freelancer who has not finished Stripe's identity checks looks. Real Stripe would answer with the real account state. The Location header is the contract; in a browser it lands on screen 2 (Connect Stripe), shown in the screenshots.
+  > GET /connect-stripe/return
+  < 303  Location: /connect-stripe
+  Stripe requests the app made:
+    GET /v1/accounts/acct_RM28RDn6JUJ0kW4
+  readiness recorded (read from the app's database): ready=false, charges_enabled=false, requirements currently due: 6
+
+[5/12] Readiness
+SYNTHESIZED EVENT
+  When a freelancer finishes onboarding, Stripe delivers an account.updated webhook. We built and signed that event ourselves — with the same signing scheme Stripe uses — describing the account as ready, and posted it to the app's receiver. The receiver verified the signature, recorded the event id so a redelivery cannot apply twice, and updated readiness. This proves our receiver and our state machine, not Stripe's delivery.
+  event evt_demo_account_ready type account.updated for acct_RM28RDn6JUJ0kW4: charges_enabled true, details_submitted true, payouts_enabled true, requirements currently due: none
+  Stripe-Signature: t=1789231839,v1=67677d2fe580cc2a516b9d0a516e806adcf63dba7bc1114859ab42ad7a13d6d9
+  > POST /webhooks/stripe  (body: the signed event JSON)
+  < 200  body: "ok: readiness"
+  readiness recorded (read from the app's database): ready=true
+
+[6/12] Client
+REAL APP BEHAVIOUR
+  The freelancer adds a client — the business they will invoice. A client belongs to exactly one freelancer; the id in the Location is the one the next two steps use.
+  > POST /clients  name=Northwind Studio  email=billing@northwind.example  next=/
+  < 303  Location: /?clientId=1dc075bf-b743-47de-9d94-3245a1d8e981
+
+[7/12] Contract
+REAL APP BEHAVIOUR
+  The freelancer generates a contract for that client from the one v1 template, filling in the two form fields (the names come from the records). The app renders the document once and stores it. The template body is placeholder text under a legal gate and says so inside the document. The Location header is the contract; in a browser it lands on screen 7 (contract detail), shown in the screenshots.
+  > POST /contracts  clientId=1dc075bf-b743-47de-9d94-3245a1d8e981  templateId=independent-contractor-agreement@1  projectDescription=Redesign of the Northwind Studio marketing website. Milestone 1 covers the home page and the contact form.  startDate=2026-10-01
+  < 303  Location: /contracts/789874f8-7553-42a0-b89f-1f115c0355f4
+  the contract document, read from the app's database — the same document screen 7 renders and prints:
+  ----- contract document -----
+  <article class="contract-doc">
+  <section class="contract-doc__notice">
+  <p class="contract-doc__notice-title">Placeholder contract text — not legal advice</p>
+  <p>This document&#39;s body is placeholder text. It is not legal advice and should not be relied upon until this notice is removed.</p>
+  <p>Pending a lawyer-agent review of the adapted source template. This warning is part of the document itself and survives print and download.</p>
+  </section>
+  <h1 class="contract-doc__title">Independent Contractor Agreement (placeholder)</h1>
+  <section class="contract-doc__body">
+  <p>This agreement is between <strong>Dana Reyes</strong> (&quot;Provider&quot;) and <strong>Northwind Studio</strong> (&quot;Client&quot;), effective <strong>October 1, 2026</strong>.</p>
+  <p><strong>[PLACEHOLDER — scope of work]: </strong><span class="contract-doc__multiline">Redesign of the Northwind Studio marketing website. Milestone 1 covers the home page and the contact form.</span></p>
+  <p><strong>[PLACEHOLDER — payment terms]: </strong>Placeholder text pending legal review. Do not rely on this section.</p>
+  <p><strong>[PLACEHOLDER — standard terms]: </strong>Placeholder text pending legal review. Do not rely on this section.</p>
+  </section>
+  <p class="contract-doc__attribution">Attribution: this body is placeholder text and is not adapted from any third-party source. When adapted template text (Common Paper, CC BY 4.0) replaces it, that attribution appears here.</p>
+  </article>
+  ----- end of contract document -----
+
+[8/12] Invoice draft
+REAL APP BEHAVIOUR
+  The freelancer drafts an invoice: one line item, priced in integer minor units (cents), due in 30 days. A draft is local — the app makes no Stripe request until the freelancer issues it. The amount is $10.00 because stripe-mock's invoice fixture always reports amount_due 1000 and the app refuses to finalize an invoice whose total disagrees with Stripe. The Location header is the contract; in a browser it lands on screen 4 (invoice form), shown in the screenshots.
+  > POST /invoices  clientId=1dc075bf-b743-47de-9d94-3245a1d8e981  daysUntilDue=30  currency=usd  lineItems[0][description]=Website redesign — milestone 1  lineItems[0][quantity]=1  lineItems[0][unitAmountMinor]=1000
+  < 303  Location: /invoices/c4f871e0-7010-4f73-b7ef-468d5f0030b9/edit
+  Stripe requests the app made: none
+
+[9/12] Finalize
+STRIPE-MOCK STAND-IN
+  The freelancer issues the invoice. The app first checks the readiness recorded in step 5, then makes four requests on the connected account: create the customer, create the invoice, add the line item, finalize. Stripe's validator checked each shape and answered with its fixtures. The mirror row below is what the app stored from those answers — note the status stays "draft" because the mock never advances state; real Stripe would answer "open".
+  > POST /invoices/c4f871e0-7010-4f73-b7ef-468d5f0030b9/finalize
+  < 303  Location: /invoices/c4f871e0-7010-4f73-b7ef-468d5f0030b9
+  Stripe requests the app made:
+    POST /v1/customers
+    POST /v1/invoices
+    POST /v1/invoiceitems
+    POST /v1/invoices/in_RM28RJ8ZNcZMMUw/finalize
+  mirror row (read from the app's database): stripeInvoiceId in_RM28RJ8ZNcZMMUw, status draft, amountDueMinor 1000
+
+[10/12] Send
+STRIPE-MOCK STAND-IN
+  The freelancer sends the invoice. Real Stripe would email the client a hosted payment page; the validator only checked the request shape. The app records when it asked, from its own clock. No email of any kind is sent by this app, by design. Three requests appear below instead of one, and that is a mock artifact: the app's pipeline is resumable and re-runs "add line item" and "finalize" whenever the mirror still says "draft" — which it does here only because the validator's fixture never advances to "open". Against real Stripe this step makes exactly one request.
+  > POST /invoices/c4f871e0-7010-4f73-b7ef-468d5f0030b9/send
+  < 303  Location: /invoices/c4f871e0-7010-4f73-b7ef-468d5f0030b9
+  Stripe requests the app made:
+    POST /v1/invoiceitems
+    POST /v1/invoices/in_RM28RJ8ZNcZMMUw/finalize
+    POST /v1/invoices/in_RM28RJ8ZNcZMMUw/send
+  mirror row (read from the app's database): sentAt 2026-09-12T16:50:39.530Z
+
+[11/12] Paid
+SYNTHESIZED EVENT
+  When the client pays, Stripe delivers an invoice.paid webhook. We built and signed that event ourselves, naming the Stripe invoice id from step 9, and posted it to the receiver. Nobody paid anything: this proves our receiver applies a paid event to the right mirror row, not that a payment happened.
+  event evt_demo_invoice_paid type invoice.paid for in_RM28RJ8ZNcZMMUw: status paid, amount_due 1000, amount_paid 1000
+  Stripe-Signature: t=1789231839,v1=b5d98e47370e309719077d6710f6a778e16a9e04b15ce6ad38262c25cc939532
+  > POST /webhooks/stripe  (body: the signed event JSON)
+  < 200  body: "ok: applied"
+
+[11b/12] Paid, redelivered
+REAL APP BEHAVIOUR
+  Stripe retries deliveries it is not sure about. The same event, posted again with a fresh signature, is recognised by its id and applied once.
+  Stripe-Signature: t=1789231839,v1=b5d98e47370e309719077d6710f6a778e16a9e04b15ce6ad38262c25cc939532
+  > POST /webhooks/stripe  (body: the same event JSON as step 11)
+  < 200  body: "ok: duplicate"
+
+[12/12] Read back
+REAL APP BEHAVIOUR
+  The invoice as the app now holds it, read from the app's database — the same row screen 5 renders as its paid state.
+  invoice c4f871e0-7010-4f73-b7ef-468d5f0030b9: status paid
+    amountDueMinor 1000 (usd)
+    sentAt 2026-09-12T16:50:39.530Z
+    paidAt 2026-09-12T16:50:39.000Z
+
+Epilogue: every Stripe request the app made during this run, in order
+---------------------------------------------------------------------
+   1. POST /v1/accounts
+   2. POST /v1/account_links
+   3. GET /v1/accounts/acct_RM28RDn6JUJ0kW4
+   4. POST /v1/customers
+   5. POST /v1/invoices
+   6. POST /v1/invoiceitems
+   7. POST /v1/invoices/in_RM28RJ8ZNcZMMUw/finalize
+   8. POST /v1/invoiceitems
+   9. POST /v1/invoices/in_RM28RJ8ZNcZMMUw/finalize
+  10. POST /v1/invoices/in_RM28RJ8ZNcZMMUw/send
+
+None of these creates a charge, a payment intent, or a transfer; the platform key never touches money.
+
+--- stderr ---
+ Container asc-review-as130-stripe-mock-1 Running 
+ Image asc-review-as130-demo Building 
+ Image asc-review-as130-demo Built 
+ Container asc-review-as130-demo-run-e1f292992b89 Creating 
+ Container asc-review-as130-demo-run-e1f292992b89 Created 
+

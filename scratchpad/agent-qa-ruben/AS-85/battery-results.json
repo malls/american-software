@@ -1,0 +1,174 @@
+{
+  "baseline": {
+    "applied": null,
+    "exit": 0,
+    "tally": {
+      "files": 33,
+      "tests": 500,
+      "pass": 500,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "fails": []
+  },
+  "M1_checkedAt": {
+    "applied": {
+      "anchorBefore": 1,
+      "anchorAfter": 0,
+      "mutantPresent": 1
+    },
+    "exit": 1,
+    "tally": {
+      "files": 33,
+      "tests": 500,
+      "pass": 499,
+      "fail": 1,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "fails": [
+      "stream: AS-85 — deploy-state churn (computedAt, lastAttempt, runningId) pushes no loop frame over ten polls; a real build change pushes exactly one",
+      "failing tests:"
+    ]
+  },
+  "M2_no_current": {
+    "applied": {
+      "anchorBefore": 1,
+      "anchorAfter": 0,
+      "mutantPresent": 1
+    },
+    "exit": 1,
+    "tally": {
+      "files": 33,
+      "tests": 500,
+      "pass": 499,
+      "fail": 1,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "fails": [
+      "stream: AS-85 — each build field earns exactly one loop frame when it alone changes: desiredId, current, reason",
+      "failing tests:"
+    ]
+  },
+  "M3_no_desiredId": {
+    "applied": {
+      "anchorBefore": 1,
+      "anchorAfter": 0,
+      "mutantPresent": 1
+    },
+    "exit": 1,
+    "tally": {
+      "files": 33,
+      "tests": 500,
+      "pass": 499,
+      "fail": 1,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "fails": [
+      "stream: AS-85 — each build field earns exactly one loop frame when it alone changes: desiredId, current, reason",
+      "failing tests:"
+    ]
+  },
+  "M4_no_reason": {
+    "applied": {
+      "anchorBefore": 1,
+      "anchorAfter": 0,
+      "mutantPresent": 1
+    },
+    "exit": 1,
+    "tally": {
+      "files": 33,
+      "tests": 500,
+      "pass": 499,
+      "fail": 1,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "fails": [
+      "stream: AS-85 — each build field earns exactly one loop frame when it alone changes: desiredId, current, reason",
+      "failing tests:"
+    ]
+  },
+  "M5_null": {
+    "applied": {
+      "anchorBefore": 1,
+      "anchorAfter": 0,
+      "mutantPresent": 1
+    },
+    "exit": 1,
+    "tally": {
+      "files": 33,
+      "tests": 500,
+      "pass": 498,
+      "fail": 2,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "fails": [
+      "stream: AS-85 — deploy-state churn (computedAt, lastAttempt, runningId) pushes no loop frame over ten polls; a real build change pushes exactly one",
+      "stream: AS-85 — each build field earns exactly one loop frame when it alone changes: desiredId, current, reason",
+      "failing tests:"
+    ]
+  },
+  "F1_no_buildId": {
+    "applied": {
+      "anchorBefore": 1,
+      "anchorAfter": 0,
+      "mutantPresent": 1
+    },
+    "exit": 1,
+    "tally": {
+      "files": 33,
+      "tests": 500,
+      "pass": 498,
+      "fail": 2,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "fails": [
+      "stream: AS-85 — deploy-state churn (computedAt, lastAttempt, runningId) pushes no loop frame over ten polls; a real build change pushes exactly one",
+      "stream: AS-85 — each build field earns exactly one loop frame when it alone changes: desiredId, current, reason",
+      "failing tests:"
+    ]
+  },
+  "F2_same_computedAt": {
+    "applied": {
+      "anchorBefore": 1,
+      "anchorAfter": 0,
+      "mutantPresent": 1
+    },
+    "exit": 1,
+    "tally": {
+      "files": 33,
+      "tests": 500,
+      "pass": 499,
+      "fail": 1,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "fails": [
+      "stream: AS-85 — deploy-state churn (computedAt, lastAttempt, runningId) pushes no loop frame over ten polls; a real build change pushes exactly one",
+      "failing tests:"
+    ]
+  },
+  "X1_no_id": {
+    "applied": {
+      "anchorBefore": 1,
+      "anchorAfter": 0,
+      "mutantPresent": 1
+    },
+    "exit": 0,
+    "tally": {
+      "files": 33,
+      "tests": 500,
+      "pass": 500,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0
+    },
+    "fails": []
+  }
+}

@@ -1,0 +1,62 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 642B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.83kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:24-slim
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 342B done
+#4 DONE 0.0s
+
+#5 [ 1/10] FROM docker.io/library/node:24-slim
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 4.65kB done
+#6 DONE 0.0s
+
+#7 [ 4/10] COPY lib ./lib
+#7 CACHED
+
+#8 [ 5/10] COPY bin ./bin
+#8 CACHED
+
+#9 [ 8/10] COPY test ./test
+#9 CACHED
+
+#10 [ 6/10] COPY public ./public
+#10 CACHED
+
+#11 [ 3/10] COPY package.json server.js ./
+#11 CACHED
+
+#12 [ 9/10] COPY compose.yaml Dockerfile ./
+#12 CACHED
+
+#13 [ 2/10] WORKDIR /app
+#13 CACHED
+
+#14 [ 7/10] COPY watch ./watch
+#14 CACHED
+
+#15 [10/10] RUN mkdir -p /app/data && chown -R node:node /app
+#15 CACHED
+
+#16 exporting to image
+#16 exporting layers done
+#16 writing image sha256:4b04a729c5e03a1fc5ba8289fb49b50231242d2491a61de0caf87ef983315ede done
+#16 naming to docker.io/library/as83test-test done
+#16 DONE 0.0s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.0s
+R0RESULT {"mode":"quiet","nproc":10,"burners":0,"n":50,"p50":2.7,"p99":84.7,"max":84.7}
+ Image as83test-test Building 
+ Image as83test-test Built 
+ Container as83test-test-run-825c51a57f65 Creating 
+ Container as83test-test-run-825c51a57f65 Created 

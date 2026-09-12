@@ -1,0 +1,16 @@
+asc-* networks before: 12
+asc-as93-marcus_default
+asc-as93-mutant_default
+asc-as94-lena_default
+asc-as95-qa-2_default
+asc-as95-qa-3_default
+asc-as95-qa-master_default
+asc-as95-qa_default
+asc-chat-qa23_default
+asc-chat_default
+asc-invoicing_default
+asc-invoicing_stripe-mock
+asc-marcus95_default
+compose ls:
+[{"Name":"asc-chat","Status":"running(1)","ConfigFiles":"/Users/forrest/Code/american-software-company/apps/chat/compose.yaml"},{"Name":"asc-invoicing","Status":"running(1)","ConfigFiles":"/Users/forrest/Code/american-software-company/apps/invoicing/compose.yaml"},{"Name":"bettereads","Status":"exited(5), running(5)","ConfigFiles":"/Users/forrest/Code/betterreads/bettereads/docker-compose.yml,/Users/forrest/code/betterreads/bettereads/docker-compose.yml"},{"Name":"whatever-sticks","Status":"running(2)","ConfigFiles":"/Users/forrest/Code/whatever-sticks/docker-compose.yml"}]
+

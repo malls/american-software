@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/pristine/apps/invoicing/lib/screens/connect-view.js	2026-09-12 01:29:08
++++ /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/f22/apps/invoicing/lib/screens/connect-view.js	2026-09-12 01:33:06
+@@ -131,7 +131,7 @@
+ function selectState(account, startFailed) {
+   if (startFailed) return 'S2-ERROR-SYSTEM';
+   if (account === null) return 'S2-DEFAULT-NOTSTARTED';
+-  return account.ready === true ? 'S2-RETURN-READY' : 'S2-RETURN-NOTREADY';
++  return (account.chargesEnabled === true && account.requirementsCurrentlyDue.length === 0) ? 'S2-RETURN-READY' : 'S2-RETURN-NOTREADY';
+ }
+ 
+ /**

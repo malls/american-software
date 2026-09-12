@@ -1,0 +1,267 @@
+<%#
+  invoice-form.ejs — Screen 4, invoice create/edit (AS-46).
+
+  Built to docs/design/wireframes/screen-4-invoice-create.html and its ledger,
+  02-states-ledger.md §4 (with the §0 client sub-pattern). Every element the
+  wireframe marks `data-wf-note` is annotation and is deliberately NOT built.
+
+  PRESENTATION ONLY. Every decision was made in
+  lib/screens/invoice-form-view.js; this file branches on precomputed booleans
+  and reads properties. The four view-layer properties (README.md § The view
+  layer) hold here exactly as on screen 1: no raw output, no interpolation in
+  a URL or style attribute, every data-carrying attribute value double-quoted,
+  nothing interpolated in a tag-name or attribute-name region.
+
+  ONE FORM, NO action ATTRIBUTE. The page's own URL is the target — the only
+  way to post to a URL containing an id without interpolating the id into an
+  action= (property 2), and exactly what Flow 6 asks for: re-render the same
+  screen, same route. Every control that changes the page is a submit button
+  named `intent`, dispatched server-side. There is no client-side script. The
+  client sub-form is INSIDE the one form (nested forms are not HTML), so every
+  round trip carries every invoice value back by construction.
+
+  The invoice id appears nowhere in this file: not in an action, not in a
+  hidden input. The route knows it from the URL.
+
+  NOTE FOR ANYONE EDITING THIS COMMENT: do not spell the raw-output tag or a
+  closing EJS tag inside it — the dependency-policy scanner strips an EJS
+  comment up to its FIRST closing tag. And keep the three words the
+  minor-units concept row scans for (dependency-policy.test.js, the row that
+  allowlists lib/db and the view model) out of this file, comments included:
+  this template is measured to carry none of them.
+-%>
+<!doctype html>
+<html lang="en" data-state="<%= state %>">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoicing — <%= title %></title>
+    <link rel="stylesheet" href="/tokens.css" />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <%# Full chrome (01-screens.md §3): the nav is CONSTANT markup — a loop over
+        data would put hrefs in data. Only the entries whose targets exist at
+        this task's merge are rendered; Dashboard landed with AS-48 and New
+        contract is AS-127's one-line addition (README.md § Obligations). %>
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <span class="app-label">Invoicing</span>
+      </div>
+      <div class="container">
+        <nav class="site-nav" aria-label="Primary">
+          <a class="site-nav__link" href="/">Dashboard</a>
+          <a class="site-nav__link" href="/invoices/new">New invoice</a>
+          <form class="site-nav__signout" method="post" action="/signout">
+            <button type="submit" class="btn-link">Sign out</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1 class="page-title"><%= title %></h1>
+
+      <% if (banner !== null) { %>
+        <% if (banner.tone === 'warning') { %>
+          <div class="banner banner-warning">
+        <% } else { %>
+          <div class="banner banner-error">
+        <% } %>
+          <% if (banner.title !== null) { %>
+            <p class="banner__title"><%= banner.title %></p>
+          <% } %>
+          <% if (banner.message !== null) { %>
+            <p><%= banner.message %></p>
+          <% } %>
+        </div>
+      <% } %>
+
+      <% if (gated) { %>
+        <%# A true refusal (00-flows.md Flow 5): no form renders below the
+            banner. The link is a constant, never data. %>
+        <div class="form-actions">
+          <a href="/connect-stripe" class="btn btn-primary">Finish setup on Stripe</a>
+        </div>
+      <% } else { %>
+      <form method="post">
+        <div class="client-picker">
+          <% if (showSelect) { %>
+            <% if (showNewClientToggle) { %>
+              <p class="client-picker__mode-toggle">Client:
+                <button type="submit" name="intent" value="new-client" class="btn-link">add a new client instead</button>
+              </p>
+            <% } %>
+            <input type="hidden" name="pickerMode" value="select" />
+            <% if (clientError !== null) { %>
+              <div class="field field--invalid">
+                <label for="clientId">Bill to</label>
+                <select id="clientId" name="clientId" aria-invalid="true" aria-describedby="clientId-error">
+                  <option value="">Select a client…</option>
+                  <% for (const client of clients) { %>
+                    <% if (client.selected) { %>
+                      <option value="<%= client.id %>" selected><%= client.label %></option>
+                    <% } else { %>
+                      <option value="<%= client.id %>"><%= client.label %></option>
+                    <% } %>
+                  <% } %>
+                </select>
+                <span class="field-error" id="clientId-error"><%= clientError %></span>
+              </div>
+            <% } else { %>
+              <div class="field">
+                <label for="clientId">Bill to</label>
+                <select id="clientId" name="clientId">
+                  <option value="">Select a client…</option>
+                  <% for (const client of clients) { %>
+                    <% if (client.selected) { %>
+                      <option value="<%= client.id %>" selected><%= client.label %></option>
+                    <% } else { %>
+                      <option value="<%= client.id %>"><%= client.label %></option>
+                    <% } %>
+                  <% } %>
+                </select>
+              </div>
+            <% } %>
+          <% } else { %>
+            <% if (showExistingClientToggle) { %>
+              <p class="client-picker__mode-toggle">Client:
+                <button type="submit" name="intent" value="existing-client" class="btn-link">choose an existing client instead</button>
+              </p>
+            <% } %>
+            <% if (!hasClients) { %>
+              <p>No clients yet — add one below.</p>
+            <% } %>
+            <input type="hidden" name="pickerMode" value="new" />
+            <% if (clientError !== null) { %>
+              <%# A save/send with no client while adding one (review cycle 1,
+                  D1): the picker as a whole is the invalid field. There is no
+                  select to mark, so the slot carries the message alone and
+                  the banner's count still equals the page's markers. %>
+              <div class="field field--invalid">
+                <span class="field-error" id="client-error"><%= clientError %></span>
+              </div>
+            <% } %>
+            <% if (clientNameError !== null) { %>
+              <div class="field field--invalid">
+                <label for="clientName">Client name</label>
+                <input type="text" id="clientName" name="clientName" value="<%= clientName %>" aria-invalid="true" aria-describedby="clientName-error" />
+                <span class="field-error" id="clientName-error"><%= clientNameError %></span>
+              </div>
+            <% } else { %>
+              <div class="field">
+                <label for="clientName">Client name</label>
+                <input type="text" id="clientName" name="clientName" value="<%= clientName %>" />
+              </div>
+            <% } %>
+            <% if (clientEmailError !== null) { %>
+              <div class="field field--invalid">
+                <label for="clientEmail">Client email</label>
+                <input type="email" id="clientEmail" name="clientEmail" value="<%= clientEmail %>" aria-invalid="true" aria-describedby="clientEmail-error" />
+                <span class="field-error" id="clientEmail-error"><%= clientEmailError %></span>
+              </div>
+            <% } else { %>
+              <div class="field">
+                <label for="clientEmail">Client email</label>
+                <input type="email" id="clientEmail" name="clientEmail" value="<%= clientEmail %>" />
+              </div>
+            <% } %>
+            <% if (duplicate !== null) { %>
+              <%# Non-blocking (ledger §0): nothing was refused, so this is a
+                  warning INSIDE the form with both ways forward as submit
+                  buttons. The match's id travels in a hidden input, never in
+                  a URL; "create anyway" carries the confirmation with it. %>
+              <div class="banner banner-warning">
+                <p><%= duplicate.before %><strong><%= duplicate.label %></strong><%= duplicate.after %></p>
+                <p>
+                  <button type="submit" name="intent" value="existing-client" class="btn btn-secondary">Use this client instead</button>
+                  <button type="submit" name="intent" value="add-client" class="btn-link">Create a new client anyway</button>
+                </p>
+              </div>
+              <input type="hidden" name="duplicateId" value="<%= duplicateId %>" />
+              <input type="hidden" name="clientConfirm" value="1" />
+            <% } else { %>
+              <div class="form-actions">
+                <button type="submit" name="intent" value="add-client" class="btn btn-secondary">Add client</button>
+              </div>
+            <% } %>
+          <% } %>
+        </div>
+
+        <fieldset>
+          <legend>Line items</legend>
+          <div class="line-items">
+            <% for (const row of lineItems) { %>
+              <div class="line-item-row">
+                <% if (row.descriptionError !== null) { %>
+                  <div class="field field--invalid">
+                    <label for="lineItems-<%= row.index %>-description">Description</label>
+                    <input type="text" id="lineItems-<%= row.index %>-description" name="lineItems[<%= row.index %>][description]" value="<%= row.description %>" aria-invalid="true" aria-describedby="lineItems-<%= row.index %>-description-error" />
+                    <span class="field-error" id="lineItems-<%= row.index %>-description-error"><%= row.descriptionError %></span>
+                  </div>
+                <% } else { %>
+                  <div class="field">
+                    <label for="lineItems-<%= row.index %>-description">Description</label>
+                    <input type="text" id="lineItems-<%= row.index %>-description" name="lineItems[<%= row.index %>][description]" value="<%= row.description %>" />
+                  </div>
+                <% } %>
+                <% if (row.quantityError !== null) { %>
+                  <div class="field field--invalid">
+                    <label for="lineItems-<%= row.index %>-quantity">Qty</label>
+                    <input type="text" inputmode="numeric" id="lineItems-<%= row.index %>-quantity" name="lineItems[<%= row.index %>][quantity]" value="<%= row.quantity %>" aria-invalid="true" aria-describedby="lineItems-<%= row.index %>-quantity-error" />
+                    <span class="field-error" id="lineItems-<%= row.index %>-quantity-error"><%= row.quantityError %></span>
+                  </div>
+                <% } else { %>
+                  <div class="field">
+                    <label for="lineItems-<%= row.index %>-quantity">Qty</label>
+                    <input type="text" inputmode="numeric" id="lineItems-<%= row.index %>-quantity" name="lineItems[<%= row.index %>][quantity]" value="<%= row.quantity %>" />
+                  </div>
+                <% } %>
+                <% if (row.unitPriceError !== null) { %>
+                  <div class="field field--invalid">
+                    <label for="lineItems-<%= row.index %>-unitPrice"><%= priceLabel %></label>
+                    <input type="text" inputmode="decimal" id="lineItems-<%= row.index %>-unitPrice" name="lineItems[<%= row.index %>][unitPrice]" value="<%= row.unitPrice %>" aria-invalid="true" aria-describedby="lineItems-<%= row.index %>-unitPrice-error" />
+                    <span class="field-error" id="lineItems-<%= row.index %>-unitPrice-error"><%= row.unitPriceError %></span>
+                  </div>
+                <% } else { %>
+                  <div class="field">
+                    <label for="lineItems-<%= row.index %>-unitPrice"><%= priceLabel %></label>
+                    <input type="text" inputmode="decimal" id="lineItems-<%= row.index %>-unitPrice" name="lineItems[<%= row.index %>][unitPrice]" value="<%= row.unitPrice %>" />
+                  </div>
+                <% } %>
+              </div>
+            <% } %>
+          </div>
+          <% if (rowsError !== null) { %>
+            <span class="field-error"><%= rowsError %></span>
+          <% } %>
+          <% if (canAddRow) { %>
+            <button type="submit" name="intent" value="add-row" class="btn btn-secondary">Add line item</button>
+          <% } %>
+        </fieldset>
+
+        <% if (daysUntilDueError !== null) { %>
+          <div class="field field--invalid">
+            <label for="daysUntilDue">Due in (days)</label>
+            <input type="text" inputmode="numeric" id="daysUntilDue" name="daysUntilDue" value="<%= daysUntilDue %>" aria-invalid="true" aria-describedby="daysUntilDue-error" />
+            <span class="field-error" id="daysUntilDue-error"><%= daysUntilDueError %></span>
+            <span class="field-hint">Client must pay within this many days of receiving the invoice.</span>
+          </div>
+        <% } else { %>
+          <div class="field">
+            <label for="daysUntilDue">Due in (days)</label>
+            <input type="text" inputmode="numeric" id="daysUntilDue" name="daysUntilDue" value="<%= daysUntilDue %>" />
+            <span class="field-hint">Client must pay within this many days of receiving the invoice.</span>
+          </div>
+        <% } %>
+
+        <div class="form-actions">
+          <button type="submit" name="intent" value="save" class="btn btn-secondary">Save draft</button>
+          <button type="submit" name="intent" value="send" class="btn btn-primary">Finalize &amp; send</button>
+        </div>
+        <p class="page-meta">Finalizing sends this invoice by email — <strong>Stripe</strong> sends it directly to the client. We do not see or store that email.</p>
+      </form>
+      <% } %>
+    </main>
+  </body>
+</html>

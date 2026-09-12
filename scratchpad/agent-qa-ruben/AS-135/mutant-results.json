@@ -1,0 +1,289 @@
+[
+  {
+    "id": "M1",
+    "desc": "main-pane insert replaced by a faithful full rebuild from data (recreated nodes)",
+    "predicted": [
+      "T1",
+      "T7",
+      "T9"
+    ],
+    "red": [
+      "T1 AS-135: a top-level frame adds exactly one main-pane child, at the end, and every existing child keeps its identity",
+      "T9 AS-135: an anchored node survives a frame — same node object, class still present"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 669,
+      "fail": 2,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "M2",
+    "desc": "append unconditionally (no backward walk)",
+    "predicted": [
+      "T2",
+      "T7"
+    ],
+    "red": [
+      "T2 AS-135: an out-of-order id lands in id order; an id below every loaded row lands after the load-earlier button",
+      "T7 AS-135: a scripted incremental sequence yields the same ids and labels as a fresh render of the final data"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 669,
+      "fail": 2,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "M3",
+    "desc": "drop the messageIdOf dedupe lookup",
+    "predicted": [
+      "T3",
+      "T7"
+    ],
+    "red": [
+      "T3 AS-135: inserting an id already present returns false and leaves the child count unchanged",
+      "T7 AS-135: a scripted incremental sequence yields the same ids and labels as a fresh render of the final data"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 669,
+      "fail": 2,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "M4",
+    "desc": "skip the .empty-note removal",
+    "predicted": [
+      "T4"
+    ],
+    "red": [
+      "T4 AS-135: the first message into an empty pane removes the .empty-note"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 670,
+      "fail": 1,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "M5",
+    "desc": "patch the first .message child instead of #msg-<root>",
+    "predicted": [
+      "T5",
+      "T7"
+    ],
+    "red": [
+      "T5 AS-135: a reply frame patches only its root — label 1 reply / 2 replies, same link node on the second patch; other roots untouched",
+      "T7 AS-135: a scripted incremental sequence yields the same ids and labels as a fresh render of the final data",
+      "T9 AS-135: an anchored node survives a frame — same node object, class still present"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 668,
+      "fail": 3,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "M5b",
+    "desc": "invert the plural rule in replyLabel",
+    "predicted": [
+      "T5"
+    ],
+    "red": [
+      "T5 AS-135: a reply frame patches only its root — label 1 reply / 2 replies, same link node on the second patch; other roots untouched",
+      "T7 AS-135: a scripted incremental sequence yields the same ids and labels as a fresh render of the final data",
+      "T9 AS-135: an anchored node survives a frame — same node object, class still present"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 668,
+      "fail": 3,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "M6",
+    "desc": "drop the currentThreadRoot === threadRootId check (always insertThread)",
+    "predicted": [
+      "T6"
+    ],
+    "red": [
+      "T6 AS-135: frameTargets routes top-level / loaded reply (thread closed, open, other open) / orphan reply",
+      "T7 AS-135: a scripted incremental sequence yields the same ids and labels as a fresh render of the final data"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 669,
+      "fail": 2,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "M6b",
+    "desc": "patch even when the root is unloaded (orphan)",
+    "predicted": [
+      "T6"
+    ],
+    "red": [
+      "T6 AS-135: frameTargets routes top-level / loaded reply (thread closed, open, other open) / orphan reply"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 670,
+      "fail": 1,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "M7",
+    "desc": "insert outside renderPreservingScroll (both panes)",
+    "predicted": [
+      "T8"
+    ],
+    "red": [
+      "T8 AS-135: sticky-bottom — scrolled-up main/thread panes keep scrollTop across an insert; at-bottom panes follow to the new bottom"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 670,
+      "fail": 1,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "M8",
+    "desc": "restore renderConversation({ scroll: \"preserve\" }) in handleFrame",
+    "predicted": [
+      "T10"
+    ],
+    "red": [
+      "T10 AS-135: app.js has one renderConversation( call site (selectConversation); handleFrame/sendMessage/catchUp use renderFrame(, which applies the anchor"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 670,
+      "fail": 1,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "M9",
+    "desc": "R5: restore plain assignment in mergeOlderPage (drop the union)",
+    "predicted": [
+      "AS-135 live (R5)"
+    ],
+    "red": [
+      "AS-135 live (R5): a fresh root whose threads[root] already holds a live orphan reply gets the union of the page list and the orphan, id-ordered, deduped, replyCount === length"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 670,
+      "fail": 1,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "AS131-M9",
+    "desc": "criterion 11: drop the height delta in prependPreservingScroll",
+    "predicted": [
+      "scroll: prependPreservingScroll",
+      "scroll: prependPreservingScroll"
+    ],
+    "red": [
+      "scroll: prependPreservingScroll — scrollTop moves by exactly the height delta (300 -> 900, 0 -> 600)",
+      "scroll: prependPreservingScroll — never consults the sticky-bottom rule, and no growth means no movement"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 669,
+      "fail": 2,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "X1",
+    "desc": "extra: drop the /message-pane.js STATIC_FILES entry (module on disk, not served)",
+    "predicted": [
+      "api: AS-74"
+    ],
+    "red": [
+      "api: AS-74 — every served public/ module is free of markup sinks (15 examined)"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 670,
+      "fail": 1,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "X2",
+    "desc": "extra: catchUp loop merges without renderFrame (pane never updated on reconnect)",
+    "predicted": [
+      "T10"
+    ],
+    "red": [
+      "T10 AS-135: app.js has one renderConversation( call site (selectConversation); handleFrame/sendMessage/catchUp use renderFrame(, which applies the anchor"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 670,
+      "fail": 1,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "X3",
+    "desc": "extra: backward walk ignores the non-message head (lands BEFORE the load-earlier button)",
+    "predicted": [
+      "T2"
+    ],
+    "red": [
+      "T2 AS-135: an out-of-order id lands in id order; an id below every loaded row lands after the load-earlier button"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 670,
+      "fail": 1,
+      "skipped": 3
+    },
+    "exit": 1
+  },
+  {
+    "id": "X4",
+    "desc": "extra: renderFrame drops applyAnchor() (permalink target arriving by frame never lands)",
+    "predicted": [
+      "T10"
+    ],
+    "red": [
+      "T10 AS-135: app.js has one renderConversation( call site (selectConversation); handleFrame/sendMessage/catchUp use renderFrame(, which applies the anchor"
+    ],
+    "totals": {
+      "tests": 674,
+      "pass": 670,
+      "fail": 1,
+      "skipped": 3
+    },
+    "exit": 1
+  }
+]

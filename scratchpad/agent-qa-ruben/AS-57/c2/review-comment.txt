@@ -1,0 +1,13 @@
+REVIEW CYCLE 2 (Ruben): PASS. Plan and full diff (5 commits, tip cf066c8) read cold; Lena's comments read only after findings were formed — they agree on every mutant. No inline fixes. Master moved only in .claude/settings.json since the branch base: no seam.
+
+Findings first (0 defects outside the list; 3 residuals recorded, none filed):
+R1 coverage: dependency-policy.test.js is at 1,198 of the 1,200 cap — the next task touching it trims or raises the cap deliberately.
+R2 guard-hardening, pre-existing (AS-90): assertion 5 matches literal specifiers; a computed or new URL() import evades it. vendor/ is closed by the cardinality pin regardless; demo/ and test/ are not.
+R3 theoretical, pre-existing (AS-53): a top-level FILE named vendor/demo/test is skipped before the directory check; not ESM-importable without an extension; not built.
+Convention: plan 126 lines vs the 120 cap — already noted by the orchestrator.
+
+F1 fix proven by breaking it: M6 (host vendor/probe.js + import from lib/vendor.js) red exactly {assets "vendor/ holds 3 entries", DP#3 assertion 5 ['lib/vendor.js']} 532/511/2/19. Variants: V1 file, no import {assets pin} 532/512/1; V2 dynamic import, no file {DP#3} 532/512/1; V3 lib -> ../test/helpers (F2) {DP#3} 532/512/1; V4 depth-2 lib/screens/vendor {DP#3 a0, DP#5} 532/511/2; V5 subdir in vendor/ {assets pin} 532/512/1; V6 symlink lib/walk -> ../demo {DP#3, DP#5, concepts-locality} 532/510/3 — one wider than my prediction, a third independent guard, louder not a hole; V7 top-level scripts/seed.js {DP#3, DP#5} 532/511/2.
+
+Criteria sweep, floor check: 14 examined, 14 pass. Plan mutants re-run at the cycle-2 tip, all at the predicted sets: M1 532/511/2, M1b 532/510/3, M2 532/511/2, M3 532/512/1, M5 532/511/2, M4(i) green + gitignored, M4(ii) 532/510/3. Baseline and final restored 532/513/0/19. 17 counted runs, 17 receipts (Image asc-qa-as57-c2-<n>-test Built); tree clean after every restore; product code, package.json, .lattice untouched.
+
+Record: scratchpad/agent-qa-ruben/AS-57/c2/battery.md (harness, scripts, logs alongside).

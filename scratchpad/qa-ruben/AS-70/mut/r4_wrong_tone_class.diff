@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/pristine/apps/invoicing/views/connect-stripe.ejs	2026-09-12 01:29:08
++++ /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/r4_wrong_tone_class/apps/invoicing/views/connect-stripe.ejs	2026-09-12 01:33:08
+@@ -76,7 +76,7 @@
+           </div>
+         <% } %>
+         <% if (banner.tone === 'warning') { %>
+-          <div class="banner banner-warning">
++          <div class="banner banner-error">
+             <p><%= banner.message %></p>
+           </div>
+         <% } %>

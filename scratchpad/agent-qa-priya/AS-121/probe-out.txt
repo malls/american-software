@@ -1,0 +1,28 @@
+Observed output of probe.mjs against feat/AS-121-compose-run-signals @ 449571c (stub docker sleeps 2 s on `network ls` and on `run`)
+
+== P1 SIGTERM during preflight network ls
+code=143 signal=null
+log: network ls --format | compose ls --format | compose -p asc-probe-p1 [run] | compose -p asc-probe-p1 [down] | network ls --format | images --format {{.Repository}}:{{.Tag}}
+stdout: RECEIPT project=asc-probe-p1 /   built: Image asc-probe-test Built
+stderr: compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt
+-> FINDING F1: the signal arrived BEFORE the run (during observe/preflight, inside runCounted) and was swallowed; the
+   compose run --build then started anyway. Plan §2.1 "not before the guard", AC-4 "a signal before the run still
+   terminates by default", README "Before the run (guard, pre-flight) ... the default disposition applies" — all false
+   for this window. Also the stderr line says "during the run" when it was not.
+
+== P2 SIGINT,SIGINT,SIGTERM mid-run
+code=130 signal=null
+log: network ls | compose ls | run | down | network ls | images
+stdout: RECEIPT project=asc-probe-p2 /   built: Image asc-probe-test Built
+stderr: compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt
+-> OK: survives repeated signals, first signal wins, 128+2.
+
+== P3 --check, SIGTERM during network ls
+code=null signal=SIGTERM
+log: network ls --format
+-> OK: --check keeps the default disposition (AC-4 holds for --check).
+
+Docker leftover after the M1-under-AS106_REAL run: asc-as121-real-11220_default + asc-as121-real-11220-test
+(network created 16:39:54Z; mutant-M1-real.txt written 16:39:56Z). Under M1 the script dies, T13's t.after `down`
+runs while the container is still up under the orphaned `compose run` client -> network/image in use, not removed;
+container finishes, --rm removes it, network+image stay. Removed by hand. Residual R1 (test hygiene, not product).

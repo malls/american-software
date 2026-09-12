@@ -1,0 +1,25 @@
+[assert] mutation applied — diff of the worktree file:
+ apps/invoicing/compose.yaml | 2 ++
+ 1 file changed, 2 insertions(+)
++    ports:
++      - "127.0.0.1:8349:8348"
+[observe] counted test run with --build against the mutated compose.yaml (project asc-review-as130-m9):
+exit 1
+ Image asc-review-as130-m9-test Built 
+[receipt] present
+ℹ tests 524
+ℹ pass 504
+ℹ fail 1
+ℹ skipped 19
+[red set]
+  AssertionError [ERR_ASSERTION]: the demo publishes nothing to the host
+[restore] compose.yaml restored from /tmp/asc-ruben-as130-G169Cm/compose.yaml.bak
+[clean] git diff --exit-code: tree clean
+[rebuild+rerun] counted test run with --build after restore:
+exit 0
+ Image asc-review-as130-m9-test Built 
+[receipt] present
+ℹ tests 524
+ℹ pass 505
+ℹ fail 0
+ℹ skipped 19

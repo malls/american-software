@@ -1,0 +1,13 @@
+diff --git a/apps/invoicing/routes/invoices.js b/apps/invoicing/routes/invoices.js
+index ce17bc7..b63ffbc 100644
+--- a/apps/invoicing/routes/invoices.js
++++ b/apps/invoicing/routes/invoices.js
+@@ -329,7 +329,7 @@ export function invoiceRoutes(config, { repos, stripe }) {
+         // refusing. The typed value is what re-renders, whitespace and all.
+         const { clientName, clientEmail, clientConfirm } = submission.values;
+         if (clientName.trim() === '' || clientEmail.trim() === '') return render(res, invoiceFormLocals(base));
+-        const email = clientEmail.trim();
++        const email = clientEmail;
+         if (!clientConfirm) {
+           const matches = repos.clients.findByEmail(freelancerId, email);
+           // Several matches: the first by created_at is named (plan §10 Q4).

@@ -1,0 +1,12 @@
+
+=== asc-review-as49-priya-master :: test ===
+BUILT:  Image asc-review-as49-priya-master-test Built 
+ℹ tests 461
+ℹ pass 443
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 18
+ℹ todo 0
+NOT OK: none
+EXIT: 0
+DOWN EXIT: 0  Image asc-review-as49-priya-master-test:latest Removing   Image asc-review-as49-priya-master-test:latest Removed  

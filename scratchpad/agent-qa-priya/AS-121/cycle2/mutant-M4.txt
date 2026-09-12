@@ -1,0 +1,63 @@
+--- mutation diff ---
+diff --git a/apps/chat/bin/compose-run.mjs b/apps/chat/bin/compose-run.mjs
+index 97da7ad..a94219d 100644
+--- a/apps/chat/bin/compose-run.mjs
++++ b/apps/chat/bin/compose-run.mjs
+@@ -107,0 +108 @@ async function main() {
++  for (const sig of RUN_SIGNALS) process.on(sig, onSignal); // M4: armed before the guard
+
+
+--- test output ---
+✔ T1 isAllowedProject rejects production names (0.581167ms)
+✔ T2 isAllowedProject rejects non-asc and malformed names (0.089042ms)
+✔ T3 isAllowedProject accepts a scratch project (0.337041ms)
+✔ T4 buildDownArgs and buildRunArgs are exactly the recipe (0.082459ms)
+✔ T5a runCounted: run exits 0 -> down runs, status 0, receipt parsed (0.563209ms)
+✔ T5b runCounted: run exits 1 -> down still runs, status 1 preserved (0.22475ms)
+✔ T5c runCounted: run throws -> down still runs, error reported (0.199333ms)
+✔ T6 runCounted: a network or image surviving down is reported as LEAK, exit 4, anchored at ^<project>_ (0.136458ms)
+✔ T7a parseReceipt: Built line verbatim, counts from TAP and spec summaries (0.094042ms)
+✔ T7b runCounted: a run with no Built line is exit 5 even when every test passes (0.150333ms)
+✔ T8 classifyNetworks: the plan §1 fixture splits 3 production / 1 live / 9 leftover (0.325292ms)
+✔ T9a runCounted refuses at exactly the ceiling: 20 asc-* networks -> exit 3, no run (0.139833ms)
+✔ T9b runCounted proceeds below the ceiling: 19 asc-* networks -> run happens (0.098625ms)
+✔ T10a runCheck exits 1 with leftovers and 0 when production+live only (0.114541ms)
+✔ T10b runCheck is read-only: never down, rm, or prune (0.090167ms)
+✔ T12a SIGTERM to the script alone mid-run: it survives, down runs after run, receipt prints, interrupted line, exit 143 (2379.07075ms)
+✔ T12b SIGINT to the whole process group (script + docker child): down runs after run, run exit=null, interrupted line, exit non-zero (297.728666ms)
+✖ T12c SIGTERM during the pre-flight (before the guard): default disposition — dies of the signal, no run, no down, no receipt (6617.332166ms)
+﹣ T11 real run: the script leaves zero networks and zero images for its project and prints a Built line (0.440583ms) # opt-in: set AS106_REAL=1
+﹣ T13 real run, SIGTERM mid-container: zero networks and zero images survive, receipt printed, exit 143 (0.036625ms) # opt-in: set AS106_REAL=1
+ℹ tests 20
+ℹ suites 0
+ℹ pass 17
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 9345.469625
+
+✖ failing tests:
+
+test at test/compose-run.test.js:330:1
+✖ T12c SIGTERM during the pre-flight (before the guard): default disposition — dies of the signal, no run, no down, no receipt (6617.332166ms)
+  AssertionError [ERR_ASSERTION]: before the run the script dies of the signal; log: network ls --format {{.Name}} | compose ls --format json | compose -p asc-as121-t12c run --rm --build test | compose -p asc-as121-t12c down -v --rmi local --remove-orphans | network ls --format {{.Name}} | images --format {{.Repository}}:{{.Tag}}; stderr: compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt
+  
+  
+  null !== 'SIGTERM'
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-121-mutant/apps/chat/test/compose-run.test.js:338:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: 'SIGTERM',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+--- stderr ---
+
+exit=1

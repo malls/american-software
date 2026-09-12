@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en" data-state="S6-ERROR-VALIDATION">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoicing — New contract — fix the highlighted fields</title>
+    <link rel="stylesheet" href="http://127.0.0.1:8361/tokens.css" />
+    <link rel="stylesheet" href="http://127.0.0.1:8361/app.css" />
+  </head>
+  <body>
+    
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <span class="app-label">Invoicing</span>
+      </div>
+      <div class="container">
+        <nav class="site-nav" aria-label="Primary">
+          <a class="site-nav__link" href="/">Dashboard</a>
+          <a class="site-nav__link" href="/invoices/new">New invoice</a>
+          <a class="site-nav__link" href="/contracts/new">New contract</a>
+          <form class="site-nav__signout" method="post" action="/signout">
+            <button type="submit" class="btn-link">Sign out</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1 class="page-title">New contract — fix the highlighted fields</h1>
+
+      
+      <div class="banner banner-warning">
+        <p class="banner__title">Placeholder contract text — not legal advice</p>
+        <p>This contract&#39;s body is placeholder text. It is not legal advice — do not send this to a client as a binding contract.</p>
+      </div>
+
+      
+        <div class="banner banner-error">
+          
+            <p class="banner__title">3 fields need attention</p>
+          
+          
+            <p>Everything else you entered is unchanged below.</p>
+          
+        </div>
+      
+
+      <form method="post">
+        <div class="client-picker">
+          
+            
+              <p class="client-picker__mode-toggle">Client:
+                <button type="submit" name="intent" value="new-client" class="btn-link">add a new client instead</button>
+              </p>
+            
+            <input type="hidden" name="pickerMode" value="select" />
+            
+              <div class="field field--invalid">
+                <label for="clientId">Client</label>
+                <select id="clientId" name="clientId" aria-invalid="true" aria-describedby="clientId-error">
+                  <option value="">Select a client…</option>
+                  
+                    
+                      <option value="16903e59-68a6-4b91-8a8d-62c57210fcb4">A Client With A Really Quite Long Name Indeed (a-client-with-a-long-address@example-domain.test)</option>
+                    
+                  
+                </select>
+                <span class="field-error" id="clientId-error">Select a client.</span>
+              </div>
+            
+          
+        </div>
+
+        
+        
+          
+            
+              <div class="field field--invalid">
+                <label for="projectDescription">Project description</label>
+                <textarea id="projectDescription" name="projectDescription" rows="3" aria-invalid="true" aria-describedby="projectDescription-error">
+</textarea>
+                <span class="field-error" id="projectDescription-error">Describe the project in a sentence or two.</span>
+              </div>
+            
+          
+        
+          
+            
+              <div class="field field--invalid">
+                <label for="startDate">Start date</label>
+                <input type="date" id="startDate" name="startDate" value="2026-02-31" aria-invalid="true" aria-describedby="startDate-error" />
+                <span class="field-error" id="startDate-error">Enter a date as YYYY-MM-DD.</span>
+              </div>
+            
+          
+        
+
+        <div class="form-actions">
+          
+            <button type="submit" name="intent" value="generate" class="btn btn-primary">Generate contract</button>
+          
+        </div>
+      </form>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/.worktrees/AS-85/apps/chat/test/stream.test.js	2026-09-11 05:49:10
++++ /tmp/as85-scratch/test/stream.test.js	2026-09-11 14:17:43
+@@ -485,7 +485,7 @@
+  *  and AS-100 events poll pushed out past the end of the test so nothing but a
+  *  `loop` frame can ever land in `pending()` during a zero-frame window. */
+ const buildBootOpts = (dataDir) => ({
+-  dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: 60_000, eventsPollMs: 60_000, buildId: BUILD_ID,
++  dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: 60_000, eventsPollMs: 60_000,
+ });
+ 
+ test('stream: AS-85 — deploy-state churn (computedAt, lastAttempt, runningId) pushes no loop frame over ten polls; a real build change pushes exactly one', async (t) => {

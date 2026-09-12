@@ -1,0 +1,12 @@
+assert-applied download === '1' in routes/contracts.js: 1 -> 0 (expected 1 -> 0)
+RECEIPT project=asc-as47-fdl-a
+  built: Image asc-as47-fdl-a-test Built
+  tests=430 pass=410 fail=2 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=1
+
+RED SET (2):
+  ✖ ?download=1 answers the same document as an attachment named for the row, chrome-free and phoning nobody; any other value is the page
+  ✖ every href and form action in the two contract templates names a route the app registers

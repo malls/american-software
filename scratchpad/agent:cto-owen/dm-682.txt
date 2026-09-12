@@ -1,0 +1,33 @@
+Exact commands for this host, in order. State I verified from this tick (read-only): the job is NOT bootstrapped yet — no com.american-software.lattice-dashboard.plist in ~/Library/LaunchAgents (only the watcher's), and no lattice-dashboard.*.log files exist; something still answers 200 on 127.0.0.1:8799 (a hand-started dashboard — pid 52536 at planning time; lsof/pgrep are outside the tick allowlist so I could not re-confirm the pid tonight, which is why step 0 reads it from lsof rather than hard-coding it) and an unrelated second dashboard is on :8805 — leave that one alone. The lattice binary is /Users/forrest/.local/bin/lattice (pipx symlink -> ~/.local/pipx/venvs/lattice-tracker/bin/lattice), your uid is 503.
+
+```sh
+cd /Users/forrest/Code/american-software-company
+LABEL=com.american-software.lattice-dashboard
+
+# 0. Free :8799 — the launchd job crash-loops behind a stray owner. Kills ONLY the :8799 listener; :8805 is untouched.
+lsof -nP -iTCP:8799 -sTCP:LISTEN                       # note the PID it prints (expected: the old hand-started dashboard)
+kill $(lsof -nP -iTCP:8799 -sTCP:LISTEN -t); sleep 1
+lsof -nP -iTCP:8799 -sTCP:LISTEN                       # must print nothing
+
+# 1. Render the plist template, lint it, bootstrap the job.
+mkdir -p apps/chat/data/logs
+sed -e "s|__REPO_ROOT__|/Users/forrest/Code/american-software-company|g" \
+    -e "s|__LATTICE_BIN__|/Users/forrest/.local/bin/lattice|g" \
+    -e "s|__PATH__|/Users/forrest/.local/bin:/usr/bin:/bin|g" \
+    apps/chat/watch/$LABEL.plist.template > ~/Library/LaunchAgents/$LABEL.plist
+plutil -lint ~/Library/LaunchAgents/$LABEL.plist       # expect: "... OK"
+launchctl bootstrap gui/503 ~/Library/LaunchAgents/$LABEL.plist
+
+# 2. The four observations Ruben records on AS-94 — paste each output back verbatim.
+launchctl print gui/503/$LABEL | grep -E 'state|pid|last exit'                          # (1) expect: state = running, a pid, no non-zero last exit
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8799/                          # (2) expect: 200
+kill $(lsof -nP -iTCP:8799 -sTCP:LISTEN -t); date +%T; for i in $(seq 1 30); do sleep 1; curl -s -o /dev/null -w "%{http_code} after ${i}s\n" http://127.0.0.1:8799/ && break; done   # (3) KeepAlive: expect "200 after Ns", N <= ~10 (launchd's default throttle)
+lattice dashboard --host 127.0.0.1 --port 8799                                            # (4) single owner: expect it to FAIL with "Address already in use" — if it "succeeds" or picks another port, Ctrl-C and tell me, that is a README-wording finding
+
+# Bonus (L2 leg, one line): the phone path.
+tailscale serve status                                                                    # expect: :8443 -> http://127.0.0.1:8799
+```
+
+Paste the outputs here (or just say "done" if all four match the expectations), and Ruben records the four observations on AS-94 and closes it; then any AS-n link in chat resolves from the phone at https://forrests-newer-macbook.tail3f3c29.ts.net:8443/#/task/... with no live session.
+
+Loop confirmation, as promised in msg 681: this is loop tick 1 in production. Your msg 682 armed it — apps/chat/data/advance-loop.json reads active: true, armedBy: 682, and the lock (apps/chat/data/advance.lock, pid 76266) carries "loop":{"ticks":1}. So a board message now opens a loop, not a single tick; the stop reason will be logged when the company runs dry. Also this tick: the chat export deferred from the merge ran (deploy-state runningId == desiredId == 84639eb29e39d4d7) and committed as f6717b8 — zero human-DM files, appends only, which is AS-91 AC-5's second half holding in practice. And AS-99's technical planning half is running in a parallel lane right now.

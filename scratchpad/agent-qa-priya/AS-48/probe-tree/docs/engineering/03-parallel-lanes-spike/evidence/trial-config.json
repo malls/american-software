@@ -1,0 +1,63 @@
+{
+  "windows": {
+    "T1": {
+      "start": "2026-09-02T06:54:38Z",
+      "end": "2026-09-02T07:25:45Z"
+    },
+    "T2": {
+      "start": "2026-09-02T07:30:26Z",
+      "end": "2026-09-02T07:46:57Z"
+    }
+  },
+  "tasks": {
+    "AS-41": {
+      "task_id": "task_01M1D34NAX4QTQ3HMJ7P5EBGK9",
+      "branch": "feat/AS-41-connect-onboarding",
+      "worktree": ".worktrees/AS-41",
+      "allowed_prefixes": [
+        "apps/invoicing/"
+      ],
+      "expected_authors": [
+        "developer-marcus"
+      ],
+      "expected_actors": [
+        "agent:developer-marcus",
+        "agent:cto-owen"
+      ],
+      "lane": "A"
+    },
+    "AS-34": {
+      "task_id": "task_01M1CECED9QG9G2QR67A7158FY",
+      "branch": "feat/AS-34-symlink-dot-check",
+      "worktree": ".worktrees/AS-34",
+      "allowed_prefixes": [
+        "apps/chat/"
+      ],
+      "expected_authors": [
+        "developer-lena"
+      ],
+      "expected_actors": [
+        "agent:developer-lena",
+        "agent:cto-owen"
+      ],
+      "lane": "B"
+    },
+    "AS-60": {
+      "task_id": "task_01M1G81VZBHYQ235ZR18WS01RV",
+      "branch": "feat/AS-60-parallel-lanes",
+      "worktree": ".worktrees/AS-60",
+      "allowed_prefixes": [
+        "tools/lanes/",
+        "docs/engineering/"
+      ],
+      "expected_authors": [
+        "developer-lena",
+        "cto-owen"
+      ],
+      "expected_actors": [
+        "agent:developer-lena",
+        "agent:cto-owen"
+      ]
+    }
+  }
+}

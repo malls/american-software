@@ -1,0 +1,24 @@
+AS-99: close AC-3's second half — evaluate() never rejects
+
+The mutation battery turned up a survivor: replacing the body of
+evaluate()'s outer catch with `throw err` left all 414 tests green. The
+mutant landed at the intended site (watch/advance-watcher.mjs:1685, one
+match, neighbourhood re-read from disk), so this was a real hole and not
+the AS-95 wrong-site artifact — nothing drove that catch.
+
+watcher-lanes-git-down covers a git call returning a nonzero EXIT CODE.
+It does not cover a runner that THROWS — spawn raising on EMFILE, or a
+cwd that vanished because another lane's worktree was removed mid-poll —
+which unwinds past every per-call handler into the outer catch. That is
+the path AC-3 names when it asks for "the assertion that evaluate never
+rejects", and the half the plan's own predicted red set implied.
+
+Two tests, both killing that mutant:
+- watcher-lanes-never-rejects: worktree-list throws; evaluate resolves,
+  and the snapshot is still written with the error and a generatedAt.
+- watcher-lanes-never-rejects-midway: the throw lands in the per-row
+  loop, after a half-built worktrees array already exists in scope. The
+  snapshot must still degrade to the error shape — a truncated lane set
+  presented as complete is the one failure a reader cannot detect.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

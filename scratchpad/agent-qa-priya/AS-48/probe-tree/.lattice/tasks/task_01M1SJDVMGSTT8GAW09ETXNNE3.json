@@ -1,0 +1,50 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": "agent:developer-lena",
+  "branch_links": [
+    {
+      "branch": "feat/AS-86-dockerignore-image-input",
+      "linked_at": "2026-09-11T09:35:14Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 6,
+  "complexity": null,
+  "created_at": "2026-09-05T19:58:46Z",
+  "created_by": "agent:qa-ruben",
+  "custom_fields": {},
+  "description": "From the AS-75 QA review (qa-ruben), finding F2. apps/chat/.dockerignore is tracked in git and determines what the build context contains, so a committed edit to it changes the resulting image. It sits OUTSIDE IMAGE_INPUTS (the 9 paths whose git digest drives the deploy predicate) and outside the COPY-set guard that keeps IMAGE_INPUTS honest \u2014 the guard derives its expected set from the Dockerfile's COPY lines, and .dockerignore appears in none of them, so it is invisible to the check by construction.\n\nConsequence: edit .dockerignore, merge, and the watcher will never rebuild. The image silently diverges from master exactly the way AS-75 exists to prevent. Latent today because nothing has edited it, which is also why nobody would notice.\n\nACCEPTANCE. The deploy predicate accounts for .dockerignore (and any other tracked file that alters build context without appearing in a COPY line), with the guard extended so the omission is caught rather than assumed. Prove it: commit a change to .dockerignore and observe the predicate go dirty.",
+  "done_at": "2026-09-11T18:22:03Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01M28V4AGEMKXY4WQZWQK32T2E",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01M1SJDVMGSTT8GAW09ETXNNE3",
+  "last_event_id": "ev_01M28VR2YZ9NK1HF5CFEX9P3AE",
+  "last_status_changed_at": "2026-09-11T18:22:03Z",
+  "linked_files": [],
+  "needs_human": null,
+  "priority": "critical",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-05T19:59:47Z",
+      "created_by": "agent:qa-ruben",
+      "note": null,
+      "target_task_id": "task_01M1M0RH7TANNAJDD26CXY6W24",
+      "type": "subtask_of"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-86",
+  "status": "done",
+  "tags": null,
+  "title": "AS-75 F2: .dockerignore determines build context but sits outside IMAGE_INPUTS and its COPY-set guard",
+  "type": "task",
+  "updated_at": "2026-09-11T18:30:15Z",
+  "urgency": null
+}

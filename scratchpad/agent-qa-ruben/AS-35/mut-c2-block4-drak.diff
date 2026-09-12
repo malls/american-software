@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/pristine/docs/design/tokens/tokens.css	2026-09-12 17:14:48
++++ /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/c2-block4-drak/docs/design/tokens/tokens.css	2026-09-12 17:14:48
+@@ -258,7 +258,7 @@
+  * duplication is checked by tokens.test.mjs, not hidden.
+  * ============================================================================
+  */
+-[data-theme="dark"] {
++[data-theme="drak"] {
+   color-scheme: dark;
+ 
+   --color-bg-canvas: var(--color-ink-950);

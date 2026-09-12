@@ -1,0 +1,25 @@
+diff --git a/apps/invoicing/routes/contracts.js b/apps/invoicing/routes/contracts.js
+index eaea84e..ff79808 100644
+--- a/apps/invoicing/routes/contracts.js
++++ b/apps/invoicing/routes/contracts.js
+@@ -210,19 +210,7 @@ export function contractRoutes(config, { repos }) {
+           // Several matches: the first by created_at is named (AS-46 §10 Q4).
+           if (matches.length > 0) return renderForm(res, contractFormLocals({ ...base, duplicate: matches[0] }));
+         }
+-        let created;
+-        try {
+-          created = repos.clients.create(freelancerId, { name: clientName, email });
+-        } catch (err) {
+-          // The repository's shape refusal is S6-CLIENT-ERROR-VALIDATION with
+-          // every value preserved (AS-128; 00-flows.md Flow 3 step 3a). No
+-          // second email check here: the repository is the one place the
+-          // rule lives (AS-67 D6), the screen only renders its answer.
+-          if (err instanceof ValidationError && err.field === 'email') {
+-            return renderForm(res, contractFormLocals({ ...base, clientEmailRefused: true }));
+-          }
+-          throw err;
+-        }
++        const created = repos.clients.create(freelancerId, { name: clientName, email });
+         return renderForm(res, contractFormLocals({
+           ...base,
+           clients: repos.clients.listByFreelancer(freelancerId),

@@ -1,0 +1,156 @@
+[
+  {
+    "id": "M1",
+    "counts": {
+      "tests": 617,
+      "pass": 613,
+      "fail": 2,
+      "skipped": 2
+    },
+    "red": [
+      "stream-company-swap-identical-prefix-adopts",
+      "stream-company-swap-identical-prefix-with-partial"
+    ],
+    "predicted": [
+      "stream-company-swap-identical-prefix-adopts",
+      "stream-company-swap-identical-prefix-with-partial"
+    ],
+    "match": true,
+    "firstFail": "AssertionError [ERR_ASSERTION]: an identical-content swap replays nothing",
+    "control": null,
+    "failBlock": ""
+  },
+  {
+    "id": "M2",
+    "counts": {
+      "tests": 617,
+      "pass": 614,
+      "fail": 1,
+      "skipped": 2
+    },
+    "red": [
+      "stream-company-replaced-new-inode"
+    ],
+    "predicted": [
+      "stream-company-replaced-new-inode"
+    ],
+    "match": true,
+    "firstFail": "AssertionError [ERR_ASSERTION]: the whole new file is re-read: three lines, three frames",
+    "control": null,
+    "failBlock": ""
+  },
+  {
+    "id": "M3",
+    "counts": {
+      "tests": 617,
+      "pass": 614,
+      "fail": 1,
+      "skipped": 2
+    },
+    "red": [
+      "stream-company-replaced-new-inode"
+    ],
+    "predicted": [
+      "stream-company-replaced-new-inode"
+    ],
+    "match": true,
+    "firstFail": "AssertionError [ERR_ASSERTION]: the whole new file is re-read: three lines, three frames",
+    "control": null,
+    "failBlock": ""
+  },
+  {
+    "id": "M4",
+    "counts": {
+      "tests": 617,
+      "pass": 614,
+      "fail": 1,
+      "skipped": 2
+    },
+    "red": [
+      "stream-company-swap-identical-prefix-with-partial"
+    ],
+    "predicted": [
+      "stream-company-swap-identical-prefix-with-partial"
+    ],
+    "match": true,
+    "firstFail": "AssertionError [ERR_ASSERTION]: adopted: no replay",
+    "control": null,
+    "failBlock": ""
+  },
+  {
+    "id": "M5",
+    "counts": {
+      "tests": 617,
+      "pass": 614,
+      "fail": 1,
+      "skipped": 2
+    },
+    "red": [
+      "stream-company-replaced-shorter-new-inode"
+    ],
+    "predicted": [
+      "stream-company-replaced-shorter-new-inode"
+    ],
+    "match": true,
+    "firstFail": "AssertionError [ERR_ASSERTION]: a shorter file at a new inode is a rotation, not a truncation",
+    "control": null,
+    "failBlock": ""
+  },
+  {
+    "id": "M6",
+    "counts": {
+      "tests": 617,
+      "pass": 614,
+      "fail": 1,
+      "skipped": 2
+    },
+    "red": [
+      "stream-company-reset-recounts-malformed"
+    ],
+    "predicted": [
+      "stream-company-reset-recounts-malformed"
+    ],
+    "match": true,
+    "firstFail": "AssertionError [ERR_ASSERTION]: recounted from the new file: its one junk line, not the old file's too",
+    "control": null,
+    "failBlock": ""
+  },
+  {
+    "id": "M7",
+    "counts": {
+      "tests": 617,
+      "pass": 614,
+      "fail": 1,
+      "skipped": 2
+    },
+    "red": [
+      "watcher-events-cut-close-carries-cycle"
+    ],
+    "predicted": [
+      "watcher-events-cut-close-carries-cycle"
+    ],
+    "match": true,
+    "firstFail": "AssertionError [ERR_ASSERTION]: the close carries the cycle the start stated, not null",
+    "control": true,
+    "failBlock": ""
+  },
+  {
+    "id": "M8",
+    "counts": {
+      "tests": 617,
+      "pass": 614,
+      "fail": 1,
+      "skipped": 2
+    },
+    "red": [
+      "watcher-events-cut-close-carries-cycle"
+    ],
+    "predicted": [
+      "watcher-events-cut-close-carries-cycle"
+    ],
+    "match": true,
+    "firstFail": "AssertionError [ERR_ASSERTION]: the close carries the cycle the start stated, not null",
+    "control": null,
+    "failBlock": ""
+  }
+]

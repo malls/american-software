@@ -1,0 +1,19 @@
+Implemented (two-stage path), tip cf0a02a on feat/AS-128-add-client-validation-state, 7 files +224/-13.
+
+WHAT CHANGED. Both add-client branches (routes/invoices.js, routes/contracts.js), identical in shape: after the blankness check `const email = clientEmail.trim()` is what findByEmail and create receive; create sits in a try, and `ValidationError` with `field === 'email'` renders the existing S4/S6-CLIENT-ERROR-VALIDATION state (400, text/html) via `clientEmailRefused: true`; anything else rethrows to the old text/plain path. Both view models take `clientEmailRefused`, honoured only under add-client and only as boolean true; blank still wins (`This field is required.`), otherwise the email field carries screen 1's sentence `Enter a complete email address.`. No email rule at a route (AS-67 D6). lib/db/, test/clients.test.js (L4), package files untouched (criterion 6, diff empty). README: one AS-128 sentence beside the AS-127 passage.
+
+TESTS. 6 new: per screen a malformed case (`not-an-email` and ` not an email ` — inner whitespace survives the trim), a trim case (padded address stored trimmed; padded re-cased match warns as the duplicate), a view-model unit case.
+
+COUNTS. master 524/505/0/19 `Image asc-impl-as128-base-test Built`; branch 530/511/0/19 `Image asc-impl-as128-green-test Built` — exactly +6.
+
+RED SETS (mutate.mjs applies in place asserting one occurrence at the intended site; restored; `git diff --exit-code` clean after each; every run `Image asc-impl-as128-m<n>-test Built`, leak check clean):
+- M1 invoices bare create: 530/510/1 = {S4 malformed} exact.
+- M2 invoices no trim: 530/510/1 = {S4 trim} exact.
+- M3 contracts bare create: 530/510/1 = {S6 malformed} exact.
+- M4 contracts no trim: 530/510/1 = {S6 trim} exact.
+- M5 invoice view model ignores flag: 530/509/2 = {S4 malformed, S4 unit} exact.
+- M6 contract view model ignores flag: 530/509/2 = {S6 malformed, S6 unit} exact.
+
+NOTE. My first M1 was a malformed mutant (added a second create call instead of deleting the catch; 4 reds). The helper now replaces the try/catch and asserts the create-call count is unchanged; m1.log is the rerun.
+
+Left undone: nothing in scope; the name is not trimmed (not asked). Logs: scratchpad/agent-developer-marcus/AS-128/.

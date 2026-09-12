@@ -1,0 +1,33 @@
+#!/bin/bash
+E=$(cd "$(dirname "$0")/.." && pwd)
+R=$E/repo
+mode=$(cat "$E/mode")
+echo "$(date +%T) tick-start pid=$$ mode=$mode args=$*" >> "$E/ticks.log"
+sleepfor=0
+case "$mode" in sleep:*) sleepfor=${mode#sleep:}; mode=advance;; esac
+[ "$sleepfor" != 0 ] && sleep "$sleepfor"
+step() { # advance the fixture one stage; commit; print what it did
+  for t in T1 T2; do
+    f=$R/.lattice/tasks/$t.json
+    st=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$f','utf8')).status)")
+    case "$st" in
+      backlog) nst=in_progress;; in_progress) nst=done;; *) continue;;
+    esac
+    node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('$f','utf8'));j.status='$nst';fs.writeFileSync('$f',JSON.stringify(j))"
+    git -C "$R" -c user.name=tick -c user.email=t@x commit -q -am "$t -> $nst"
+    echo "$(date +%T) tick-step pid=$$ $t -> $nst head=$(git -C "$R" rev-parse --short HEAD)" >> "$E/ticks.log"
+    return 0
+  done
+  echo "$(date +%T) tick-step pid=$$ nothing-left" >> "$E/ticks.log"
+}
+case "$mode" in
+  advance) step;;
+  noop) :;;
+  fail) exit 3;;
+  lockgrab) step; # simulate a manual/session tick winning the lock the instant ours is released
+     sleep 30 & fp=$!; disown
+     echo "{\"pid\":$fp,\"startedAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"source\":\"manual\",\"nonce\":\"ffff\"}" > "$R/apps/chat/data/advance.lock"
+     echo "$(date +%T) tick-lockgrab foreign pid=$fp" >> "$E/ticks.log";;
+esac
+echo "$(date +%T) tick-end pid=$$" >> "$E/ticks.log"
+exit 0

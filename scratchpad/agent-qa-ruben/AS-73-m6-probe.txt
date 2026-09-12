@@ -1,0 +1,22 @@
+┌─────────┬────────────────────────┬─────────┬──────────────┬─────────────────────────┬───────┐
+│ (index) │ file                   │ parsed  │ leadingFence │ classified              │ agree │
+├─────────┼────────────────────────┼─────────┼──────────────┼─────────────────────────┼───────┤
+│ 0       │ 'blank-first.md'       │ 'null'  │ false        │ 'dropped'               │ true  │
+│ 1       │ 'bom-then-blank.md'    │ 'null'  │ false        │ 'dropped'               │ true  │
+│ 2       │ 'closing-crlf-only.md' │ 'obj'   │ true         │ 'roster'                │ true  │
+│ 3       │ 'crlf-alone.md'        │ 'null'  │ true         │ 'malformed_frontmatter' │ true  │
+│ 4       │ 'crlf-trail-space.md'  │ 'obj'   │ true         │ 'roster'                │ true  │
+│ 5       │ 'dir.md'               │ '(dir)' │ '(dir)'      │ 'unreadable'            │ true  │
+│ 6       │ 'double-bom.md'        │ 'obj'   │ true         │ 'roster'                │ true  │
+│ 7       │ 'empty.md'             │ 'null'  │ false        │ 'dropped'               │ true  │
+│ 8       │ 'fence-tab-inside.md'  │ 'null'  │ false        │ 'dropped'               │ true  │
+│ 9       │ 'four-dash.md'         │ 'null'  │ false        │ 'dropped'               │ true  │
+│ 10      │ 'lone-cr.md'           │ 'null'  │ false        │ 'dropped'               │ true  │
+│ 11      │ 'nbsp-lead.md'         │ 'obj'   │ true         │ 'roster'                │ true  │
+│ 12      │ 'ws-only.md'           │ 'null'  │ false        │ 'dropped'               │ true  │
+└─────────┴────────────────────────┴─────────┴──────────────┴─────────────────────────┴───────┘
+examined 13 expected .md entries 13
+invariant examined === roster + skipped + noFence: 13 === 4 + 2 + 7 => true
+roster ids [ 'agent:cc', 'agent:dbom', 'agent:nb', 'agent:ts' ]
+skipped [{"file":"crlf-alone.md","reason":"malformed_frontmatter"},{"file":"dir.md","reason":"unreadable"}]
+disagreements 0 of 13

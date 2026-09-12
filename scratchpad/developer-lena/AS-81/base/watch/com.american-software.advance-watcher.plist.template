@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  AS-7 advance-watcher launchd template. Render before installing:
+    __REPO_ROOT__  absolute path to the repo checkout (no trailing slash)
+    __NODE_BIN__   absolute path to a host node >= 20 (`command -v node`)
+    __PATH__       PATH for the watcher AND its claude child; must contain the
+                   directories holding both `node` and `claude`
+                   (launchd's default env is thin — do not omit this)
+  Install/uninstall instructions: ./README.md
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.american-software.advance-watcher</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE_BIN__</string>
+    <string>__REPO_ROOT__/apps/chat/watch/advance-watcher.mjs</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO_ROOT__</string>
+
+  <!-- Survives reboot (RunAtLoad) and crashes (KeepAlive). -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>__PATH__</string>
+    <key>ADVANCE_REPO_ROOT</key>
+    <string>__REPO_ROOT__</string>
+    <!-- Optional overrides (defaults in advance-watcher.mjs):
+         ADVANCE_POLL_S=5  ADVANCE_DEBOUNCE_S=15  ADVANCE_TICK_TIMEOUT_MIN=30
+         ADVANCE_LOCK_STALE_MIN=45  ADVANCE_CLAUDE_BIN=claude
+         ADVANCE_PERMISSION_MODE=acceptEdits  (bypassPermissions is a BOARD
+         decision recorded in CLAUDE.md — do not flip it casually) -->
+  </dict>
+
+  <!-- Catches crashes that happen before the watcher's own logger exists. -->
+  <key>StandardOutPath</key>
+  <string>__REPO_ROOT__/apps/chat/data/logs/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO_ROOT__/apps/chat/data/logs/launchd.err.log</string>
+</dict>
+</plist>

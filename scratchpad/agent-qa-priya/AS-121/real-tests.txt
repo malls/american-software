@@ -1,0 +1,31 @@
+✔ T1 isAllowedProject rejects production names (0.676792ms)
+✔ T2 isAllowedProject rejects non-asc and malformed names (0.092084ms)
+✔ T3 isAllowedProject accepts a scratch project (0.381666ms)
+✔ T4 buildDownArgs and buildRunArgs are exactly the recipe (0.103875ms)
+✔ T5a runCounted: run exits 0 -> down runs, status 0, receipt parsed (0.688834ms)
+✔ T5b runCounted: run exits 1 -> down still runs, status 1 preserved (0.240708ms)
+✔ T5c runCounted: run throws -> down still runs, error reported (0.220417ms)
+✔ T6 runCounted: a network or image surviving down is reported as LEAK, exit 4, anchored at ^<project>_ (0.4085ms)
+✔ T7a parseReceipt: Built line verbatim, counts from TAP and spec summaries (0.146375ms)
+✔ T7b runCounted: a run with no Built line is exit 5 even when every test passes (0.205584ms)
+✔ T8 classifyNetworks: the plan §1 fixture splits 3 production / 1 live / 9 leftover (0.779542ms)
+✔ T9a runCounted refuses at exactly the ceiling: 20 asc-* networks -> exit 3, no run (0.205041ms)
+✔ T9b runCounted proceeds below the ceiling: 19 asc-* networks -> run happens (0.130334ms)
+✔ T10a runCheck exits 1 with leftovers and 0 when production+live only (0.133042ms)
+✔ T10b runCheck is read-only: never down, rm, or prune (0.130125ms)
+✔ T12a SIGTERM to the script alone mid-run: it survives, down runs after run, receipt prints, interrupted line, exit 143 (2572.596042ms)
+✔ T12b SIGINT to the whole process group (script + docker child): down runs after run, run exit=null, interrupted line, exit non-zero (387.673167ms)
+✔ T11 real run: the script leaves zero networks and zero images for its project and prints a Built line (6199.993333ms)
+✔ T13 real run, SIGTERM mid-container: zero networks and zero images survive, receipt printed, exit 143 (12236.66925ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 21478.052666
+
+--- stderr ---
+
+exit=0

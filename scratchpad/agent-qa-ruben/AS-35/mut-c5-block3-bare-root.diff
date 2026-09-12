@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/pristine/docs/design/tokens/tokens.css	2026-09-12 17:14:48
++++ /Users/forrest/Code/american-software-company/scratchpad/agent-qa-ruben/AS-35/mutants/c5-block3-bare-root/docs/design/tokens/tokens.css	2026-09-12 17:14:48
+@@ -214,7 +214,7 @@
+  * ============================================================================
+  */
+ @media (prefers-color-scheme: dark) {
+-  :root:not([data-theme="light"]) {
++  :root {
+     color-scheme: dark;
+ 
+     --color-bg-canvas: var(--color-ink-950);

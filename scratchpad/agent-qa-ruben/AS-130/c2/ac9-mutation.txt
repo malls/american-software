@@ -1,0 +1,10 @@
+[assert] mutation applied — added lines in the worktree diff:
++    ports:
++      - "127.0.0.1:8349:8348"
+[mutated] exit 1; receipt Image asc-c2-m9-test Built; 524/504/1/19
+[mutated] message: publishes nothing to the host
+[restore] compose.yaml restored from /tmp/asc-ruben-as130-c2-qELZs3/compose.yaml.bak
+[clean] git diff --exit-code on compose.yaml: tree clean
+[restored] exit 0; receipt Image asc-c2-m9-test Built; 524/505/0/19
+AC-9: mutant red set is exactly one deploy-shape test: false; restored run green: true
+images removed: asc-c2-m9-test

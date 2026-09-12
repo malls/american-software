@@ -1,0 +1,11 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/pristine/apps/invoicing/lib/screens/connect-view.js	2026-09-12 01:29:08
++++ /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/f20/apps/invoicing/lib/screens/connect-view.js	2026-09-12 01:32:49
+@@ -150,7 +150,7 @@
+  */
+ export function connectLocals(input = {}) {
+   const account = input.account ?? null;
+-  const startFailed = input.startFailed === true;
++  const startFailed = Boolean(input.startFailed);
+   const state = selectState(account, startFailed);
+   const copy = COPY[state];
+ 

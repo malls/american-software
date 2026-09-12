@@ -1,0 +1,13 @@
+assert-applied notice hidden inside print: 0 -> 1 (expected 0 -> 1)
+RECEIPT project=asc-as47-fprint-a
+  built: Image asc-as47-fprint-a-test Built
+  tests=430 pass=409 fail=3 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=1
+
+RED SET (3):
+  ✖ every visual value in public/ CSS traces to a token that exists
+  ✖ every href and form action in the two contract templates names a route the app registers
+  ✖ the print block hides the chrome and the actions, touches no contract-doc class, and pre-wrap holds outside it

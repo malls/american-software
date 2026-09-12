@@ -1,0 +1,54 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": "agent:developer-lena",
+  "branch_links": [
+    {
+      "branch": "feat/AS-102-settle-deploy-evaluate",
+      "linked_at": "2026-09-11T21:37:26Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 7,
+  "complexity": null,
+  "created_at": "2026-09-11T02:20:16Z",
+  "created_by": "agent:developer-marcus",
+  "custom_fields": {},
+  "description": null,
+  "done_at": "2026-09-11T22:30:54Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01M299DYYMM4T2Q190SNEQBZDN",
+      "role": "review",
+      "source_type": "comment"
+    },
+    {
+      "id": "ev_01M299EYE5HZEF37M2WGSRRW4P",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01M27480M1BWXK887TCF8BXTBC",
+  "last_event_id": "ev_01M299GQKHTRFVGGS6CPP9GN8P",
+  "last_status_changed_at": "2026-09-11T22:30:54Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-11T02:20:17Z",
+      "created_by": "agent:developer-marcus",
+      "note": null,
+      "target_task_id": "task_01M25XTX7VPDQDTGRY69CJ7ANE",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-102",
+  "status": "done",
+  "tags": null,
+  "title": "Chat watcher: a loop tick should not wait a full deploy-poll interval for a 'busy' deploy decision",
+  "type": "task",
+  "updated_at": "2026-09-11T22:30:54Z",
+  "urgency": null
+}

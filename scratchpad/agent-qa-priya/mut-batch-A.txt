@@ -1,0 +1,21 @@
+=== M1 @line 815 applied(anchor 1->0) exit 1 | tests 550 pass 546 fail 3 skipped 1
+   RED: deploy-shape: every tracked path under apps/chat is an image input or declared not one
+   RED: AS-87 runDockerCompose argv: compose is spawned with --progress plain, never quiet
+   RED: AS-88 runDockerCompose names the caller's project: -p carries composeProject, not a literal
+   RED: failing tests:
+=== M1b @line 815 applied(anchor 1->0) exit 1 | tests 550 pass 547 fail 2 skipped 1
+   RED: deploy-shape: every tracked path under apps/chat is an image input or declared not one
+   RED: AS-88 runDockerCompose names the caller's project: -p carries composeProject, not a literal
+   RED: failing tests:
+=== M2 @line 803 applied(anchor 1->0) exit 1 | tests 550 pass 547 fail 2 skipped 1
+   RED: deploy-shape: every tracked path under apps/chat is an image input or declared not one
+   RED: AS-88 runDockerCompose refuses an implicit project: no composeProject -> throws before opening the log or spawning
+   RED: failing tests:
+=== M3 @line 1092 applied(anchor 1->0) exit 1 | tests 550 pass 547 fail 2 skipped 1
+   RED: deploy-shape: every tracked path under apps/chat is an image input or declared not one
+   RED: AS-88 performDeploy passes composeProject through to deploy() and names it in the DEPLOY building line
+   RED: failing tests:
+=== M4 @line 932 applied(anchor 1->0) exit 1 | tests 550 pass 547 fail 2 skipped 1
+   RED: deploy-shape: every tracked path under apps/chat is an image input or declared not one
+   RED: AS-88 makeDeployOps refuses a COMPOSE_PROJECT_NAME the scrub would discard (AS-75 review F8)
+   RED: failing tests:

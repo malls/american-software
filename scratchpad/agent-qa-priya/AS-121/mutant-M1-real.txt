@@ -1,0 +1,87 @@
+✔ T1 isAllowedProject rejects production names (0.756667ms)
+✔ T2 isAllowedProject rejects non-asc and malformed names (0.115584ms)
+✔ T3 isAllowedProject accepts a scratch project (0.413958ms)
+✔ T4 buildDownArgs and buildRunArgs are exactly the recipe (0.136584ms)
+✔ T5a runCounted: run exits 0 -> down runs, status 0, receipt parsed (0.70225ms)
+✔ T5b runCounted: run exits 1 -> down still runs, status 1 preserved (0.228167ms)
+✔ T5c runCounted: run throws -> down still runs, error reported (0.224875ms)
+✔ T6 runCounted: a network or image surviving down is reported as LEAK, exit 4, anchored at ^<project>_ (0.145417ms)
+✔ T7a parseReceipt: Built line verbatim, counts from TAP and spec summaries (0.1245ms)
+✔ T7b runCounted: a run with no Built line is exit 5 even when every test passes (0.149209ms)
+✔ T8 classifyNetworks: the plan §1 fixture splits 3 production / 1 live / 9 leftover (0.338916ms)
+✔ T9a runCounted refuses at exactly the ceiling: 20 asc-* networks -> exit 3, no run (0.161083ms)
+✔ T9b runCounted proceeds below the ceiling: 19 asc-* networks -> run happens (0.099583ms)
+✔ T10a runCheck exits 1 with leftovers and 0 when production+live only (0.129833ms)
+✔ T10b runCheck is read-only: never down, rm, or prune (0.245417ms)
+✖ T12a SIGTERM to the script alone mid-run: it survives, down runs after run, receipt prints, interrupted line, exit 143 (462.541167ms)
+✖ T12b SIGINT to the whole process group (script + docker child): down runs after run, run exit=null, interrupted line, exit non-zero (374.884958ms)
+✔ T11 real run: the script leaves zero networks and zero images for its project and prints a Built line (5103.907792ms)
+✖ T13 real run, SIGTERM mid-container: zero networks and zero images survive, receipt printed, exit 143 (1970.340333ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 16
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7986.51175
+
+✖ failing tests:
+
+test at test/compose-run.test.js:290:1
+✖ T12a SIGTERM to the script alone mid-run: it survives, down runs after run, receipt prints, interrupted line, exit 143 (462.541167ms)
+  AssertionError [ERR_ASSERTION]: the script must not die of the signal: 
+  
+  'SIGTERM' !== null
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-121-mutant/apps/chat/test/compose-run.test.js:296:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'SIGTERM',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/compose-run.test.js:305:1
+✖ T12b SIGINT to the whole process group (script + docker child): down runs after run, run exit=null, interrupted line, exit non-zero (374.884958ms)
+  AssertionError [ERR_ASSERTION]: the script must not die of the signal: 
+  
+  'SIGINT' !== null
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-121-mutant/apps/chat/test/compose-run.test.js:311:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'SIGINT',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/compose-run.test.js:352:1
+✖ T13 real run, SIGTERM mid-container: zero networks and zero images survive, receipt printed, exit 143 (1970.340333ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'SIGTERM' !== null
+  
+      at TestContext.<anonymous> (file:///Users/forrest/Code/american-software-company/.worktrees/AS-121-mutant/apps/chat/test/compose-run.test.js:371:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'SIGTERM',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+--- stderr ---
+
+exit=1

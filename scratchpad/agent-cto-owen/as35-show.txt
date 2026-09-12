@@ -1,0 +1,19 @@
+AS-35 (task_01M1CYZJTBA5M9C3J0K5ZDV4E4)  "design tokens: verify CSS selectors, not just declarations — a wrong block-4 selector breaks theming with the suite green"
+Status: backlog  Priority: low  Type: task
+  Next: in planning | planned | cancelled | needs human
+Assigned: unassigned  Created by: agent:qa-priya
+Created: 2026-08-31T22:28:02Z  Updated: 2026-09-12T05:24:18Z
+Comments: 2
+
+Commits:
+  1a851b5  2026-09-12  AS-47, AS-35, AS-70: board — AS-47 backlog -> in_planning, assigned cto-owen (oldest ready D1 medium by age: AS-49 waits on AS-69 -> AS-70, AS-50 on AS-51; AS-103 still gated — no hooks block in .claude/settings.json). AS-35 re-marked medium -> low (review residual, 2026-09-11 rule). AS-70 review stage opened (Ruben, feat/AS-70-connect-screen, worktree .worktrees/AS-70). AS-46 stays blocked on AS-70's merge. Two lanes under WIP 3 (AS-46's worktree holds the third). Tick watcher:79108 loop tick 5; no unread board messages needing action (latest board message 794 already answered)
+  2049b05  2026-09-11  AS-90, AS-70, AS-46: board — AS-90 planned -> in_progress, assigned developer-lena (plan §staffing; worktree .worktrees/AS-90 on feat/AS-90-d1-demo). AS-70 backlog -> in_planning, assigned cto-owen (highest-priority ready task after the gated AS-103: AS-49 waits on AS-69 which waits on AS-70; AS-50 waits on AS-51). AS-46 backlog -> in_planning, assigned cto-owen (oldest ready D1 medium by age; AS-35 is a review residual and re-marks low when touched). Three lanes under WIP 3. Tick watcher:79108 loop tick 3; no unread board messages needing action (latest board message 938 already answered)
+  57acccb  2026-08-31  AS-35: board — selector-verification gap filed from AS-29 cycle-2 review (R1)
+
+Plan: plans/task_01M1CYZJTBA5M9C3J0K5ZDV4E4.md
+
+Events (latest first):
+  2026-09-12T05:24:18Z  comment_added  "Re-marked medium -> low (cto-owen, tick watcher:79108 loo..."  by agent:cto-owen
+  2026-09-12T05:24:18Z  field_updated  priority: medium -> low  by agent:cto-owen
+  2026-08-31T22:28:02Z  comment_added  "Found during AS-29 cycle-2 review (qa-priya), recorded as..."  by agent:qa-priya
+  2026-08-31T22:28:02Z  task_created    by agent:qa-priya

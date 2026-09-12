@@ -1,0 +1,128 @@
+
+===== R1 run 1 (unfixed) =====
+#1 [internal] load local bake definitions
+#1 reading from stdin 642B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.83kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:24-slim
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 342B done
+#4 DONE 0.0s
+
+#5 [ 1/10] FROM docker.io/library/node:24-slim
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 61.04kB done
+#6 DONE 0.0s
+
+#7 [ 4/10] COPY lib ./lib
+#7 CACHED
+
+#8 [ 6/10] COPY public ./public
+#8 CACHED
+
+#9 [ 2/10] WORKDIR /app
+#9 CACHED
+
+#10 [ 3/10] COPY package.json server.js ./
+#10 CACHED
+
+#11 [ 5/10] COPY bin ./bin
+#11 CACHED
+
+#12 [ 7/10] COPY watch ./watch
+#12 CACHED
+
+#13 [ 8/10] COPY test ./test
+#13 DONE 0.0s
+
+#14 [ 9/10] COPY compose.yaml Dockerfile ./
+#14 DONE 0.0s
+
+#15 [10/10] RUN mkdir -p /app/data && chown -R node:node /app
+#15 DONE 0.2s
+
+#16 exporting to image
+#16 exporting layers 0.0s done
+#16 writing image sha256:4079f8d6b3c1607507423eb3f3e737283fc867355b7fb7a58cacddd8a94d9995 done
+#16 naming to docker.io/library/as83test-test done
+#16 DONE 0.0s
+
+#17 resolving provenance for metadata file
+#17 DONE 0.2s
+BURNERS=20 NPROC=10
+✔ mode: AS-83 — a failed CLI exit is reported with status, signal, elapsed ms, stderr and stdout (101.808375ms)
+✖ mode: AS-24 — API-mode writes land in the server view; no DB file is ever created (5891.211086ms)
+✔ mode: AS-24 — probe timeout (something listening, not answering) refuses loudly, zero side effects (1943.90446ms)
+✔ mode: AS-24 — squatted port (wrong-shaped JSON) refuses loudly, zero side effects (1888.558834ms)
+✔ mode: AS-24 — hard connection-refused falls back to direct mode against CHAT_DB (1838.880918ms)
+✔ mode: AS-24 — CHAT_MODE=direct skips the probe entirely (poisoned CHAT_API never contacted) (1418.803168ms)
+✔ mode: AS-24 — CHAT_MODE=api with a down server is a loud exit 1 (1469.818334ms)
+✔ mode: AS-24 — invalid CHAT_MODE is a usage error (1176.675334ms)
+✖ mode: AS-24 — full command sweep in API mode (no DB file, direct-mode shapes) (20140.185134ms)
+✔ mode: AS-24 — CHAT_DB alone (rule 4) stays direct with no probe: the suite is hermetic (1189.117959ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 8
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 40279.979852
+
+✖ failing tests:
+
+test at test/mode.test.js:121:1
+✖ mode: AS-24 — API-mode writes land in the server view; no DB file is ever created (5891.211086ms)
+  AssertionError [ERR_ASSERTION]: post: exit 1 signal null after 2961 ms
+  --- stderr ---
+  chat: something is listening at http://127.0.0.1:46557 but the probe failed; refusing to touch the shared DB directly — host-side access can silently fork it (AS-24). If the server is really down, retry or set CHAT_MODE=direct.
+  
+  --- stdout ---
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///app/test/mode.test.js:146:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/mode.test.js:291:1
+✖ mode: AS-24 — full command sweep in API mode (no DB file, direct-mode shapes) (20140.185134ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'chat: something is listening at http://127.0.0.1:42849 but the probe failed; refusing to touch the shared DB directly — host-side access can silently fork it (AS-24). If the server is really down, retry or set CHAT_MODE=direct.\n'
+  - "Unknown channel '<name>'. 'chat channels' lists them.\n"
+  
+      at TestContext.<anonymous> (file:///app/test/mode.test.js:347:12)
+      at async Test.run (node:internal/test_runner/test:1404:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:969:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'chat: something is listening at http://127.0.0.1:42849 but the probe failed; refusing to touch the shared DB directly — host-side access can silently fork it (AS-24). If the server is really down, retry or set CHAT_MODE=direct.\n',
+    expected: "Unknown channel '<name>'. 'chat channels' lists them.\n",
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+ Image as83test-test Building 
+ Image as83test-test Built 
+ Container as83test-test-run-9747096ba900 Creating 
+ Container as83test-test-run-9747096ba900 Created 
+

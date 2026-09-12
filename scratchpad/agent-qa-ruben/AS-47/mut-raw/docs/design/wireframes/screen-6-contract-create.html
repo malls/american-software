@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screen 6 — Contract create — AS-30 wireframes</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="wireframe.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to states</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <span class="app-label">Invoicing</span>
+    </div>
+    <div class="container">
+      <nav class="site-nav" aria-label="Primary">
+        <a class="site-nav__link" href="screen-3-dashboard.html">Dashboard</a>
+        <a class="site-nav__link" href="screen-4-invoice-create.html">New invoice</a>
+        <a class="site-nav__link" href="screen-6-contract-create.html">New contract</a>
+        <form class="site-nav__signout" action="#" method="post">
+          <button type="submit" class="btn-link">Sign out</button>
+        </form>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <h1 class="page-title">Screen 6 — Contract create</h1>
+    <p class="page-meta" data-wf-note>
+      Route (provisional): <code>GET /contracts/new</code>. Capability C-20. Carries
+      inline client creation (00-flows.md Flow 3). One template in v1 (C-17). Ledger:
+      <code>02-states-ledger.md</code> §6.
+    </p>
+    <p class="wireframe-notice">
+      Design-doc artifact — all 11 ledger rows for Screen 6 on one page, zero JavaScript.
+      <strong>Legal gate:</strong> the placeholder-body warning below is required, uses
+      <code>--color-warning-*</code> tokens, and is not styled away anywhere it appears
+      (plan file §3).
+    </p>
+
+    <nav class="state-toc" aria-label="States on this page">
+      <p class="state-toc__title">States in this file</p>
+      <ul>
+        <li><a href="#S6-DEFAULT">S6-DEFAULT</a></li>
+        <li><a href="#S6-LOADING">S6-LOADING</a></li>
+        <li><a href="#S6-CLIENT-EMPTY">S6-CLIENT-EMPTY</a></li>
+        <li><a href="#S6-ERROR-VALIDATION">S6-ERROR-VALIDATION</a></li>
+        <li><a href="#S6-ERROR-SYSTEM">S6-ERROR-SYSTEM</a></li>
+        <li><a href="#S6-CLIENT-ERROR-VALIDATION">S6-CLIENT-ERROR-VALIDATION</a></li>
+        <li><a href="#S6-CLIENT-ERROR-DUPLICATE">S6-CLIENT-ERROR-DUPLICATE</a></li>
+        <li class="state-toc__na">S6-GATED-STRIPENOTREADY — n/a, contract creation has no Stripe dependency (see 01-screens.md §5, 02-states-ledger.md §6)</li>
+        <li><a href="#S6-DENIED-SIGNEDOUT">S6-DENIED-SIGNEDOUT</a></li>
+        <li><a href="#S6-ABANDON">S6-ABANDON</a></li>
+        <li><a href="#S6-CLIENT-ABANDON">S6-CLIENT-ABANDON</a></li>
+      </ul>
+    </nav>
+
+    <section id="S6-DEFAULT" class="state" aria-labelledby="S6-DEFAULT-h">
+      <p class="state-label">
+        <span class="state-label__id">S6-DEFAULT</span>
+        <span class="state-label__category">Default</span>
+        <span class="state-label__desc">GET /contracts/new, at least one client already exists</span>
+      </p>
+      <h2 id="S6-DEFAULT-h" class="state__title">New contract</h2>
+
+      <div class="banner banner-warning">
+        <p class="banner__title">Placeholder contract text — not legal advice</p>
+        <p>This contract's body is placeholder text. It is not legal advice — do not
+        send this to a client as a binding contract.</p>
+        <p data-wf-note>Pending a lawyer-agent review of the adapted source template
+        (C-17); this warning stays until that review clears.</p>
+      </div>
+
+      <form>
+        <div class="client-picker">
+          <p class="client-picker__mode-toggle">Client: <a href="#S6-CLIENT-EMPTY">add a new client instead</a></p>
+          <div class="field">
+            <label for="s6-create-client">Client</label>
+            <select id="s6-create-client" name="client_id">
+              <option value="">Select a client…</option>
+              <option value="cl_1" selected>Ada Example (ada@example.com)</option>
+              <option value="cl_2">Bea Sample (bea@example.com)</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="s6-create-desc">Project description</label>
+          <textarea id="s6-create-desc" name="project_description" rows="3">Website redesign — phase 1: homepage and navigation.</textarea>
+        </div>
+        <div class="field">
+          <label for="s6-create-start">Start date</label>
+          <input type="date" id="s6-create-start" name="start_date" value="2026-09-08">
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Generate contract</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="S6-LOADING" class="state" aria-labelledby="S6-LOADING-h">
+      <p class="state-label">
+        <span class="state-label__id">S6-LOADING</span>
+        <span class="state-label__category">Loading</span>
+        <span class="state-label__desc">Between submit and response</span>
+      </p>
+      <h2 id="S6-LOADING-h" class="state__title">New contract — generating</h2>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" disabled>Generating…</button>
+      </div>
+    </section>
+
+    <section id="S6-CLIENT-EMPTY" class="state" aria-labelledby="S6-CLIENT-EMPTY-h">
+      <p class="state-label">
+        <span class="state-label__id">S6-CLIENT-EMPTY</span>
+        <span class="state-label__category">Empty</span>
+        <span class="state-label__desc">Zero stored clients — shared sub-pattern, 02-states-ledger.md §0</span>
+      </p>
+      <h2 id="S6-CLIENT-EMPTY-h" class="state__title">New contract — no clients yet</h2>
+      <form>
+        <div class="client-picker">
+          <p>No clients yet — add one below.</p>
+          <div class="field">
+            <label for="s6-clientempty-name">Client name</label>
+            <input type="text" id="s6-clientempty-name" name="client_name">
+          </div>
+          <div class="field">
+            <label for="s6-clientempty-email">Client email</label>
+            <input type="email" id="s6-clientempty-email" name="client_email">
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section id="S6-ERROR-VALIDATION" class="state" aria-labelledby="S6-ERROR-VALIDATION-h">
+      <p class="state-label">
+        <span class="state-label__id">S6-ERROR-VALIDATION</span>
+        <span class="state-label__category">Error — validation</span>
+        <span class="state-label__desc">A required template variable is missing/invalid — submitted values re-render (00-flows.md Flow 6)</span>
+      </p>
+      <h2 id="S6-ERROR-VALIDATION-h" class="state__title">New contract — fix the highlighted field</h2>
+      <div class="banner banner-error">
+        <p>1 field needs attention.</p>
+      </div>
+      <form>
+        <div class="client-picker">
+          <div class="field">
+            <label for="s6-errval-client">Client</label>
+            <select id="s6-errval-client"><option value="cl_1" selected>Ada Example (ada@example.com)</option></select>
+          </div>
+        </div>
+        <div class="field field--invalid">
+          <label for="s6-errval-desc">Project description</label>
+          <textarea id="s6-errval-desc" name="project_description" rows="3" aria-invalid="true" aria-describedby="s6-errval-desc-err"></textarea>
+          <span class="field-error" id="s6-errval-desc-err">Describe the project in a sentence or two.</span>
+        </div>
+        <div class="field">
+          <label for="s6-errval-start">Start date</label>
+          <input type="date" id="s6-errval-start" value="2026-09-08">
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Generate contract</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="S6-ERROR-SYSTEM" class="state" aria-labelledby="S6-ERROR-SYSTEM-h">
+      <p class="state-label">
+        <span class="state-label__id">S6-ERROR-SYSTEM</span>
+        <span class="state-label__category">Error — system</span>
+        <span class="state-label__desc">Generation/save fails after validation passes</span>
+      </p>
+      <h2 id="S6-ERROR-SYSTEM-h" class="state__title">Contract not created</h2>
+      <div class="banner banner-error">
+        <p>Something went wrong generating this contract. Nothing was created — try again.</p>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary">Try again</button>
+      </div>
+    </section>
+
+    <section id="S6-CLIENT-ERROR-VALIDATION" class="state" aria-labelledby="S6-CLIENT-ERROR-VALIDATION-h">
+      <p class="state-label">
+        <span class="state-label__id">S6-CLIENT-ERROR-VALIDATION</span>
+        <span class="state-label__category">Error — validation</span>
+        <span class="state-label__desc">Shared sub-pattern, 02-states-ledger.md §0</span>
+      </p>
+      <h2 id="S6-CLIENT-ERROR-VALIDATION-h" class="state__title">New contract — new client needs a name</h2>
+      <form>
+        <div class="client-picker">
+          <div class="field field--invalid">
+            <label for="s6-clienterr-name">Client name</label>
+            <input type="text" id="s6-clienterr-name" value="" aria-invalid="true" aria-describedby="s6-clienterr-name-err">
+            <span class="field-error" id="s6-clienterr-name-err">Enter a name.</span>
+          </div>
+          <div class="field">
+            <label for="s6-clienterr-email">Client email</label>
+            <input type="email" id="s6-clienterr-email" value="dee@example.com">
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section id="S6-CLIENT-ERROR-DUPLICATE" class="state" aria-labelledby="S6-CLIENT-ERROR-DUPLICATE-h">
+      <p class="state-label">
+        <span class="state-label__id">S6-CLIENT-ERROR-DUPLICATE</span>
+        <span class="state-label__category">Error — validation</span>
+        <span class="state-label__desc">Shared sub-pattern, 02-states-ledger.md §0. Non-blocking.</span>
+      </p>
+      <h2 id="S6-CLIENT-ERROR-DUPLICATE-h" class="state__title">New contract — this looks like an existing client</h2>
+      <form>
+        <div class="client-picker">
+          <div class="field">
+            <label for="s6-clientdup-name">Client name</label>
+            <input type="text" id="s6-clientdup-name" value="Bea S.">
+          </div>
+          <div class="field">
+            <label for="s6-clientdup-email">Client email</label>
+            <input type="email" id="s6-clientdup-email" value="bea@example.com">
+          </div>
+          <div class="banner banner-warning">
+            <p>This matches an existing client: <strong>Bea Sample (bea@example.com)</strong>.</p>
+            <p><button type="button" class="btn btn-secondary">Use this client instead</button> <button type="button" class="btn-link">Create a new client anyway</button></p>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section id="S6-DENIED-SIGNEDOUT" class="state" aria-labelledby="S6-DENIED-SIGNEDOUT-h">
+      <p class="state-label">
+        <span class="state-label__id">S6-DENIED-SIGNEDOUT</span>
+        <span class="state-label__category">Permission-denied / gated</span>
+        <span class="state-label__desc">No session</span>
+      </p>
+      <h2 id="S6-DENIED-SIGNEDOUT-h" class="state__title">No form renders</h2>
+      <div class="banner banner-info">
+        <p>Redirects to <a href="screen-1-signin.html">Screen 1</a> (00-flows.md Flow 4).</p>
+      </div>
+    </section>
+
+    <section id="S6-ABANDON" class="state" aria-labelledby="S6-ABANDON-h">
+      <p class="state-label">
+        <span class="state-label__id">S6-ABANDON</span>
+        <span class="state-label__category">Abandonment</span>
+        <span class="state-label__desc">Freelancer leaves the form before submitting</span>
+      </p>
+      <h2 id="S6-ABANDON-h" class="state__title">Nothing persists</h2>
+      <div class="banner banner-info">
+        <p>Unlike invoices, contracts have no draft concept — generation is one atomic
+        step (variables in, stored record and document out; C-19). Leaving mid-form
+        loses everything typed; returning to <code>/contracts/new</code> starts blank.</p>
+      </div>
+    </section>
+
+    <section id="S6-CLIENT-ABANDON" class="state" aria-labelledby="S6-CLIENT-ABANDON-h">
+      <p class="state-label">
+        <span class="state-label__id">S6-CLIENT-ABANDON</span>
+        <span class="state-label__category">Abandonment</span>
+        <span class="state-label__desc">Shared sub-pattern, 02-states-ledger.md §0</span>
+      </p>
+      <h2 id="S6-CLIENT-ABANDON-h" class="state__title">Only the new-client attempt is lost</h2>
+      <div class="banner banner-info">
+        <p>No client record is created. Since this screen has no draft concept at all
+        (see <a href="#S6-ABANDON">S6-ABANDON</a>), leaving the nested client form and
+        leaving the whole form have the same practical effect here — unlike Screen 4,
+        where they differ.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

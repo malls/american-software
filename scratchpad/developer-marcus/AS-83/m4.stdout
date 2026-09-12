@@ -1,0 +1,38 @@
+[08:54:10Z] M4 mode.test.js sha BEFORE 2abd16dcbc45a20dd5e8652e660ff9b05b28d8ad8abc4eacf3d7375bd80ac519
+  ok: the apiEnv return line occurs exactly once
+  ok: '20000' occurs exactly once in the file
+  ok: '500' occurs zero times before the mutation
+  ok: '20000' now occurs zero times
+  ok: '500' now occurs exactly once
+  ok: apiEnv body located
+  ok: the mutation landed INSIDE apiEnv (intended site), not elsewhere
+[08:55:04Z] m4-mutated-1 -> {"tag":"m4-mutated-1","exit":1,"tests":13,"pass":12,"fail":1,"built":"Image as83test-test Built","failing":[],"secs":53}
+[08:55:04Z] M4 sha AFTER 2abd16dcbc45a20dd5e8652e660ff9b05b28d8ad8abc4eacf3d7375bd80ac519 restored_equal=true
+[08:55:04Z] git status --porcelain: ""
+[08:56:41Z] m4-restored-1 -> {"tag":"m4-restored-1","exit":0,"tests":13,"pass":13,"fail":0,"built":"Image as83test-test Built","failing":[],"secs":97}
+[M4 DONE] {
+  "mutated": [
+    {
+      "tag": "m4-mutated-1",
+      "exit": 1,
+      "tests": 13,
+      "pass": 12,
+      "fail": 1,
+      "built": "Image as83test-test Built",
+      "failing": [],
+      "secs": 53
+    }
+  ],
+  "restored": [
+    {
+      "tag": "m4-restored-1",
+      "exit": 0,
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "built": "Image as83test-test Built",
+      "failing": [],
+      "secs": 97
+    }
+  ]
+}

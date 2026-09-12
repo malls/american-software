@@ -1,0 +1,10 @@
+assert-applied totalLabel interpolation: 1 -> 0 (expected 1 -> 0)
+docker compose -p asc-impl-as48-f3a run --rm --build test
+RECEIPT project=asc-impl-as48-f3a
+  built: Image asc-impl-as48-f3a-test Built
+  tests=475 pass=456 fail=1 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean
+RED SET (1):
+  ✖ the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, AS-44, AS-45 and AS-46 put them

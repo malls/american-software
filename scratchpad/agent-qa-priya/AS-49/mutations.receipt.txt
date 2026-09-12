@@ -1,0 +1,64 @@
+[F6] anchor count before: 1 (must be 1); replacement count before: 0
+[F6] anchor count after: 0 (must be 0); replacement count after: 1 (must be 1)
+[F6] site: line 351: if (invoice.status === 'never') {
+BUILT:  Image asc-review-as49-priya-mut-f6-test Built 
+ℹ tests 458
+ℹ pass 425
+ℹ fail 14
+ℹ skipped 19
+RED SET:
+  ✖ E1 (STRIPE DOUBLE): the loop, end to end, over the API — the twelve steps
+  ✖ E2 (STRIPE DOUBLE): a transient Stripe failure mid-finalize resumes without duplicates
+  ✖ E3 (STRIPE DOUBLE): a tampered signature is refused and applies nothing; the untampered one applies
+  ✖ E4 (STRIPE DOUBLE): the readiness gate holds inside the loop
+  ✖ send from the edit page updates the draft, runs the pipeline, and redirects to the detail path
+  ✖ R6: finalize happy path — 1+1+N+1 calls in order, every wire shape, the mirror, and no send
+  ✖ R9: a client that already carries a cus_ makes ZERO /v1/customers calls, and the stored id is what the invoice names
+  ✖ R10: a second finalize makes zero Stripe calls and still 303s — every step skipped
+  ✖ R11: a failed finalize is resumable — the retry reuses the SAME in_ and re-pushes items under the same keys; and a resumed SEND whose totals agree is not blocked
+  ✖ R12: the reconciliation guard fires, and KEEPS firing — 409 on the first request AND on every request after it
+  ✖ R13: a Stripe 4xx at the finalize step is 502 naming finalize; the mirror keeps the in_ and stays draft
+  ✖ R15: send from a DRAFT runs all five steps in one request — 1+1+N+1+1, mirror open with sentAt
+  ✖ R22: the custody property at the wire — every request carries stripe-account, none carries a fee or routing parameter
+  ✖ R25: an invoice shape the mapper does not understand is 502 at the route, not 500
+  ✖ failing tests:
+  ✖ E1 (STRIPE DOUBLE): the loop, end to end, over the API — the twelve steps
+  ✖ E2 (STRIPE DOUBLE): a transient Stripe failure mid-finalize resumes without duplicates
+  ✖ E3 (STRIPE DOUBLE): a tampered signature is refused and applies nothing; the untampered one applies
+  ✖ E4 (STRIPE DOUBLE): the readiness gate holds inside the loop
+  ✖ send from the edit page updates the draft, runs the pipeline, and redirects to the detail path
+  ✖ R6: finalize happy path — 1+1+N+1 calls in order, every wire shape, the mirror, and no send
+  ✖ R9: a client that already carries a cus_ makes ZERO /v1/customers calls, and the stored id is what the invoice names
+  ✖ R10: a second finalize makes zero Stripe calls and still 303s — every step skipped
+  ✖ R11: a failed finalize is resumable — the retry reuses the SAME in_ and re-pushes items under the same keys; and a resumed SEND whose totals agree is not blocked
+  ✖ R12: the reconciliation guard fires, and KEEPS firing — 409 on the first request AND on every request after it
+  ✖ R13: a Stripe 4xx at the finalize step is 502 naming finalize; the mirror keeps the in_ and stays draft
+  ✖ R15: send from a DRAFT runs all five steps in one request — 1+1+N+1+1, mirror open with sentAt
+  ✖ R22: the custody property at the wire — every request carries stripe-account, none carries a fee or routing parameter
+  ✖ R25: an invoice shape the mapper does not understand is 502 at the route, not 500
+EXIT: 1
+DOWN EXIT: 0
+[F6] restored: true
+[F12] anchor count before: 1 (must be 1); replacement count before: 0
+[F12] anchor count after: 0 (must be 0); replacement count after: 1 (must be 1)
+[F12] site: line 292: /* F12 mutant: stale guard removed */
+BUILT:  Image asc-review-as49-priya-mut-f12-test Built 
+ℹ tests 458
+ℹ pass 434
+ℹ fail 5
+ℹ skipped 19
+RED SET:
+  ✖ E1 (STRIPE DOUBLE): the loop, end to end, over the API — the twelve steps
+  ✖ I13: paid then `open` is `stale` — nothing changes, fields and updatedAt identical
+  ✖ I14: paid before finalized converges — the draft goes straight to paid, the late finalize is stale, the first url is kept
+  ✖ W6: paid BEFORE finalized converges to paid, and loses nothing
+  ✖ G3: every handled invoice type reaches the mirror through the ONE snapshot writer
+  ✖ failing tests:
+  ✖ E1 (STRIPE DOUBLE): the loop, end to end, over the API — the twelve steps
+  ✖ I13: paid then `open` is `stale` — nothing changes, fields and updatedAt identical
+  ✖ I14: paid before finalized converges — the draft goes straight to paid, the late finalize is stale, the first url is kept
+  ✖ W6: paid BEFORE finalized converges to paid, and loses nothing
+  ✖ G3: every handled invoice type reaches the mirror through the ONE snapshot writer
+EXIT: 1
+DOWN EXIT: 0
+[F12] restored: true

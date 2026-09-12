@@ -1,0 +1,118 @@
+{
+  "results": [
+    {
+      "id": "M2",
+      "match": true,
+      "failing": [
+        "deploy-shape: the test service has no network (AS-106 network_mode: none)"
+      ],
+      "predicted": [
+        "deploy-shape: the test service has no network (AS-106 network_mode: none)"
+      ],
+      "summary": "ℹ tests 29 ℹ pass 27 ℹ fail 1 ℹ skipped 1",
+      "diff": "-    network_mode: none"
+    },
+    {
+      "id": "M3",
+      "match": true,
+      "failing": [
+        "T1 isAllowedProject rejects production names",
+        "T2 isAllowedProject rejects non-asc and malformed names"
+      ],
+      "predicted": [
+        "T1 isAllowedProject rejects production names",
+        "T2 isAllowedProject rejects non-asc and malformed names"
+      ],
+      "summary": "ℹ tests 29 ℹ pass 26 ℹ fail 2 ℹ skipped 1",
+      "diff": "+  return { ok: true };"
+    },
+    {
+      "id": "M4",
+      "match": true,
+      "failing": [
+        "T4 buildDownArgs and buildRunArgs are exactly the recipe"
+      ],
+      "predicted": [
+        "T4 buildDownArgs and buildRunArgs are exactly the recipe"
+      ],
+      "summary": "ℹ tests 29 ℹ pass 27 ℹ fail 1 ℹ skipped 1",
+      "diff": "-  return ['compose', '-p', project, 'down', '-v', '--rmi', 'local', '--remove-orphans']; | +  return ['compose', '-p', project, 'down', '-v', '--remove-orphans'];"
+    },
+    {
+      "id": "M5",
+      "match": true,
+      "failing": [
+        "T5b runCounted: run exits 1 -> down still runs, status 1 preserved",
+        "T5c runCounted: run throws -> down still runs, error reported"
+      ],
+      "predicted": [
+        "T5b runCounted: run exits 1 -> down still runs, status 1 preserved",
+        "T5c runCounted: run throws -> down still runs, error reported"
+      ],
+      "summary": "ℹ tests 29 ℹ pass 26 ℹ fail 2 ℹ skipped 1",
+      "diff": "-    downStatus = exec([docker, ...buildDownArgs(project)], { cwd, env: runEnv }).status; | +    downStatus = runStatus === 0 ? exec([docker, ...buildDownArgs(project)], { cwd, env: runEnv }).status : 'skipped';"
+    },
+    {
+      "id": "M6",
+      "match": true,
+      "failing": [
+        "T6 runCounted: a network or image surviving down is reported as LEAK, exit 4, anchored at ^<project>_"
+      ],
+      "predicted": [
+        "T6 runCounted: a network or image surviving down is reported as LEAK, exit 4, anchored at ^<project>_"
+      ],
+      "summary": "ℹ tests 29 ℹ pass 27 ℹ fail 1 ℹ skipped 1",
+      "diff": "-  const leaks = [...leftNets, ...leftImgs]; | +  const leaks = [];"
+    },
+    {
+      "id": "M7",
+      "match": true,
+      "failing": [
+        "T7b runCounted: a run with no Built line is exit 5 even when every test passes"
+      ],
+      "predicted": [
+        "T7b runCounted: a run with no Built line is exit 5 even when every test passes"
+      ],
+      "summary": "ℹ tests 29 ℹ pass 27 ℹ fail 1 ℹ skipped 1",
+      "diff": "-    built: builtLine !== null, | +    built: true,"
+    },
+    {
+      "id": "M8",
+      "match": false,
+      "failing": [
+        "T8 classifyNetworks: the plan §1 fixture splits 3 production / 1 live / 9 leftover",
+        "T10a runCheck exits 1 with leftovers and 0 when production+live only"
+      ],
+      "predicted": [
+        "T8 classifyNetworks: the plan §1 fixture splits 3 production / 1 live / 9 leftover"
+      ],
+      "summary": "ℹ tests 29 ℹ pass 26 ℹ fail 2 ℹ skipped 1",
+      "diff": "-    if (productionNames.includes(project)) out.production.push(network); | -    else if (runningProjects.includes(project)) out.live.push(network); | +    if (false) out.production.push(network); | +    else if (false) out.live.push(network);"
+    },
+    {
+      "id": "M9",
+      "match": true,
+      "failing": [
+        "T9a runCounted refuses at exactly the ceiling: 20 asc-* networks -> exit 3, no run"
+      ],
+      "predicted": [
+        "T9a runCounted refuses at exactly the ceiling: 20 asc-* networks -> exit 3, no run"
+      ],
+      "summary": "ℹ tests 29 ℹ pass 27 ℹ fail 1 ℹ skipped 1",
+      "diff": "-  return { ok: count < ceiling, count, ceiling, classified }; | +  return { ok: count <= ceiling, count, ceiling, classified };"
+    },
+    {
+      "id": "M10",
+      "match": true,
+      "failing": [
+        "T10b runCheck is read-only: never down, rm, or prune"
+      ],
+      "predicted": [
+        "T10b runCheck is read-only: never down, rm, or prune"
+      ],
+      "summary": "ℹ tests 29 ℹ pass 27 ℹ fail 1 ℹ skipped 1",
+      "diff": "+  for (const l of classified.leftover) exec([docker, ...buildDownArgs(l.project)], {});"
+    }
+  ],
+  "cleanExit": 0
+}

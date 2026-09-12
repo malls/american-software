@@ -1,0 +1,12 @@
+--- /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/pristine/apps/invoicing/routes/connect.js	2026-09-12 01:29:08
++++ /Users/forrest/Code/american-software-company/scratchpad/qa-ruben/AS-70/mut/f19/apps/invoicing/routes/connect.js	2026-09-12 01:32:32
+@@ -82,7 +82,8 @@
+   // into the view model as a boolean, never as its value, so nothing the
+   // freelancer typed can reach the page. A closed enum with one member today;
+   // AS-69 adds members HERE if it wires the POST's failure into the screen.
+-  router.get('/connect-stripe', (req, res) => {
++  router.get('/connect-stripe', async (req, res) => {
++    try { await onboarding.handleRefresh(actingFreelancerId(req)); } catch {}
+     const account = repos.connectedAccounts.getByFreelancer(actingFreelancerId(req));
+     res.render('connect-stripe', connectLocals({ account, startFailed: req.query.error === 'start' }));
+   });

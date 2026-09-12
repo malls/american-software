@@ -1,0 +1,21 @@
+AS-99: keep a worktree outside the repo root from leaking its host path
+
+Review cycle 1, F2. relPathOf returned the absolute host path unchanged
+for any worktree that is not a descendant of the repo root — legal git
+(`git worktree add /tmp/throwaway`, which the plan's own M6 probe does) —
+and that path flowed into lane.worktree.relPath and lane.key, both of
+which reach a browser. T4 says the absolute host path is never written
+into the snapshot.
+
+Such a row now becomes '<outside repo>/<basename>'. The marker cannot
+collide with a real repo-relative path (none start with '<'), and keeping
+the basename is what stops two outside worktrees from sharing a lane key,
+since key falls back to relPath when no task joins. A path that is already
+relative is left alone; '/' alone yields the bare marker.
+
+Test: lanes-relpath-outside-repo (5 cases, none absolute, none containing
+a host directory). The existing lanes-relpath case that asserted "an
+outside path is left alone, not faked" encoded the defect; it is now the
+sibling-prefix case, which was always handled correctly.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

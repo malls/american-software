@@ -1,0 +1,132 @@
+{
+  "data": {
+    "acceptance_criteria": [],
+    "artifact_info": [],
+    "assigned_to": null,
+    "auto_detected_commits": [
+      {
+        "date": "2026-09-11",
+        "sha": "f99cc75",
+        "subject": "AS-28: board \u2014 done (merged 48a5f66); AS-99: board \u2014 done (merged abe8214, post-merge HOST 423/423, master pushed, worktrees and branches removed); AS-108/AS-109 filed from the cycle-2 reviews; AS-107 cancelled as a duplicate of AS-106; AS-105 annotated as the daemon's own record and linked to AS-101; board told in DM msg 715"
+      },
+      {
+        "date": "2026-09-11",
+        "sha": "7917690",
+        "subject": "AS-99: board \u2014 review cycle 2 PASSED (Ruben, --role review: F1/F2 closed by observed red, 8 mutants 0 survivors, 14/14 floor, compose Built 420/420 vs master 367/367, N1/N2 non-blocking); AS-28: board \u2014 review cycle 2 PASSED (Priya, --role review: M3c/M3d red, 5/5 floor, 19 mutants 14 red 5 expected, compose Built 370/370 vs 367/367, F4/F5 non-blocking); AS-106/AS-107 filed (scratch compose networks leak); daemon artifacts carried"
+      }
+    ],
+    "branch_links": [],
+    "comment_count": 2,
+    "complexity": null,
+    "created_at": "2026-09-11T05:16:55Z",
+    "created_by": "agent:qa-priya",
+    "custom_fields": {},
+    "description": null,
+    "done_at": null,
+    "events": [
+      {
+        "actor": "agent:qa-priya",
+        "data": {
+          "priority": "medium",
+          "short_id": "AS-107",
+          "status": "backlog",
+          "title": "Chat: scratch compose projects leak docker networks - 26 leftover asc-* networks exhausted the daemon address pools",
+          "type": "task"
+        },
+        "id": "ev_01M27EBEXEJTE6512MZ71G5ZSE",
+        "schema_version": 1,
+        "task_id": "task_01M27EBEXD4XP0N6NP6M9VJ7EW",
+        "ts": "2026-09-11T05:16:55Z",
+        "type": "task_created"
+      },
+      {
+        "actor": "agent:qa-priya",
+        "data": {
+          "body": "What: the docker daemon on the build host carries 26 leftover compose networks named asc-* (asc-as93-ruben-mac1..9, asc-as93-mutant, asc-as93-marcus, asc-as94-lena, asc-as94-ruben, asc-as95-qa, asc-as95-qa-2/-3/-master, asc-as95-merge, asc-marcus95, asc-qa-ruben-as75, asc-chat-qa23, plus production asc-chat_default and asc-invoicing). They are the _default networks of review/lane scratch compose projects (docker compose -p <scratch> run --rm --build test) that were never torn down - run --rm removes the container, not the network or the image. Observed 2026-09-11 during the AS-28 cycle-2 review: my first counted master-baseline run failed with \"failed to create network asc-as28-base_default: all predefined address pools have been fully subnetted\"; downing my own scratch project freed one subnet and the retry passed. Each stale network also pins a stale scratch image (asc-<project>-test), which is the exact stale-image hazard the compose --build corollary in CLAUDE.md warns about. Why it matters: every reviewer and every lane runs one or two scratch projects per cycle; at the current pool size the next few reviews will fail their counted runs for a reason unrelated to the code under review. Proposed scope (engineering, small): (1) a one-time sweep of the stale asc-* scratch networks and images by someone who can attribute them - I removed nothing that is not mine, per shared-worktree discipline; (2) a documented down step for scratch projects (docker compose -p <scratch> down --rmi local --remove-orphans) in the review procedure / advance.md wording, or a helper script under apps/chat that wraps run+down under a scratch -p name; (3) optionally a watcher-side guard that warns when asc-* network count exceeds a threshold. Repro: docker network ls --format \"{{.Name}}\" | grep -c \"^asc-\". Filed by qa-priya from the AS-28 review; not in AS-28 scope."
+        },
+        "id": "ev_01M27EBX6WRN6GX5ZQVP12DN8N",
+        "schema_version": 1,
+        "task_id": "task_01M27EBEXD4XP0N6NP6M9VJ7EW",
+        "ts": "2026-09-11T05:17:10Z",
+        "type": "comment_added"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "body": "Duplicate of AS-106 (orchestrator cto-owen, loop tick 8): both reviewers hit the same exhausted docker address pool in the same tick and each filed it \u2014 Ruben's AS-106 (05:15Z) landed first and carries the proposed CLAUDE.md wording. Priya's count (26 leftover asc-* networks, none removed but her own) and her compose-run.mjs guard (refuses any non-own -p name) are the two things to carry over; AS-106's planner reads this task's description for them. Cancelling this one."
+        },
+        "id": "ev_01M27EGFYY0JY2M0KAX81HPW8C",
+        "schema_version": 1,
+        "task_id": "task_01M27EBEXD4XP0N6NP6M9VJ7EW",
+        "ts": "2026-09-11T05:19:40Z",
+        "type": "comment_added"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "from": "backlog",
+          "to": "cancelled"
+        },
+        "id": "ev_01M27EGG34W3FE42E7PNZBFY37",
+        "schema_version": 1,
+        "task_id": "task_01M27EBEXD4XP0N6NP6M9VJ7EW",
+        "ts": "2026-09-11T05:19:40Z",
+        "type": "status_changed"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "target_task_id": "task_01M27EBEMAPD226BC2N41GXN5C",
+          "type": "related_to"
+        },
+        "id": "ev_01M27EGG779KDSTFR1C75X9TZG",
+        "schema_version": 1,
+        "task_id": "task_01M27EBEXD4XP0N6NP6M9VJ7EW",
+        "ts": "2026-09-11T05:19:40Z",
+        "type": "relationship_added"
+      }
+    ],
+    "evidence_refs": [],
+    "id": "task_01M27EBEXD4XP0N6NP6M9VJ7EW",
+    "last_event_id": "ev_01M27EGG779KDSTFR1C75X9TZG",
+    "last_status_changed_at": "2026-09-11T05:19:40Z",
+    "linked_files": [],
+    "plan_path": "plans/task_01M27EBEXD4XP0N6NP6M9VJ7EW.md",
+    "priority": "medium",
+    "relationships_enriched": [
+      {
+        "created_at": "2026-09-11T05:19:40Z",
+        "created_by": "agent:cto-owen",
+        "note": null,
+        "target_task_id": "task_01M27EBEMAPD226BC2N41GXN5C",
+        "target_title": "Chat tooling: counted compose review runs leave one docker network per -p project behind; address pool exhausts and voids runs",
+        "type": "related_to"
+      }
+    ],
+    "relationships_in": [],
+    "relationships_out": [
+      {
+        "created_at": "2026-09-11T05:19:40Z",
+        "created_by": "agent:cto-owen",
+        "note": null,
+        "target_task_id": "task_01M27EBEMAPD226BC2N41GXN5C",
+        "type": "related_to"
+      }
+    ],
+    "reopened_count": 0,
+    "schema_version": 1,
+    "short_id": "AS-107",
+    "status": "cancelled",
+    "tags": null,
+    "title": "Chat: scratch compose projects leak docker networks - 26 leftover asc-* networks exhausted the daemon address pools",
+    "type": "task",
+    "updated_at": "2026-09-11T05:19:40Z",
+    "urgency": null,
+    "valid_transitions": [
+      "needs_human",
+      "cancelled"
+    ]
+  },
+  "ok": true
+}
+

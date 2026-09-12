@@ -1,0 +1,15 @@
+AS-131: add mergeOlderPage/ensureLoaded (live.js) and prependPreservingScroll (scroll.js)
+
+Pure client primitives for page mode, importable from node:test like the rest of
+public/: `mergeOlderPage(data, page)` prepends the page's not-yet-loaded roots
+id-ordered, installs threads for those roots only, and adopts hasMore/nextBefore;
+`isLoaded`/`ensureLoaded(data, id, fetchPage)` page backward until a root or reply
+is loaded, stopping on hasMore:false or after ENSURE_LOADED_MAX_PAGES (20);
+`prependPreservingScroll(pane, render)` holds the reader's row across a prepend
+(scrollTop += height delta) without consulting the sticky-bottom rule.
+
+Tests: live 2 (merge order/dedupe/cursor/threads; ensureLoaded found-in-page-3,
+zero-fetch, reply target, hasMore:false stop after 2, cap at 20), scroll 2
+(300 -> 900 and 0 -> 600; at-bottom metrics do not pull to the new bottom).
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>

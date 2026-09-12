@@ -1,0 +1,14 @@
+assert-applied @media print preludes: 1 -> 2 (expected 1 -> 2)
+RECEIPT project=asc-as47-fprint-b
+  built: Image asc-as47-fprint-b-test Built
+  tests=430 pass=408 fail=4 skipped=18
+  run exit=1
+  down exit=0
+  leak check: clean (0 networks, 0 images for this project)
+  exit=1
+
+RED SET (4):
+  ✖ every visual value in public/ CSS traces to a token that exists
+  ✖ every href and form action in the two contract templates names a route the app registers
+  ✖ the print block hides the chrome and the actions, touches no contract-doc class, and pre-wrap holds outside it
+  ✖ app.css is mobile-first: every media condition is min-width, and none is below 480px

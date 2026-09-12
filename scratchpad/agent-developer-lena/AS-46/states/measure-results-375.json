@@ -1,0 +1,707 @@
+{
+  "S4-CLIENT-EMPTY": {
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "docHeight": 1811,
+    "overflowing": [],
+    "rows": [
+      [
+        {
+          "top": 643,
+          "w": 283
+        },
+        {
+          "top": 721,
+          "w": 283
+        },
+        {
+          "top": 799,
+          "w": 283
+        }
+      ],
+      [
+        {
+          "top": 886,
+          "w": 283
+        },
+        {
+          "top": 964,
+          "w": 283
+        },
+        {
+          "top": 1042,
+          "w": 283
+        }
+      ],
+      [
+        {
+          "top": 1129,
+          "w": 283
+        },
+        {
+          "top": 1207,
+          "w": 283
+        },
+        {
+          "top": 1285,
+          "w": 283
+        }
+      ]
+    ],
+    "selects": [],
+    "buttons": [
+      {
+        "t": "Sign out",
+        "left": 299,
+        "right": 359,
+        "top": 101
+      },
+      {
+        "t": "Add client",
+        "left": 33,
+        "right": 143,
+        "top": 479
+      },
+      {
+        "t": "Add line item",
+        "left": 33,
+        "right": 166,
+        "top": 1392
+      },
+      {
+        "t": "Save draft",
+        "left": 16,
+        "right": 128,
+        "top": 1617
+      },
+      {
+        "t": "Finalize & send",
+        "left": 140,
+        "right": 287,
+        "top": 1617
+      }
+    ]
+  },
+  "S4-CLIENT-ERROR-DUPLICATE": {
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "docHeight": 1393,
+    "overflowing": [],
+    "rows": [
+      [
+        {
+          "top": 711,
+          "w": 283
+        },
+        {
+          "top": 789,
+          "w": 283
+        },
+        {
+          "top": 867,
+          "w": 283
+        }
+      ]
+    ],
+    "selects": [],
+    "buttons": [
+      {
+        "t": "Sign out",
+        "left": 299,
+        "right": 359,
+        "top": 101
+      },
+      {
+        "t": "Use this client instead",
+        "left": 49,
+        "right": 232,
+        "top": 511
+      },
+      {
+        "t": "Create a new client anyw",
+        "left": 49,
+        "right": 224,
+        "top": 553
+      },
+      {
+        "t": "Add line item",
+        "left": 33,
+        "right": 166,
+        "top": 974
+      },
+      {
+        "t": "Save draft",
+        "left": 16,
+        "right": 128,
+        "top": 1199
+      },
+      {
+        "t": "Finalize & send",
+        "left": 140,
+        "right": 287,
+        "top": 1199
+      }
+    ]
+  },
+  "S4-CLIENT-ERROR-VALIDATION": {
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "docHeight": 1497,
+    "overflowing": [],
+    "rows": [
+      [
+        {
+          "top": 815,
+          "w": 283
+        },
+        {
+          "top": 893,
+          "w": 283
+        },
+        {
+          "top": 971,
+          "w": 283
+        }
+      ]
+    ],
+    "selects": [],
+    "buttons": [
+      {
+        "t": "Sign out",
+        "left": 299,
+        "right": 359,
+        "top": 101
+      },
+      {
+        "t": "choose an existing clien",
+        "left": 78,
+        "right": 288,
+        "top": 375
+      },
+      {
+        "t": "Add client",
+        "left": 33,
+        "right": 143,
+        "top": 651
+      },
+      {
+        "t": "Add line item",
+        "left": 33,
+        "right": 166,
+        "top": 1078
+      },
+      {
+        "t": "Save draft",
+        "left": 16,
+        "right": 128,
+        "top": 1303
+      },
+      {
+        "t": "Finalize & send",
+        "left": 140,
+        "right": 287,
+        "top": 1303
+      }
+    ]
+  },
+  "S4-DEFAULT-CREATE": {
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "docHeight": 1603,
+    "overflowing": [],
+    "rows": [
+      [
+        {
+          "top": 435,
+          "w": 283
+        },
+        {
+          "top": 513,
+          "w": 283
+        },
+        {
+          "top": 591,
+          "w": 283
+        }
+      ],
+      [
+        {
+          "top": 678,
+          "w": 283
+        },
+        {
+          "top": 756,
+          "w": 283
+        },
+        {
+          "top": 834,
+          "w": 283
+        }
+      ],
+      [
+        {
+          "top": 921,
+          "w": 283
+        },
+        {
+          "top": 999,
+          "w": 283
+        },
+        {
+          "top": 1077,
+          "w": 283
+        }
+      ]
+    ],
+    "selects": [
+      {
+        "w": 309,
+        "right": 342
+      }
+    ],
+    "buttons": [
+      {
+        "t": "Sign out",
+        "left": 299,
+        "right": 359,
+        "top": 101
+      },
+      {
+        "t": "add a new client instead",
+        "left": 78,
+        "right": 234,
+        "top": 219
+      },
+      {
+        "t": "Add line item",
+        "left": 33,
+        "right": 166,
+        "top": 1184
+      },
+      {
+        "t": "Save draft",
+        "left": 16,
+        "right": 128,
+        "top": 1409
+      },
+      {
+        "t": "Finalize & send",
+        "left": 140,
+        "right": 287,
+        "top": 1409
+      }
+    ]
+  },
+  "S4-DEFAULT-EDIT": {
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "docHeight": 1603,
+    "overflowing": [],
+    "rows": [
+      [
+        {
+          "top": 435,
+          "w": 283
+        },
+        {
+          "top": 513,
+          "w": 283
+        },
+        {
+          "top": 591,
+          "w": 283
+        }
+      ],
+      [
+        {
+          "top": 678,
+          "w": 283
+        },
+        {
+          "top": 756,
+          "w": 283
+        },
+        {
+          "top": 834,
+          "w": 283
+        }
+      ],
+      [
+        {
+          "top": 921,
+          "w": 283
+        },
+        {
+          "top": 999,
+          "w": 283
+        },
+        {
+          "top": 1077,
+          "w": 283
+        }
+      ]
+    ],
+    "selects": [
+      {
+        "w": 309,
+        "right": 342
+      }
+    ],
+    "buttons": [
+      {
+        "t": "Sign out",
+        "left": 299,
+        "right": 359,
+        "top": 101
+      },
+      {
+        "t": "add a new client instead",
+        "left": 78,
+        "right": 234,
+        "top": 219
+      },
+      {
+        "t": "Add line item",
+        "left": 33,
+        "right": 166,
+        "top": 1184
+      },
+      {
+        "t": "Save draft",
+        "left": 16,
+        "right": 128,
+        "top": 1409
+      },
+      {
+        "t": "Finalize & send",
+        "left": 140,
+        "right": 287,
+        "top": 1409
+      }
+    ]
+  },
+  "S4-ERROR-SYSTEM": {
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "docHeight": 1727,
+    "overflowing": [],
+    "rows": [
+      [
+        {
+          "top": 559,
+          "w": 283
+        },
+        {
+          "top": 637,
+          "w": 283
+        },
+        {
+          "top": 715,
+          "w": 283
+        }
+      ],
+      [
+        {
+          "top": 802,
+          "w": 283
+        },
+        {
+          "top": 880,
+          "w": 283
+        },
+        {
+          "top": 958,
+          "w": 283
+        }
+      ],
+      [
+        {
+          "top": 1045,
+          "w": 283
+        },
+        {
+          "top": 1123,
+          "w": 283
+        },
+        {
+          "top": 1201,
+          "w": 283
+        }
+      ]
+    ],
+    "selects": [
+      {
+        "w": 309,
+        "right": 342
+      }
+    ],
+    "buttons": [
+      {
+        "t": "Sign out",
+        "left": 299,
+        "right": 359,
+        "top": 101
+      },
+      {
+        "t": "add a new client instead",
+        "left": 78,
+        "right": 234,
+        "top": 343
+      },
+      {
+        "t": "Add line item",
+        "left": 33,
+        "right": 166,
+        "top": 1308
+      },
+      {
+        "t": "Save draft",
+        "left": 16,
+        "right": 128,
+        "top": 1533
+      },
+      {
+        "t": "Finalize & send",
+        "left": 140,
+        "right": 287,
+        "top": 1533
+      }
+    ]
+  },
+  "S4-ERROR-VALIDATION-addnew-empty": {
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "docHeight": 1497,
+    "overflowing": [],
+    "rows": [
+      [
+        {
+          "top": 815,
+          "w": 283
+        },
+        {
+          "top": 893,
+          "w": 283
+        },
+        {
+          "top": 971,
+          "w": 283
+        }
+      ]
+    ],
+    "selects": [],
+    "buttons": [
+      {
+        "t": "Sign out",
+        "left": 299,
+        "right": 359,
+        "top": 101
+      },
+      {
+        "t": "Add client",
+        "left": 33,
+        "right": 143,
+        "top": 651
+      },
+      {
+        "t": "Add line item",
+        "left": 33,
+        "right": 166,
+        "top": 1078
+      },
+      {
+        "t": "Save draft",
+        "left": 16,
+        "right": 128,
+        "top": 1303
+      },
+      {
+        "t": "Finalize & send",
+        "left": 140,
+        "right": 287,
+        "top": 1303
+      }
+    ]
+  },
+  "S4-ERROR-VALIDATION-addnew-toggled": {
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "docHeight": 1477,
+    "overflowing": [],
+    "rows": [
+      [
+        {
+          "top": 795,
+          "w": 283
+        },
+        {
+          "top": 873,
+          "w": 283
+        },
+        {
+          "top": 951,
+          "w": 283
+        }
+      ]
+    ],
+    "selects": [],
+    "buttons": [
+      {
+        "t": "Sign out",
+        "left": 299,
+        "right": 359,
+        "top": 101
+      },
+      {
+        "t": "choose an existing clien",
+        "left": 78,
+        "right": 288,
+        "top": 375
+      },
+      {
+        "t": "Add client",
+        "left": 33,
+        "right": 143,
+        "top": 631
+      },
+      {
+        "t": "Add line item",
+        "left": 33,
+        "right": 166,
+        "top": 1058
+      },
+      {
+        "t": "Save draft",
+        "left": 16,
+        "right": 128,
+        "top": 1283
+      },
+      {
+        "t": "Finalize & send",
+        "left": 140,
+        "right": 287,
+        "top": 1283
+      }
+    ]
+  },
+  "S4-ERROR-VALIDATION": {
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "docHeight": 1909,
+    "overflowing": [],
+    "rows": [
+      [
+        {
+          "top": 621,
+          "w": 283
+        },
+        {
+          "top": 729,
+          "w": 283
+        },
+        {
+          "top": 837,
+          "w": 283
+        }
+      ],
+      [
+        {
+          "top": 954,
+          "w": 283
+        },
+        {
+          "top": 1032,
+          "w": 283
+        },
+        {
+          "top": 1110,
+          "w": 283
+        }
+      ],
+      [
+        {
+          "top": 1197,
+          "w": 283
+        },
+        {
+          "top": 1275,
+          "w": 283
+        },
+        {
+          "top": 1353,
+          "w": 283
+        }
+      ]
+    ],
+    "selects": [
+      {
+        "w": 309,
+        "right": 342
+      }
+    ],
+    "buttons": [
+      {
+        "t": "Sign out",
+        "left": 299,
+        "right": 359,
+        "top": 101
+      },
+      {
+        "t": "add a new client instead",
+        "left": 78,
+        "right": 234,
+        "top": 375
+      },
+      {
+        "t": "Add line item",
+        "left": 33,
+        "right": 166,
+        "top": 1460
+      },
+      {
+        "t": "Save draft",
+        "left": 16,
+        "right": 128,
+        "top": 1715
+      },
+      {
+        "t": "Finalize & send",
+        "left": 140,
+        "right": 287,
+        "top": 1715
+      }
+    ]
+  },
+  "S4-GATED-STRIPENOTREADY": {
+    "innerWidth": 375,
+    "docScrollWidth": 375,
+    "bodyScrollWidth": 375,
+    "docHeight": 812,
+    "overflowing": [],
+    "rows": [],
+    "selects": [],
+    "buttons": [
+      {
+        "t": "Sign out",
+        "left": 299,
+        "right": 359,
+        "top": 101
+      },
+      {
+        "t": "Finish setup on Stripe",
+        "left": 16,
+        "right": 214,
+        "top": 330
+      }
+    ]
+  }
+}

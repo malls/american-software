@@ -1,0 +1,18 @@
+AS-85: close the AS-27 frame-count guard over the AS-75 build fields
+
+The AS-27 ten-poll zero-frame window boots against an empty data dir, so
+`build` is the constant no-state blank for its whole run and no build field
+can move the loop key there — R10 was green by construction (AS-75 F1).
+
+Two tests in stream.test.js plant a real deploy-state.json, written the way
+the watcher writes it (.tmp + rename), and drive it: A churns every field the
+watcher rewrites per deploy-poll (computedAt, lastAttempt, dockerReason,
+runningId) and requires zero frames, proving the churn reached the server via
+/api/loop-status before the positive; B moves one key field at a time and
+requires exactly one frame each.
+
+`build.reason` joins the key (plan §3.3, Q1 default): it is the half of the
+sidebar's build sentence `current` cannot carry, and none of its values move
+per poll in a steady state.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>

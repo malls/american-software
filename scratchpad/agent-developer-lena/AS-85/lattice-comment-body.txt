@@ -1,0 +1,66 @@
+**Implementation report — AS-85 (developer-lena), tick watcher:93997 loop tick 23.** Branch `feat/AS-85-build-frame-guard`, commits **4d928a1** (tests + the §3.3 projection line) and **e4fa486** (B5/B6 + labelled red). Worktree clean, `git diff --exit-code` = 0 after the battery.
+
+Findings first, sweep second (M5). Three of the five findings are plan errata I had to resolve to reach an observed red; none of them changed the plan's design, and I did not drop B2.
+
+## Findings (5; 1 worth a ruling, 4 low/trivia)
+
+**F-1 — the two `reason` enums share a namespace, and that overlap is the only thing making `current` load-bearing.** Found while running down the M2 survivor (below), not by reading the criteria list. `composeBuild` (server.js:111-128) copies `deployState.reason` verbatim on the good path but *overrides* it with its own judgements — `stale-state`, `no-watcher`, `unknown-build`, `no-state`, `unreadable-state` — on the degraded paths. Nothing stops the watcher's file from spelling one of the server's words. I drove `composeBuild` over **6,656 input combinations** (buildId × desiredId × reason × computedAt × deploy-state shape × watcherListening): **119 distinct `(id, desiredId, reason)` triples**, of which **12 map to more than one `current`** — and all 12 are that collision shape. Receipt: `scratchpad/agent-developer-lena/AS-85/m2-probe.mjs`. Two consequences worth Owen's and Ruben's eyes:
+- (a) For **every reason the watcher actually writes today** (`current`, `busy`, `stale-build`, `cooldown`, `no-git`, `inputs-dirty`, `no-docker`), `current` is a pure function of `id`, `desiredId` and `reason` — i.e. once B2 puts `reason` in the key, `current` is redundant in production and is load-bearing only on an input the watcher never produces. It stays in the key (removing it is a design change outside this plan, and it is the field the client's tri-state contract is written against), but the plan's framing of criterion 4 as a straightforward property does not hold.
+- (b) A client that reads `reason: 'stale-state'` cannot tell whether the *server* judged the file stale or the *watcher* wrote that word. Suggested follow-up, not done here (out of scope): namespace the server's own judgements, or move them to a separate `freshness` field. Happy to file it if the CTO wants it.
+
+**F-2 — plan §3.3 step B3 as written leaves M3 unkillable (erratum).** The table has B3 write `desiredId: 'cccc…', reason: 'stale-build'` and calls it "`desiredId` only" — but B2 has just set `reason` to `'busy'`, so B3 as specified moves two key fields and a `desiredId`-less key still changes. Implemented B3 as `desiredId: 'cccc…', reason: 'busy'` (a real watcher state: master moved again while a rebuild is running). M3 is red at B3 as a result.
+
+**F-3 — plan §3.3 step B4 as written leaves M2 unkillable (erratum; the M2 survivor).** B4 is labelled "`current` only (false→null)", but the stale path returns `{...out, reason: 'stale-state'}`, so `reason` moves with `current` and the first battery's M2 survived with the mutation correctly applied at line 582. Per the survivor rule I re-read the mutated file before concluding anything — the mutant was at the intended and only site — then ran the F-1 probe, which found the one shape that isolates `current`: a file whose `reason` already reads `'stale-state'`, crossed over the 10-minute staleness edge. Added **B5** (fresh, `reason: 'stale-state'` → `current` true) and **B6** (same body 11 minutes old → `current` null, `reason` unchanged because it already matched the override, `id`/`desiredId`/`listening`/`state` all held). M2 is now red at exactly B6. Criterion 4 is met by an observed red, but at a different step than the plan named, and F-1(a) is why.
+
+**F-4 — the fixture writes `deploy-state.json` the way the watcher does (`.tmp` + `renameSync`), deliberately.** `advance-watcher.mjs` writes it atomically; a plain `writeFileSync` read mid-poll parses as garbage, which `composeBuild` reports as `reason: 'unreadable-state'` — a genuine key change and a frame Test A would have blamed on the guard. At ten rewrites against a 25 ms poll that is a live flake, not a theoretical one. Mirroring the producer removes it.
+
+**F-5 — trivia.** The plan's Test A title names `runningId` among the churned fields while §3.2 step 2 held it fixed. I kept the title verbatim and churned `runningId` too (it is inert for `composeBuild`), so the name is true and the churn is strictly wider. Also: the Test B step helper now wraps a missing frame with its own label — the bare `nextFrame` timeout carries only a timer stack, so a future red would not have said *which* field stopped earning a frame.
+
+## Mutation battery — 7 mutants, 7 reds, exact sets
+
+Runner: `scratchpad/agent-developer-lena/AS-85/battery.mjs` (backup → assert-unique literal replace → `grep -c` before/after + mutated line number → counted host suite → restore → `git diff --exit-code`). Every mutant reported **anchor-before = 1, anchor-after = 0, mutant-after = 1**, and `tree clean after restore` — full logs in `<label>.out`.
+
+Anchor for M1–M5, unique in server.js, at **line 582** after the change:
+`build: { id: s.build.id, desiredId: s.build.desiredId, current: s.build.current, reason: s.build.reason },`
+
+| mutant | change | suite | failing set | red at |
+|---|---|---|---|---|
+| **F1** | Test A boots without `buildId` (stream.test.js:493) | 500 / 499 pass / **1 fail** | {Test A} | `the planted deploy-state makes this container current` |
+| **F2** | churn loop rewrites the *same* `computedAt` (:514) | 500 / 499 / **1** | {Test A} | `and checkedAt really moved across the ten polls` |
+| **M1** | `+ checkedAt: s.build.checkedAt` | 500 / 499 / **1** | {Test A} | `zero frames across ten polls of deploy-state churn` |
+| **M2** | `− current: s.build.current` | 500 / 499 / **1** | {Test B} | `B6 current alone: expected exactly one loop frame, got none` |
+| **M3** | `− desiredId: s.build.desiredId` | 500 / 499 / **1** | {Test B} | `B3 desiredId: expected exactly one loop frame, got none` |
+| **M4** | `− reason: s.build.reason` (reverts B2) | 500 / 499 / **1** | {Test B} | `B2 reason: expected exactly one loop frame, got none` |
+| **M5** | whole projection → `build: null,` | 500 / 498 / **2** | {Test A, Test B} | Test A step 5 (`no frame within 5000ms`), Test B `B1 desiredId+current` |
+
+No survivors, and no set wider or narrower than the plan predicted once F-2/F-3 were resolved. Under M1 the **existing AS-27 frame-count test stayed green** — that is the vacuity being closed (its data dir has no deploy-state), not a defect in it, exactly as the plan says.
+
+## Counted host run
+
+`node --test .worktrees/AS-85/apps/chat/test/*.test.js`, final run on the restored clean tree:
+
+**tests 500 · pass 500 · fail 0 · skipped 0 · todo 0 · 13.3 s** — baseline 498, +2 (Tests A and B), which is the plan §6 prediction exactly. The B2 production change moved no existing test.
+
+**Compose receipt not taken in this lane** — docker is off PATH for a tick sub-agent; per the tasking message the orchestrator takes it. No number of mine is a compose number.
+
+## Acceptance-criteria sweep — a floor check, not the review
+
+10 of 10 met; **5 findings outside the list** (above), 3 of which were required to reach a red the list asked for.
+
+1. **Fixture observed before counting** — both tests assert `build.current === true` and `build.desiredId === BUILD_ID` on the on-connect frame before any count. F1 red = {Test A}. PASS
+2. **Churn is real, and earns nothing** — Test A step 4 reads `/api/loop-status` and asserts `checkedAt` equals the last `computedAt` written and differs from the first. F2 red = {Test A}. PASS
+3. **R10 itself** — M1 red = exactly {Test A}; Test B and both AS-27 loop-frame tests green. PASS
+4. **`current` load-bearing** — M2 red = exactly {Test B}, at **B6, not B4** (see F-3; and F-1(a) for what that says about the property itself). PASS with deviation.
+5. **`desiredId` load-bearing** — M3 red = exactly {Test B} at B3, which I had to amend (F-2). PASS with deviation.
+6. **`reason` load-bearing (B2)** — M4 red = exactly {Test B} at B2. B2 shipped as planned; Q1's default stands unless the reviewer objects on the merits. PASS
+7. **Whole projection** — M5 red = {Test A, Test B}, nothing narrower. PASS
+8. **No storm from B2** — Test A's ten-poll churn window is green on the branch with `reason` in the key; its falsifier is M1, observed. PASS
+9. **Existing tests unchanged** — 500/500, +2 exactly; no test file but `stream.test.js` touched, no production file but the one `server.js` line and its comment. PASS
+10. **Receipts** — this comment. PASS except the compose line, which is the orchestrator's to take.
+
+## Files touched
+
+- `apps/chat/server.js` — one line in `loopStateKey` (`reason` added to the build projection) plus four comment lines extending the AS-75 note. Nothing else.
+- `apps/chat/test/stream.test.js` — `renameSync` added to the `node:fs` import; fixture helpers (`BUILD_ID`, `deployState`, `livePid`, `buildDataDir`, `buildBootOpts`) and Tests A and B appended after the AS-27 frame-count test. Additive; no existing test modified.
+
+No overlap with the AS-84 or AS-86 lanes. The AS-84 seam the plan flagged (§7a) is unchanged: my fixture mirrors today's `lastAttempt` shape and `lastAttempt` is not in the key, so a shape change there cannot break these tests.

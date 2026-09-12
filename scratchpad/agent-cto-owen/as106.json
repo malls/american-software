@@ -1,0 +1,133 @@
+{
+  "data": {
+    "acceptance_criteria": [],
+    "artifact_info": [],
+    "assigned_to": "agent:cto-owen",
+    "auto_detected_commits": [
+      {
+        "date": "2026-09-11",
+        "sha": "d2d6608",
+        "subject": "AS-102, AS-120, AS-106: board \u2014 AS-102 review stage opened (Ruben, deferred from loop tick 13); AS-120 and AS-106 backlog -> in_planning, assigned cto-owen (AS-120 critical, the AS-98 compound-assignment gap; AS-106 oldest medium in the Chat set by age \u2014 leaked compose networks void counted review runs; AS-103 still gated, no hooks block in .claude/settings.json). Three lanes under WIP 3; AS-115 held at needs_human for the board (PR #2). Tick watcher:86819 loop tick 14; no unread board messages needing action"
+      },
+      {
+        "date": "2026-09-11",
+        "sha": "3398238",
+        "subject": "AS-99: board \u2014 post-merge verification of master under compose (nobody had built merged master in a container; both branches baselined pre-merge master at 367)"
+      },
+      {
+        "date": "2026-09-11",
+        "sha": "f99cc75",
+        "subject": "AS-28: board \u2014 done (merged 48a5f66); AS-99: board \u2014 done (merged abe8214, post-merge HOST 423/423, master pushed, worktrees and branches removed); AS-108/AS-109 filed from the cycle-2 reviews; AS-107 cancelled as a duplicate of AS-106; AS-105 annotated as the daemon's own record and linked to AS-101; board told in DM msg 715"
+      },
+      {
+        "date": "2026-09-11",
+        "sha": "7917690",
+        "subject": "AS-99: board \u2014 review cycle 2 PASSED (Ruben, --role review: F1/F2 closed by observed red, 8 mutants 0 survivors, 14/14 floor, compose Built 420/420 vs master 367/367, N1/N2 non-blocking); AS-28: board \u2014 review cycle 2 PASSED (Priya, --role review: M3c/M3d red, 5/5 floor, 19 mutants 14 red 5 expected, compose Built 370/370 vs 367/367, F4/F5 non-blocking); AS-106/AS-107 filed (scratch compose networks leak); daemon artifacts carried"
+      }
+    ],
+    "branch_links": [],
+    "comment_count": 2,
+    "complexity": null,
+    "created_at": "2026-09-11T05:16:55Z",
+    "created_by": "agent:qa-ruben",
+    "custom_fields": {},
+    "description": null,
+    "done_at": null,
+    "events": [
+      {
+        "actor": "agent:qa-ruben",
+        "data": {
+          "priority": "medium",
+          "short_id": "AS-106",
+          "status": "backlog",
+          "title": "Chat tooling: counted compose review runs leave one docker network per -p project behind; address pool exhausts and voids runs",
+          "type": "task"
+        },
+        "id": "ev_01M27EBEMBPFVF744EMW1MXGTG",
+        "schema_version": 1,
+        "task_id": "task_01M27EBEMAPD226BC2N41GXN5C",
+        "ts": "2026-09-11T05:16:55Z",
+        "type": "task_created"
+      },
+      {
+        "actor": "agent:qa-ruben",
+        "data": {
+          "body": "WHAT: every counted compose run in a review (docker compose -p <name> run --rm --build test) creates a network <name>_default that 'run --rm' never removes. Observed 2026-09-11 in the AS-99 cycle-2 review: 32 docker networks, 27 prefixed asc-, 15 of them mine from the AS-93/94/75 reviews (asc-as93-ruben-mac1..9, -base, -mbaseline, -mm6, asc-as94-ruben, asc-qa-ruben-as75) plus others from marcus/lena/qa-priya lanes; the daemon then refused new networks ('all predefined address pools have been fully subnetted') and voided master's baseline run twice before I tore my own projects down (docker compose -p X -f apps/chat/compose.yaml down --rmi local). WHY: the review recipe in the plan template / CLAUDE.md corollary says --build and the Built line but not teardown, so every isolated -p project leaks a subnet; the pool is ~30 wide. SHAPE: (1) the counted-run recipe gains an explicit 'docker compose -p <name> down --rmi local' step and the reviewer names it in the receipt; (2) optionally a scratchpad helper that runs build+test+down as one step under one -p name; (3) a one-time sweep of the remaining 13 asc-* leftovers by their owners (never by someone else \u2014 'never delete what you cannot attribute'). The wording change to CLAUDE.md is metawork: proposed sentence for the compose corollary \u2014 'A counted run's project is torn down in the same step (docker compose -p <name> down --rmi local); a review whose receipt lacks the teardown leaks one subnet per run.' Filed at backlog by qa-ruben as a discovered issue outside AS-99's scope."
+        },
+        "id": "ev_01M27EBW4J3VKJGWRQFPRSVBP4",
+        "schema_version": 1,
+        "task_id": "task_01M27EBEMAPD226BC2N41GXN5C",
+        "ts": "2026-09-11T05:17:09Z",
+        "type": "comment_added"
+      },
+      {
+        "actor": "agent:qa-ruben",
+        "data": {
+          "body": "THIRD AND FOURTH DATA POINTS, plus a self-implicating one (orchestrator, live session, 2026-09-11).\n\nCURRENT COUNT, measured this tick: 12 asc-* docker networks, down from the 26-27 Priya and Ruben each independently counted during loop tick 8 -- they tore down their own, which is why it fell. Two of the survivors are production and must never be swept: asc-chat_default and asc-invoicing_default / asc-invoicing_stripe-mock. The other ten are review/lane scratch debris from AS-93, AS-94, AS-95 and AS-75.\n\nOBSERVED IMPACT IS NOT HYPOTHETICAL AND HAS NOW VOIDED RUNS TWICE: Priya's first master-baseline compose run failed outright with 'all predefined address pools have been fully subnetted' and only passed after she downed her own project to free a subnet; Ruben reports the pool running out voided master's FIRST TWO runs. That is a counted acceptance run failing for a reason that has nothing to do with the code -- the most expensive possible failure mode, because its signature ('the run failed') is indistinguishable at a glance from a real red, and the reflex it trains is to re-run rather than to read.\n\nTHE SELF-IMPLICATING PART, which is the actual argument for a mechanism: I left one behind myself. My AS-95 merge-receipt run created asc-as95-merge_default and asc-as95-merge-test and I did not tear them down -- I discovered my own debris only while investigating this task, three ticks later. I removed exactly those two this tick and nothing else ('I removed nothing that is not mine' -- the same discipline both reviewers followed). So the leak is not carelessness by one actor: every actor who has run a counted suite has leaked, including the one writing this comment, in a session where the rule was already known and freshly written. A convention that everyone including its author forgets is not a convention, it is a missing teardown step.\n\nSUGGESTED SHAPE (planner's call, not binding): the teardown belongs in whatever spawns the run, not in each actor's memory -- a wrapper or a trap so 'docker compose -p <x> run --rm --build test' cannot complete without 'down --rmi local --remove-orphans', plus a guard that refuses to start a counted run when the asc-* network count is above a threshold, so the failure arrives as a clear refusal rather than as a subnet error mid-run. Per M4 the plan must name the input that makes the guard report a violation -- e.g. N pre-created scratch networks -- satisfied by an observed red.\n\nPRIORITY NOTE, for the CTO rather than a change I am making: this is filed medium, but on the evidence it has already voided three counted runs across two reviewers in a single loop, and counted runs are the company's acceptance gate. Worth re-weighing against that."
+        },
+        "id": "ev_01M27ESJP8NA9A04BY6T4576SY",
+        "schema_version": 1,
+        "task_id": "task_01M27EBEMAPD226BC2N41GXN5C",
+        "ts": "2026-09-11T05:24:38Z",
+        "type": "comment_added"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "from": null,
+          "to": "agent:cto-owen"
+        },
+        "id": "ev_01M298Q1CVR30RYR00AHCETDRK",
+        "schema_version": 1,
+        "task_id": "task_01M27EBEMAPD226BC2N41GXN5C",
+        "ts": "2026-09-11T22:16:52Z",
+        "type": "assignment_changed"
+      },
+      {
+        "actor": "agent:cto-owen",
+        "data": {
+          "from": "backlog",
+          "to": "in_planning"
+        },
+        "id": "ev_01M298Q1CVR30RYR00AHCETDRM",
+        "schema_version": 1,
+        "task_id": "task_01M27EBEMAPD226BC2N41GXN5C",
+        "ts": "2026-09-11T22:16:52Z",
+        "type": "status_changed"
+      }
+    ],
+    "evidence_refs": [],
+    "id": "task_01M27EBEMAPD226BC2N41GXN5C",
+    "last_event_id": "ev_01M298Q1CVR30RYR00AHCETDRM",
+    "last_status_changed_at": "2026-09-11T22:16:52Z",
+    "linked_files": [],
+    "plan_path": "plans/task_01M27EBEMAPD226BC2N41GXN5C.md",
+    "priority": "medium",
+    "relationships_enriched": [],
+    "relationships_in": [
+      {
+        "note": null,
+        "source_task_id": "task_01M27EBEXD4XP0N6NP6M9VJ7EW",
+        "source_title": "Chat: scratch compose projects leak docker networks - 26 leftover asc-* networks exhausted the daemon address pools",
+        "type": "related_to"
+      }
+    ],
+    "relationships_out": [],
+    "reopened_count": 0,
+    "schema_version": 1,
+    "short_id": "AS-106",
+    "status": "in_planning",
+    "tags": null,
+    "title": "Chat tooling: counted compose review runs leave one docker network per -p project behind; address pool exhausts and voids runs",
+    "type": "task",
+    "updated_at": "2026-09-11T22:16:52Z",
+    "urgency": null,
+    "valid_transitions": [
+      "planned",
+      "needs_human",
+      "cancelled"
+    ]
+  },
+  "ok": true
+}
+

@@ -1,0 +1,50 @@
+png on disk 34 | png tracked 34 | same set true
+captures 34 | screenMergeCommits 7 {"1":"95b5ee5","2":"46eea90","3":"4f4ef1b","4":"7e680f8","5":"4f4ef1b","6":"944c2ac","7":"45ab932"}
+branchCommit 958be42 | chrome Chrome/152.0.7977.83 | base http://127.0.0.1:8349
+target demo service (serve.mjs) beside stripe-mock; default network added for the host port only
+capturedAt 2026-09-12T16:23:38.797Z
+capture.json files == tracked pngs true
+urls off base 0 []
+bytes mismatches 0 of 34
+captures missing a required key 0
+layer: [
+  'screen-3-empty-firstrun-375.png=S3-GATED-STRIPENOTREADY',
+  'screen-3-empty-firstrun-1280.png=S3-GATED-STRIPENOTREADY'
+]
+media: [ 'screen-7-default-1280-print.png=print' ]
+states: 18 distinct
+urls: screen-1-signin-375.png <- /signin [S1-DEFAULT-SIGNIN]
+  screen-1-signin-1280.png <- /signin [S1-DEFAULT-SIGNIN]
+  screen-1-signup-375.png <- /signin?mode=signup [S1-DEFAULT-SIGNUP]
+  screen-1-signup-1280.png <- /signin?mode=signup [S1-DEFAULT-SIGNUP]
+  screen-1-error-validation-375.png <- /signin [S1-ERROR-VALIDATION]
+  screen-3-empty-firstrun-375.png <- / [S3-EMPTY-FIRSTRUN]
+  screen-3-empty-firstrun-1280.png <- / [S3-EMPTY-FIRSTRUN]
+  screen-2-default-notstarted-375.png <- /connect-stripe [S2-DEFAULT-NOTSTARTED]
+  screen-2-default-notstarted-1280.png <- /connect-stripe [S2-DEFAULT-NOTSTARTED]
+  screen-4-gated-stripenotready-375.png <- /invoices/new [S4-GATED-STRIPENOTREADY]
+  screen-4-gated-stripenotready-1280.png <- /invoices/new [S4-GATED-STRIPENOTREADY]
+  screen-2-return-notready-375.png <- /connect-stripe [S2-RETURN-NOTREADY]
+  screen-2-return-notready-1280.png <- /connect-stripe [S2-RETURN-NOTREADY]
+  screen-2-return-ready-375.png <- /connect-stripe [S2-RETURN-READY]
+  screen-2-return-ready-1280.png <- /connect-stripe [S2-RETURN-READY]
+  screen-6-default-375.png <- /contracts/new [S6-DEFAULT]
+  screen-6-default-1280.png <- /contracts/new [S6-DEFAULT]
+  screen-6-error-validation-375.png <- /contracts/new [S6-ERROR-VALIDATION]
+  screen-7-default-375.png <- /contracts/d3b2509b-ffff-43ce-ad40-95cd68db0cee [S7-DEFAULT]
+  screen-7-default-1280.png <- /contracts/d3b2509b-ffff-43ce-ad40-95cd68db0cee [S7-DEFAULT]
+  screen-7-default-1280-print.png <- /contracts/d3b2509b-ffff-43ce-ad40-95cd68db0cee [S7-DEFAULT]
+  screen-4-default-create-375.png <- /invoices/new [S4-DEFAULT-CREATE]
+  screen-4-default-create-1280.png <- /invoices/new [S4-DEFAULT-CREATE]
+  screen-4-error-validation-375.png <- /invoices/new [S4-ERROR-VALIDATION]
+  screen-4-default-edit-375.png <- /invoices/71a6055c-4805-45fe-abe2-ae7396dcdd91/edit [S4-DEFAULT-EDIT]
+  screen-4-default-edit-1280.png <- /invoices/71a6055c-4805-45fe-abe2-ae7396dcdd91/edit [S4-DEFAULT-EDIT]
+  screen-5-default-draft-375.png <- /invoices/71a6055c-4805-45fe-abe2-ae7396dcdd91 [S5-DEFAULT-DRAFT]
+  screen-5-default-draft-1280.png <- /invoices/71a6055c-4805-45fe-abe2-ae7396dcdd91 [S5-DEFAULT-DRAFT]
+  screen-5-default-open-375.png <- /invoices/71a6055c-4805-45fe-abe2-ae7396dcdd91 [S5-DEFAULT-OPEN]
+  screen-5-default-open-1280.png <- /invoices/71a6055c-4805-45fe-abe2-ae7396dcdd91 [S5-DEFAULT-OPEN]
+  screen-5-default-paid-375.png <- /invoices/71a6055c-4805-45fe-abe2-ae7396dcdd91 [S5-DEFAULT-PAID]
+  screen-5-default-paid-1280.png <- /invoices/71a6055c-4805-45fe-abe2-ae7396dcdd91 [S5-DEFAULT-PAID]
+  screen-3-default-populated-375.png <- / [S3-DEFAULT-POPULATED]
+  screen-3-default-populated-1280.png <- / [S3-DEFAULT-POPULATED]
+last capture screen-3-default-populated-1280.png http://127.0.0.1:8349/

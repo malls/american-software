@@ -1,0 +1,10 @@
+AS-86 planning baseline — agent:cto-owen, 2026-09-11, tick watcher:93997 loop tick 22
+master cef63a8, host, from repo root: node --test apps/chat/test/*.test.js
+tests 498 / pass 498 / fail 0 / cancelled 0 / skipped 0 / todo 0 / duration_ms 7571
+(matches the AS-83/AS-74 merge receipt "master host 498/498")
+Compose not run this tick: docker off PATH in the headless tick, AS-83 flake condition under concurrent builds, 30-min budget.
+Note for the record: `node --test apps/chat/test/` (directory argument) misfires from the repo root — it reports the directory as one failed test. Use the *.test.js glob or run from apps/chat.
+Verified facts used by the plan:
+- git ls-files apps/chat = 102 paths; non-COPY'd tracked set = .dockerignore, README.md, chat, data/export/*
+- apps/chat/.env is gitignored by ~/.gitignore (*.env); compose.override.* and Dockerfile.dockerignore do not exist
+- no test in apps/chat/test spawns real git (all injected via `run`)

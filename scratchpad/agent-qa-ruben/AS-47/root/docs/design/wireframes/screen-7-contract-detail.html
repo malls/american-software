@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screen 7 — Contract detail + print/download — AS-30 wireframes</title>
+  <link rel="stylesheet" href="../tokens/tokens.css">
+  <link rel="stylesheet" href="wireframe.css">
+</head>
+<body data-print-doc>
+  <a class="skip-link" href="#main">Skip to states</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <span class="app-label">Invoicing</span>
+    </div>
+    <div class="container">
+      <nav class="site-nav" aria-label="Primary">
+        <a class="site-nav__link" href="screen-3-dashboard.html">Dashboard</a>
+        <a class="site-nav__link" href="screen-4-invoice-create.html">New invoice</a>
+        <a class="site-nav__link" href="screen-6-contract-create.html">New contract</a>
+        <form class="site-nav__signout" action="#" method="post">
+          <button type="submit" class="btn-link">Sign out</button>
+        </form>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <h1 class="page-title">Screen 7 — Contract detail + print/download</h1>
+    <p class="page-meta" data-wf-note>
+      Route (provisional): <code>GET /contracts/:id</code>. Capability C-21. <strong>This
+      is v1's entire delivery mechanism</strong> — there is no client-facing contract link
+      (C-22); the freelancer downloads or prints this page and sends it themselves,
+      through their own email client, because v1 sends no email at all (C-48). Ledger:
+      <code>02-states-ledger.md</code> §7.
+    </p>
+    <p class="wireframe-notice">
+      Design-doc artifact — all 8 ledger rows for Screen 7 on one page, zero JavaScript.
+      <strong>Legal gate, both parts required here:</strong> the placeholder-body warning
+      and the CC BY 4.0 attribution line are both inside <code>.doc-region</code> below,
+      so both print and download with the document (plan file §3). This page also carries
+      the set's one <code>@media print</code> requirement — open print preview to check,
+      or read <code>wireframe.css</code>'s print block directly (acceptance criterion 10).
+    </p>
+
+    <nav class="state-toc" aria-label="States on this page">
+      <p class="state-toc__title">States in this file</p>
+      <ul>
+        <li><a href="#S7-DEFAULT">S7-DEFAULT</a></li>
+        <li><a href="#S7-LOADING">S7-LOADING</a></li>
+        <li class="state-toc__na">S7-EMPTY — n/a, no section rendered (see 02-states-ledger.md §7)</li>
+        <li><a href="#S7-ERROR-NOTFOUND">S7-ERROR-NOTFOUND</a></li>
+        <li><a href="#S7-ERROR-SYSTEM">S7-ERROR-SYSTEM</a></li>
+        <li><a href="#S7-DENIED-SIGNEDOUT">S7-DENIED-SIGNEDOUT</a></li>
+        <li><a href="#S7-DENIED-NOTOWNER">S7-DENIED-NOTOWNER</a></li>
+        <li class="state-toc__na">S7-ABANDON — n/a, no section rendered (see 02-states-ledger.md §7)</li>
+      </ul>
+    </nav>
+
+    <section id="S7-DEFAULT" class="state state--printable" aria-labelledby="S7-DEFAULT-h">
+      <p class="state-label">
+        <span class="state-label__id">S7-DEFAULT</span>
+        <span class="state-label__category">Default</span>
+        <span class="state-label__desc">Contract exists. The ONLY section marked .state--printable on this page — see wireframe.css's print block</span>
+      </p>
+      <h2 id="S7-DEFAULT-h" class="state__title">Contract with Ada Example</h2>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary">Print</button>
+        <button type="button" class="btn btn-secondary">Download</button>
+      </div>
+
+      <div class="doc-region">
+        <div class="banner banner-warning">
+          <p class="banner__title">Placeholder contract text — not legal advice</p>
+          <p>This document's body is placeholder text. It is not legal advice and
+          should not be relied upon until this notice is removed.</p>
+          <p data-wf-note>Pending a lawyer-agent review of the adapted source template
+          (C-17). This warning is part of the document itself and survives print and
+          download.</p>
+        </div>
+
+        <div class="doc-region__body">
+          <h3 class="state__subtitle">Services Agreement (placeholder)</h3>
+          <p>This agreement is between <strong>[Freelancer name]</strong> ("Provider")
+          and <strong>Ada Example</strong> ("Client"), effective <strong>September 8,
+          2026</strong>.</p>
+          <p><strong>[PLACEHOLDER — scope of work]:</strong> Website redesign — phase 1:
+          homepage and navigation.</p>
+          <p><strong>[PLACEHOLDER — payment terms]:</strong> Placeholder text pending
+          legal review. Do not rely on this section.</p>
+          <p><strong>[PLACEHOLDER — standard terms]:</strong> Placeholder text pending
+          legal review. Do not rely on this section.</p>
+        </div>
+
+        <p class="doc-attribution">
+          This document is adapted from a template by Common Paper, licensed under
+          CC BY 4.0. Changes have been made from the original.
+        </p>
+      </div>
+    </section>
+
+    <section id="S7-LOADING" class="state" aria-labelledby="S7-LOADING-h">
+      <p class="state-label">
+        <span class="state-label__id">S7-LOADING</span>
+        <span class="state-label__category">Loading</span>
+        <span class="state-label__desc">Initial fetch</span>
+      </p>
+      <h2 id="S7-LOADING-h" class="state__title">Loading contract…</h2>
+    </section>
+
+    <section id="S7-ERROR-NOTFOUND" class="state" aria-labelledby="S7-ERROR-NOTFOUND-h">
+      <p class="state-label">
+        <span class="state-label__id">S7-ERROR-NOTFOUND</span>
+        <span class="state-label__category">Error</span>
+        <span class="state-label__desc">Contract ID does not exist</span>
+      </p>
+      <h2 id="S7-ERROR-NOTFOUND-h" class="state__title">Contract not found</h2>
+      <div class="banner banner-error">
+        <p>We couldn't find that contract.</p>
+      </div>
+      <p><a href="screen-3-dashboard.html">Back to Dashboard</a></p>
+    </section>
+
+    <section id="S7-ERROR-SYSTEM" class="state" aria-labelledby="S7-ERROR-SYSTEM-h">
+      <p class="state-label">
+        <span class="state-label__id">S7-ERROR-SYSTEM</span>
+        <span class="state-label__category">Error — system</span>
+        <span class="state-label__desc">Fetch/render fails for a reason other than nonexistence</span>
+      </p>
+      <h2 id="S7-ERROR-SYSTEM-h" class="state__title">Couldn't load this contract</h2>
+      <div class="banner banner-error">
+        <p>Something went wrong loading this contract.</p>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary">Retry</button>
+      </div>
+    </section>
+
+    <section id="S7-DENIED-SIGNEDOUT" class="state" aria-labelledby="S7-DENIED-SIGNEDOUT-h">
+      <p class="state-label">
+        <span class="state-label__id">S7-DENIED-SIGNEDOUT</span>
+        <span class="state-label__category">Permission-denied / gated</span>
+        <span class="state-label__desc">No session</span>
+      </p>
+      <h2 id="S7-DENIED-SIGNEDOUT-h" class="state__title">No document renders</h2>
+      <div class="banner banner-info">
+        <p>Redirects to <a href="screen-1-signin.html">Screen 1</a> (00-flows.md Flow 4).</p>
+      </div>
+    </section>
+
+    <section id="S7-DENIED-NOTOWNER" class="state" aria-labelledby="S7-DENIED-NOTOWNER-h">
+      <p class="state-label">
+        <span class="state-label__id">S7-DENIED-NOTOWNER</span>
+        <span class="state-label__category">Permission-denied / gated</span>
+        <span class="state-label__desc">Signed in as a different freelancer</span>
+      </p>
+      <h2 id="S7-DENIED-NOTOWNER-h" class="state__title">Renders identically to "not found"</h2>
+      <div class="banner banner-info">
+        <p>Same reasoning as Screen 5's <code>S5-DENIED-NOTOWNER</code>: renders exactly
+        as <a href="#S7-ERROR-NOTFOUND">S7-ERROR-NOTFOUND</a> so a guessed ID confirms
+        nothing about whether it exists.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

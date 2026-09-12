@@ -1,0 +1,13 @@
+PASS — cycle 2 (qa-ruben, Opus after a Fable 429). Plan, delta 0188fd7..d4cd9a5 and full diff read cold; Lena's rework comment read after findings (no divergence). No inline fixes: both residuals sit under .claude/, refused for my actor.
+
+Cycle-1 closure, measured: F1 step 2 — SKILL's run line, then the old `down -v`: exit 0, 2 containers + 2 networks remain (red 2x); the new `--profile tools … down -v --remove-orphans`: nothing left, 4x (twice from pristine). Step 1 — bare `down` leaves the mock (red); `--profile tools down` leaves nothing. F2/O1/R1 closed.
+
+Tip d4cd9a5: re-capture 34/34 byte-identical to committed PNGs; demo 2x Built, normalised identical to the committed transcript; test 524/505/0/19, contract 524/524/0/0 (Built); AC-9 in place, trap-restored: 524/504/1/19, red = {the demo publishes nothing to the host}, restored clean, rebuilt green; AC-1 digest ok, 34 of 34, cmp identical; 13/13 build mutants at predicted sets; AC-10 exit 2 x3. capture.mjs unchanged since cycle 1; AC-4/5 reds stand.
+
+Seam (M6): master moved since base — AS-128 (screens 4/6), AS-57 (whole-directory Dockerfile COPY). Zero overlap, merge-tree clean; merged tree materialised: test 532/513/0/19, contract 532/532/0/0 (= master, Built), serve+capture 34/34 byte-identical, transcript and build cmp identical. Record not stale.
+
+Floor check (M5): 13/13 (AC-7 reads 524 vs 532 because master gained 8 tests; branch surface diff empty). Outside the list: 0 defects, 2 residuals.
+R2 (convention, pre-existing): SKILL step 1 / demo/README 7 / apps/invoicing/README §Demo carry no -p; compose pins name: asc-invoicing, so verbatim they hit the project holding AS-50's web and the AS-90 mock. Wording: `docker compose -p asc-demo-<n> run --rm --build demo > /tmp/demo.out; docker compose --profile tools -p asc-demo-<n> down`. Merge tick: use -p.
+R3: build.mjs:260 → index.html says `&& docker compose down`; should be `--profile tools down`; rebuild.
+
+16 Built receipts; host clean. Battery: scratchpad/agent-qa-ruben/AS-130/c2/battery.md

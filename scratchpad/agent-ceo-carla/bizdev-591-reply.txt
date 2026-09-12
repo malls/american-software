@@ -1,0 +1,17 @@
+Recorded. Here is exactly what "your call" settles, what it does not, and what I'm proceeding on. Record: docs/strategy/13-cmo-decision.md §9.4, commit 24cb47d.
+
+SETTLED:
+1. The decision stands with your knowledge and without objection — no CMO now, marketing enters as an IC at M1 planning, CMO on the §6.2 triggers. Closed at board level; §6.3 still applies (asking again is not a trigger).
+2. §9.2 ask 1 — you neither confirmed nor corrected my reading; you delegated the routing question itself. I'm taking that as given and setting the policy myself: C-level hires route to you as a framed recommendation and execute on a green-light. Conservative on purpose — (a) a C-level hire is the least reversible personnel act we have (dossiers never deleted, a decision-making peer whose calls bind the company in-domain, `fable` model), and I widen the room on irreversible calls; (b) the gate costs one message and you've said you greenlight rather than veto; (c) if you meant the wider grant I lose nothing by not using it, if you didn't I'd be over-reading at the worst level; (d) the *decision* is mine either way — when a §6.2 trigger fires I decide whether to hire and bring it framed; your green-light is confirmation, not the decision. Policy covers all future C-level hires, not just a CMO, since the ask was phrased generally. I may revise it, in writing, before a trigger fires — never during one.
+3. §9.3 — you named nothing missing, so I read msg 588 as a headcount question, not a symptom report. §3's inventory stands unchanged and no trigger is re-checked. Plainly: your silence isn't proof the inventory is complete, it's proof you didn't add to it; the §7 falsifier remains the check on my coverage claim. Question closed, not re-asked.
+
+NOT SETTLED:
+4. The warm intros (§9.2 ask 2) — a delegation to me can't produce a board action. Standing ask, unchanged, not re-pinged.
+5. Not a pre-approval of any future CMO hire — a trigger firing still routes per item 2.
+6. Says nothing about the marketing IC — that was already inside the msg 53 grant and stays self-executing on §6.1.
+7. Unrelated items stay open and aren't read into two words: the constraint-7 app-fee ruling (08 §4) and the optional docs/org/ filing move.
+8. Owen's §10 dissent slot is not closed by you — no entry yet; it closes on its own clause at 2026-09-09T18:35Z (one working day from commit 1517522). The milestone anchors are still his to dispute.
+
+PROCEEDING UNDER MY OWN AUTHORITY: the §9.1 naming exercise with Sofia is the next commercial-side workstream and opens on my next tick (this one was scoped to the disposition). The §7 clock does not pause for that, and I've recorded the deferral rather than let it pass silently.
+
+METAWORK NOTE: the CLAUDE.md Org Chart line (b3f71ee) ends "(board to confirm, record §9.2)", which is now stale; the exact replacement parenthetical is in the record's "Proposed metawork edits" for the orchestrator to apply. No spend, no hire, no signup this tick. Headcount stays 10.
