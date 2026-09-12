@@ -132,9 +132,42 @@ export function mapSqliteError(err) {
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const PREFIXED_ID_BODY = /^[A-Za-z0-9_]+$/;
 
+/** The RFC 5321 path ceiling — the one number the sign-up path already used. */
+export const EMAIL_MAX = 254;
+
+/**
+ * THE email-shape predicate, and the only copy of it (AS-67). Deliberately
+ * weak: this app cannot verify an address exists (no ESP, by two independent
+ * rules), so the check exists only to catch typing mistakes — anything stricter
+ * rejects valid addresses and buys nothing. Exactly one `@`, neither first nor
+ * last, no whitespace anywhere, at most EMAIL_MAX characters. It does NOT trim:
+ * a caller that accepts typed input trims before asking.
+ *
+ * Two callers, two error vocabularies: assertEmail below answers
+ * ValidationError for the repositories; lib/auth/accounts.js wraps this same
+ * predicate in AuthError('invalid-email') for the sign-up form.
+ */
+export function isEmailShape(value) {
+  if (typeof value !== 'string' || value.length > EMAIL_MAX) return false;
+  const at = value.indexOf('@');
+  if (at <= 0 || at !== value.lastIndexOf('@') || at === value.length - 1) return false;
+  return !/\s/.test(value);
+}
+
 export function assertText(value, field) {
   if (typeof value !== 'string' || value.trim().length === 0) {
     throw new ValidationError(field, 'must be a non-empty string');
+  }
+  return value;
+}
+
+/** A client's or freelancer's address, by the predicate above. Runs the
+ *  non-empty check first so a blank field reports the same problem it always
+ *  has, and the shape problem only names itself when something was typed. */
+export function assertEmail(value, field) {
+  assertText(value, field);
+  if (!isEmailShape(value)) {
+    throw new ValidationError(field, `must be an email address: one @, no whitespace, at most ${EMAIL_MAX} characters`);
   }
   return value;
 }

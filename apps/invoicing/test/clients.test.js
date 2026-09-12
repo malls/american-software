@@ -218,7 +218,7 @@ test('L3: a repeat submission creates a SECOND row — nothing converges, and bo
   });
 });
 
-test('L4: a missing or blank name or email is a 400 and creates nothing', async () => {
+test('L4: a missing, blank or malformed name or email is a 400 and creates nothing', async () => {
   await withClientApp(async ({ base, config, repos, freelancer }) => {
     const bodies = [
       { next: '/invoices/new' },
@@ -228,7 +228,15 @@ test('L4: a missing or blank name or email is a 400 and creates nothing', async 
       { name: 'Client Co', email: '', next: '/invoices/new' },
       { name: '   ', email: 'client@example.test', next: '/invoices/new' },
       { name: 'Client Co', email: ' \t ', next: '/invoices/new' },
+      // AS-67: the shape refusal is the REPOSITORY'S (lib/db/errors.js
+      // assertEmail); this route adds no check and the 400 is inherited. The
+      // body is the same one-line class-and-step as the blank cases above,
+      // because the taxonomy maps by class, never by message text.
+      { name: 'Client Co', email: 'not-an-email', next: '/invoices/new' },
+      { name: 'Client Co', email: 'a@@b.test', next: '/invoices/new' },
+      { name: 'Client Co', email: 'a b@example.test', next: '/invoices/new' },
     ];
+    assert.equal(bodies.length, 10, 'cardinality first');
     for (const fields of bodies) {
       const label = JSON.stringify(fields);
       const { res, body } = await post(`${base}/clients`, fields);

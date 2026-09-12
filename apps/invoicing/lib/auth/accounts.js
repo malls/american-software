@@ -18,7 +18,7 @@
 // silently without telling the person something. The standard mitigation is to
 // accept and EMAIL the existing account — which needs email, which v1 does not
 // have. The absence of email forces this oracle; it is not fixable here.
-import { NotFoundError, UniqueViolationError } from '../db/database.js';
+import { NotFoundError, UniqueViolationError, isEmailShape } from '../db/database.js';
 import { PASSWORD_MAX, PASSWORD_MIN, hashPassword, verifyPassword } from './password.js';
 import { SESSION_TTL_MS, mintToken, tokenId } from './session.js';
 
@@ -36,13 +36,12 @@ export class AuthError extends Error {
 /**
  * Deliberately weak. We cannot verify an address exists (no ESP, by two
  * independent rules), so this exists only to catch typing mistakes; anything
- * stricter rejects valid addresses and buys nothing.
+ * stricter rejects valid addresses and buys nothing. THE PREDICATE LIVES IN
+ * lib/db/errors.js (AS-67) — one copy, shared with the clients repository —
+ * and this wrapper only translates its answer into this module's vocabulary.
  */
 function assertEmailShape(email) {
-  if (email.length > 254) throw new AuthError('invalid-email');
-  const at = email.indexOf('@');
-  if (at <= 0 || at !== email.lastIndexOf('@') || at === email.length - 1) throw new AuthError('invalid-email');
-  if (/\s/.test(email)) throw new AuthError('invalid-email');
+  if (!isEmailShape(email)) throw new AuthError('invalid-email');
 }
 
 function requiredField(value, field) {

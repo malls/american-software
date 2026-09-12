@@ -29,6 +29,7 @@ export {
   InvalidStateError,
   ValidationError,
   MigrationError,
+  isEmailShape,
 } from './errors.js';
 export { SCHEMA_VERSION } from './migrate.js';
 
