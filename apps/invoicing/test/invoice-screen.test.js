@@ -489,6 +489,11 @@ test('the two duplicate offers work: "create anyway" adds a second row, "use thi
   await withScreenApp({ clients: 0 }, async ({ post, repos, freelancer }) => {
     const ada = repos.clients.create(freelancer.id, { name: 'Ada Example', email: 'ada@example.test' });
     const common = { clientName: 'Ada E.', clientEmail: 'ada@example.test', daysUntilDue: '30', ...itemFields([blank]) };
+    // The offers exist on the rendered page before they are exercised (recipe
+    // F11: the state's markup must be asserted by more than one path).
+    const warned = await (await post(NEW, { intent: 'add-client', ...common })).text();
+    assert.equal(stateOf(warned), 'S4-CLIENT-ERROR-DUPLICATE');
+    assert.equal(occurrences(warned, 'value="existing-client"') + occurrences(warned, 'name="clientConfirm" value="1"'), 2, 'both offers are on the page');
     // "Create a new client anyway": the confirmation carries the create through.
     const anyway = await post(NEW, { intent: 'add-client', clientConfirm: '1', duplicateId: ada.id, ...common });
     assert.equal(anyway.status, 200);
@@ -787,6 +792,11 @@ const MAJOR_UNIT_VECTORS = [
   [' 7 ', 700],
   ['4.35', 435],
   ['90071992547409.91', 9007199254740991],
+  // THE FLOAT TRAP, at the magnitude where it is observable. Math.round(Number(text) * 100)
+  // gives 9007199254735902 here; the digit build gives the exact 9007199254735901. Below
+  // about 2^45 minor units Math.round masks the float error, so the vectors that LOOK like
+  // float traps (0.29, 4.35, 1.005) do not distinguish the two — this one does (recipe F6).
+  ['90071992547359.01', 9007199254735901],
   ['', null],
   ['   ', null],
   ['.50', null],
@@ -806,7 +816,7 @@ const MAJOR_UNIT_VECTORS = [
 
 test('formatMinorUnits and parseMajorUnits round-trip, reject every malformed spelling, and never touch a float', () => {
   // Cardinality FIRST, before any vector runs.
-  assert.equal(MAJOR_UNIT_VECTORS.length, 27, 'the committed vector table');
+  assert.equal(MAJOR_UNIT_VECTORS.length, 28, 'the committed vector table');
   assert.equal(MAJOR_UNIT_VECTORS.filter(([, expected]) => expected === null).length, 15, 'fifteen refusals');
   for (const [typed, expected] of MAJOR_UNIT_VECTORS) {
     assert.equal(parseMajorUnits(typed), expected, JSON.stringify(typed));
