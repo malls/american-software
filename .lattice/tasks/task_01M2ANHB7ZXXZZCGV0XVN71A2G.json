@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": null,
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [],
   "comment_count": 0,
   "complexity": "low",
@@ -11,8 +11,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M2ANHB7ZXXZZCGV0XVN71A2G",
-  "last_event_id": "ev_01M2ANHQ0B4AN17G1PVHVAMJ62",
-  "last_status_changed_at": "2026-09-12T11:20:11Z",
+  "last_event_id": "ev_01M2BH5W5YPTZY6NPS41SVM7K1",
+  "last_status_changed_at": "2026-09-12T19:23:03Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [
@@ -27,10 +27,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-128",
-  "status": "backlog",
+  "status": "in_planning",
   "tags": null,
   "title": "apps/invoicing: add-client on the invoice and contract screens answers a malformed email with a bare text/plain 400 instead of the specified validation state (S4/S6-CLIENT-ERROR-VALIDATION)",
   "type": "task",
-  "updated_at": "2026-09-12T11:20:23Z",
+  "updated_at": "2026-09-12T19:23:16Z",
   "urgency": null
 }
