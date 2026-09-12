@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": "medium",
   "created_at": "2026-09-07T16:29:02Z",
   "created_by": "agent:cto-owen",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1YB78T82XQM2P3P41G7T2J3",
-  "last_event_id": "ev_01M29VR7MKVSMSG4BFT4S4SJ2F",
-  "last_status_changed_at": "2026-09-12T03:49:34Z",
+  "last_event_id": "ev_01M29XB3Q3EG67HF3V0S3N3721",
+  "last_status_changed_at": "2026-09-12T04:17:21Z",
   "linked_files": [],
   "priority": "high",
   "relationships_out": [
@@ -34,7 +34,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-90",
-  "status": "in_progress",
+  "status": "review",
   "tags": [
     "d1",
     "demo",
@@ -42,6 +42,6 @@
   ],
   "title": "D1 demo for the board: scripted local-compose walkthrough of the v1 core loop + a viewable captured artifact",
   "type": "task",
-  "updated_at": "2026-09-12T03:49:34Z",
+  "updated_at": "2026-09-12T04:17:21Z",
   "urgency": null
 }
