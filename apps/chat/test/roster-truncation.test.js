@@ -364,6 +364,104 @@ test('css-cascade: a nested style rule throws instead of being swallowed as a de
   assert.equal(parseRules('@keyframes p { from { x: 1; } to { x: 2; } }').length, 0);
 });
 
+// H7–H9 (AS-125): one separate case per group of routes, so the file's count
+// moves by three — the stale-image detector again.
+test('css-cascade: unbalanced braces throw instead of collapsing the block list', () => {
+  // (a) an unclosed block — a `{` inside a string is a delimiter to this
+  // parser, so the file ends one level deep and the message names the block
+  // that never closed
+  assert.throws(
+    () => parseRules('.s::after { content: "{"; }\n.t { white-space: normal; }'),
+    /unbalanced braces: depth 1/,
+  );
+  assert.throws(
+    () => parseRules('.s::after { content: "{"; }\n.t { white-space: normal; }'),
+    /opened by: \.s::after/,
+  );
+  // (b) a stray `}` at depth 0 — without the check it drives depth negative
+  // and every later block mis-nests silently
+  assert.throws(() => parseRules('.t { white-space: nowrap; } }'), /stray '}'/);
+  // (c) text after the last `}` — a statement at-rule at EOF is invisible to
+  // the glued-prelude check because no block follows it
+  assert.throws(
+    () => parseRules('.t { white-space: nowrap; }\n@import url("x.css");'),
+    /trailing content without a block/,
+  );
+  // (d) the outer block of a flattened at-rule left unclosed
+  assert.throws(
+    () => parseRules('@media (min-width: 1px) { .t { white-space: normal; }'),
+    /unbalanced braces/,
+  );
+});
+
+test('css-cascade: an unknown or statement at-rule throws instead of being swallowed', () => {
+  // Block at-rules that are neither flattened nor on the ignore list
+  assert.throws(
+    () => parseRules('@scope (#r) { .t { white-space: normal; } }'),
+    /unknown at-rule.*@scope/,
+  );
+  assert.throws(
+    () => parseRules('@layer x { .t { white-space: normal !important; } }'),
+    /unknown at-rule.*@layer x/,
+  );
+  // Statement at-rules: parseBlocks glues them onto the next block's prelude,
+  // and the `;` is the tell
+  assert.throws(
+    () => parseRules('@import url("x.css");\n.t { white-space: normal; }'),
+    /statement at-rule or stray ';'/,
+  );
+  assert.throws(
+    () => parseRules('@charset "utf-8";\n.t { white-space: nowrap; }'),
+    /statement at-rule or stray ';'/,
+  );
+  // The ignore path is intact for the explicit list, vendor prefix included
+  assert.equal(
+    parseRules('@font-face { font-family: x; src: url(x); }\n@-webkit-keyframes p { from { x: 1; } }\n@keyframes q { to { x: 2; } }').length,
+    0,
+  );
+  // The flatten path is intact, and nests
+  const nested = parseRules('@supports (display: grid) { @media (min-width: 1px) { .t { white-space: normal; } } }');
+  assert.equal(nested.length, 1);
+  assert.equal(nested[0].condition, '@supports (display: grid) and @media (min-width: 1px)');
+});
+
+test('css-cascade: the subject need not spell the class to reach the element — type, universal, attribute and escaped subjects', () => {
+  const reaches = [
+    '#r li.row div',       // A1: a type subject the element is
+    '#r *',                // A2: the universal subject
+    'div',
+    'div:hover',           // a pseudo-class does not rule the element out
+    '*::before',
+    '[title]',             // the element HAS a title attribute
+    '[class~="t"]',        // A3, quoted
+    '[class~=t]',          // A3, unquoted
+    '[class="t"]',
+    '[class^="t"]',        // any [class…] operator is conservative-true
+    '.t [title="a b"]',    // bracket-aware scan: the naive split would see `b"]`
+    '.t *',                // the recorded change: ancestors are not evaluated
+  ];
+  for (const s of reaches) assert.equal(targets(s, 't'), true, `expected ${s} to target .t`);
+  const misses = [
+    '#r span',             // a type the element is not
+    '#r div.other',        // another class on the subject rules it out
+    '#r li.row',           // the row, not the div
+    '.t > span',
+    '#r #x',
+    '.t-x',                // a class that merely starts with the name
+  ];
+  for (const s of misses) assert.equal(targets(s, 't'), false, `expected ${s} NOT to target .t`);
+  // A4: the escape is normalised at record time; anything else is loud
+  assert.equal(parseRules('.t\\-x { white-space: normal; }')[0].selector, '.t-x');
+  assert.throws(() => parseRules('.t\\2d x { white-space: normal; }'), /unsupported escape/);
+  assert.throws(() => parseRules('.md\\:flex { white-space: normal; }'), /unsupported escape/);
+  // The leg that makes A1 beat the base rule: a type subject with an id
+  // ancestor outranks the bare class
+  const won = cascade(parseRules('#r li.row div { white-space: normal; }\n.t { white-space: nowrap; }'), 't', 'white-space');
+  assert.equal(won.selector, '#r li.row div');
+  assert.deepEqual(won.spec, [1, 1, 2]);
+  assert.equal(won.value, 'normal');
+});
+
 // --- T1: the standing guard --------------------------------------------------
 
 // property -> the winners the contract allows. `null` means "unset": no rule
