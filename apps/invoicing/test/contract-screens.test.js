@@ -240,11 +240,12 @@ test('S6-DEFAULT renders the picker, the declared fields, the placeholder warnin
     assert.equal(occurrences(html, ' action="/contracts'), 0);
     assert.equal(occurrences(html, 'templateId'), 0, 'no hidden template input');
     assert.equal(occurrences(html, 'connect-stripe'), 0, 'no gate');
-    // The nav's three entries on today's master (Dashboard is AS-48's).
-    assert.equal(occurrences(html, 'class="site-nav__link"'), 2);
+    // The nav's four entries (Dashboard landed with AS-48, merged before this).
+    assert.equal(occurrences(html, 'class="site-nav__link"'), 3);
     assert.equal(occurrences(html, 'href="/contracts/new"'), 1, 'the nav self-entry');
     assert.equal(occurrences(html, 'href="/invoices/new"'), 1);
-    assert.equal(occurrences(html, 'Dashboard'), 0, 'no Dashboard entry until AS-48');
+    assert.equal(occurrences(html, '<a class="site-nav__link" href="/">Dashboard</a>'), 1, 'the Dashboard entry (AS-48)');
+    assert.equal(occurrences(html, 'Dashboard'), 1);
     assert.equal(occurrences(html, 'New contract'), 3, '<title>, <h1>, and the nav entry');
     // The form's named controls stay under the parser's 20-parameter limit.
     const form = html.slice(html.indexOf('<form method="post">'), html.indexOf('</form>', html.indexOf('<form method="post">')));

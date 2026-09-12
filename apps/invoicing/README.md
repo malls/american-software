@@ -779,12 +779,16 @@ That cost is paid, and what a partial would have protected against — one
 screen's head drifting — is closed better by `screens.test.js`'s assertion that
 **every registered template** links both stylesheets, carries the viewport meta
 and stamps `data-state`, which also catches a partial that stopped being
-included. **Revisit deferred to AS-127** (the last screen — five of seven
-exist at AS-48; the head block is fourteen lines and the nav adds ten more on
-the chrome-bearing screens; AS-48's Dashboard anchor was one line in three
-files): if the duplicated block exceeds twenty lines per screen, or a change to
-it has had to be made in more than three files at once, propose `include` as a
-counted allowlist entry with a line-pinned regex.
+included. **Revisit reached at AS-127** (the last screen — six of seven exist;
+the head block is fourteen lines and the nav adds eleven more on the
+chrome-bearing screens; AS-48's Dashboard anchor was one line in three files,
+and AS-127's "New contract" anchor was one line in **four** files at once,
+which meets the second trigger below). The rule, as written: if the duplicated
+block exceeds twenty lines per screen, or a change to it has had to be made in
+more than three files at once, propose `include` as a counted allowlist entry
+with a line-pinned regex. The trigger has fired; the proposal is a follow-up
+with its own record (it amends property 1's allowlist, not a screen), not a
+side effect of the screen task that tripped it.
 
 **A screen is a pure view model plus a presentation-only template.**
 `lib/screens/<screen>-view.js` exports a frozen ledger — transcribed from
@@ -1102,33 +1106,28 @@ declaration count are committed literals. Update them in the same commit.
 
 ## Obligations this scaffold hands forward
 
-- **AS-48 (screens 3 and 5) hands forward to AS-127 (screen 6), exactly
-  two things, with the markup.** Both are absent today because `/contracts/new`
-  does not exist and a control pointing at an unserved route is the R-2 defect;
-  the link check in `test/read-screens.test.js` is red the moment either
-  appears before the route does. (1) The **"New contract" nav entry** on every
-  chrome-bearing screen — `views/dashboard.ejs`, `views/invoice-detail.ejs`,
-  `views/invoice-form.ejs` and `views/contract-detail.ejs`: one
-  line each, `<a class="site-nav__link" href="/contracts/new">New contract</a>`,
-  after "New invoice" and before the sign-out form; it is **not** gated by
-  readiness (contract creation has no Stripe dependency, `01-screens.md` §5).
-  (2) The **first-run primary CTA** on the Dashboard's `S3-EMPTY-FIRSTRUN`:
-  `<a href="/contracts/new" class="btn btn-primary">Create your first
-  contract</a>` first in the `form-actions`, with the existing invoice CTA
-  demoted to `btn btn-secondary` and relabelled "Or create an invoice directly"
-  (the wireframe's copy; the invoice CTA is primary meanwhile — AS-48 plan §11
-  Q5). Each moves `VIEW_START_TAGS`, `TEMPLATE_LINKS` and the read-screens link
-  count; recount at the rebase.
+- **AS-48 (screens 3 and 5) handed forward to AS-127 (screen 6) — DISCHARGED
+  at AS-127's rebase:** the "New contract" nav entry (ungated — contract
+  creation has no Stripe dependency, `01-screens.md` §5) is one line after
+  "New invoice" on every chrome-bearing screen, and the Dashboard's first-run
+  primary CTA is `Create your first contract` with the invoice CTA demoted to
+  `btn btn-secondary` / "Or create an invoice directly" (the wireframe's copy;
+  the label is `dashboard-view.js`'s `COPY.invoiceCta`), both landed in the
+  same change as the route, with `VIEW_START_TAGS`, `TEMPLATE_LINKS` and the
+  `read-screens` link count recounted and its `/contracts/new` check flipped
+  to name the three links.
 
-- **AS-46 (screen 4) hands forward — AS-48's part is DISCHARGED.** The `send`
+- **AS-46 (screen 4) hands forward — AS-48's and AS-127's parts are DISCHARGED.** The `send`
   success terminus (`/invoices/{id}`) is followed to a 200 `S5-DEFAULT-OPEN` in
   `test/read-screens.test.js` (the `Location`-only assertion in
   `test/invoice-screen.test.js` stays as written); the Dashboard nav entry is
   one anchor in `views/invoice-form.ejs`; `POST_SIGNIN_LANDING` stays `/` and,
   for the first time, names a screen; "finalized, not sent" renders on the
   detail screen with its own badge and a Send control that resumes the
-  pipeline. **AS-127:** the New contract nav entry (above); the inline-client
-  ruling in AS-46's plan §3.3 applies to screen 6 unchanged. **AS-70:** nothing
+  pipeline. **AS-127:** the New contract nav entry landed on screen 4 with the
+  route; the inline-client ruling in AS-46's plan §3.3 is applied to screen 6
+  unchanged (blankness only, `findByEmail` before `create`, both offers
+  rendered — still one consumer of no shape rule, nothing exported). **AS-70:** nothing
   — screen 4's gated state links to `/connect-stripe`, which AS-70 landed
   first (merge order AS-70 → AS-46); the link check in
   `test/invoice-screen.test.js` went green at the rebase.
