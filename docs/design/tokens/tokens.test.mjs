@@ -275,9 +275,15 @@ if (Object.keys(cssBlock4).length === 0) throw new Error('FORMAT CONTRACT BROKEN
 // it is the same thing as "rule N" as the browser cascades it.
 // ============================================================================
 
+function normalisePrelude(text) {
+  return text.replace(/\s+/g, ' ').replace(/\s*,\s*/g, ', ').trim();
+}
+
 /**
- * Split a stylesheet into its top-level rules: `[{ prelude, body, start }]`
- * in source order. Comments are blanked to equal-length whitespace first so
+ * Split a stylesheet into its top-level rules. Returns
+ * `{ rules: [{ prelude, body, start }], trailing }` — rules in source order,
+ * `trailing` being whatever sits at depth 0 after the last rule (must be
+ * whitespace). Comments are blanked to equal-length whitespace first so
  * `start` is an offset into the ORIGINAL text (the marker join below needs
  * that). Preludes are whitespace-normalised: runs collapse to one space,
  * commas become `, `. Nested rules (an @media body) are parsed by calling this
@@ -289,14 +295,9 @@ if (Object.keys(cssBlock4).length === 0) throw new Error('FORMAT CONTRACT BROKEN
  * Braces inside strings are not understood — tokens.css has none, and the
  * exact-count and marker-join assertions below would catch a mis-split.
  */
-function normalisePrelude(text) {
-  return text.replace(/\s+/g, ' ').replace(/\s*,\s*/g, ', ').trim();
-}
-
 function parseTopLevelRules(cssText, sourceLabel) {
   const blanked = cssText.replace(/\/\*[\s\S]*?\*\//g, (m) => ' '.repeat(m.length));
   const rules = [];
-  let outside = ''; // everything at depth 0 that is not a prelude — must be whitespace
   let preludeStart = 0;
   let bodyStart = -1;
   let depth = 0;
@@ -320,11 +321,10 @@ function parseTopLevelRules(cssText, sourceLabel) {
   if (depth !== 0) {
     throw new Error(`FORMAT CONTRACT BROKEN in ${sourceLabel}: unbalanced "{" (depth ${depth} at end of file) — the rule parser cannot split this stylesheet.`);
   }
-  outside = blanked.slice(preludeStart);
   if (rules.length === 0) {
     throw new Error(`FORMAT CONTRACT BROKEN in ${sourceLabel}: no rules found at all — the rule parser would otherwise return an empty list and every structural assertion would pass on nothing.`);
   }
-  return { rules, trailing: outside };
+  return { rules, trailing: blanked.slice(preludeStart) };
 }
 
 const BLOCK_MARKERS = ['BLOCK 1 — PRIMITIVES', 'BLOCK 2 — LIGHT SEMANTICS', 'BLOCK 3 — DARK SEMANTICS', 'BLOCK 4 — EXPLICIT DARK'];
