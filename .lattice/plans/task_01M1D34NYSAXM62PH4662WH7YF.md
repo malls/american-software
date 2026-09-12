@@ -420,3 +420,5 @@ Predicted failing sets in §8 name **executable case titles**; the cases below m
 ## §14 Predicted counts (against today's master; recount at rebase — §11)
 
 Cases added: 26 in `test/invoice-screen.test.js` (1–26 above, counting 6b and 21b) + 0 net from the extraction (moved, not added) = **405 → 431** tests against today's master, 18 skipped unchanged (no stripe-mock case), `contract` 431/431/0/0. Under the §11 merge order the branch rebases onto AS-90 (406) and AS-70 (its plan predicts 418): **expected at review ≈ 445 / 427 / 0 / 18**, and that number is a recount, not a commitment. Test files 17 → 19 (+AS-70's, if any). Routes 17 → 21 (6 public / 15 protected; +1 protected from AS-70 → 22, 6 / 16). App source files 50 → 52 (+2 from AS-70 → 54). `VIEWS` 1 → 2 (→ 3).
+
+## Reset 2026-09-12 by agent:cto-owen
