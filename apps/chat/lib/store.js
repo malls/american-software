@@ -87,6 +87,10 @@ const SEED_CHANNELS = [
 
 export const EVENTS_CHANNEL = 'lattice-events';
 export const SYSTEM_IDENTITY = 'system:lattice';
+// AS-131 page mode (getMessagesPage / GET /api/messages?before=): default and
+// hard cap on top-level messages per page. The web client sends the default.
+export const PAGE_LIMIT_DEFAULT = 50;
+export const PAGE_LIMIT_MAX = 200;
 
 /** Error whose message is safe to show to the caller (maps to HTTP 4xx). */
 export class StoreError extends Error {
@@ -646,6 +650,62 @@ export function openStore(dbPath) {
     return { conversation: conv, messages };
   }
 
+  /**
+   * Page read (AS-131): the `limit` newest top-level messages with id < before
+   * (before=0 = no upper bound = the newest page), returned ASCENDING like
+   * getMessages, plus `threads` carrying EVERY reply of the page's roots and
+   * nothing else (a loaded root always has its complete reply list — the
+   * invariant applyMessage/replyCount rely on). `hasMore` is true iff an
+   * older top-level row exists (fetched limit+1); `nextBefore` is the lowest
+   * top-level id in the page (null when empty) — pass it back as `before` for
+   * the next older page. Gates exactly like messagesSince, BEFORE cursor/limit
+   * validation, so a malformed before can't distinguish hidden from missing.
+   * getMessages (the CLI / export / ?limit= path) is untouched.
+   */
+  function getMessagesPage(conversation, me, { before = 0, limit = PAGE_LIMIT_DEFAULT } = {}) {
+    requireIdentity(me);
+    const conv = requireConversation(conversation);
+    requireVisible(conv, me, conversation);
+    const cursor = Number(before);
+    if (!Number.isInteger(cursor) || cursor < 0) {
+      throw new StoreError(`Invalid before '${before}'.`);
+    }
+    const size = Number(limit);
+    if (!Number.isInteger(size) || size < 1 || size > PAGE_LIMIT_MAX) {
+      throw new StoreError(`Invalid limit '${limit}': must be an integer from 1 to ${PAGE_LIMIT_MAX}.`);
+    }
+    const rows = db
+      .prepare(
+        `SELECT m.id, m.conversation_id AS conversationId, m.thread_root_id AS threadRootId,
+                m.author_id AS authorId, m.body, m.created_at AS createdAt,
+                (SELECT COUNT(*) FROM messages r WHERE r.thread_root_id = m.id) AS replyCount
+         FROM messages m
+         WHERE m.conversation_id = ? AND m.thread_root_id IS NULL AND (? = 0 OR m.id < ?)
+         ORDER BY m.id DESC
+         LIMIT ?`
+      )
+      .all(conv.id, cursor, cursor, size + 1)
+      .map((m) => ({ ...m, replyCount: Number(m.replyCount) }));
+    const hasMore = rows.length > size;
+    const messages = rows.slice(0, size).reverse();
+    const threads = {};
+    if (messages.length) {
+      const marks = messages.map(() => '?').join(', ');
+      const replies = db
+        .prepare(
+          `SELECT id, conversation_id AS conversationId, thread_root_id AS threadRootId,
+                  author_id AS authorId, body, created_at AS createdAt
+           FROM messages
+           WHERE thread_root_id IN (${marks})
+           ORDER BY id`
+        )
+        .all(...messages.map((m) => m.id));
+      for (const r of replies) (threads[r.threadRootId] ??= []).push(r);
+    }
+    const nextBefore = messages.length ? messages[0].id : null;
+    return { conversation: conv, messages, threads, hasMore, nextBefore };
+  }
+
   function maxMessageId(conversationId) {
     const row = db
       .prepare('SELECT COALESCE(MAX(id), 0) AS maxId FROM messages WHERE conversation_id = ?')
@@ -935,6 +995,7 @@ export function openStore(dbPath) {
     getMessage,
     resolveMessage,
     getMessages,
+    getMessagesPage,
     messagesSince,
     onMessage,
     visibleTo,

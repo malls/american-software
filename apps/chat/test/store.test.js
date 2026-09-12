@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync, readdirSync }
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { openStore, dmKeyFor, StoreError } from '../lib/store.js';
+import { openStore, dmKeyFor, StoreError, PAGE_LIMIT_DEFAULT, PAGE_LIMIT_MAX } from '../lib/store.js';
 
 function tempStore(t) {
   const dir = mkdtempSync(join(tmpdir(), 'chat-store-'));
@@ -925,4 +925,159 @@ test('AS-26: resolveMessage — hidden and nonexistent targets fail byte-identic
   }
   // The member still resolves the same board message fine.
   assert.equal(store.resolveMessage(boardMsg.id, 'human:forrest').conversationId, board.id);
+});
+
+// --- AS-131: getMessagesPage (id-cursor page mode) ---------------------------
+
+/** Post n top-level messages to conv, returning their ids in insert order. */
+function seedRoots(store, convId, n, author = 'human:forrest') {
+  const ids = [];
+  for (let i = 1; i <= n; i++) {
+    ids.push(store.postMessage({ conversation: convId, author, body: `root ${i}` }).id);
+  }
+  return ids;
+}
+
+test('AS-131: getMessagesPage walks a 5-root conversation newest-first in ascending pages, with hasMore/nextBefore', (t) => {
+  const { store } = tempStore(t);
+  const eng = store.getChannelByName('engineering');
+  const me = 'human:forrest';
+  const [r1, r2, r3, r4, r5] = seedRoots(store, eng.id, 5);
+
+  // before=0 (the empty cursor) = the newest page, ascending like getMessages.
+  const p1 = store.getMessagesPage(eng.id, me, { before: 0, limit: 2 });
+  assert.deepEqual(p1.messages.map((m) => m.id), [r4, r5]);
+  assert.equal(p1.hasMore, true);
+  assert.equal(p1.nextBefore, r4);
+  assert.equal(p1.conversation.id, eng.id);
+  assert.ok(p1.messages.every((m) => m.replyCount === 0), 'replyCount rides on page rows');
+
+  // Strictly older than the cursor: id < before, never <=.
+  const p2 = store.getMessagesPage(eng.id, me, { before: p1.nextBefore, limit: 2 });
+  assert.deepEqual(p2.messages.map((m) => m.id), [r2, r3]);
+  assert.equal(p2.hasMore, true);
+  assert.equal(p2.nextBefore, r2);
+
+  const p3 = store.getMessagesPage(eng.id, me, { before: p2.nextBefore, limit: 2 });
+  assert.deepEqual(p3.messages.map((m) => m.id), [r1]);
+  assert.equal(p3.hasMore, false);
+  assert.equal(p3.nextBefore, r1);
+
+  // Past the oldest: empty page, no more, null cursor.
+  const p4 = store.getMessagesPage(eng.id, me, { before: r1, limit: 2 });
+  assert.deepEqual(p4, { conversation: p4.conversation, messages: [], threads: {}, hasMore: false, nextBefore: null });
+
+  // Empty conversation: same terminal shape.
+  const ann = store.getChannelByName('announcements');
+  const empty = store.getMessagesPage(ann.id, me, { before: 0, limit: 2 });
+  assert.deepEqual(empty.messages, []);
+  assert.equal(empty.hasMore, false);
+  assert.equal(empty.nextBefore, null);
+  assert.deepEqual(empty.threads, {});
+
+  // Boundary: exactly `limit` roots left -> hasMore false; limit+1 left -> true.
+  const exact = store.getMessagesPage(eng.id, me, { before: r4, limit: 3 }); // r1..r3 remain = 3
+  assert.deepEqual(exact.messages.map((m) => m.id), [r1, r2, r3]);
+  assert.equal(exact.hasMore, false, 'exactly limit rows left is the last page');
+  const plusOne = store.getMessagesPage(eng.id, me, { before: r5, limit: 3 }); // r1..r4 remain = 4
+  assert.deepEqual(plusOne.messages.map((m) => m.id), [r2, r3, r4]);
+  assert.equal(plusOne.hasMore, true, 'limit+1 rows left means an older page exists');
+
+  // Defaults: limit PAGE_LIMIT_DEFAULT, before 0 — the newest page.
+  const dflt = store.getMessagesPage(eng.id, me);
+  assert.equal(PAGE_LIMIT_DEFAULT, 50);
+  assert.deepEqual(dflt.messages.map((m) => m.id), [r1, r2, r3, r4, r5]);
+  assert.equal(dflt.hasMore, false);
+});
+
+test('AS-131: page threads carry every reply of each page root and no reply of any other root', (t) => {
+  const { store } = tempStore(t);
+  const eng = store.getChannelByName('engineering');
+  const me = 'human:forrest';
+  const [r1, r2, r3] = seedRoots(store, eng.id, 3);
+  const reply = (root, body) =>
+    store.postMessage({ conversation: eng.id, author: 'agent:cto-owen', body, threadRoot: root }).id;
+  const a1 = reply(r1, 'a1');
+  const c1 = reply(r3, 'c1');
+  const a2 = reply(r1, 'a2'); // a late reply to an OLD root: id above the newest page's roots
+  const c2 = reply(r3, 'c2');
+
+  // Newest page (r2, r3): only r3's replies, both of them, id-ordered; r1's
+  // replies (a1, a2) are absent even though a2 is the conversation max.
+  const page = store.getMessagesPage(eng.id, me, { before: 0, limit: 2 });
+  assert.deepEqual(page.messages.map((m) => m.id), [r2, r3]);
+  assert.deepEqual(Object.keys(page.threads).map(Number), [r3]);
+  assert.deepEqual(page.threads[r3].map((m) => m.id), [c1, c2]);
+  assert.equal(page.messages[1].replyCount, 2);
+  assert.equal(page.messages[0].replyCount, 0);
+
+  // Older page (r1): its complete reply list, and nothing of r3.
+  const older = store.getMessagesPage(eng.id, me, { before: page.nextBefore, limit: 2 });
+  assert.deepEqual(older.messages.map((m) => m.id), [r1]);
+  assert.deepEqual(Object.keys(older.threads).map(Number), [r1]);
+  assert.deepEqual(older.threads[r1].map((m) => m.id), [a1, a2]);
+  assert.equal(older.messages[0].replyCount, 2);
+
+  // Replies never appear as page rows.
+  const all = store.getMessagesPage(eng.id, me, { before: 0, limit: 10 });
+  assert.deepEqual(all.messages.map((m) => m.id), [r1, r2, r3]);
+});
+
+test('AS-131: page mode validates before/limit only after the visibility gate — hidden probes stay byte-identical', (t) => {
+  const { store } = tempStore(t);
+  const N = withNonMember(store);
+  const board = store.getChannelByName('board');
+  const eng = store.getChannelByName('engineering');
+  const grab = (fn) => {
+    try {
+      fn();
+      assert.fail('expected a throw');
+    } catch (e) {
+      assert.ok(e instanceof StoreError);
+      return e;
+    }
+  };
+  const normalize = (msg, id) => msg.replaceAll(`'${id}'`, "'<id>'");
+  // Malformed cursor and out-of-range limit against the hidden channel: the
+  // 404 template, byte-identical to a nonexistent id (the gate runs first).
+  for (const opts of [{ before: 0 }, { before: 'abc' }, { before: 0, limit: 0 }, { before: 0, limit: 999 }]) {
+    const hidden = grab(() => store.getMessagesPage(board.id, N, opts));
+    const missing = grab(() => store.getMessagesPage(99999, N, opts));
+    assert.equal(hidden.code, 'unknown_conversation');
+    assert.equal(missing.code, 'unknown_conversation');
+    assert.equal(hidden.message, `Unknown conversation '${board.id}'.`);
+    assert.equal(normalize(hidden.message, board.id), normalize(missing.message, 99999));
+  }
+  // Visible channel: the same inputs are validation errors (default code).
+  for (const before of ['abc', -1, 1.5, NaN]) {
+    const e = grab(() => store.getMessagesPage(eng.id, N, { before }));
+    assert.equal(e.code, 'bad_request');
+    assert.match(e.message, /Invalid before/);
+  }
+  for (const limit of [0, PAGE_LIMIT_MAX + 1, 'x', 2.5, -5]) {
+    const e = grab(() => store.getMessagesPage(eng.id, N, { before: 0, limit }));
+    assert.equal(e.code, 'bad_request');
+    assert.match(e.message, /Invalid limit/);
+  }
+  // The cap itself is accepted; numeric strings coerce like ?since= does.
+  assert.equal(PAGE_LIMIT_MAX, 200);
+  assert.deepEqual(store.getMessagesPage(eng.id, N, { before: '0', limit: String(PAGE_LIMIT_MAX) }).messages, []);
+  // Unknown viewer is rejected before anything else, as on every read path.
+  assert.throws(() => store.getMessagesPage(eng.id, 'agent:ghost', { before: 0 }), /Unknown identity/);
+});
+
+test('AS-131: getMessages (the CLI / export path) is not the page path — full history, all threads, no cursor keys', (t) => {
+  const { store } = tempStore(t);
+  const eng = store.getChannelByName('engineering');
+  const me = 'human:forrest';
+  const [r1, r2, r3] = seedRoots(store, eng.id, 3);
+  const a1 = store.postMessage({ conversation: eng.id, author: 'agent:cto-owen', body: 'a1', threadRoot: r1 }).id;
+  // ?limit=-style slice keeps the newest top-level rows but every thread.
+  const sliced = store.getMessages(eng.id, me, { limit: 2 });
+  assert.deepEqual(sliced.messages.map((m) => m.id), [r2, r3]);
+  assert.deepEqual(sliced.threads[r1].map((m) => m.id), [a1], 'threads are conversation-wide under ?limit=');
+  assert.ok(!('hasMore' in sliced) && !('nextBefore' in sliced), 'no cursor keys on the cold-load shape');
+  const full = store.getMessages(eng.id, me);
+  assert.deepEqual(full.messages.map((m) => m.id), [r1, r2, r3]);
+  assert.ok(!('hasMore' in full));
 });
