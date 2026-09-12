@@ -65,7 +65,11 @@ whose inputs changed, and nothing a consumer reads changes here).
    Expected red exactly {T-C}.
 5. Block-3 guard: `:root:not([data-theme="light"])` → `:root`. Expected red exactly {T-C}.
 6. Order: swap the rule text of blocks 3 and 4 (markers stay in place, so every
-   existing declaration test stays green). Expected red exactly {T-B, T-C}.
+   existing declaration test stays green). Expected red exactly {T-A, T-B, T-C}.
+   *Amended after the first falsifier run:* predicted {T-B, T-C}, observed
+   {T-A, T-B, T-C} — T-A parses rule 3's body for its nested rule, and a bare
+   `[data-theme="dark"]` body has none, so the fail-loud parser throws inside
+   T-A. The test is right; the prediction was narrow. Kept strict.
 7. Rule count: append a fifth top-level rule `html { }` after block 4. Expected red
    exactly {T-A}.
 8. Guard: in a scratch copy of the test file, make `parseTopLevelRules` return `[]`
