@@ -105,6 +105,10 @@ const FIELD_MESSAGE = Object.freeze({
   // The same error with the picker in add-new mode, where there is nothing to
   // select from (review cycle 1, D1). The wireframe supplies no copy for it.
   clientAddFirst: 'Add the client first.',
+  // The repository refused the new client's email shape (AS-128). Screen 1's
+  // sentence for the same refusal on the sign-up form, so the two screens
+  // that take a typed address agree; the wireframe supplies no copy for it.
+  email: 'Enter a complete email address.',
   noRows: 'Add at least one line item.',
   tooManyRows: `At most ${MAX_LINE_ITEMS} line items.`,
 });
@@ -242,10 +246,12 @@ export function parseInvoiceForm(body) {
 }
 
 /** The client sub-form's own validation — exactly POST /clients's rule, name
- *  and email non-blank (plan §3.3, Q3). No email-shape check here, by decision. */
-const clientFieldErrors = (values) => ({
+ *  and email non-blank (plan §3.3, Q3). No email-shape check here, by decision:
+ *  `emailRefused` is the REPOSITORY's shape answer, carried in by the route
+ *  (AS-128), and blank wins over it so a blank field reports what it always has. */
+const clientFieldErrors = (values, emailRefused) => ({
   clientName: isBlank(values.clientName) ? FIELD_MESSAGE.required : null,
-  clientEmail: isBlank(values.clientEmail) ? FIELD_MESSAGE.required : null,
+  clientEmail: isBlank(values.clientEmail) ? FIELD_MESSAGE.required : emailRefused ? FIELD_MESSAGE.email : null,
 });
 
 /** "2 fields need attention" — the wireframe's banner, agreeing with itself
@@ -268,6 +274,7 @@ const optionLabel = (client) => `${client.name} (${client.email})`;
  *   sendFailed?: boolean,        GET …/edit with ?error present — a presence flag, the value never arrives here
  *   duplicate?: { id: string, name: string, email: string } | null,   add-client: the first case-insensitive match, when unconfirmed
  *   createdClientId?: string | null,   add-client: the row the route created
+ *   clientEmailRefused?: boolean,   add-client: the repository refused the email's shape (AS-128)
  *   clientRefused?: boolean,     save/send: the repository refused the clientId the parser accepted
  * }} [input]
  * @returns {object} the template's locals, plus `status`. Not frozen — express
@@ -283,7 +290,8 @@ export function invoiceFormLocals(input = {}) {
   const values = submission === null ? null : submission.values;
   const duplicate = intent === 'add-client' ? input.duplicate ?? null : null;
   const createdClientId = intent === 'add-client' ? input.createdClientId ?? null : null;
-  const clientErrors = intent === 'add-client' ? clientFieldErrors(values) : { clientName: null, clientEmail: null };
+  const clientEmailRefused = intent === 'add-client' && input.clientEmailRefused === true;
+  const clientErrors = intent === 'add-client' ? clientFieldErrors(values, clientEmailRefused) : { clientName: null, clientEmail: null };
   const clientInvalid = clientErrors.clientName !== null || clientErrors.clientEmail !== null;
   // The repository refusing a clientId the parser accepted (a foreign or
   // unknown id) is marked exactly like an unselected one — the answer for

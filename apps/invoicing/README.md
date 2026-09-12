@@ -1144,7 +1144,12 @@ declaration count are committed literals. Update them in the same commit.
   pipeline. **AS-127:** the New contract nav entry landed on screen 4 with the
   route; the inline-client ruling in AS-46's plan §3.3 is applied to screen 6
   unchanged (blankness only, `findByEmail` before `create`, both offers
-  rendered — still one consumer of no shape rule, nothing exported). **AS-70:** nothing
+  rendered — still one consumer of no shape rule, nothing exported). **AS-128:**
+  both add-client branches trim the email before the repository sees it and
+  render the repository's shape refusal (AS-67's `assertEmail`) as
+  `S{4,6}-CLIENT-ERROR-VALIDATION` with every value preserved — the screens
+  still hold no shape rule of their own; `clientEmailRefused` carries the
+  repository's answer into the view model. **AS-70:** nothing
   — screen 4's gated state links to `/connect-stripe`, which AS-70 landed
   first (merge order AS-70 → AS-46); the link check in
   `test/invoice-screen.test.js` went green at the rebase.

@@ -215,6 +215,31 @@ test('the contract form view model reaches every rendered state with no HTTP, an
   assert.equal(parseContractForm('x').formValues, null);
 });
 
+test('clientEmailRefused (AS-128): the repository\'s shape refusal is S6-CLIENT-ERROR-VALIDATION on the email field alone, blank wins over it, and it means nothing outside add-client', () => {
+  const clients = [{ id: 'c-1', name: 'Ada Example', email: 'ada@example.test' }];
+  const typed = { intent: 'add-client', clientName: 'Bea', clientEmail: 'not-an-email' };
+  const refused = contractFormLocals({ clients, submission: parseContractForm(typed), clientEmailRefused: true });
+  assert.equal(refused.state, 'S6-CLIENT-ERROR-VALIDATION');
+  assert.equal(refused.status, 400);
+  assert.equal(refused.clientEmailError, 'Enter a complete email address.');
+  assert.equal(refused.clientNameError, null);
+  assert.equal(refused.clientEmail, 'not-an-email', 'as typed');
+  assert.equal(refused.banner.title, '1 field needs attention');
+  // Without the flag the same well-formed-to-the-screen email is not an error:
+  // the screen has no shape rule of its own (AS-67 D6).
+  assert.equal(contractFormLocals({ clients, submission: parseContractForm(typed) }).state, 'S6-DEFAULT');
+  // Blank wins: a blank email reports what it always has, flag or no flag.
+  const blank = contractFormLocals({ clients, submission: parseContractForm({ ...typed, clientEmail: ' ' }), clientEmailRefused: true });
+  assert.equal(blank.state, 'S6-CLIENT-ERROR-VALIDATION');
+  assert.equal(blank.clientEmailError, 'This field is required.');
+  // Only the boolean true, and only under add-client.
+  assert.equal(contractFormLocals({ clients, submission: parseContractForm(typed), clientEmailRefused: 'yes' }).state, 'S6-DEFAULT');
+  const valid = { intent: 'generate', clientId: 'c-1', projectDescription: DESCRIPTION, startDate: START_DATE };
+  const onGenerate = contractFormLocals({ clients, submission: parseContractForm(valid), clientEmailRefused: true });
+  assert.equal(onGenerate.state, 'S6-DEFAULT');
+  assert.equal(onGenerate.clientEmailError, null);
+});
+
 test('S6-DEFAULT renders the picker, the declared fields, the placeholder warning and no Stripe gate', async () => {
   await withScreenApp(async ({ get, repos, freelancer }) => {
     // NO connected-account row exists for this freelancer — that is the
@@ -361,6 +386,58 @@ test('S6-CLIENT-ERROR-VALIDATION: blank client fields re-render with every value
     assert.equal(occurrences(html, `value="${START_DATE}"`), 1, 'the date is intact');
     assert.equal(occurrences(html, 'New contract — new client needs a name and email'), 2);
     assert.equal(countClients(repos, freelancer), clientsBefore, 'no client row');
+    assert.equal(countContracts(repos, freelancer), 0);
+  });
+});
+
+test('S6-CLIENT-ERROR-VALIDATION (AS-128): a malformed client email re-renders the form with every value preserved, the email marked, and no client row created', async () => {
+  await withScreenApp(async ({ post, repos, freelancer }) => {
+    const clientsBefore = countClients(repos, freelancer);
+    // Two bodies: one the repository refuses outright, one whose INNER
+    // whitespace survives the screen's trim and is refused just the same.
+    const emails = ['not-an-email', ' not an email '];
+    assert.equal(emails.length, 2, 'cardinality first');
+    for (const clientEmail of emails) {
+      const res = await post('/contracts/new', { intent: 'add-client', pickerMode: 'new', clientName: 'Bea Sample', clientEmail, projectDescription: DESCRIPTION, startDate: START_DATE });
+      assert.equal(res.status, 400, clientEmail);
+      assert.match(res.headers.get('content-type'), /^text\/html/, `${clientEmail}: the screen, not the API's text/plain line`);
+      const html = await res.text();
+      assert.equal(stateOf(html), 'S6-CLIENT-ERROR-VALIDATION', clientEmail);
+      assert.equal(occurrences(html, 'field--invalid'), 1, `${clientEmail}: the email field alone is marked`);
+      assert.equal(occurrences(html, 'id="clientEmail-error"'), 1, clientEmail);
+      assert.equal(occurrences(html, 'id="clientName-error"'), 0, clientEmail);
+      assert.equal(occurrences(html, 'Enter a complete email address.'), 1, clientEmail);
+      assert.equal(occurrences(html, '1 field needs attention'), 1, clientEmail);
+      assert.equal(occurrences(html, 'value="Bea Sample"'), 1, clientEmail);
+      assert.equal(occurrences(html, `name="clientEmail" value="${clientEmail}"`), 1, `${clientEmail}: as typed, whitespace included`);
+      assert.equal(occurrences(html, DESCRIPTION), 1, `${clientEmail}: the description is intact`);
+      assert.equal(occurrences(html, `value="${START_DATE}"`), 1, `${clientEmail}: the date is intact`);
+      assert.equal(occurrences(html, '<input type="hidden" name="pickerMode" value="new" />'), 1, `${clientEmail}: still in add-new mode`);
+      assert.equal(countClients(repos, freelancer), clientsBefore, `${clientEmail}: no client row`);
+      assert.equal(countContracts(repos, freelancer), 0, clientEmail);
+    }
+  });
+});
+
+test('add-client (AS-128) trims the email before the repository sees it: a padded address is created trimmed, and a padded match warns as the duplicate', async () => {
+  await withScreenApp(async ({ post, repos, freelancer }) => {
+    const before = countClients(repos, freelancer);
+    const common = { intent: 'add-client', pickerMode: 'new', clientName: 'Bea Sample', projectDescription: DESCRIPTION, startDate: START_DATE };
+    const res = await post('/contracts/new', { ...common, clientEmail: ' bea@example.test ' });
+    assert.equal(res.status, 200);
+    assert.equal(countClients(repos, freelancer), before + 1, 'exactly one client row');
+    const created = repos.clients.listByFreelancer(freelancer.id).find((c) => c.name === 'Bea Sample');
+    assert.equal(created.email, 'bea@example.test', 'stored trimmed');
+    const html = await res.text();
+    assert.equal(stateOf(html), 'S6-DEFAULT');
+    assert.equal(occurrences(html, `<option value="${created.id}" selected>`), 1);
+    // The trim reaches findByEmail too: the padded, re-cased match is the duplicate.
+    const again = await post('/contracts/new', { ...common, clientEmail: ' BEA@EXAMPLE.TEST ' });
+    assert.equal(again.status, 200);
+    const againHtml = await again.text();
+    assert.equal(stateOf(againHtml), 'S6-CLIENT-ERROR-DUPLICATE');
+    assert.equal(occurrences(againHtml, `<input type="hidden" name="duplicateId" value="${created.id}" />`), 1, 'the match, named');
+    assert.equal(countClients(repos, freelancer), before + 1, 'still one new row');
     assert.equal(countContracts(repos, freelancer), 0);
   });
 });
