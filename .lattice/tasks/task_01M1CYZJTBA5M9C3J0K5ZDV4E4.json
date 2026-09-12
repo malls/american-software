@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 3,
+  "comment_count": 4,
   "complexity": "low",
   "created_at": "2026-08-31T22:28:02Z",
   "created_by": "agent:qa-priya",
@@ -18,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1CYZJTBA5M9C3J0K5ZDV4E4",
-  "last_event_id": "ev_01M2BPSYRRQESAA8YWV1CZVTQ8",
-  "last_status_changed_at": "2026-09-12T21:01:36Z",
+  "last_event_id": "ev_01M2BQ0YWGDQ706RPCPFQJR5XS",
+  "last_status_changed_at": "2026-09-12T21:05:26Z",
   "linked_files": [],
   "priority": "low",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-35",
-  "status": "in_progress",
+  "status": "review",
   "tags": null,
   "title": "design tokens: verify CSS selectors, not just declarations \u2014 a wrong block-4 selector breaks theming with the suite green",
   "type": "task",
-  "updated_at": "2026-09-12T21:01:36Z",
+  "updated_at": "2026-09-12T21:05:26Z",
   "urgency": null
 }
