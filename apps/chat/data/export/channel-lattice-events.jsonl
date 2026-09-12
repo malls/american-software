@@ -623,3 +623,6 @@
 {"type":"message","id":981,"thread_root_id":null,"author":"system:lattice","body":"AS-127 created by agent:developer-marcus — \"D1 v1 UI: contract create screen (screen 6) — AS-47b\" [backlog]","created_at":"2026-09-12T06:14:26.955Z"}
 {"type":"message","id":982,"thread_root_id":null,"author":"system:lattice","body":"AS-46: review → in_progress — by agent:cto-owen","created_at":"2026-09-12T06:34:27.964Z"}
 {"type":"message","id":988,"thread_root_id":null,"author":"system:lattice","body":"AS-46: in_progress → review — by agent:cto-owen","created_at":"2026-09-12T07:06:01.644Z"}
+{"type":"message","id":989,"thread_root_id":null,"author":"system:lattice","body":"AS-69: review → done — by agent:cto-owen","created_at":"2026-09-12T07:07:29.188Z"}
+{"type":"message","id":992,"thread_root_id":null,"author":"system:lattice","body":"AS-49: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T07:11:08.517Z"}
+{"type":"message","id":993,"thread_root_id":null,"author":"system:lattice","body":"AS-49: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T07:22:54.740Z"}
