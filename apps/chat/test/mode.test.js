@@ -316,6 +316,32 @@ test('mode: AS-83 — CHAT_PROBE_TIMEOUT_MS must be a positive integer of millis
   assert.match(ok.stdout, /#engineering/);
 });
 
+test('mode: AS-113 — CHAT_PROBE_TIMEOUT_MS above 2147483647 (the Node timer ceiling, clamped to 1 ms) is a usage error naming the ceiling; the ceiling itself is accepted', async (t) => {
+  // 2^31 does not fit a 32-bit signed timer delay: Node sets it to 1 ms, so the
+  // probe would refuse a live server after ~54 ms naming a budget it never
+  // spent (AS-83 Ruben F-1). Rule 4 again (CHAT_DB alone, no probe would run):
+  // the ceiling is enforced where the knob is parsed, on every path.
+  const phantom = phantomDb(t);
+  const over = await run(['channels', '--me', 'human:forrest'], {
+    CHAT_DB: phantom,
+    CHAT_PROBE_TIMEOUT_MS: '2147483648',
+  });
+  assert.equal(over.status, 1, describeExit(over, 'channels (CHAT_PROBE_TIMEOUT_MS=2147483648)'));
+  assert.match(over.stderr, /invalid CHAT_PROBE_TIMEOUT_MS/);
+  assert.match(over.stderr, /'2147483648'/);
+  assert.match(over.stderr, /2147483647/, 'the refusal names the ceiling');
+  assertNoDbTouched(phantom);
+  // Control: the ceiling itself is a valid budget — the bound is >, not >=.
+  const dir = mkdtempSync(join(tmpdir(), 'chat-mode-ceiling-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const atMax = await run(['channels', '--me', 'human:forrest'], {
+    CHAT_DB: join(dir, 'chat.db'),
+    CHAT_PROBE_TIMEOUT_MS: '2147483647',
+  });
+  assert.equal(atMax.status, 0, describeExit(atMax, 'channels (CHAT_PROBE_TIMEOUT_MS=2147483647)'));
+  assert.match(atMax.stdout, /#engineering/);
+});
+
 test('mode: AS-24 — squatted port (wrong-shaped JSON) refuses loudly, zero side effects', async (t) => {
   const squatter = createHttpServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });

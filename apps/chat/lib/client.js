@@ -34,6 +34,16 @@ export const DEFAULT_API = 'http://127.0.0.1:8347';
  */
 export const DEFAULT_PROBE_TIMEOUT_MS = 3000;
 
+/**
+ * Largest budget the probe can actually spend (AS-113). `AbortSignal.timeout`
+ * is a Node timer, and a delay above 2^31-1 ms does not fit a 32-bit signed
+ * integer: Node warns (TimeoutOverflowWarning) and sets the delay to 1 ms, so a
+ * budget of 2147483648 refused a live server after ~54 ms while the refusal
+ * named a budget it never spent. The CLI rejects anything above this at parse
+ * time; the ceiling lives here because it is a fact about this mechanism.
+ */
+export const MAX_PROBE_TIMEOUT_MS = 2147483647;
+
 const DOWN_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND']);
 
 /** True only for a positive "nothing is listening" signal. Walks the cause
