@@ -1,7 +1,14 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:developer-marcus",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-58-as38-review-followups",
+      "linked_at": "2026-09-12T22:53:08Z",
+      "linked_by": "agent:developer-marcus",
+      "repo": null
+    }
+  ],
   "comment_count": 1,
   "complexity": "low",
   "created_at": "2026-09-02T00:49:28Z",
@@ -11,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1FSF8HKAKS3WTZY966RSFPD",
-  "last_event_id": "ev_01M2BWXYXEQHQTXDT0MVT03PYQ",
-  "last_status_changed_at": "2026-09-12T22:48:37Z",
+  "last_event_id": "ev_01M2BX65PY6FNRMVTSQGZ2KMZ7",
+  "last_status_changed_at": "2026-09-12T22:53:08Z",
   "linked_files": [],
   "priority": "low",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-58",
-  "status": "in_planning",
+  "status": "in_progress",
   "tags": null,
   "title": "Invoicing: AS-38 review follow-ups (T1 tautology, stale health test name, ';' body separator, /healthz config exposure)",
   "type": "task",
-  "updated_at": "2026-09-12T22:48:39Z",
+  "updated_at": "2026-09-12T22:53:08Z",
   "urgency": null
 }
