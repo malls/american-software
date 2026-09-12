@@ -351,3 +351,51 @@ test('events-read-stream-reasons', () => {
   assert.equal(mixed.events.length, 1);
   assert.equal(foldEvents(mixed.events).lanes['AS-100'].stage.open, true);
 });
+
+// --- AS-111 F4: a close never pairs with a newer rework cycle ---------------
+
+test('events-close-matches-cycle', () => {
+  const stageEnded = (id, ts, data) => makeEvent({
+    type: 'stage_ended',
+    actor: 'agent:cto-owen',
+    data: { task: 'AS-100', stage: 'implement', actor: 'agent:developer-lena', outcome: 'completed', closedBy: 'orchestrator', startedId: null, ...data },
+    now: new Date(ts),
+    id,
+  });
+  // S1 (cycle 1) then S2 (cycle 2) on the same (task, stage, actor): the fold
+  // keeps one stage record per lane, so S2 replaces S1 wholesale.
+  const s1 = stageStarted({ id: 'cev_0000000000000000000000000S1', ts: '2026-09-11T05:00:00.000Z', data: { cycle: 1 } });
+  const s2 = stageStarted({ id: 'cev_0000000000000000000000000S2', ts: '2026-09-11T05:20:00.000Z', data: { cycle: 2 } });
+  const fold = foldEvents([s1, s2]);
+  assert.deepEqual(openItems(fold).stages.map((s) => [s.id, s.cycle]), [[s2.id, 2]], 'S2 is the open stage');
+
+  // C1: a late hand close for cycle 1, without the id. Same triple, but it
+  // STATES cycle 1 and the open stage states cycle 2 — it must not close S2.
+  const c1 = stageEnded('cev_0000000000000000000000000C1', '2026-09-11T05:25:00.000Z', { cycle: 1 });
+  foldEvent(fold, c1);
+  assert.deepEqual(openItems(fold).stages.map((s) => s.id), [s2.id], 'a cycle-1 close leaves the cycle-2 stage open');
+  assert.equal(fold.lanes['AS-100'].lastEvent.id, c1.id, 'but the lane still records it as the last event');
+
+  // C2 states cycle 2: closed.
+  const c2 = stageEnded('cev_0000000000000000000000000C2', '2026-09-11T05:30:00.000Z', { cycle: 2 });
+  foldEvent(fold, c2);
+  assert.deepEqual(openItems(fold).stages, [], 'a cycle-2 close closes the cycle-2 stage');
+  assert.equal(fold.lanes['AS-100'].stage.outcome, 'completed');
+
+  // The null rule: a close that states nothing matches on the triple, as today.
+  const s3 = stageStarted({ id: 'cev_0000000000000000000000000S3', ts: '2026-09-11T05:40:00.000Z', data: { cycle: 3 } });
+  foldEvent(fold, s3);
+  assert.deepEqual(openItems(fold).stages.map((s) => s.id), [s3.id]);
+  const c3 = stageEnded('cev_0000000000000000000000000C3', '2026-09-11T05:45:00.000Z', { cycle: null });
+  foldEvent(fold, c3);
+  assert.deepEqual(openItems(fold).stages, [], 'a close without a stated cycle closes on the triple');
+
+  // The shape: `cycle` is the LAST key of stage_ended, and it is validated
+  // like stage_started's.
+  assert.equal(EVENT_SHAPES.stage_ended[EVENT_SHAPES.stage_ended.length - 1], 'cycle');
+  assert.equal(c3.data.cycle, null, 'absent is filled null, never dropped');
+  assert.throws(
+    () => stageEnded('cev_0000000000000000000000000C4', '2026-09-11T05:50:00.000Z', { cycle: 0 }),
+    /cycle must be a positive integer/
+  );
+});

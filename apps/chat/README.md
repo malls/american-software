@@ -567,7 +567,7 @@ the documentation):
 | `tick_started` | `source`, `pid`, `startedAt`, `messageId`, `loopTick` |
 | `tick_ended` | `tickId`, `outcome`, `code`, `signal`, `timedOut`, `headMoved`, `lanesTouched`, `stagesClosed`, `reason` |
 | `stage_started` | `task`, `stage`, `actor`, `worktree`, `branch`, `cycle` |
-| `stage_ended` | `task`, `stage`, `actor`, `outcome`, `reason`, `closedBy`, `startedId`, `durationS` |
+| `stage_ended` | `task`, `stage`, `actor`, `outcome`, `reason`, `closedBy`, `startedId`, `durationS`, `cycle` |
 | `subagent_spawned` | `task`, `stage`, `actor`, `model` |
 | `subagent_exited` | `task`, `stage`, `actor`, `exit`, `closedBy`, `spawnedId`, `durationS`, `tokens`, `costUsd` |
 
@@ -578,7 +578,7 @@ the documentation):
 
 ```sh
 events emit stage_started    --task AS-<n> --stage plan|implement|review --employee <id> --actor <id> [--worktree <rel>] [--branch <name>] [--cycle <k>]
-events emit stage_ended      --task AS-<n> --stage <stage> --employee <id> --actor <id> --outcome completed|error [--reason "…"]
+events emit stage_ended      --task AS-<n> --stage <stage> --employee <id> --actor <id> --outcome completed|error [--reason "…"] [--cycle <k>]
 events emit subagent_spawned --task AS-<n> --stage <stage> --employee <id> --actor <id> [--model <name>]
 events emit subagent_exited  --task AS-<n> --stage <stage> --employee <id> --actor <id> --exit ok|error
 events tail [--since <id>] [--limit <n>] [--task AS-<n>]
@@ -591,6 +591,18 @@ write `completed`/`error` and `ok`/`error`. `cut_by_timeout` and `unclosed` are
 reconciler-only — an orchestrator must not be able to narrate a timeout that did
 not happen. `events open` lists what an earlier tick left open, which is why the
 tick procedure reads it in step 1 next to `git worktree list`.
+
+**A close finds its open by `startedId`, else by `(task, stage, actor)` — and
+that triple is not unique across rework cycles** (AS-111). So `stage_ended`
+carries `cycle` too, and the rule in both the CLI's back-reference lookup and
+the fold is: a close and an open with two *stated* cycles that differ never
+match; a `null` on either side ("not stated") matches on the triple as before,
+so a hand close without `--cycle` never strands. On a rework cycle, pass the
+same `--cycle <k>` the stage's `stage_started` carried — otherwise a late close
+for cycle *k* can close cycle *k+1*'s open stage on the same employee. The
+watcher's reconciler records the cycle of the stage it cut; it matches by
+`startedId` regardless. Sub-agent events carry no cycle (a sub-agent's cycle is
+its enclosing stage's).
 
 **Producers.** The **watcher** owns the tick boundary: `tick_started` when it
 fires a tick, `tick_ended` when it settles, and a sweep every
