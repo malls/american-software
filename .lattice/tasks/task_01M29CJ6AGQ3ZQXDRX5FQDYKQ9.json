@@ -1,7 +1,14 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:developer-lena",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-121-compose-run-signals",
+      "linked_at": "2026-09-12T15:50:29Z",
+      "linked_by": "agent:developer-lena",
+      "repo": null
+    }
+  ],
   "comment_count": 0,
   "complexity": "low",
   "created_at": "2026-09-11T23:24:07Z",
@@ -11,15 +18,15 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M29CJ6AGQ3ZQXDRX5FQDYKQ9",
-  "last_event_id": "ev_01M2B4PSHK4VXXP27HWN6X05TZ",
-  "last_status_changed_at": "2026-09-12T15:45:18Z",
+  "last_event_id": "ev_01M2B509PCCH2CD6VVE7D8E3TP",
+  "last_status_changed_at": "2026-09-12T15:50:30Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-121",
-  "status": "in_planning",
+  "status": "in_progress",
   "tags": [
     "chat",
     "tooling",
@@ -27,6 +34,6 @@
   ],
   "title": "Chat tooling: compose-run.mjs does not tear down on SIGINT/SIGTERM \u2014 an interrupted counted run leaves its image (and, off the pinned compose, its network) behind",
   "type": "bug",
-  "updated_at": "2026-09-12T15:45:18Z",
+  "updated_at": "2026-09-12T15:50:30Z",
   "urgency": null
 }
