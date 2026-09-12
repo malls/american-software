@@ -13,9 +13,9 @@
 // are one-line text/plain carrying the error class and the step that failed,
 // never the key and never request material; screens render states from the DB
 // row, not from these bodies. `/invoices/{id}/edit` is screen 4 (AS-46, in
-// this file, below the API's dependencies); `/invoices/{id}` is AS-48's screen
-// and 404s until it lands: the Location header is the contract, asserted
-// without dereferencing it, and the gap closes in dependency order.
+// this file, below the API's dependencies); `/invoices/{id}` is screen 5
+// (AS-48, beside it) — the terminus every send redirect lands on, and the
+// dangle AS-43 recorded is closed.
 import express, { Router } from 'express';
 import { ConfigError } from '../lib/config.js';
 import { InvalidStateError, NotFoundError, ValidationError } from '../lib/db/database.js';
@@ -30,6 +30,10 @@ import { actingFreelancerId } from '../lib/auth/guard.js';
 // POSTs beside the four API routes and call the same repository and lifecycle
 // functions those call; the API handlers themselves are unchanged.
 import { invoiceFormLocals, parseInvoiceForm } from '../lib/screens/invoice-form-view.js';
+// Screen 5 (AS-48): the pure view model, and the ONE id shape the Dashboard
+// emits and the redirector below accepts — imported, never re-spelled here.
+import { invoiceDetailLocals } from '../lib/screens/invoice-detail-view.js';
+import { UUID_SHAPE } from '../lib/screens/dashboard-view.js';
 
 /** Above this a request is a mistake or an attack, not an invoice. Exceeded is
  *  a 400; the body-parser's own limits (below) answer for size and parameter
@@ -346,6 +350,79 @@ export function invoiceRoutes(config, { repos, stripe }) {
 
   router.post('/invoices/:id/edit', form, screen('screen-edit', (freelancerId, req, res) =>
     dispatch(freelancerId, req, res, { mode: 'edit', invoiceId: req.params.id })));
+
+  // ─── SCREEN 5 (AS-48, plan §3.2–§3.5) ──────────────────────────────────────
+  // REGISTERED AFTER /invoices/new AND BEFORE THE API'S :id ROUTES, and both
+  // halves of that order are load-bearing: `GET /invoices/:id` below would
+  // capture the literal `new` and `view` if it came first (the AS-46 rule), and
+  // `POST /invoices/send` must precede the API's `POST /invoices/:id`, which
+  // would otherwise answer it as an update of an invoice named `send`.
+  const DETAIL_VIEW = 'invoice-detail';
+  const renderDetail = (res, locals) => res.status(locals.status).render(DETAIL_VIEW, locals);
+
+  // THE REDIRECTOR (plan decision 1). A Dashboard row is a GET form with a
+  // hidden id and a CONSTANT action, because P2a forbids an id in an href; this
+  // route turns that into the detail URL. It reads NO repository: ownership is
+  // the detail route's job, and this must not become a second place that knows
+  // who owns what. The id must be UUID-shaped, so the Location is bounded and
+  // `../x`, `id[]=a`, an absent id and a 2,000-character string all get the
+  // router's one-line 404 with no Location at all.
+  const redirector = (step, target) => (req, res) => {
+    const id = req.query.id;
+    if (typeof id !== 'string' || !UUID_SHAPE.test(id)) return fail(res, step, new NotFoundError('invoice'));
+    res.redirect(303, target(id));
+  };
+  router.get('/invoices/view', redirector('screen-view', detailPath));
+
+  // SEND FROM THE DETAIL PAGE (plan decision 4): the same lifecycle.send the
+  // edit screen's intent=send and the API's POST /invoices/:id/send call. The
+  // page's own URL cannot be the target — POST /invoices/:id is the API's — so
+  // the id travels in the body. A failure lands on the detail page with a
+  // presence flag (S5's banner layered on the unchanged state); a not-found id
+  // is the API's one-line 404, so an unowned id learns nothing from the screen
+  // either. The pipeline is resumable (AS-43), so a second click after a
+  // partial failure resumes rather than duplicates.
+  router.post('/invoices/send', form, async (req, res) => {
+    const freelancerId = actingFreelancerId(req);
+    const id = req.body?.id;
+    if (typeof id !== 'string' || !UUID_SHAPE.test(id)) return fail(res, 'screen-send', new NotFoundError('invoice'));
+    try {
+      await lifecycle.send(freelancerId, id);
+    } catch (err) {
+      if (err instanceof NotFoundError) return fail(res, 'screen-send', err);
+      return res.redirect(303, `${detailPath(id)}?error=send`);
+    }
+    return res.redirect(303, detailPath(id));
+  });
+
+  // THE DETAIL SCREEN. Missing and not-owned are the SAME NotFoundError by the
+  // repository's design, so S5-DENIED-NOTOWNER is byte-identical to
+  // S5-ERROR-NOTFOUND by construction. Any other failure — the client row
+  // missing (a draft cannot reference a foreign client, so that is corruption,
+  // not a state), a table gone — renders S5-ERROR-SYSTEM at 500 with a Retry
+  // that GETs this same URL. `?edit=1` on a LOCAL draft is the Edit control:
+  // a 303 to the edit screen built from the row's own id; on anything else the
+  // flag is ignored and the page renders. No Stripe call on this GET.
+  router.get('/invoices/:id', (req, res) => {
+    const freelancerId = actingFreelancerId(req);
+    let invoice;
+    try {
+      invoice = repos.invoices.getById(freelancerId, req.params.id);
+    } catch (err) {
+      if (err instanceof NotFoundError) return renderDetail(res, invoiceDetailLocals({ failure: 'not-found' }));
+      return renderDetail(res, invoiceDetailLocals({ failure: 'system' }));
+    }
+    if (req.query.edit === '1' && isEditable(invoice)) return res.redirect(303, editPath(invoice.id));
+    let client;
+    let account;
+    try {
+      client = repos.clients.getById(freelancerId, invoice.clientId);
+      account = repos.connectedAccounts.getByFreelancer(freelancerId);
+    } catch (err) {
+      return renderDetail(res, invoiceDetailLocals({ failure: 'system' }));
+    }
+    return renderDetail(res, invoiceDetailLocals({ invoice, client, account, sendFailed: sendFailed(req) }));
+  });
 
   // ─── THE API (AS-43) — unchanged ────────────────────────────────────────────
 

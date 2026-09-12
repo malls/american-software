@@ -890,8 +890,13 @@ test('formatMinorUnits and parseMajorUnits round-trip, reject every malformed sp
  *  the templates were finished and moved deliberately with them. RE-MEASURED at
  *  the rebase onto AS-70's merge: 13 — signin.ejs 5, connect-stripe.ejs 3,
  *  invoice-form.ejs 5 — read off the run, never before it. A fourth template
- *  moves this with its VIEWS row. */
-const TEMPLATE_LINKS = 17;
+ *  moves this with its VIEWS row. RE-MEASURED at the rebase onto AS-47's
+ *  merge: 17 (contract-detail.ejs 4). RE-MEASURED by AS-48: 38 —
+ *  invoice-form.ejs 6 (the Dashboard anchor), connect-stripe.ejs 4 (Continue
+ *  to Dashboard), contract-detail.ejs 6 (the Dashboard anchor and NOTFOUND's
+ *  Back to Dashboard), dashboard.ejs 9, invoice-detail.ejs 8 — predicted
+ *  before the run, then read off it. */
+const TEMPLATE_LINKS = 38;
 
 test('every href and form action in every template names a route the app registers or a file public/ serves', async () => {
   const config = configFor();
@@ -937,7 +942,7 @@ test('no template branches on a state id: `state` reaches EJS code exactly once 
   // STRIPENOTREADY') { %>` in invoice-form.ejs renders identical markup and
   // must turn this red (2 !== 1).
   const templates = VIEWS.map((v) => v.file);
-  assert.equal(templates.length, 4, 'cardinality first: every registered template is examined');
+  assert.equal(templates.length, 6, 'cardinality first: every registered template is examined');
   for (const file of templates) {
     const source = readFileSync(join(configFor().viewsDir, file), 'utf8');
     const code = [...source.replace(/<%#[\s\S]*?%>/g, '').matchAll(/<%[=-]?([\s\S]*?)%>/g)].map((m) => m[1]).join('\n');

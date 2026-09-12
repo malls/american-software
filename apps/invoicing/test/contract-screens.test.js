@@ -278,7 +278,10 @@ test('S7-ERROR-NOTFOUND and S7-DENIED-NOTOWNER: an unknown id and another freela
       assert.equal(occurrences(html, 'contract-doc'), 0, `${label}: no document`);
       assert.equal(occurrences(html, 'We couldn&#39;t find that contract.'), 1, `${label}: the wireframe's sentence (apostrophe EJS-escaped)`);
       assert.equal(occurrences(html, 'Contract not found'), 2, `${label}: the title, in <title> and <h1>`);
-      assert.equal(occurrences(html, 'Dashboard'), 0, `${label}: no Back to Dashboard until AS-48`);
+      // AS-48 landed screen 3: the nav's Dashboard anchor and NOTFOUND's
+      // "Back to Dashboard" line (the wireframe's), both constant hrefs to `/`.
+      assert.equal(occurrences(html, 'Dashboard'), 2, `${label}: the nav anchor and Back to Dashboard (AS-48)`);
+      assert.equal(occurrences(html, '<a href="/">Back to Dashboard</a>'), 1, `${label}: the wireframe's line, once`);
       assert.equal(occurrences(html, 'ASC47SECRET'), 0, `${label}: nothing of the other freelancer's document`);
       assert.equal(occurrences(html, '>Retry</button>'), 0, `${label}: not-found has no retry`);
       bodies.push(html);

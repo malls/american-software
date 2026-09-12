@@ -744,11 +744,12 @@ test('P8: no route mutates or deletes a contract', async () => {
     // IMMUTABILITY IS IMPLEMENTED AS ABSENCE. Nothing serves a mutating
     // request, so it 404s — there is no handler whose job is to say "no".
     const contractRoutesFound = discoverRoutes(app).filter((r) => r.split(' ')[1].startsWith('/contracts'));
-    // AS-47 widens the set with the screens' GET routes; the four-method
-    // probe against a real id below is what pins immutability, and it does not
-    // move.
-    assert.equal(contractRoutesFound.length, 2, `cardinality before quantification: ${contractRoutesFound.join(', ')}`);
-    assert.deepEqual(contractRoutesFound, ['GET /contracts/:id', 'POST /contracts']);
+    // AS-47 widens the set with the screen's GET route and AS-48 with the
+    // Dashboard's redirector (a GET that reads and writes nothing); the
+    // four-method probe against a real id below is what pins immutability,
+    // and it does not move.
+    assert.equal(contractRoutesFound.length, 3, `cardinality before quantification: ${contractRoutesFound.join(', ')}`);
+    assert.deepEqual(contractRoutesFound, ['GET /contracts/:id', 'GET /contracts/view', 'POST /contracts']);
 
     const created = await postForm(`${base}/contracts`, { clientId: client.id, ...FORM_INPUT() });
     assert.equal(created.status, 303);
@@ -814,8 +815,9 @@ test('Y2: contractRoutes is constructed from repos alone and takes no stripe dep
     const router = contractRoutes(configFor(), { repos });
     assert.equal(typeof router, 'function');
     const routes = router.stack.filter((layer) => layer.route).map((layer) => `${Object.keys(layer.route.methods)[0].toUpperCase()} ${layer.route.path}`);
-    // Registration order (AS-47 adds the screens' GET; the API stays first).
-    assert.deepEqual(routes, ['POST /contracts', 'GET /contracts/:id']);
+    // Registration order: the API first, then AS-48's redirector BEFORE
+    // AS-47's screen — the literal `view` must not be captured by `:id`.
+    assert.deepEqual(routes, ['POST /contracts', 'GET /contracts/view', 'GET /contracts/:id']);
     assert.equal(contractRoutes.length, 2, 'the (config, deps) shape every mount line in app.js uses');
   });
   // And app.js hands it exactly that — the asymmetry with its two neighbours is

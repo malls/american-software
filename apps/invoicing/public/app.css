@@ -130,6 +130,20 @@ main {
   margin-inline-start: auto;
 }
 
+/* The gated "New invoice" entry on screen 3 (AS-48): S3-GATED-STRIPENOTREADY
+   is a disabled span with an inline note, from wireframe.css's rules for the
+   same names. */
+.site-nav__item--disabled {
+  color: var(--color-text-disabled);
+  font-size: var(--font-size-sm);
+}
+
+.site-nav__note {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
 /* ---------------------------------------------------------------------------
  * Typography
  * ------------------------------------------------------------------------ */
@@ -248,6 +262,14 @@ a:focus {
   margin: 0;
 }
 
+/* A form standing in for a link (AS-48): a table row's View control and the
+   detail screen's Edit / Send controls. Inline so two sit side by side inside
+   .form-actions, with no block spacing of their own. */
+.inline-form {
+  display: inline;
+  margin: 0;
+}
+
 /* ---------------------------------------------------------------------------
  * Buttons
  * ------------------------------------------------------------------------ */
@@ -334,6 +356,102 @@ a:focus {
 
 .banner p + p {
   margin-block-start: var(--space-2);
+}
+
+/* ---------------------------------------------------------------------------
+ * Badges (screens 3 and 5, AS-48): the invoice status, one constant class per
+ * tone. bg-subtle + text-on-subtle pairs only, like the banners above.
+ * ------------------------------------------------------------------------ */
+
+.badge {
+  display: inline-block;
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.badge-neutral {
+  background: var(--color-bg-surface-sunken);
+  color: var(--color-text-secondary);
+}
+
+.badge-accent {
+  background: var(--color-accent-bg-subtle);
+  color: var(--color-accent-text-on-subtle);
+}
+
+.badge-success {
+  background: var(--color-success-bg-subtle);
+  color: var(--color-success-text-on-subtle);
+}
+
+.badge-warning {
+  background: var(--color-warning-bg-subtle);
+  color: var(--color-warning-text-on-subtle);
+}
+
+/* ---------------------------------------------------------------------------
+ * Tables (screen 3, AS-48). The wrapper scrolls horizontally, so a four-column
+ * table with nowrap cells stays inside a 375px viewport instead of widening
+ * the page — there is no max-width condition and no fixed box anywhere here.
+ * ------------------------------------------------------------------------ */
+
+.section-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  margin: var(--space-6) 0 var(--space-3) 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin: 0 0 var(--space-5) 0;
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-md);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+th,
+td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width-hairline) solid var(--color-border-hairline);
+  white-space: nowrap;
+}
+
+thead th {
+  background: var(--color-bg-surface-sunken);
+  font-weight: var(--font-weight-semibold);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * The two Stripe links on screen 5 (AS-48), rendered as copyable text. A URL
+ * has no break opportunity, so without overflow-wrap it would widen the page
+ * past 375px; `anywhere` lets it break at any character.
+ * ------------------------------------------------------------------------ */
+
+.link-list {
+  padding-inline-start: var(--space-5);
+  margin: 0 0 var(--space-5) 0;
+}
+
+.link-list li + li {
+  margin-block-start: var(--space-2);
+}
+
+.link-text {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
 }
 
 /* ---------------------------------------------------------------------------

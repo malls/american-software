@@ -1,0 +1,147 @@
+<%#
+  invoice-detail.ejs — Screen 5, invoice detail and status (AS-48).
+
+  Built to docs/design/wireframes/screen-5-invoice-detail.html and its ledger,
+  02-states-ledger.md §5. Every element the wireframe marks `data-wf-note` is
+  annotation and is deliberately NOT built.
+
+  PRESENTATION ONLY. Every decision was made in
+  lib/screens/invoice-detail-view.js; this file branches on precomputed
+  booleans and reads properties. The four view-layer properties (README.md
+  § The view layer) hold here exactly as on the other screens.
+
+  THE TWO STRIPE LINKS ARE RENDERED AS TEXT, NOT AS ANCHORS. The stored values
+  are URLs Stripe returned; an href built from them is exactly what property 2
+  forbids, and here the value is external data, so this is the case the rule
+  exists for. Each renders escaped inside a code element the freelancer copies
+  or opens as their browser allows (plan §3.4 records the cost and the
+  trigger for a validated-origin anchor).
+
+  The invoice id appears in exactly ONE place: the hidden input of the send
+  form, whose action is the constant /invoices/send. Edit is a GET of the
+  page's own URL with a hidden flag, so it carries no id at all.
+
+  THE BADGE CLASS IS A CONSTANT PER BRANCH, never built from the badge's tone.
+
+  NOTE FOR ANYONE EDITING THIS COMMENT: do not spell the raw-output tag or a
+  closing EJS tag inside it — the dependency-policy scanner strips an EJS
+  comment up to its FIRST closing tag. And keep the three words the
+  minor-units concept row scans for out of this file, comments included: the
+  label arrives as a local for exactly that reason.
+-%>
+<!doctype html>
+<html lang="en" data-state="<%= state %>">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoicing — <%= title %></title>
+    <link rel="stylesheet" href="/tokens.css" />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <%# Full chrome (01-screens.md §3): constant markup. Screen 4's own gate
+        refuses at the route, so "New invoice" stays a plain anchor here; the
+        gated span renders on screen 3 only. "New contract" is absent until
+        AS-127 lands /contracts/new. %>
+    <header class="site-header">
+      <div class="container site-header__inner">
+        <span class="app-label">Invoicing</span>
+      </div>
+      <div class="container">
+        <nav class="site-nav" aria-label="Primary">
+          <a class="site-nav__link" href="/">Dashboard</a>
+          <a class="site-nav__link" href="/invoices/new">New invoice</a>
+          <form class="site-nav__signout" method="post" action="/signout">
+            <button type="submit" class="btn-link">Sign out</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <h1 class="page-title"><%= title %></h1>
+
+      <% if (isNotFound) { %>
+        <div class="banner banner-error">
+          <p><%= notFoundMessage %></p>
+        </div>
+        <p><a href="/">Back to Dashboard</a></p>
+      <% } %>
+
+      <% if (isSystem) { %>
+        <div class="banner banner-error">
+          <p><%= systemMessage %></p>
+        </div>
+        <%# Retry is a GET of the page's own URL: no action attribute. %>
+        <form method="get">
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Retry</button>
+          </div>
+        </form>
+      <% } %>
+
+      <% if (badge !== null) { %>
+        <% if (sendFailed) { %>
+          <%# Layered on the DEFAULT state (data-state unchanged): a presence
+              flag the route derived from ?error; its value never arrives. %>
+          <div class="banner banner-error">
+            <p><%= sendFailedMessage %></p>
+          </div>
+        <% } %>
+
+        <% if (isPaid) { %>
+          <div class="banner banner-success">
+            <p><span class="badge badge-success"><%= badge.label %></span> — <%= paidText %>.</p>
+          </div>
+        <% } else { %>
+          <p>
+            <% if (badge.tone === 'accent') { %>
+              <span class="badge badge-accent"><%= badge.label %></span>
+            <% } %>
+            <% if (badge.tone === 'neutral') { %>
+              <span class="badge badge-neutral"><%= badge.label %></span>
+            <% } %>
+            <% if (badge.tone === 'warning') { %>
+              <span class="badge badge-warning"><%= badge.label %></span>
+            <% } %>
+          </p>
+        <% } %>
+
+        <p><%= totalLabel %>: <%= totalText %><% if (dueText !== null) { %> · <%= dueText %><% } %></p>
+
+        <% if (showNoLinks) { %>
+          <p class="page-meta">No Stripe links yet — none exist until this invoice is finalized.</p>
+        <% } else { %>
+          <ul class="link-list">
+            <% if (hostedInvoiceUrl !== null) { %>
+              <li>View hosted invoice page (Stripe): <code class="link-text"><%= hostedInvoiceUrl %></code></li>
+            <% } %>
+            <% if (invoicePdfUrl !== null) { %>
+              <li>Download invoice PDF (Stripe): <code class="link-text"><%= invoicePdfUrl %></code></li>
+            <% } %>
+          </ul>
+        <% } %>
+
+        <% if (canEdit || canSend) { %>
+          <div class="form-actions">
+            <% if (canEdit) { %>
+              <form class="inline-form" method="get">
+                <input type="hidden" name="edit" value="1" />
+                <button type="submit" class="btn btn-secondary">Edit</button>
+              </form>
+            <% } %>
+            <% if (canSend) { %>
+              <form class="inline-form" method="post" action="/invoices/send">
+                <input type="hidden" name="id" value="<%= invoiceId %>" />
+                <button type="submit" class="btn btn-primary"><%= sendLabel %></button>
+              </form>
+            <% } %>
+          </div>
+        <% } %>
+        <% if (showSetupNote) { %>
+          <p class="page-meta">Connect Stripe before sending — <a href="/connect-stripe">finish setup</a>.</p>
+        <% } %>
+      <% } %>
+    </main>
+  </body>
+</html>

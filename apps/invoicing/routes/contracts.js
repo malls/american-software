@@ -22,6 +22,13 @@
 // identity source — and hand a pure view model (lib/screens/) the row and a
 // boolean. A screen renders the STATE, never the request.
 //
+// ONE MORE GET ROUTE, AND IT IS NOT A SCREEN. `GET /contracts/view` (AS-48) is
+// the Dashboard's redirector: a list row is a GET form with a hidden id and a
+// CONSTANT action, because the view layer forbids an id in an href, and this
+// route turns that into the detail URL. It reads no repository. The detail
+// screen itself is `GET /contracts/:id`, registered AFTER it — the
+// literal-before-parameter rule, or `view` is captured as an id.
+//
 // THE ERROR TAXONOMY IS SHORTER THAN routes/invoices.js's ON PURPOSE. That file
 // maps seven more classes; every one of them is unreachable from a path that
 // makes no external call and has no state machine to be in the wrong state of.
@@ -34,6 +41,9 @@ import { NotFoundError, ValidationError } from '../lib/db/database.js';
 import { createContractGeneration } from '../lib/contracts/generation.js';
 import { actingFreelancerId } from '../lib/auth/guard.js';
 import { contractDetailLocals } from '../lib/screens/contract-detail-view.js';
+// The ONE id shape the Dashboard emits and the redirector accepts (AS-48):
+// imported from the module that emits it, never re-spelled here.
+import { UUID_SHAPE } from '../lib/screens/dashboard-view.js';
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -117,6 +127,18 @@ export function contractRoutes(config, { repos }) {
     const contract = generation.generate(freelancerId, contractInput(req.body ?? {}));
     return detailPath(contract.id);
   }));
+
+  // THE DASHBOARD'S REDIRECTOR (AS-48, plan §3.3) — REGISTERED BEFORE
+  // `GET /contracts/:id`, which would otherwise capture the literal `view`.
+  // A UUID-shaped id answers 303 to the detail path (bounded Location); an
+  // absent, repeated, malformed or over-long id gets the router's one-line
+  // 404 with no Location. No repository read: ownership is the detail
+  // route's, and this must not become a second place that knows it.
+  router.get('/contracts/view', (req, res) => {
+    const id = req.query.id;
+    if (typeof id !== 'string' || !UUID_SHAPE.test(id)) return fail(res, 'screen-view', new NotFoundError('contract'));
+    res.redirect(303, detailPath(id));
+  });
 
   // SCREEN 7 (AS-47, plan §3.3, §3.4). The read is owner-scoped by the
   // repository, which throws the SAME NotFoundError for a missing id and for

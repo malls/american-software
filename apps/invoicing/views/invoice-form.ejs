@@ -42,14 +42,15 @@
   <body>
     <%# Full chrome (01-screens.md §3): the nav is CONSTANT markup — a loop over
         data would put hrefs in data. Only the entries whose targets exist at
-        this task's merge are rendered; Dashboard is AS-48's and New contract is
-        AS-47's one-line additions (README.md § Obligations). %>
+        this task's merge are rendered; Dashboard landed with AS-48 and New
+        contract is AS-127's one-line addition (README.md § Obligations). %>
     <header class="site-header">
       <div class="container site-header__inner">
         <span class="app-label">Invoicing</span>
       </div>
       <div class="container">
         <nav class="site-nav" aria-label="Primary">
+          <a class="site-nav__link" href="/">Dashboard</a>
           <a class="site-nav__link" href="/invoices/new">New invoice</a>
           <form class="site-nav__signout" method="post" action="/signout">
             <button type="submit" class="btn-link">Sign out</button>
