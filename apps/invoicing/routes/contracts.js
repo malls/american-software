@@ -2,15 +2,22 @@
 // declared template and store it (AS-42, plan §3.4, §3.7).
 //
 // THE ROUTE SET, and the absence of the others is the design. The API is ONE
-// route, POST /contracts (AS-42). The screens (AS-47) add GET /contracts/:id —
-// screen 7, the stored document rendered, printed or downloaded. There is
+// route, POST /contracts (AS-42). The screens add three: GET and POST
+// /contracts/new — screen 6, the form and its intents (AS-127) — and
+// GET /contracts/:id — screen 7, the stored document rendered, printed or
+// downloaded (AS-47); the fifth route, GET /contracts/view, is the
+// Dashboard's redirector (AS-48, below). REGISTRATION ORDER IS THE RULE: the
+// three literals (/contracts/new twice, /contracts/view) are registered
+// BEFORE /contracts/:id because Express matches in order, and ids are
+// randomUUID() so no row is ever named `new` or `view`. There is
 // still no POST /contracts/:id, no PATCH, no DELETE, and no handler whose job
-// is to say "no": a contract is immutable, the schema enforces it (no
-// updated_at, no update method, no draft state), and a route added to state a
-// prohibition is still a route — it must be classified in the committed
-// partition in test/route-surface.test.js, driven by that suite's cookieless
-// probe, and maintained. Absence states it for free, and is pinned by that
-// committed route list, by the repository exposing no update method, and by
+// is to say "no" — POST /contracts/new is a different literal, not an id
+// route: a contract is immutable, the schema enforces it (no updated_at, no
+// update method, no draft state), and a route added to state a prohibition is
+// still a route — it must be classified in the committed partition in
+// test/route-surface.test.js, driven by that suite's cookieless probe, and
+// maintained. Absence states it for free, and is pinned by that committed
+// route list, by the repository exposing no update method, and by
 // test/contracts.test.js P8's four-method probe against a real id, which keeps
 // 404ing. A freelancer who made a mistake generates a new contract with the
 // corrected values; v1 never delivers a contract, so the superseded row is one
@@ -39,8 +46,10 @@
 import express, { Router } from 'express';
 import { NotFoundError, ValidationError } from '../lib/db/database.js';
 import { createContractGeneration } from '../lib/contracts/generation.js';
+import { DEFAULT_TEMPLATE_ID } from '../lib/contracts/templates.js';
 import { actingFreelancerId } from '../lib/auth/guard.js';
 import { contractDetailLocals } from '../lib/screens/contract-detail-view.js';
+import { contractFormLocals, parseContractForm } from '../lib/screens/contract-form-view.js';
 // The ONE id shape the Dashboard emits and the redirector accepts (AS-48):
 // imported from the module that emits it, never re-spelled here.
 import { UUID_SHAPE } from '../lib/screens/dashboard-view.js';
@@ -127,6 +136,86 @@ export function contractRoutes(config, { repos }) {
     const contract = generation.generate(freelancerId, contractInput(req.body ?? {}));
     return detailPath(contract.id);
   }));
+
+  // SCREEN 6 (AS-127; the AS-47 plan §3.1, §3.2 design). Both handlers are
+  // plain handlers in the GET /contracts/:id shape: read the session through
+  // the one accessor, read what the view model needs, hand it a pure input,
+  // render at the status the view model chose. The GET reads the client list
+  // and NOTHING else — no connected-account row (the screen has no Stripe
+  // gate, by the ledger's own n/a row) and no contracts.
+  const renderForm = (res, locals) => res.status(locals.status).render('contract-form', locals);
+
+  router.get('/contracts/new', (req, res) => {
+    const freelancerId = actingFreelancerId(req);
+    renderForm(res, contractFormLocals({ clients: repos.clients.listByFreelancer(freelancerId) }));
+  });
+
+  // THE INTENT DISPATCH IS CLOSED. Two intents persist, each exactly one row
+  // through the same call the API uses; every other intent — the two picker
+  // toggles, and null for absent, unknown or repeated — re-renders from the
+  // body, persisting nothing, and the view model renders the refusal.
+  router.post('/contracts/new', form, (req, res) => {
+    const freelancerId = actingFreelancerId(req);
+    const submission = parseContractForm(req.body ?? {});
+    const base = { clients: repos.clients.listByFreelancer(freelancerId), submission };
+    switch (submission.intent) {
+      case 'generate': {
+        if (submission.formValues === null) return renderForm(res, contractFormLocals(base));
+        let contract;
+        try {
+          // templateId is EXPLICIT: the declaration whose fields the screen
+          // rendered is the one generated, by construction.
+          contract = generation.generate(freelancerId, {
+            clientId: submission.values.clientId,
+            templateId: DEFAULT_TEMPLATE_ID,
+            formValues: submission.formValues,
+          });
+        } catch (err) {
+          // Mapped by CLASS (the AS-47 plan §3.2 table): a client that is
+          // missing or another freelancer's is the same NotFoundError with
+          // entity 'client', and is marked like an unselected one. Anything
+          // else is the system state, re-rendered in place with every value
+          // preserved — nothing was created, so the resubmit is the retry.
+          if (err instanceof NotFoundError && err.entity === 'client') {
+            return renderForm(res, contractFormLocals({ ...base, clientRefused: true }));
+          }
+          // A ValidationError naming a DECLARED field cannot happen after the
+          // screen's own parse (one validator, decision 5); kept for the class:
+          // that field is marked. One naming anything else (a record-sourced
+          // name, an unknown key) is the system state — the screen never sent
+          // it, so there is nothing on the page to mark.
+          if (err instanceof ValidationError && submission.errors[err.field] === false) {
+            const errors = { ...submission.errors, [err.field]: true };
+            const refusedSubmission = { ...submission, errors, fieldErrorCount: submission.fieldErrorCount + 1, formValues: null };
+            return renderForm(res, contractFormLocals({ ...base, submission: refusedSubmission }));
+          }
+          return renderForm(res, contractFormLocals({ ...base, generationFailed: true }));
+        }
+        return res.redirect(303, detailPath(contract.id));
+      }
+      case 'add-client': {
+        // Validates (name and email non-blank — POST /clients's exact rule),
+        // warns on a case-insensitive email match unless confirmed, then
+        // creates through the SAME repository call the endpoint uses. One
+        // client row and nothing else is written in this request.
+        const { clientName, clientEmail, clientConfirm } = submission.values;
+        if (clientName.trim() === '' || clientEmail.trim() === '') return renderForm(res, contractFormLocals(base));
+        if (!clientConfirm) {
+          const matches = repos.clients.findByEmail(freelancerId, clientEmail);
+          // Several matches: the first by created_at is named (AS-46 §10 Q4).
+          if (matches.length > 0) return renderForm(res, contractFormLocals({ ...base, duplicate: matches[0] }));
+        }
+        const created = repos.clients.create(freelancerId, { name: clientName, email: clientEmail });
+        return renderForm(res, contractFormLocals({
+          ...base,
+          clients: repos.clients.listByFreelancer(freelancerId),
+          createdClientId: created.id,
+        }));
+      }
+      default:
+        return renderForm(res, contractFormLocals(base));
+    }
+  });
 
   // THE DASHBOARD'S REDIRECTOR (AS-48, plan §3.3) — REGISTERED BEFORE
   // `GET /contracts/:id`, which would otherwise capture the literal `view`.

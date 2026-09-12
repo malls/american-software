@@ -28,8 +28,11 @@ import { assertCalendarDate, renderContract } from './render.js';
  *  route's own parser limit is the outer one. */
 const TYPE_MAX_LENGTH = Object.freeze({ text: 200, multiline: 5000, date: 10 });
 
-/** One form value, by its declared type. Returns the value to store. */
-function validateFormValue(variable, raw) {
+/** One form value, by its declared type. Returns the value to store.
+ *  EXPORTED FOR SCREEN 6 (AS-127 decision 5): lib/screens/contract-form-view.js
+ *  calls this same function per declared field, so the screen cannot accept
+ *  what generate refuses. There is one validator with two callers, not two. */
+export function validateFormValue(variable, raw) {
   if (raw === undefined) {
     if (variable.required) throw new ValidationError(variable.name, 'is required');
     return undefined;
