@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:designer-sofia",
+  "assigned_to": "agent:developer-marcus",
   "branch_links": [
     {
       "branch": "feat/AS-56-danger-solid-dark",
@@ -18,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1F6F5J2AECJGC0PW6BAPHRY",
-  "last_event_id": "ev_01M2AG9WZP2F25TAAXJHBEBTNN",
-  "last_status_changed_at": "2026-09-12T09:47:49Z",
+  "last_event_id": "ev_01M2AGFFSXNX5G7JSA47PKANES",
+  "last_status_changed_at": "2026-09-12T09:51:47Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-56",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "design tokens: danger-solid on bg-surface (dark) is 2.97:1 against the 3:1 non-text floor \u2014 palette amendment, now inherited by two consumers",
   "type": "task",
-  "updated_at": "2026-09-12T09:48:44Z",
+  "updated_at": "2026-09-12T09:51:48Z",
   "urgency": null
 }
