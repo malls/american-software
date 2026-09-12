@@ -1,8 +1,15 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
-  "branch_links": [],
-  "comment_count": 2,
+  "branch_links": [
+    {
+      "branch": "feat/AS-90-d1-demo",
+      "linked_at": "2026-09-12T03:46:10Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 3,
   "complexity": "medium",
   "created_at": "2026-09-07T16:29:02Z",
   "created_by": "agent:cto-owen",
@@ -11,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1YB78T82XQM2P3P41G7T2J3",
-  "last_event_id": "ev_01M29TGA3CSEDHZC79ZH98AMC1",
-  "last_status_changed_at": "2026-09-12T03:27:46Z",
+  "last_event_id": "ev_01M29VJ0W1VAKHJQWQ314MK5YA",
+  "last_status_changed_at": "2026-09-12T03:46:10Z",
   "linked_files": [],
   "priority": "high",
   "relationships_out": [
@@ -27,7 +34,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-90",
-  "status": "in_planning",
+  "status": "planned",
   "tags": [
     "d1",
     "demo",
@@ -35,6 +42,6 @@
   ],
   "title": "D1 demo for the board: scripted local-compose walkthrough of the v1 core loop + a viewable captured artifact",
   "type": "task",
-  "updated_at": "2026-09-12T03:27:46Z",
+  "updated_at": "2026-09-12T03:46:10Z",
   "urgency": null
 }
