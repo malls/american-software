@@ -151,7 +151,7 @@ test('deploy-shape: the parsers read the manifests they are about to assert on',
   assert.deepEqual(Object.keys(COMPOSE.networks), ['stripe-mock']);
   assert.deepEqual(Object.keys(COMPOSE.volumes), ['invoicing-data']);
   assert.equal(COPIES.length, 11, `expected 11 COPY instructions, found ${COPIES.length}`);
-  assert.equal(IGNORE_PATTERNS.length, 6, `expected 6 .dockerignore patterns, found ${IGNORE_PATTERNS.length}`);
+  assert.equal(IGNORE_PATTERNS.length, 7, `expected 7 .dockerignore patterns, found ${IGNORE_PATTERNS.length}`);
   assert.match(DOCKERFILE_CODE, /^FROM /m);
   // The comment stripper must not have eaten the instructions it is filtering
   // for — a stripper that returned nothing would make every scan below vacuous.
@@ -469,6 +469,10 @@ test('deploy-shape: the repo-root .dockerignore keeps the live chat database out
   // AS-38: the optional local key file must never enter a build context. The
   // pattern is `**/` so it holds wherever a future app keeps its own.
   assert.ok(IGNORE_PATTERNS.includes('**/.env.local'), '.dockerignore must exclude every .env.local');
+  // AS-57: the whole app directory is COPY'd and the closed-world scan fails on
+  // any file it cannot classify. Finder's .DS_Store is the one stray file a
+  // macOS developer creates without meaning to; it stays out of the context.
+  assert.ok(IGNORE_PATTERNS.includes('**/.DS_Store'), '.dockerignore must exclude every .DS_Store');
   // .dockerignore must NOT exclude itself or the manifests: the test above
   // depends on them being COPY-able.
   for (const needed of ['.dockerignore', 'apps/invoicing/compose.yaml', 'apps/invoicing/Dockerfile']) {
