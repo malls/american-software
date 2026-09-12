@@ -7,14 +7,17 @@
 // A counted run: guards the -p name (asc-* only, never production, never a
 // project compose already reports), refuses when the daemon already carries
 // >= ASC_NETWORK_CEILING (20) asc-* networks, runs `compose run --rm --build
-// test`, ALWAYS runs `down -v --rmi local --remove-orphans`, asserts nothing
-// of the project survives, and prints the receipt. `--check` lists every
+// test`, ALWAYS runs `down -v --rmi local --remove-orphans` (also after a
+// SIGINT/SIGTERM mid-run — AS-121; the run is then reported as interrupted and
+// exits 128 + signal), asserts nothing of the project survives, and prints the
+// receipt. `--check` lists every
 // asc-* network as production / live / leftover with an owner guess and
 // removes nothing. Exit codes: lib/compose-run.js EXIT. Docker is resolved by
 // absolute path (ADVANCE_DOCKER_BIN, else the watcher's candidate list) —
 // it is off PATH in ticks.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveDockerBin } from '../watch/advance-watcher.mjs';
@@ -22,6 +25,8 @@ import { DEFAULT_CEILING, EXIT, composeProjectName, formatReceipt, runCheck, run
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const APPS = resolve(HERE, '..', '..');
+/** The signals a counted run survives long enough to tear down (AS-121). */
+const RUN_SIGNALS = ['SIGINT', 'SIGTERM'];
 
 function parseArgs(argv) {
   const opts = { check: false, project: null, cwd: null, log: null };
@@ -56,7 +61,7 @@ const exec = (argv, opts = {}) => {
   return { status: r.status, stdout: r.stdout, stderr: r.stderr };
 };
 
-function main() {
+async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const docker = resolveDockerBin(process.env, existsSync);
   if (!docker.bin) { console.error(`compose-run: docker not runnable (${docker.reason})`); process.exit(2); }
@@ -74,18 +79,36 @@ function main() {
 
   if (!opts.project || !opts.cwd) { console.error('usage: compose-run.mjs --project asc-<stage>-as<n> --cwd <dir> [--log <file>] | --check'); process.exit(2); }
   const ceiling = Number(process.env.ASC_NETWORK_CEILING) || DEFAULT_CEILING;
+  // AS-121: for the duration of the counted run, SIGINT/SIGTERM must not end
+  // this process — with no handler node dies before any JS runs, `down` never
+  // happens, and the project's image (and, off the network_mode: none pin, its
+  // network) survives. The handler only records the signal; spawnSync defers
+  // the callback, so the process survives, the compose child ends (killed with
+  // the process group, or run to completion on parent-only delivery), and
+  // runCounted's always-down path runs as it would for any other run outcome.
+  let interrupted = null;
+  const onSignal = (sig) => { interrupted = interrupted || sig; };
+  for (const sig of RUN_SIGNALS) process.on(sig, onSignal);
   const result = runCounted(exec, {
     docker: docker.bin, project: opts.project, cwd: opts.cwd, productionNames, env: process.env, ceiling,
     onOutput: (out) => { if (opts.log) writeFileSync(opts.log, out); },
   });
+  // One turn of the loop so a signal caught during spawnSync reaches onSignal
+  // before the report; then the default disposition is back.
+  await new Promise((r) => setImmediate(r));
+  for (const sig of RUN_SIGNALS) process.off(sig, onSignal);
   if (result.refused) {
     console.error(`compose-run: refusing (exit ${result.exit}): ${result.refused}`);
     process.exit(result.exit);
   }
+  // An interrupted run is not a receipt even when everything else went right:
+  // exit 128 + signal number (130 / 143) unless the lib already said non-zero.
+  if (interrupted && result.exit === 0) result.exit = 128 + os.constants.signals[interrupted];
   console.log(formatReceipt(result));
   if (result.exit === EXIT.NO_BUILD) console.error('compose-run: no `Built` line — this run is not a receipt (CLAUDE.md --build corollary)');
   if (result.exit === EXIT.LEAK) console.error('compose-run: LEAK — the project survived its own teardown; this run is not a receipt');
+  if (interrupted) console.error(`compose-run: interrupted by ${interrupted} during the run — teardown ran; this run is not a receipt`);
   process.exit(result.exit);
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

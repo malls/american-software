@@ -7,10 +7,11 @@
 // shape as AS-87's; otherwise it registers as one SKIPPED test.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { resolveDockerBin } from '../watch/advance-watcher.mjs';
 import {
   DEFAULT_CEILING, EXIT,
@@ -233,6 +234,89 @@ test('T10b runCheck is read-only: never down, rm, or prune', () => {
   }
 });
 
+// --- AS-121 AC-1..3: the script survives SIGINT/SIGTERM long enough to tear down --------------
+//
+// A real child process, not the exec stub: bin/compose-run.mjs is spawned with
+// a `#!/bin/sh` stub docker as ADVANCE_DOCKER_BIN that appends every argv to
+// $AS121_LOG, sleeps on `compose … run`, and answers the rest with nothing.
+// The test waits for the run line in the log, signals, and reads the log
+// order, the receipt, the stderr line, and the exit code.
+
+const SCRIPT = new URL('../bin/compose-run.mjs', import.meta.url).pathname;
+const STUB_DOCKER = `#!/bin/sh
+echo "$*" >> "$AS121_LOG"
+case "$*" in
+  *" run "*) echo started; sleep 2; printf 'ℹ tests 1\\nℹ pass 1\\nℹ fail 0\\nℹ skipped 0\\n Image asc-as121-stub-test Built \\n' ;;
+  *"compose ls"*) echo '[]' ;;
+esac
+`;
+
+/** Spawns the script against the stub docker; resolves { code, signal, stdout, stderr, log } after exit. */
+function spawnWithStub(t, project, { detached = false } = {}) {
+  const dir = mkdtempSync(join(tmpdir(), 'asc-as121-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const bin = join(dir, 'docker');
+  const log = join(dir, 'argv.log');
+  writeFileSync(bin, STUB_DOCKER, { mode: 0o755 });
+  writeFileSync(log, '');
+  const child = spawn(process.execPath, [SCRIPT, '--project', project, '--cwd', dir], {
+    detached, env: { ...process.env, ADVANCE_DOCKER_BIN: bin, AS121_LOG: log }, stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let stdout = '';
+  let stderr = '';
+  child.stdout.on('data', (d) => { stdout += d; });
+  child.stderr.on('data', (d) => { stderr += d; });
+  const exited = new Promise((res) => child.on('exit', (code, signal) => res({ code, signal, stdout, stderr, log: readFileSync(log, 'utf8') })));
+  const argvLines = () => readFileSync(log, 'utf8').split('\n').filter(Boolean);
+  const untilRunning = async () => {
+    for (let i = 0; i < 200; i++) {
+      if (argvLines().some((l) => / run /.test(l))) return;
+      await sleep(25);
+    }
+    throw new Error(`stub docker never saw the run call; log: ${argvLines().join(' | ')}`);
+  };
+  return { child, exited, untilRunning, argvLines };
+}
+
+function downAfterRunInLog(log, project) {
+  const lines = log.split('\n').filter(Boolean);
+  const runIdx = lines.findIndex((l) => / run /.test(l));
+  const downIdx = lines.findIndex((l) => / down /.test(l));
+  assert.ok(runIdx >= 0, `run was called: ${lines.join(' | ')}`);
+  assert.ok(downIdx > runIdx, `down (${downIdx}) called after run (${runIdx}): ${lines.join(' | ')}`);
+  assert.equal(lines[downIdx], buildDownArgs(project).join(' '));
+}
+
+test('T12a SIGTERM to the script alone mid-run: it survives, down runs after run, receipt prints, interrupted line, exit 143', async (t) => {
+  const project = 'asc-as121-t12a';
+  const s = spawnWithStub(t, project);
+  await s.untilRunning();
+  s.child.kill('SIGTERM');
+  const r = await s.exited;
+  assert.equal(r.signal, null, `the script must not die of the signal: ${r.stderr}`);
+  downAfterRunInLog(r.log, project);
+  assert.match(r.stdout, /^RECEIPT project=asc-as121-t12a$/m);
+  assert.match(r.stdout, /built: Image asc-as121-stub-test Built/, 'the run completed under the ignored signal, so the receipt has its Built line');
+  assert.match(r.stderr, /compose-run: interrupted by SIGTERM during the run — teardown ran; this run is not a receipt/);
+  assert.equal(r.code, 128 + 15, `an interrupted run never exits 0: ${r.stdout}${r.stderr}`);
+  assert.match(r.stdout, /^  exit=143$/m, 'the receipt block and the process agree on the exit');
+});
+
+test('T12b SIGINT to the whole process group (script + docker child): down runs after run, run exit=null, interrupted line, exit non-zero', async (t) => {
+  const project = 'asc-as121-t12b';
+  const s = spawnWithStub(t, project, { detached: true });
+  await s.untilRunning();
+  process.kill(-s.child.pid, 'SIGINT');
+  const r = await s.exited;
+  assert.equal(r.signal, null, `the script must not die of the signal: ${r.stderr}`);
+  downAfterRunInLog(r.log, project);
+  assert.match(r.stdout, /^RECEIPT project=asc-as121-t12b$/m);
+  assert.match(r.stdout, /run exit=null/, 'the stub docker died of the group signal');
+  assert.match(r.stderr, /compose-run: interrupted by SIGINT during the run — teardown ran; this run is not a receipt/);
+  assert.notEqual(r.code, 0);
+  assert.equal(r.code, EXIT.NO_BUILD, 'a killed run has no Built line: the lib exit wins over 130');
+});
+
 // --- AC-11: the real thing, opt in ------------------------------------------------------------
 
 const enabled = process.env.AS106_REAL === '1';
@@ -260,4 +344,36 @@ test('T11 real run: the script leaves zero networks and zero images for its proj
   assert.deepEqual(left, [], 'no network for the project after the script');
   const imgs = spawnSync(docker.bin, ['images', '--format', '{{.Repository}}'], { encoding: 'utf8' }).stdout.split('\n').filter((n) => n.startsWith(`${project}-`));
   assert.deepEqual(imgs, [], 'no image for the project after the script');
+});
+
+// AS-121 AC-5: Priya's sig.mjs shape under the same opt-in switch — SIGTERM to
+// the script alone while its container is up; the network (no network_mode
+// here) and the image must be gone afterwards.
+test('T13 real run, SIGTERM mid-container: zero networks and zero images survive, receipt printed, exit 143', { skip, timeout: 10 * 60_000 }, async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'asc-as121-real-'));
+  const project = `asc-as121-real-${process.pid}`;
+  t.after(() => {
+    spawnSync(docker.bin, ['compose', '-p', project, 'down', '-v', '--rmi', 'local', '--remove-orphans'], { cwd: dir, stdio: 'ignore' });
+    rmSync(dir, { recursive: true, force: true });
+  });
+  writeFileSync(join(dir, 'Dockerfile'), `FROM alpine\nRUN echo AS121-${Date.now()}\nCMD ["sh", "-c", "echo start; sleep 8; echo 'ℹ tests 1'; echo 'ℹ pass 1'; echo 'ℹ fail 0'; echo 'ℹ skipped 0'"]\n`);
+  writeFileSync(join(dir, 'compose.yaml'), 'services:\n  test:\n    build: .\n');
+  const child = spawn(process.execPath, [SCRIPT, '--project', project, '--cwd', dir], { env: { ...process.env, ADVANCE_DOCKER_BIN: docker.bin }, stdio: ['ignore', 'pipe', 'pipe'] });
+  let out = '';
+  child.stdout.on('data', (d) => { out += d; });
+  child.stderr.on('data', (d) => { out += d; });
+  const exited = new Promise((res) => child.on('exit', (code, signal) => res({ code, signal })));
+  const psNames = () => spawnSync(docker.bin, ['ps', '--format', '{{.Names}}'], { encoding: 'utf8' }).stdout.split('\n').filter((n) => n.startsWith(project));
+  for (let i = 0; i < 240 && psNames().length === 0; i++) await sleep(500);
+  assert.ok(psNames().length > 0, `the project's container came up within 120 s: ${out}`);
+  child.kill('SIGTERM');
+  const r = await exited;
+  assert.equal(r.signal, null, out);
+  assert.equal(r.code, 128 + 15, out);
+  assert.match(out, /RECEIPT project=/);
+  assert.match(out, /interrupted by SIGTERM/);
+  const left = spawnSync(docker.bin, ['network', 'ls', '--format', '{{.Name}}'], { encoding: 'utf8' }).stdout.split('\n').filter((n) => n.startsWith(`${project}_`));
+  assert.deepEqual(left, [], 'no network for the project after the interrupted script');
+  const imgs = spawnSync(docker.bin, ['images', '--format', '{{.Repository}}'], { encoding: 'utf8' }).stdout.split('\n').filter((n) => n.startsWith(`${project}-`));
+  assert.deepEqual(imgs, [], 'no image for the project after the interrupted script');
 });
