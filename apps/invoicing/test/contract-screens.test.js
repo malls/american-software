@@ -287,6 +287,12 @@ test('S7-ERROR-NOTFOUND and S7-DENIED-NOTOWNER: an unknown id and another freela
       bodies.push(html);
     }
     assert.equal(bodies[0], bodies[1], 'byte-identical bodies: a guessed id confirms nothing');
+
+    // The way out is followed to its terminus (AS-47's hand-off to AS-48): the
+    // Back to Dashboard href is `/`, and `/` is a screen now, not a redirect.
+    const home = await get('/');
+    assert.equal(home.status, 200, 'Back to Dashboard lands on a rendered page');
+    assert.match(stateOf(await home.text()), /^S3-/, 'the Dashboard, in one of its own states');
   });
 });
 
