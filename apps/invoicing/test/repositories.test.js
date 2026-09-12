@@ -385,6 +385,52 @@ test('C8: create for an unknown freelancer is ForeignKeyViolationError', (t) => 
   assert.equal(count(db, 'clients'), 0);
 });
 
+// The shape the repository refuses (AS-67, plan §2 D2): exactly one `@`,
+// neither first nor last, no whitespace anywhere, at most 254 characters. It
+// is the same predicate the sign-up path uses (test/auth.test.js H6), lifted
+// into lib/db/errors.js so there is one copy. Seven refusals, one acceptance
+// at the ceiling — cardinality first.
+const MALFORMED_EMAILS = [
+  'no-at',
+  '@x.test',
+  'x@',
+  'a@@b.test',
+  'a b@x.test',
+  'a@x.test\n',
+  `${'x'.repeat(247)}@ex.test`, // 255 characters: one over the ceiling
+];
+const EMAIL_AT_CEILING = `${'x'.repeat(246)}@ex.test`; // 254 exactly
+
+test('C9: create refuses a malformed email as ValidationError naming the field and writes no row', (t) => {
+  const { db, repos } = harness(t);
+  const ann = repos.freelancers.create({ email: 'ann@example.com', displayName: 'Ann' });
+  assert.equal(MALFORMED_EMAILS.length, 7, 'cardinality first');
+  assert.equal(MALFORMED_EMAILS[6].length, 255);
+  for (const email of MALFORMED_EMAILS) {
+    const err = throwsValidation(() => repos.clients.create(ann.id, { name: 'Zed Corp', email }));
+    assert.equal(err.field, 'email', JSON.stringify(email));
+    assert.match(err.problem, /email address/, JSON.stringify(email));
+  }
+  assert.equal(count(db, 'clients'), 0, 'no row for any refusal');
+  assert.equal(EMAIL_AT_CEILING.length, 254);
+  const accepted = repos.clients.create(ann.id, { name: 'Zed Corp', email: EMAIL_AT_CEILING });
+  assert.equal(accepted.email, EMAIL_AT_CEILING, 'stored as given, not trimmed or lowered');
+  assert.equal(count(db, 'clients'), 1);
+});
+
+test('C10: update refuses a malformed email the same way and leaves the row byte-identical', (t) => {
+  const { repos, clock } = harness(t);
+  const { ann, annClient } = seed(repos);
+  clock.now = T1;
+  assert.equal(MALFORMED_EMAILS.length, 7, 'cardinality first');
+  for (const email of MALFORMED_EMAILS) {
+    const err = throwsValidation(() => repos.clients.update(ann.id, annClient.id, { name: 'Renamed', email }));
+    assert.equal(err.field, 'email', JSON.stringify(email));
+  }
+  assert.deepEqual(repos.clients.getById(ann.id, annClient.id), annClient, 'name untouched too: validation runs before any SQL');
+  assert.deepEqual(repos.clients.update(ann.id, annClient.id, { email: EMAIL_AT_CEILING }), { ...annClient, email: EMAIL_AT_CEILING, updatedAt: T1 });
+});
+
 // --- K: contracts ----------------------------------------------------------------------
 
 const CONTRACT = { templateId: 'services-v1', variables: { rate: 150, unit: 'hour', nested: { ok: true } }, renderedHtml: '<p>Rendered</p>' };

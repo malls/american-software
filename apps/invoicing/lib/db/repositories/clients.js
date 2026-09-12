@@ -11,6 +11,7 @@ import {
   InvalidStateError,
   NotFoundError,
   ValidationError,
+  assertEmail,
   assertKnownKeys,
   assertStripeId,
   assertText,
@@ -34,7 +35,10 @@ function create(db, { now, newId }, freelancerId, input) {
   assertText(freelancerId, 'freelancerId');
   assertKnownKeys(input, ['name', 'email'], 'client');
   const name = assertText(input.name, 'name');
-  const email = assertText(input.email, 'email');
+  // Shape-checked HERE, beside the row, where no caller can walk past it
+  // (AS-67): routes/clients.js and the screens' add-client paths inherit this
+  // refusal and add no check of their own. The DDL CHECK stays non-empty only.
+  const email = assertEmail(input.email, 'email');
   const id = newId();
   const at = now();
   try {
@@ -92,7 +96,7 @@ function update(db, { now }, freelancerId, id, patch) {
   }
   if (patch.email !== undefined) {
     assignments.push('email = ?');
-    values.push(assertText(patch.email, 'email'));
+    values.push(assertEmail(patch.email, 'email'));
   }
   if (assignments.length === 0) throw new ValidationError('client', 'nothing to update');
   const { changes } = db
