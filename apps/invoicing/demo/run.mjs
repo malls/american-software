@@ -36,6 +36,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createApp } from '../app.js';
+import { COOKIE_NAME } from '../lib/auth/session.js';
 import { loadConfig } from '../lib/config.js';
 import { createRepositories, prepareDatabase } from '../lib/db/database.js';
 import { createStripeClient } from '../lib/stripe/client.js';
@@ -63,11 +64,13 @@ if (typeof MOCK_URL !== 'string' || MOCK_URL.trim() === '') {
   }
 }
 
-// A mock-only placeholder: stripe-mock checks the `sk_test_` prefix and nothing
-// else about it, and it never leaves the internal compose network. Spelled
-// differently from the suite's own placeholder ON PURPOSE, so the suite's
-// "one grep finds all three" property is untouched by this file.
-const MOCK_KEY = 'sk_test_demo_placeholder';
+// A mock-only placeholder: stripe-mock checks that it LOOKS like a test-mode
+// key (`sk_test_` followed by one alphanumeric run — a second underscore is a
+// 401, measured against v0.203.0) and nothing else, and it never leaves the
+// internal compose network. Spelled differently from the suite's own
+// placeholder ON PURPOSE, so the suite's "one grep finds all three" property is
+// untouched by this file.
+const MOCK_KEY = 'sk_test_demoplaceholder';
 // Needed so the webhook receiver registers its route at all (routes/webhooks.js
 // registers nothing without a secret). A fabricated value; it signs only the
 // two events below.
@@ -151,7 +154,7 @@ const form = (fields) => new URLSearchParams(fields).toString();
  *  contract, and the transcript shows it. */
 async function call(method, path, { body, headers = {}, cookie = state.cookie } = {}) {
   const h = { ...headers };
-  if (cookie !== null) h.cookie = `session=${cookie}`;
+  if (cookie !== null) h.cookie = `${COOKIE_NAME}=${cookie}`;
   if (method === 'POST') {
     h.origin = state.base; // the same-origin check above the auth boundary
     h['content-type'] ??= 'application/x-www-form-urlencoded';
@@ -246,8 +249,8 @@ const SEQUENCE = [
       const res = await call('POST', '/signup', { body: form(FREELANCER) });
       expect(res, 303);
       expectLocation(res, /^\/$/);
-      const match = /(?:^|;\s*)session=([^;]+)/.exec(res.setCookie ?? '');
-      if (!match) throw new Stopped('expected a Set-Cookie: session=... header');
+      const match = new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`).exec(res.setCookie ?? '');
+      if (!match) throw new Stopped(`expected a Set-Cookie: ${COOKIE_NAME}=... header`);
       state.cookie = match[1];
       state.freelancerId = state.repos.freelancers.findByEmail(FREELANCER.email).id;
       return [
@@ -405,7 +408,7 @@ const SEQUENCE = [
     n: '10',
     title: 'Send',
     label: LABEL.mock,
-    why: 'The freelancer sends the invoice. Real Stripe would email the client a hosted payment page; the validator only checked the request shape. The app records when it asked, from its own clock. No email of any kind is sent by this app, by design.',
+    why: 'The freelancer sends the invoice. Real Stripe would email the client a hosted payment page; the validator only checked the request shape. The app records when it asked, from its own clock. No email of any kind is sent by this app, by design. Three requests appear below instead of one, and that is a mock artifact: the app\'s pipeline is resumable and re-runs "add line item" and "finalize" whenever the mirror still says "draft" — which it does here only because the validator\'s fixture never advances to "open". Against real Stripe this step makes exactly one request.',
     async run() {
       const res = await call('POST', `/invoices/${encodeURIComponent(state.invoiceId)}/send`);
       expect(res, 303);
@@ -503,7 +506,7 @@ function response(res, { cookie = false, body = false } = {}) {
   if (res.location !== null) parts.push(`Location: ${res.location}`);
   if (cookie && res.setCookie) {
     const flags = res.setCookie.split(';').slice(1).map((s) => s.trim()).filter((s) => !/^(expires|max-age)=/i.test(s));
-    parts.push(`Set-Cookie: session=… (${flags.join('; ')})`);
+    parts.push(`Set-Cookie: ${COOKIE_NAME}=… (${flags.join('; ')})`);
   }
   if (body) parts.push(`body: ${JSON.stringify(res.body.trimEnd())}`);
   return parts.join('  ');
