@@ -355,23 +355,22 @@ export function invoiceFormLocals(input = {}) {
 
   // --- banner ---------------------------------------------------------------
   let banner = null;
-  if (state === 'S4-GATED-STRIPENOTREADY') banner = { tone: 'warning', title: null, message: GATED_MESSAGE, match: null };
-  else if (state === 'S4-ERROR-SYSTEM') banner = { tone: 'error', title: null, message: SYSTEM_MESSAGE, match: null };
+  if (state === 'S4-GATED-STRIPENOTREADY') banner = { tone: 'warning', title: null, message: GATED_MESSAGE };
+  else if (state === 'S4-ERROR-SYSTEM') banner = { tone: 'error', title: null, message: SYSTEM_MESSAGE };
   else if (state === 'S4-ERROR-VALIDATION') {
     banner = intent === null
-      ? { tone: 'error', title: null, message: CHOOSE_ACTION, match: null }
-      : { tone: 'error', title: attentionTitle(invoiceErrorCount), message: VALIDATION_MESSAGE, match: null };
+      ? { tone: 'error', title: null, message: CHOOSE_ACTION }
+      : { tone: 'error', title: attentionTitle(invoiceErrorCount), message: VALIDATION_MESSAGE };
   } else if (state === 'S4-CLIENT-ERROR-VALIDATION') {
     const n = (clientErrors.clientName === null ? 0 : 1) + (clientErrors.clientEmail === null ? 0 : 1);
-    banner = { tone: 'error', title: attentionTitle(n), message: VALIDATION_MESSAGE, match: null };
-  } else if (state === 'S4-CLIENT-ERROR-DUPLICATE') {
-    banner = {
-      tone: 'warning',
-      title: null,
-      message: null,
-      match: { before: DUPLICATE_BEFORE, label: optionLabel(duplicate), after: DUPLICATE_AFTER },
-    };
+    banner = { tone: 'error', title: attentionTitle(n), message: VALIDATION_MESSAGE };
   }
+  // The duplicate warning is NOT the page banner: it is non-blocking and its
+  // two offers are submit buttons, so it renders inside the form, in the
+  // picker, where the wireframe draws it.
+  const duplicateMatch = state === 'S4-CLIENT-ERROR-DUPLICATE'
+    ? { before: DUPLICATE_BEFORE, label: optionLabel(duplicate), after: DUPLICATE_AFTER }
+    : null;
 
   const title = TITLE_OVERRIDE[state] ?? `${TITLE[mode]}${TITLE_SUFFIX[state] ?? ''}`;
 
@@ -386,15 +385,17 @@ export function invoiceFormLocals(input = {}) {
     hasClients: clients.length > 0,
     showSelect: pickerMode === 'select' && clients.length > 0,
     showNewClientToggle: pickerMode === 'select' && clients.length > 0,
-    showExistingClientToggle: pickerMode === 'new' && clients.length > 0,
-    showDuplicateOffers: state === 'S4-CLIENT-ERROR-DUPLICATE',
+    // The duplicate warning carries its own "use this client instead" offer, so
+    // the toggle to the same intent is not rendered twice in that state.
+    showExistingClientToggle: pickerMode === 'new' && clients.length > 0 && duplicateMatch === null,
     clients: clients.map((client) => ({ id: client.id, label: optionLabel(client), selected: client.id === selectedClientId })),
     clientError,
     clientName: values === null ? '' : values.clientName,
     clientEmail: values === null ? '' : values.clientEmail,
     clientNameError: state === 'S4-CLIENT-ERROR-VALIDATION' ? clientErrors.clientName : null,
     clientEmailError: state === 'S4-CLIENT-ERROR-VALIDATION' ? clientErrors.clientEmail : null,
-    duplicateId: duplicate === null ? '' : duplicate.id,
+    duplicate: duplicateMatch,
+    duplicateId: duplicateMatch === null ? '' : duplicate.id,
     lineItems,
     rowsError: showErrors ? submission.errors.rows : null,
     canAddRow: lineItems.length < MAX_LINE_ITEMS,

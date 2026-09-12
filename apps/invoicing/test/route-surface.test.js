@@ -55,6 +55,8 @@ const ALL_ROUTES = [
   'GET /connect-stripe/refresh',
   'GET /connect-stripe/return',
   'GET /healthz',
+  'GET /invoices/:id/edit',
+  'GET /invoices/new',
   'GET /signin',
   'GET /tokens.css',
   'POST /clients',
@@ -62,8 +64,10 @@ const ALL_ROUTES = [
   'POST /contracts',
   'POST /invoices',
   'POST /invoices/:id',
+  'POST /invoices/:id/edit',
   'POST /invoices/:id/finalize',
   'POST /invoices/:id/send',
+  'POST /invoices/new',
   'POST /signin',
   'POST /signout',
   'POST /signup',
@@ -93,7 +97,7 @@ test('G1: the route walk finds the EXACT committed list — cardinality first', 
     const found = discoverRoutes(app);
     // Never `> 0`: a walk that silently returned nothing would otherwise pass
     // every rule below it on an empty set (the AS-31 lesson).
-    assert.equal(found.length, 18, `expected exactly 18 routes, found ${found.length}: ${found.join(', ')}`);
+    assert.equal(found.length, 22, `expected exactly 22 routes, found ${found.length}: ${found.join(', ')}`);
     assert.deepEqual(found, ALL_ROUTES);
   });
 });
@@ -103,7 +107,7 @@ test('G1b: with NO webhook secret the surface is the same list minus the webhook
   // committed list above is config-dependent and says so in both directions.
   await withApp({ secret: null }, async ({ app }) => {
     const found = discoverRoutes(app);
-    assert.equal(found.length, 17, found.join(', '));
+    assert.equal(found.length, 21, found.join(', '));
     assert.deepEqual(found, ALL_ROUTES.filter((r) => r !== 'POST /webhooks/stripe'));
   });
 });
@@ -122,13 +126,17 @@ test('G2: the public/protected partition is exact in BOTH directions', async () 
       'GET /connect-stripe',
       'GET /connect-stripe/refresh',
       'GET /connect-stripe/return',
+      'GET /invoices/:id/edit',
+      'GET /invoices/new',
       'POST /clients',
       'POST /connect-stripe/start',
       'POST /contracts',
       'POST /invoices',
       'POST /invoices/:id',
+      'POST /invoices/:id/edit',
       'POST /invoices/:id/finalize',
       'POST /invoices/:id/send',
+      'POST /invoices/new',
       'POST /signout',
     ]);
   });
@@ -163,7 +171,7 @@ test('G3: every protected route\'s cookieless answer is ATTRIBUTABLE to the guar
     assert.equal(ref.headers.getSetCookie().length, 0, 'the guard sets NO cookie: that silence is what distinguishes it from a handler');
 
     const protectedRoutes = found.filter((r) => !PUBLIC_ROUTES.includes(r));
-    assert.equal(protectedRoutes.length, 12, 'cardinality before quantification');
+    assert.equal(protectedRoutes.length, 16, 'cardinality before quantification');
     for (const entry of protectedRoutes) {
       const [method, path] = entry.split(' ');
       const url = new URL(`${base}${path.replaceAll(':id', 'some-id')}`);

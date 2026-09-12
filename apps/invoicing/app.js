@@ -162,8 +162,10 @@ export function createApp(config, deps) {
   app.use(contractRoutes(config, { repos }));
   // 13. Client creation (AS-65): one route, POST /clients, whose exact path
   //     shadows nothing and is the only path in the app beginning /clients. It
-  //     is the shared creation surface both AS-46's and AS-47's screens post
-  //     to, so a client is never a side effect of the resource being drafted.
+  //     is the programmatic creation path; the screens (AS-46, AS-47) create
+  //     through the same repository call from their own handlers (AS-46 plan
+  //     §3.3), and either way a client is never a side effect of the resource
+  //     being drafted.
   //     `{ repos }` alone, like its neighbour above and for the same reason —
   //     creating a client makes no external call. Protected by POSITION alone:
   //     it adds no third publicness mechanism and does not touch

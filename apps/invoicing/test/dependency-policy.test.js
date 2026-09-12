@@ -375,7 +375,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 52, `expected 52 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 54, `expected 54 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/auth/accounts.js',
@@ -408,6 +408,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/invoices/lifecycle.js',
     'lib/invoices/mapping.js',
     'lib/screens/connect-view.js',
+    'lib/screens/invoice-form-view.js',
     'lib/screens/signin-view.js',
     'lib/stripe/client.js',
     'lib/stripe/custody.js',
@@ -428,6 +429,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'routes/webhooks.js',
     'server.js',
     'views/connect-stripe.ejs',
+    'views/invoice-form.ejs',
     'views/signin.ejs',
   ]);
 
@@ -756,11 +758,16 @@ const VIEW_FILES = /^views\//;
  *
  *  RE-MEASURED 2026-09-12 (AS-70), the same three instruments on
  *  views/connect-stripe.ejs: 43 / 43 / 42 (+1 doctype). signin.ejs re-run
- *  alongside still reads 87 / 87 / 86. The constant is the SUM over views/:
- *  87 + 43. Deleting one banner branch from screen 2 (a div and a p, open and
+ *  alongside still reads 87 / 87 / 86. The constant is the SUM over views/.
+ *  Deleting one banner branch from screen 2 (a div and a p, open and
  *  close) moves it by 4, which is how the partition case's falsifier reaches
- *  this row too. */
-const VIEW_START_TAGS = 87 + 43;
+ *  this row too.
+ *
+ *  RE-MEASURED 2026-09-12 (AS-46, at the rebase onto AS-70's merge) with
+ *  views/invoice-form.ejs in the set: this scan reported 87 + 43 + 202 across
+ *  the three templates — 202 for invoice-form.ejs — written down after the
+ *  run, never before. */
+const VIEW_START_TAGS = 87 + 43 + 202;
 
 const lineAt = (text, index) => text.slice(0, index).split('\n').length;
 
@@ -836,7 +843,7 @@ function scanAttributeNamePosition() {
   return { findings, tags, files: files.length };
 }
 
-test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, AS-44 and AS-45 put them', () => {
+test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, AS-44, AS-45 and AS-46 put them', () => {
   // The `stripe` npm module is banned everywhere, permanently: `new Stripe(key)`
   // is the documented bypass of the custody guard (stack decision §8.1).
   scanConcept('stripe module import', /(from|require\s*\(|import\s*\()\s*['"]stripe['"]/, []);
@@ -932,7 +939,12 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
   // app.js is deliberately NOT among them — the mount line and its comment are
   // money-word-free, and that is a claim this row checks. Everything else,
   // client.js and transport.js included, stays clear of the words even in
-  // comments (RAW text, not stripped).
+  // comments (RAW text, not stripped). AS-46 adds ONE member: screen 4's view
+  // model is the human-to-minor-units boundary — it imports both conversions
+  // from money.js and is the only place that knows the form's unitPrice is the
+  // repository's unitAmountMinor. NOT added, and measured to stay clear
+  // (comments included): views/invoice-form.ejs and public/app.css, which
+  // receive formatted strings and a priceLabel built in the view model.
   scanConcept(
     'money representation',
     /amount|currency|money/i,
@@ -942,6 +954,7 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
       'lib/db/repositories/invoices.js',
       'lib/invoices/lifecycle.js',
       'lib/invoices/mapping.js',
+      'lib/screens/invoice-form-view.js',
       'lib/stripe/custody.js',
       'routes/invoices.js',
     ],
@@ -1049,7 +1062,7 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
     'interpolation in a URL or style attribute',
     /(href|src|action|formaction|style)\s*=\s*"[^"]*<%/i,
     [],
-    { only: /^(views|public)\//, expectFiles: 3 },
+    { only: /^(views|public)\//, expectFiles: 4 },
   );
   // P2b — no event-handler attribute. Scoped to templates and stylesheets: the
   // pattern matches ` once =` in JavaScript, and narrowing the pattern to avoid
@@ -1061,12 +1074,12 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
   // none of the five characters EJS escapes, so the escape is a no-op against
   // it. P2c three lines below always carried `/i`; the omission here and on P2a
   // was an oversight, not a decision. Re-measured baseline after the flag: ZERO.
-  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^(views|public)\//, expectFiles: 3 });
+  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^(views|public)\//, expectFiles: 4 });
   // P2c — THE NO-CLIENT-SIDE-JAVASCRIPT ASSUMPTION, MADE MECHANICAL. Two ledger
   // rows (S1-LOADING, S2-LOADING) are unimplementable under it and are recorded
   // as `unrenderable — browser-supplied` rather than silently skipped. This row
   // is what stops the assumption decaying into a comment.
-  scanConcept('script or style element', /<(script|style)\b/i, [], { only: /^(views|public)\//, expectFiles: 3 });
+  scanConcept('script or style element', /<(script|style)\b/i, [], { only: /^(views|public)\//, expectFiles: 4 });
   // P3 — an attribute value that carries data is DOUBLE-quoted, because
   // escaping `"` is only load-bearing if `"` is the delimiter. This row catches
   // the two spellings that break that: a single-quoted value, and an unquoted
@@ -1075,7 +1088,7 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
     'interpolation in an unquoted or single-quoted attribute value',
     /=\s*'[^']*<%|=\s*<%/,
     [],
-    { only: /^(views|public)\//, expectFiles: 3 },
+    { only: /^(views|public)\//, expectFiles: 4 },
   );
   // P4 — NO INTERPOLATION IN THE TAG-NAME OR ATTRIBUTE-NAME REGION (review
   // cycle 1, F-3; the tag-name half added by review cycle 2, ruling R-6).
@@ -1087,9 +1100,10 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
   // interpolated tag name is counted as a start tag, so planting one leaves this
   // number unmoved and the findings assertion is the only thing that can catch it.
   const attrName = scanAttributeNamePosition();
-  // A COMMITTED COUNT, not a `> 0` floor (AS-70, B5): two templates today,
-  // signin.ejs and connect-stripe.ejs. A third screen moves this with its VIEWS row.
-  assert.equal(attrName.files, 2, `P4 examined ${attrName.files} template(s) under views/, expected 2`);
+  // A COMMITTED COUNT, not a `> 0` floor (AS-70, B5): three templates today,
+  // signin.ejs, connect-stripe.ejs and invoice-form.ejs (AS-46). A fourth screen
+  // moves this with its VIEWS row.
+  assert.equal(attrName.files, 3, `P4 examined ${attrName.files} template(s) under views/, expected 3`);
   assert.equal(
     attrName.tags,
     VIEW_START_TAGS,
