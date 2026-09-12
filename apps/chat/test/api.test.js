@@ -1560,7 +1560,7 @@ test('api: AS-74 — served app.js keeps the org chart node label as title · cl
     'the meta element is built by el(), so its text goes through textContent');
 });
 
-test('api: AS-74 — every served public/ module is free of markup sinks (14 examined)', async (t) => {
+test('api: AS-74 — every served public/ module is free of markup sinks (15 examined)', async (t) => {
   const { base } = await bootServer(t);
 
   // AS-74 item 4: this replaces four whole-file sink assertions that lived in
@@ -1576,8 +1576,8 @@ test('api: AS-74 — every served public/ module is free of markup sinks (14 exa
   // Cardinality before quantification, and the anti-vacuity pin: a readdir
   // that returns nothing, or a module added without a thought for the house
   // rule, fails here rather than passing over an empty set.
-  assert.equal(modules.length, 14,
-    `expected 14 served modules under public/, found ${modules.length}: ${modules.join(', ')} `
+  assert.equal(modules.length, 15,
+    `expected 15 served modules under public/, found ${modules.length}: ${modules.join(', ')} `
     + '— a new public/ module updates this count in the same task, and must be sink-free');
 
   const SINKS = ['.innerHTML', 'insertAdjacentHTML', 'outerHTML', 'document.write'];

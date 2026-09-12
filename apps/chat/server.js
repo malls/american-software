@@ -64,6 +64,7 @@ const STATIC_FILES = {
   '/dashboard-link.js': ['dashboard-link.js', 'text/javascript; charset=utf-8'],
   '/copy-refs.js': ['copy-refs.js', 'text/javascript; charset=utf-8'],
   '/leaf-refs.js': ['leaf-refs.js', 'text/javascript; charset=utf-8'],
+  '/message-pane.js': ['message-pane.js', 'text/javascript; charset=utf-8'],
   '/tokens.css': ['tokens.css', 'text/css; charset=utf-8'],
   '/style.css': ['style.css', 'text/css; charset=utf-8'],
   '/favicon.svg': ['favicon.svg', 'image/svg+xml'],
