@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 4,
+  "comment_count": 5,
   "complexity": "medium",
   "created_at": "2026-09-07T16:29:02Z",
   "created_by": "agent:cto-owen",
@@ -18,7 +18,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1YB78T82XQM2P3P41G7T2J3",
-  "last_event_id": "ev_01M29YTRE8M229D7GVVC7AYB4K",
+  "last_event_id": "ev_01M29ZNF40RYXSCHZTQM86H5TF",
   "last_status_changed_at": "2026-09-12T04:17:21Z",
   "linked_files": [],
   "priority": "high",
@@ -42,6 +42,6 @@
   ],
   "title": "D1 demo for the board: scripted local-compose walkthrough of the v1 core loop + a viewable captured artifact",
   "type": "task",
-  "updated_at": "2026-09-12T04:43:22Z",
+  "updated_at": "2026-09-12T04:57:58Z",
   "urgency": null
 }
