@@ -473,7 +473,8 @@ test('generate creates one contract through the same path as the API, and lands 
     const res = await post('/contracts/new', validBody(client));
     assert.equal(res.status, 303);
     assert.equal(countContracts(repos, freelancer), before + 1, 'exactly one row');
-    const row = repos.contracts.listByFreelancer(freelancer.id)[0];
+    const id = repos.contracts.listByFreelancer(freelancer.id)[0].id;
+    const row = repos.contracts.getById(freelancer.id, id);
     assert.equal(res.headers.get('location'), `/contracts/${row.id}`, 'the API\'s own detailPath');
     const landing = await followToTerminus(base, res, { cookie });
     assert.equal(landing.hops, 1);
@@ -501,8 +502,11 @@ test('S6-DENIED-SIGNEDOUT: cookieless GET and POST /contracts/new are answered b
     assert.equal(landing.status, 200);
     assert.equal(stateOf(landing.body), 'S1-DEFAULT-SIGNIN');
     assert.equal(occurrences(landing.body, '<input type="hidden" name="next" value="/contracts/new" />'), 2);
+    // Same-origin and cookieless: past the origin check (which fails closed
+    // at 403 without an Origin — the guard's own rule), the session check
+    // answers a POST with a bare /signin.
     const posted = await fetch(`${base}/contracts/new`, {
-      method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded', origin: base },
       body: new URLSearchParams({ intent: 'generate', projectDescription: DESCRIPTION, startDate: START_DATE }).toString(),
     });
     assert.equal(posted.status, 303);
@@ -601,7 +605,7 @@ test('a record-sourced name posted to the screen is not read: the document says 
   await withScreenApp(async ({ base, post, repos, freelancer, client, cookie }) => {
     const res = await post('/contracts/new', validBody(client, { freelancerName: 'Someone Else' }));
     assert.equal(res.status, 303, 'not read, so not refused: the API would 400 this body');
-    const row = repos.contracts.listByFreelancer(freelancer.id)[0];
+    const row = repos.contracts.getById(freelancer.id, repos.contracts.listByFreelancer(freelancer.id)[0].id);
     assert.equal(row.variables.freelancerName, freelancer.displayName);
     assert.equal(occurrences(row.renderedHtml, 'Someone Else'), 0);
     const landing = await followToTerminus(base, res, { cookie });

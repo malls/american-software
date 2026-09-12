@@ -795,6 +795,7 @@ const VIEW_FILES = /^views\//;
  *  — two fewer than its first measurement (60) after the "New contract" nav
  *  anchor moved to AS-127 with its route: the scan counts the open AND the
  *  close tag, so one removed anchor moves it by 2.
+<<<<<<< HEAD
  *
  *  RE-MEASURED 2026-09-12 (AS-48, at the rebase onto AS-47's merge) with
  *  views/dashboard.ejs and views/invoice-detail.ejs in the set, and the nav
@@ -805,8 +806,16 @@ const VIEW_FILES = /^views\//;
  *  `<p><a>Back to Dashboard</a></p>`, +4), dashboard.ejs 131,
  *  invoice-detail.ejs 101 — the same instrument, calibrated against the
  *  committed numbers above before it was read on the new files, then confirmed
- *  by the run. The constant is the SUM over views/, in declaration order. */
-const VIEW_START_TAGS = 87 + 47 + 208 + 64 + 131 + 101;
+ *  by the run. The constant is the SUM over views/, in declaration order.
+ *
+ *  RE-MEASURED 2026-09-12 (AS-127, at the rebase onto AS-48's merge) with
+ *  views/contract-form.ejs in the set (185: its own chrome including the
+ *  Dashboard anchor) and the "New contract" nav anchor on the four
+ *  chrome-bearing templates (+2 each, open and close): invoice-form.ejs
+ *  208 -> 210, contract-detail.ejs 64 -> 66, invoice-detail.ejs 101 -> 103,
+ *  dashboard.ejs 131 -> 135 (the nav anchor and the first-run contract CTA
+ *  anchor) — predicted before the run, then read off it. */
+const VIEW_START_TAGS = 87 + 47 + 210 + 66 + 135 + 103 + 185;
 
 const lineAt = (text, index) => text.slice(0, index).split('\n').length;
 
