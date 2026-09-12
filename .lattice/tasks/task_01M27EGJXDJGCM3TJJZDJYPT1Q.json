@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-lena",
   "branch_links": [
     {
       "branch": "feat/AS-109-favicon-guard-quotes-smil",
@@ -18,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M27EGJXDJGCM3TJJZDJYPT1Q",
-  "last_event_id": "ev_01M29ER5BNF14PW98Z63QZWPZW",
-  "last_status_changed_at": "2026-09-12T00:01:59Z",
+  "last_event_id": "ev_01M29EX3ESXT7EW059ED8R44KJ",
+  "last_status_changed_at": "2026-09-12T00:05:02Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-109",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat: favicon AC-3 guard \u2014 read single-quoted paint attributes and reject SMIL colour doors (AS-28 F4/F5, test-only)",
   "type": "task",
-  "updated_at": "2026-09-12T00:02:20Z",
+  "updated_at": "2026-09-12T00:05:02Z",
   "urgency": null
 }
