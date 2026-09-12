@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 4,
+  "comment_count": 6,
   "complexity": null,
   "created_at": "2026-09-12T00:41:47Z",
   "created_by": "agent:qa-priya",
@@ -18,20 +18,20 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M29H0CXTRXKEN9MWRQH23WG6",
-  "last_event_id": "ev_01M29JYWYX27JE8F57C2D4XNF2",
-  "last_status_changed_at": "2026-09-12T01:15:55Z",
+  "last_event_id": "ev_01M29MH152SHR2B8PVP7DE2YX6",
+  "last_status_changed_at": "2026-09-12T01:43:18Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-124",
-  "status": "in_progress",
+  "status": "review",
   "tags": [
     "chat"
   ],
   "title": "Chat: AS-111 review residuals \u2014 a rename on the Docker Desktop bind mount replays the event stream twice (transient inode on the first stat), malformed counter survives resetTail after a re-read, and the watcher cut-close cycle (AC-7) has no red-capable test",
   "type": "task",
-  "updated_at": "2026-09-12T01:15:55Z",
+  "updated_at": "2026-09-12T01:43:18Z",
   "urgency": null
 }

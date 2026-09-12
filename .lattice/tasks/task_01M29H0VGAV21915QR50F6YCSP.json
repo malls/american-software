@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 2,
+  "comment_count": 4,
   "complexity": "medium",
   "created_at": "2026-09-12T00:42:02Z",
   "created_by": "agent:qa-ruben",
@@ -18,15 +18,15 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M29H0VGAV21915QR50F6YCSP",
-  "last_event_id": "ev_01M29JYX2W8VNHA95MZVHVVX61",
-  "last_status_changed_at": "2026-09-12T01:15:55Z",
+  "last_event_id": "ev_01M29MH19BRX1MWQKSHSSCWYMD",
+  "last_status_changed_at": "2026-09-12T01:43:18Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-125",
-  "status": "in_progress",
+  "status": "review",
   "tags": [
     "chat",
     "test-guard",
@@ -35,6 +35,6 @@
   ],
   "title": "Chat: roster-title cascade guard \u2014 routes past targets()/walk(): type and universal subjects, attribute/escaped class selectors, @scope/@import/@layer swallowed, unbalanced string brace",
   "type": "bug",
-  "updated_at": "2026-09-12T01:15:55Z",
+  "updated_at": "2026-09-12T01:43:18Z",
   "urgency": null
 }

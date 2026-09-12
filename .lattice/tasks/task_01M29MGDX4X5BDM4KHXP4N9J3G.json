@@ -1,0 +1,36 @@
+{
+  "acceptance_criteria": [],
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 1,
+  "complexity": null,
+  "created_at": "2026-09-12T01:42:58Z",
+  "created_by": "agent:cto-owen",
+  "custom_fields": {},
+  "description": null,
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01M29MGDX4X5BDM4KHXP4N9J3G",
+  "last_event_id": "ev_01M29MGRJR5VA0MJXSR3X4PA8H",
+  "last_status_changed_at": "2026-09-12T01:42:58Z",
+  "linked_files": [],
+  "priority": "critical",
+  "relationships_out": [
+    {
+      "created_at": "2026-09-12T01:43:09Z",
+      "created_by": "agent:cto-owen",
+      "note": null,
+      "target_task_id": "task_01M27EGJXDJGCM3TJJZDJYPT1Q",
+      "type": "subtask_of"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AS-126",
+  "status": "backlog",
+  "tags": null,
+  "title": "Chat: favicon guard \u2014 a filter= presentation attribute (drop-shadow etc.) is a colour door T3/T4 do not read (AS-109 Ruben N4, test-only)",
+  "type": "task",
+  "updated_at": "2026-09-12T01:43:09Z",
+  "urgency": null
+}

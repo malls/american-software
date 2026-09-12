@@ -9,33 +9,38 @@
       "repo": null
     }
   ],
-  "comment_count": 8,
+  "comment_count": 10,
   "complexity": null,
   "created_at": "2026-09-11T05:19:43Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
   "description": null,
-  "done_at": null,
+  "done_at": "2026-09-12T01:42:56Z",
   "evidence_refs": [
     {
       "id": "ev_01M29H8W842148N13JZB8D7R94",
       "role": "review",
       "source_type": "comment"
+    },
+    {
+      "id": "ev_01M29M4GQC8N7FRC805931VCQA",
+      "role": "review",
+      "source_type": "comment"
     }
   ],
   "id": "task_01M27EGJXDJGCM3TJJZDJYPT1Q",
-  "last_event_id": "ev_01M29JYX6VRBJ9XE0A6WM6W650",
-  "last_status_changed_at": "2026-09-12T01:13:36Z",
+  "last_event_id": "ev_01M29MGBFDX5VH0DDWJ9VSZGRB",
+  "last_status_changed_at": "2026-09-12T01:42:56Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [],
   "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-109",
-  "status": "review",
+  "status": "done",
   "tags": null,
   "title": "Chat: favicon AC-3 guard \u2014 read single-quoted paint attributes and reject SMIL colour doors (AS-28 F4/F5, test-only)",
   "type": "task",
-  "updated_at": "2026-09-12T01:15:55Z",
+  "updated_at": "2026-09-12T01:42:56Z",
   "urgency": null
 }
