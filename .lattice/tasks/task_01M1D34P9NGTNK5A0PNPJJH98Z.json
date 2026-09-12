@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-lena",
   "branch_links": [
     {
       "branch": "feat/AS-49-e2e-loop",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34P9NGTNK5A0PNPJJH98Z",
-  "last_event_id": "ev_01M2A7ZDMC20QJC8A3Q1GJ0KWC",
-  "last_status_changed_at": "2026-09-12T07:22:38Z",
+  "last_event_id": "ev_01M2A9GKMC8CR0Z95J9DWA5N0E",
+  "last_status_changed_at": "2026-09-12T07:50:04Z",
   "linked_files": [],
   "priority": "high",
   "relationships_out": [
@@ -69,7 +69,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-49",
-  "status": "planned",
+  "status": "in_progress",
   "tags": [
     "d1",
     "v1",
@@ -78,6 +78,6 @@
   ],
   "title": "D1 v1: automated end-to-end loop verification on local compose",
   "type": "task",
-  "updated_at": "2026-09-12T07:23:12Z",
+  "updated_at": "2026-09-12T07:50:04Z",
   "urgency": null
 }
