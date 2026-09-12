@@ -1,8 +1,15 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
-  "branch_links": [],
-  "comment_count": 0,
+  "branch_links": [
+    {
+      "branch": "feat/AS-48-read-views",
+      "linked_at": "2026-09-12T08:14:54Z",
+      "linked_by": "agent:cto-owen",
+      "repo": null
+    }
+  ],
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:44Z",
   "created_by": "agent:cto-owen",
@@ -11,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34P63WC2P2CYJ3N65W5H1",
-  "last_event_id": "ev_01M2A9GKR9C19GST9HYVJHZKNP",
-  "last_status_changed_at": "2026-09-12T07:50:04Z",
+  "last_event_id": "ev_01M2AAZ5TN3XAG3M07G0V6R3JG",
+  "last_status_changed_at": "2026-09-12T08:15:30Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [
@@ -48,7 +55,7 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-48",
-  "status": "in_planning",
+  "status": "planned",
   "tags": [
     "d1",
     "v1",
@@ -57,6 +64,6 @@
   ],
   "title": "D1 v1 UI: read views, screens 3 and 5 (dashboard, invoice detail)",
   "type": "task",
-  "updated_at": "2026-09-12T07:50:04Z",
+  "updated_at": "2026-09-12T08:15:30Z",
   "urgency": null
 }
