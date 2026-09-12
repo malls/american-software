@@ -20,9 +20,14 @@
 # **/.env.local (AS-38): the optional, gitignored file a developer keeps a Stripe
 # test key in. It is read by `docker compose --env-file`, never by a Dockerfile;
 # a build context is the one place it could be copied into an image by accident.
+#
+# **/.DS_Store (AS-57): Finder's metadata file. apps/invoicing's Dockerfile
+# COPYs its whole directory, and its closed-world scan fails loudly on any file
+# it cannot classify — correct for a stray script, a nuisance for this one.
 .git
 .worktrees
 **/node_modules
 apps/chat/data
 .claude
 **/.env.local
+**/.DS_Store

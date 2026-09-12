@@ -18,3 +18,6 @@ apps/invoicing/node_modules/
 # apps/invoicing/.env.local up` — so the file's absence is not an error.
 apps/invoicing/.env.local
 *.env.local
+# Finder metadata (AS-57); also kept out of the invoicing build context by the
+# repo-root .dockerignore.
+.DS_Store

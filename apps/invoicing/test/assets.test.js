@@ -20,7 +20,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { VENDOR_ASSETS } from '../lib/vendor.js';
+import { VENDOR_ASSETS, VENDOR_DOCUMENTS } from '../lib/vendor.js';
 import { configFor, withServer } from './helpers/server.js';
 
 /** The exact byte length of tokens.css (the stack decision named 12199; AS-56
@@ -90,6 +90,23 @@ test('exactly one vendored asset is registered', () => {
   assert.equal(VENDOR_ASSETS.length, 1);
   assert.deepEqual(VENDOR_ASSETS.map((a) => a.route), ['/tokens.css']);
   assert.deepEqual(VENDOR_ASSETS.map((a) => a.file), ['tokens.css']);
+});
+
+test('vendor/ in the image holds exactly the two registered files and nothing else', async () => {
+  // The DIRECTORY, not the Dockerfile: deploy-shape.test.js pins the two COPYs
+  // whose dest is ./vendor, but since AS-57 the whole app directory is COPY'd,
+  // so a host-side apps/invoicing/vendor/ lands in /app/vendor through a COPY
+  // that never names it. dependency-policy.test.js skips vendor/ at the top
+  // level (it is not ours to scan), which made that landing place a hole: an
+  // outbound client planted there and imported from lib/ ran green (AS-57
+  // review). Cardinality first, then the exact set — a third file here is a
+  // failure whatever its name.
+  const config = configFor();
+  const registered = [...VENDOR_ASSETS, ...VENDOR_DOCUMENTS].map((entry) => entry.file).sort();
+  assert.deepEqual(registered, ['states-ledger.md', 'tokens.css']);
+  const onDisk = (await readdir(config.vendorDir)).sort();
+  assert.equal(onDisk.length, 2, `vendor/ holds ${onDisk.length} entries, expected 2: ${onDisk.join(', ')} — nothing lands in vendor/ except through lib/vendor.js`);
+  assert.deepEqual(onDisk, registered);
 });
 
 // --- the vendored asset, served out of the real image -----------------------

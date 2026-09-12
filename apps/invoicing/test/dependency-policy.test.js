@@ -30,6 +30,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { basename, join, relative } from 'node:path';
 import { APP_DIR } from './helpers/server.js';
+import { stripTrailingHashComment } from './helpers/hash-comment.js';
 
 const PACKAGE = JSON.parse(readFileSync(join(APP_DIR, 'package.json'), 'utf8'));
 const LOCK = JSON.parse(readFileSync(join(APP_DIR, 'package-lock.json'), 'utf8'));
@@ -213,25 +214,14 @@ test('the comment stripper works, in both directions', () => {
  *  may we — deploy-shape.test.js makes the same choice in DOCKERFILE_CODE);
  *  .json → not stripped at all, JSON has no comment syntax and a `#` inside a
  *  JSON string is data. Line-preserving, like stripComments: a removed comment
- *  leaves its (empty) line behind. */
+ *  leaves its (empty) line behind. The per-line loop is the helper shared with
+ *  deploy-shape.test.js (AS-57): one loop, one escape rule, both scans. */
 function stripHashComments(text, { trailing = false } = {}) {
   return text
     .split('\n')
     .map((line) => {
       if (/^\s*#/.test(line)) return '';
-      if (!trailing) return line;
-      let quote = null;
-      for (let i = 0; i < line.length; i += 1) {
-        const ch = line[i];
-        if (quote) {
-          if (ch === quote) quote = null;
-        } else if (ch === '"' || ch === "'") {
-          quote = ch;
-        } else if (ch === '#' && (i === 0 || /\s/.test(line[i - 1]))) {
-          return line.slice(0, i);
-        }
-      }
-      return line;
+      return trailing ? stripTrailingHashComment(line) : line;
     })
     .join('\n');
 }
@@ -248,6 +238,12 @@ test('the manifest comment stripper works, in both directions', () => {
   assert.equal(stripHashComments('k: "a # b"', { trailing: true }), 'k: "a # b"');
   assert.equal(stripHashComments("k: 'a # b'", { trailing: true }), "k: 'a # b'");
   assert.equal(stripHashComments('k: "a # b"', { trailing: false }), 'k: "a # b"');
+  // Keeps: an ESCAPED quote inside "…" does not close it (AS-57), so the ` #`
+  // and the call site behind it are still data. An escaped backslash is a
+  // pair, so the quote after it really closes; '…' has no escape at all.
+  assert.equal(stripHashComments('k: "a \\" # fetch("', { trailing: true }), 'k: "a \\" # fetch("');
+  assert.equal(stripHashComments('k: "a\\\\" # c"', { trailing: true }), 'k: "a\\\\" ');
+  assert.equal(stripHashComments("k: 'a\\' # c'", { trailing: true }), "k: 'a\\' ");
   // Keeps: code before the comment; `a#b` is not a comment in YAML either.
   assert.equal(stripHashComments('x: fetch( # c', { trailing: true }), 'x: fetch( ');
   assert.equal(stripHashComments('x: a#b', { trailing: true }), 'x: a#b');
@@ -292,36 +288,41 @@ const SOURCE_EXT = /\.(js|mjs|cjs|ejs|css)$/;
 const MANIFEST_NAME = /^(Dockerfile(\..+)?|.+\.ya?ml|.+\.json)$/;
 
 /** Files the walker accounts for but never reads. ALLOWED-IF-PRESENT, not an
- *  expected list: README.md exists only on the host and .dockerignore only in
- *  the image, and the suite must pass in both places.
+ *  expected list: none of these can execute, so an absent one is no finding
+ *  and an exact list would be a second list to maintain for no coverage.
  *   - package-lock.json: generated, no executable content, and guarded by the
  *     right tool for its shape — LOCK_ENTRIES plus exact-name matching above.
  *     A regex over 898 lines adds noise and no coverage.
- *   - README.md: prose cannot execute, and it is not COPY'd into the image, so
- *     scanning it would break host/container parity of the scanned set.
+ *   - README.md: prose cannot execute. In the image since AS-57 (the whole
+ *     directory is COPY'd), and still not worth a scan.
  *   - .dockerignore: a pattern list; cannot execute; already parsed as data by
- *     deploy-shape.test.js. Present only at /app (COPY'd from the repo root). */
+ *     deploy-shape.test.js. */
 const UNSCANNED = new Set(['package-lock.json', 'README.md', '.dockerignore']);
 
 /** Not walked at all, as before AS-53: test/ legitimately fetches its own
- *  loopback listener; vendor/ is not ours and exists only inside the image
- *  (including it would make the file set differ between host and container —
- *  what lands there is bounded by VENDOR_ASSETS, pinned by assets.test.js);
- *  node_modules/ is the lockfile's job. demo/ (AS-90) is the board's
- *  walkthrough: like test/ it drives its own loopback listener with `fetch`
- *  and is never imported by app code — which the closed-world case below
- *  asserts rather than assumes, so skipping the directory cannot quietly make
- *  it an import path for lib/ or routes/. */
+ *  loopback listener; node_modules/ is the lockfile's job; vendor/ is not ours
+ *  — it is where the Dockerfile's two cross-directory COPYs land, and since the
+ *  whole app directory is COPY'd (AS-57) a host-side vendor/ would land there
+ *  too, unscanned, so assets.test.js pins /app/vendor to exactly the two
+ *  registered files (VENDOR_ASSETS + VENDOR_DOCUMENTS). demo/ (AS-90) is the
+ *  board's walkthrough: like test/ it drives its own loopback listener with
+ *  `fetch`. None of the four is an import path for app code — the closed-world
+ *  case below asserts that for every name here rather than assumes it, so
+ *  skipping a directory cannot quietly make it runtime code. TOP LEVEL ONLY
+ *  (AS-57): a nested `lib/vendor/` or `routes/test/` is walked like any other
+ *  directory AND reported in `nestedSkipped` — skip-by-name at every depth was
+ *  a hiding place. */
 const SKIPPED_DIRS = new Set(['node_modules', 'test', 'vendor', 'demo']);
 
-/** Walk `dir` and bucket every file by basename. */
-function classifyTree(dir) {
-  const buckets = { source: [], manifest: [], unscanned: [], unknown: [] };
+/** Walk `dir` and bucket every file by basename; SKIPPED_DIRS at depth 0 only. */
+function classifyTree(dir, depth = 0) {
+  const buckets = { source: [], manifest: [], unscanned: [], unknown: [], nestedSkipped: [] };
   for (const entry of readdirSync(dir).sort()) {
-    if (SKIPPED_DIRS.has(entry)) continue;
+    if (depth === 0 && SKIPPED_DIRS.has(entry)) continue;
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) {
-      const sub = classifyTree(path);
+      if (SKIPPED_DIRS.has(entry)) buckets.nestedSkipped.push(path);
+      const sub = classifyTree(path, depth + 1);
       for (const key of Object.keys(buckets)) buckets[key].push(...sub[key]);
     } else if (UNSCANNED.has(entry)) {
       buckets.unscanned.push(path);
@@ -357,6 +358,17 @@ test('the scan examines exactly the files it is supposed to — source, manifest
   // Exact lists per class, not minimums: a new .yaml file is a visible,
   // deliberate two-line change (the file, and the list here).
   const rel = (paths) => paths.map((p) => relative(APP_DIR, p)).sort();
+
+  // 0. No skip-named directory below the top level (AS-57). First, because a
+  // nested `lib/vendor/` is walked now and its files surface in 1–3 below.
+  const nested = rel(FILES.nestedSkipped);
+  assert.deepEqual(
+    nested,
+    [],
+    nested
+      .map((d) => `${d} is a SKIPPED_DIRS name below the top level — SKIPPED_DIRS applies to apps/invoicing/ only; rename it or classify its contents`)
+      .join('\n'),
+  );
 
   // 1. The closed world: nothing is unclassified. This is the load-bearing one.
   const unknown = rel(FILES.unknown);
@@ -447,17 +459,18 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     assert.ok(strippedText(path).trim().length > 0, `${relative(APP_DIR, path)} stripped to nothing — the stripper is broken`);
   }
 
-  // 5. A SKIPPED directory is not an import path for app code (AS-90). demo/
-  // is skipped like test/, so nothing above scans it — which is exactly why
-  // this is asserted: a `demo/` import from lib/ or routes/ would pull unscanned
-  // code (a second `fetch` user) into the runtime through a door the walker
-  // deliberately does not look behind. Whole-text on the STRIPPED source so a
-  // comment naming the directory (the Dockerfile's, this file's) is not a hit;
-  // the specifier form (`from '…demo/…'`, `import('…demo/…')`) is what is
-  // matched. Cardinality first: the set examined is the closed world above.
+  // 5. No SKIPPED directory is an import path for app code (AS-90 for demo/;
+  // every SKIPPED_DIRS name since AS-57). Nothing above scans them — which is
+  // exactly why this is asserted: a `demo/`, `vendor/` or `test/` import from
+  // lib/ or routes/ would pull unscanned code (a second `fetch` user) into the
+  // runtime through a door the walker deliberately does not look behind.
+  // Whole-text on the STRIPPED source so a comment naming a directory (the
+  // Dockerfile's, this file's) is not a hit; the specifier form (`from '…demo/…'`,
+  // `import('…vendor/…')`) is. Cardinality first: the set is the closed world above.
   assert.equal(SCANNED.length, source.length + manifest.length);
-  const demoImports = SCANNED.filter((path) => /(from|import\s*\()\s*['"][^'"]*\bdemo\/[^'"]*['"]/.test(strippedText(path)));
-  assert.deepEqual(demoImports.map((p) => relative(APP_DIR, p)), [], 'app source imports from demo/ — the walkthrough is not runtime code');
+  const skippedSpecifier = new RegExp(String.raw`(from|import\s*\()\s*['"][^'"]*\b(${[...SKIPPED_DIRS].join('|')})\/[^'"]*['"]`);
+  const skippedImports = SCANNED.filter((path) => skippedSpecifier.test(strippedText(path)));
+  assert.deepEqual(skippedImports.map((p) => relative(APP_DIR, p)), [], 'app source imports from a SKIPPED_DIRS directory — skipped code is not runtime code');
 });
 
 // --- outbound HTTP clients, and the one hit that is allowed ------------------

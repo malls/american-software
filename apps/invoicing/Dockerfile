@@ -25,19 +25,20 @@ ENV NODE_ENV=production
 COPY apps/invoicing/package.json apps/invoicing/package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
-COPY apps/invoicing/app.js apps/invoicing/server.js ./
-COPY apps/invoicing/lib ./lib
-COPY apps/invoicing/routes ./routes
-COPY apps/invoicing/views ./views
-COPY apps/invoicing/public ./public
-# Tests ship in the image deliberately: the test service runs the exact bits the
-# image ships, which is the AS-26 lesson generalised.
-COPY apps/invoicing/test ./test
-# The board's demo walkthrough (AS-90) ships so the demo runs the exact bits
-# the image ships (the AS-26 lesson), not for the runtime: server.js never
-# imports it, and test/dependency-policy.test.js asserts nothing under lib/ or
-# routes/ does either.
-COPY apps/invoicing/demo ./demo
+# The app, WHOLE (AS-57). The image IS this directory minus the repo-root
+# .dockerignore — never an explicit list of what to ship. An explicit list was
+# a second closed world, closed over the image instead of the directory: a new
+# top-level file (a compose.override.yaml with an outbound healthcheck, say)
+# never reached /app, so test/dependency-policy.test.js's closed-world scan
+# never saw it. Now every file here lands in the image and the scan classifies
+# it or fails. What rides along on purpose: test/ (the test service runs the
+# exact bits the image ships — the AS-26 lesson generalised), demo/ (AS-90, the
+# board's walkthrough; server.js never imports it and dependency-policy asserts
+# nothing under lib/ or routes/ does either), the manifests (below), and
+# README.md (prose; UNSCANNED). Pinned by test/deploy-shape.test.js: exactly
+# one COPY sources this directory, and no other COPY sources a path under it
+# except the cache-layer one above.
+COPY apps/invoicing ./
 
 # The one SERVED asset consumed from outside apps/invoicing/. Single source of visual
 # truth (AS-29); this app is a consumer and never an owner, which is what the
@@ -54,13 +55,14 @@ COPY docs/design/tokens/tokens.css ./vendor/tokens.css
 # update both together. Deleting this line must turn the suite RED.
 COPY docs/design/wireframes/02-states-ledger.md ./vendor/states-ledger.md
 
-# Deployment manifests as DATA, not as anything the runtime reads (AS-26).
-# test/deploy-shape.test.js parses these to assert the deployed shape — the
-# build context, the tokens COPY, network_mode: none, the published port, and
-# the repo-root ignore rules. The mountless test service cannot reach the host
-# checkout, so the manifests have to ride along. .dockerignore is included for
-# the same reason: its apps/chat/data line is an assertion target.
-COPY apps/invoicing/compose.yaml apps/invoicing/Dockerfile .dockerignore ./
+# The repo-root .dockerignore as DATA, not as anything the runtime reads
+# (AS-26). test/deploy-shape.test.js parses the manifests — compose.yaml and
+# this Dockerfile arrive with the whole-directory COPY above; this one lives
+# outside apps/invoicing/ — to assert the deployed shape: the build context,
+# the tokens COPY, network_mode: none, the published port, and the repo-root
+# ignore rules (its apps/chat/data line is an assertion target). The mountless
+# test service cannot reach the host checkout, so it has to ride along.
+COPY .dockerignore ./
 
 # The database directory. A fresh named volume mounted here inherits this
 # ownership (measured 2026-09-01: uid 1000, mode 755, and the `node` user creates

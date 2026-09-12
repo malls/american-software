@@ -30,6 +30,7 @@ import { dirname, join, resolve } from 'node:path';
 import { SCHEMA } from '../lib/config.js';
 import { VENDOR_ASSETS, VENDOR_DOCUMENTS } from '../lib/vendor.js';
 import { APP_DIR } from './helpers/server.js';
+import { stripTrailingHashComment as stripComment } from './helpers/hash-comment.js';
 
 const COMPOSE_TEXT = readFileSync(join(APP_DIR, 'compose.yaml'), 'utf8');
 const DOCKERFILE = readFileSync(join(APP_DIR, 'Dockerfile'), 'utf8');
@@ -44,22 +45,9 @@ const CHECKOUT = '/checkout';
 const COMPOSE_DIR = join(CHECKOUT, 'apps', 'invoicing');
 
 // --- a strict YAML-subset parser --------------------------------------------
-
-/** Strip a trailing `# comment`, respecting quotes. */
-function stripComment(line) {
-  let quote = null;
-  for (let i = 0; i < line.length; i += 1) {
-    const ch = line[i];
-    if (quote) {
-      if (ch === quote) quote = null;
-    } else if (ch === '"' || ch === "'") {
-      quote = ch;
-    } else if (ch === '#' && (i === 0 || /\s/.test(line[i - 1]))) {
-      return line.slice(0, i);
-    }
-  }
-  return line;
-}
+//
+// The trailing-comment stripper (`stripComment`, imported above) is shared
+// with dependency-policy.test.js since AS-57: one loop, one escape rule.
 
 /** A scalar: a JSON flow sequence, a quoted string, or a bare string. */
 function scalar(raw) {
@@ -152,6 +140,13 @@ const COPIES = DOCKERFILE_CODE.split('\n')
     return { sources: parts.slice(0, -1), dest: parts[parts.length - 1] };
   });
 
+/** The COPY that makes the image the directory (AS-57): sources exactly
+ *  `apps/invoicing`, dest `./`. A list — asserted to have one member — so a
+ *  Dockerfile with none, or two, is visible as such rather than as an
+ *  `undefined` three assertions later. */
+const APP_COPIES = COPIES.filter((c) => c.sources.length === 1 && c.sources[0] === 'apps/invoicing' && c.dest === './');
+const APP_COPY = APP_COPIES[0];
+
 // --- the parser saw what it is about to assert on (anti-vacuity) ------------
 
 test('deploy-shape: the parsers read the manifests they are about to assert on', () => {
@@ -162,8 +157,10 @@ test('deploy-shape: the parsers read the manifests they are about to assert on',
   assert.deepEqual(Object.keys(SERVICES), ['web', 'test', 'stripe-mock', 'contract', 'demo']);
   assert.deepEqual(Object.keys(COMPOSE.networks), ['stripe-mock']);
   assert.deepEqual(Object.keys(COMPOSE.volumes), ['invoicing-data']);
-  assert.equal(COPIES.length, 11, `expected 11 COPY instructions, found ${COPIES.length}`);
-  assert.equal(IGNORE_PATTERNS.length, 6, `expected 6 .dockerignore patterns, found ${IGNORE_PATTERNS.length}`);
+  // 5 since AS-57: the cache layer, the whole app directory, and the three
+  // files from outside it. An explicit per-directory list is what 11 was.
+  assert.equal(COPIES.length, 5, `expected 5 COPY instructions, found ${COPIES.length}`);
+  assert.equal(IGNORE_PATTERNS.length, 7, `expected 7 .dockerignore patterns, found ${IGNORE_PATTERNS.length}`);
   assert.match(DOCKERFILE_CODE, /^FROM /m);
   // The comment stripper must not have eaten the instructions it is filtering
   // for — a stripper that returned nothing would make every scan below vacuous.
@@ -179,6 +176,9 @@ test('deploy-shape: the parser rejects shapes it does not understand', () => {
   assert.throws(() => parseYamlSubset('services:\n   web:\n'), /odd indentation/);
   assert.throws(() => parseYamlSubset('a: 1\na: 2\n'), /duplicate key/);
   assert.throws(() => parseYamlSubset('cmd: [not, json]\n'), /unparseable flow sequence/);
+  // AS-57: an escaped quote inside "…" does not close the string, so the ` #`
+  // after it is data, not a comment — the whole scalar survives to the value.
+  assert.equal(parseYamlSubset('k: "a \\" # b"\n').k, 'a \\" # b');
   // ...and it does understand the real file, which the assertions above rely on.
   assert.equal(parseYamlSubset(COMPOSE_TEXT).name, 'asc-invoicing');
 });
@@ -421,8 +421,10 @@ test('deploy-shape: the demo service is the contract service with a different co
   assert.equal(SERVICES.web.networks, undefined, 'web stays off the mock network');
   assert.equal(SERVICES.web.depends_on, undefined);
   // The Dockerfile ships the directory the command names — the AS-26 lesson:
-  // the demo runs the exact bits the image ships.
-  assert.equal(COPIES.filter((c) => c.sources.includes('apps/invoicing/demo') && c.dest === './demo').length, 1, 'apps/invoicing/demo is COPY\'d to ./demo exactly once');
+  // the demo runs the exact bits the image ships. Since AS-57 it arrives with
+  // the whole app directory, not by a COPY of its own.
+  assert.ok(APP_COPY, 'the whole app directory is COPY\'d, demo/ with it');
+  assert.equal(COPIES.filter((c) => c.sources.includes('apps/invoicing/demo')).length, 0, 'demo/ has no COPY of its own');
 });
 
 test('deploy-shape: the stripe-mock network has no egress and web is not on it', () => {
@@ -454,13 +456,25 @@ test('deploy-shape: dependencies are installed with npm ci, never npm install', 
 });
 
 test('deploy-shape: the manifests ride along as data, which is why this test can run', () => {
-  const dest = new Set(COPIES.flatMap((c) => c.sources));
-  for (const manifest of ['apps/invoicing/compose.yaml', 'apps/invoicing/Dockerfile', '.dockerignore']) {
-    assert.ok(dest.has(manifest), `${manifest} must be COPY'd into the image for this test to read it`);
-  }
-  // The test directory ships too: the test service runs the exact bits the
-  // image ships (the AS-26 lesson generalised).
-  assert.ok(dest.has('apps/invoicing/test'));
+  // AS-57: the image IS the directory. compose.yaml, this Dockerfile, test/
+  // and demo/ all arrive with the one whole-directory COPY — asserted present
+  // exactly once, and after `npm ci` so the dependency layer still caches
+  // across source edits. The repo-root .dockerignore is outside the
+  // directory and needs its own COPY.
+  assert.equal(APP_COPIES.length, 1, `exactly one COPY sources apps/invoicing whole, found ${APP_COPIES.length}`);
+  assert.deepEqual(APP_COPY, { sources: ['apps/invoicing'], dest: './' });
+  const installAt = DOCKERFILE_CODE.indexOf('RUN npm ci');
+  const appCopyAt = DOCKERFILE_CODE.indexOf('COPY apps/invoicing ./');
+  assert.ok(installAt > 0 && appCopyAt > installAt, 'the whole-directory COPY follows `RUN npm ci`');
+  const sources = new Set(COPIES.flatMap((c) => c.sources));
+  assert.ok(sources.has('.dockerignore'), '.dockerignore must be COPY\'d into the image for this test to read it');
+  // No other COPY sources a path UNDER apps/invoicing/ except the cache-layer
+  // one (package.json + lockfile). A sub-path COPY is a partial world again —
+  // the AS-57 finding: a list of what to ship is a list of what to scan, and a
+  // new top-level file is outside both.
+  const underApp = COPIES.filter((c) => c !== APP_COPY && c.sources.some((s) => s.startsWith('apps/invoicing/')));
+  assert.equal(underApp.length, 1, `expected only the cache-layer COPY under apps/invoicing/, found ${underApp.length}: ${underApp.map((c) => c.sources.join(' ')).join('; ')}`);
+  assert.deepEqual(underApp[0].sources, ['apps/invoicing/package.json', 'apps/invoicing/package-lock.json']);
 });
 
 // --- the repo-root .dockerignore --------------------------------------------
@@ -478,6 +492,10 @@ test('deploy-shape: the repo-root .dockerignore keeps the live chat database out
   // AS-38: the optional local key file must never enter a build context. The
   // pattern is `**/` so it holds wherever a future app keeps its own.
   assert.ok(IGNORE_PATTERNS.includes('**/.env.local'), '.dockerignore must exclude every .env.local');
+  // AS-57: the whole app directory is COPY'd and the closed-world scan fails on
+  // any file it cannot classify. Finder's .DS_Store is the one stray file a
+  // macOS developer creates without meaning to; it stays out of the context.
+  assert.ok(IGNORE_PATTERNS.includes('**/.DS_Store'), '.dockerignore must exclude every .DS_Store');
   // .dockerignore must NOT exclude itself or the manifests: the test above
   // depends on them being COPY-able.
   for (const needed of ['.dockerignore', 'apps/invoicing/compose.yaml', 'apps/invoicing/Dockerfile']) {
