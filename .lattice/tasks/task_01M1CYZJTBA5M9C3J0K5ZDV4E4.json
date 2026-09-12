@@ -1,7 +1,14 @@
 {
   "acceptance_criteria": [],
   "assigned_to": "agent:developer-marcus",
-  "branch_links": [],
+  "branch_links": [
+    {
+      "branch": "feat/AS-35-token-block-selectors",
+      "linked_at": "2026-09-12T21:01:36Z",
+      "linked_by": "agent:developer-marcus",
+      "repo": null
+    }
+  ],
   "comment_count": 3,
   "complexity": "low",
   "created_at": "2026-08-31T22:28:02Z",
@@ -11,18 +18,18 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1CYZJTBA5M9C3J0K5ZDV4E4",
-  "last_event_id": "ev_01M2BPST7JDQAZ57B34WMG1YZ5",
-  "last_status_changed_at": "2026-09-12T21:01:32Z",
+  "last_event_id": "ev_01M2BPSYRRQESAA8YWV1CZVTQ8",
+  "last_status_changed_at": "2026-09-12T21:01:36Z",
   "linked_files": [],
   "priority": "low",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-35",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "design tokens: verify CSS selectors, not just declarations \u2014 a wrong block-4 selector breaks theming with the suite green",
   "type": "task",
-  "updated_at": "2026-09-12T21:01:32Z",
+  "updated_at": "2026-09-12T21:01:36Z",
   "urgency": null
 }
