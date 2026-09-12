@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": "agent:cto-owen",
+  "assigned_to": "agent:developer-lena",
   "branch_links": [
     {
       "branch": "feat/AS-135-incremental-dom",
@@ -18,8 +18,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M2BEEDK4E81C5TJQ4XJS6YFZ",
-  "last_event_id": "ev_01M2BM8YJQDT2CMAWXW3H81HQN",
-  "last_status_changed_at": "2026-09-12T20:17:11Z",
+  "last_event_id": "ev_01M2BMCAXAR6WB2VWVHP3Z7VPF",
+  "last_status_changed_at": "2026-09-12T20:19:09Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [
@@ -34,10 +34,10 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-135",
-  "status": "planned",
+  "status": "in_progress",
   "tags": null,
   "title": "Chat: incremental message DOM \u2014 stop rebuilding the pane on live frames",
   "type": "task",
-  "updated_at": "2026-09-12T20:17:22Z",
+  "updated_at": "2026-09-12T20:19:13Z",
   "urgency": null
 }
