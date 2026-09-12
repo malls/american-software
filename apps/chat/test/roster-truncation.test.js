@@ -53,6 +53,14 @@ const UNSCORABLE = /:(is|where|not|has)\(/;
 const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
 // Walk one nesting level by brace depth, returning { prelude, body } pairs.
+//
+// AS-125 (AS-112 review C1): the parser does not tokenise strings, so a `{`
+// or `}` inside a quoted value counts as a delimiter. Every way that can go
+// wrong is made loud rather than left to mis-nest the rest of the file
+// silently: an unclosed block at end of input (depth > 0), a stray `}` at
+// depth 0 (depth < 0), and non-blank text after the last `}` (a statement
+// at-rule at EOF, which no block ever picks up). Because walk() recurses into
+// at-rule bodies through this function, the checks apply at every level.
 function parseBlocks(src) {
   const blocks = [];
   let depth = 0;
@@ -69,12 +77,18 @@ function parseBlocks(src) {
       depth++;
     } else if (ch === '}') {
       depth--;
+      if (depth < 0) throw new Error(`unbalanced braces: stray '}' at offset ${i}`);
       if (depth === 0) {
         blocks.push({ prelude: prelude.trim(), body: src.slice(bodyStart, i) });
         preludeStart = i + 1;
       }
     }
   }
+  if (depth !== 0) {
+    throw new Error(`unbalanced braces: depth ${depth} at end of input (unclosed block opened by: ${prelude.trim()})`);
+  }
+  const trailing = src.slice(preludeStart).trim();
+  if (trailing) throw new Error(`trailing content without a block: ${trailing}`);
   return blocks;
 }
 
@@ -100,10 +114,18 @@ function parseDecls(body) {
 // Conditional at-rules are FLATTENED so every inner rule competes, tagged with
 // its condition. Conservative on purpose: the contract is stated for every
 // width, so a rule that re-enables wrapping under any condition is a
-// violation. Other at-rules (@keyframes, @font-face) declare nothing about an
-// element and are ignored wholesale — including their inner blocks, which are
-// keyframe selectors, not element selectors.
+// violation.
 const FLATTENED_AT = /^@(media|supports|container)\b/;
+
+// AS-125 (AS-112 review B1/B3): at-rules that declare nothing about an element
+// are IGNORED wholesale — including their inner blocks, which are keyframe
+// selectors or descriptors, not element selectors. This is an explicit list
+// that grows deliberately: the two shapes the stylesheet uses plus the vendor
+// twin. Anything else (`@scope`, block-form `@layer`, `@page`, `@property`,
+// `@starting-style`, …) throws in walk() until someone adds it to one list or
+// the other on purpose, because a swallowed `@scope (#r) { .t { … } }` is a
+// rule the browser applies and the guard never scores.
+const IGNORED_AT = /^@(-webkit-)?(keyframes|font-face)\b/;
 
 function parseRules(css) {
   const rules = [];
@@ -112,14 +134,35 @@ function parseRules(css) {
   return rules;
 }
 
+// AS-125 (AS-112 review A4): `.roster\-title` is the same class as
+// `.roster-title` to a browser but not to a regex, so the escape is
+// normalised when the rule is recorded. Only `\-` and `\_` are unescaped —
+// silently unescaping `.md\:flex` into `.md:flex` would mis-score it as a
+// pseudo-class, and a hex escape (`\2d `) needs a real tokeniser. Loud beats
+// wrong: any other backslash throws.
+function unescapeSelector(raw) {
+  const out = raw.replace(/\\([-_])/g, '$1');
+  if (out.includes('\\')) throw new Error(`cannot score selector (unsupported escape): ${raw}`);
+  return out;
+}
+
 function walk(blocks, condition, counter, rules) {
   for (const { prelude, body } of blocks) {
+    // AS-125 (AS-112 review B2): a `;` in a prelude is the signature of a
+    // statement at-rule (`@import`, `@charset`, `@namespace`, `@layer a, b;`)
+    // glued onto the next block's selector by parseBlocks — checked before
+    // the `@` test because the glued prelude may or may not start with `@`.
+    if (prelude.includes(';')) {
+      throw new Error(`cannot score: statement at-rule or stray ';' glued into a prelude: ${prelude}`);
+    }
     if (prelude.startsWith('@')) {
       if (FLATTENED_AT.test(prelude)) {
         const inner = condition ? `${condition} and ${prelude}` : prelude;
         walk(parseBlocks(body), inner, counter, rules);
+        continue;
       }
-      continue;
+      if (IGNORED_AT.test(prelude)) continue;
+      throw new Error(`cannot score unknown at-rule (neither flattened nor ignored): ${prelude}`);
     }
     if (UNSCORABLE.test(prelude)) {
       throw new Error(`cannot score selector list (functional pseudo-class): ${prelude}`);
@@ -135,8 +178,8 @@ function walk(blocks, condition, counter, rules) {
       throw new Error(`cannot score nested style rule (native CSS nesting) under: ${prelude}`);
     }
     const decls = parseDecls(body);
-    for (const selector of prelude.split(',').map((s) => s.trim()).filter(Boolean)) {
-      rules.push({ selector, condition, order: counter.order++, decls });
+    for (const raw of prelude.split(',').map((s) => s.trim()).filter(Boolean)) {
+      rules.push({ selector: unescapeSelector(raw), condition, order: counter.order++, decls });
     }
   }
 }
@@ -166,17 +209,52 @@ function specificity(selector) {
 
 const compareSpecificity = (a, b) => (a[0] - b[0]) || (a[1] - b[1]) || (a[2] - b[2]);
 
-// The SUBJECT of the selector (its last compound) must carry the class: a
-// descendant rule like `.roster-title *` styles a child, not the element.
-// Deliberate omission (plan §10 style): a subject carrying a pseudo-element
-// (`.roster-title::after`) is treated as targeting the element. There are 0
-// `::` occurrences in the stylesheet today, and a future pseudo-element rule
-// that declares a watched property should come through this test rather than
-// past it.
+// The SUBJECT of a selector is its last compound: the text after the last
+// combinator (whitespace, `>`, `+`, `~`) that sits OUTSIDE `[]` and `()`.
+// A naive split on combinator characters cuts `[class~="roster-title"]` at
+// its own `~` and examines `="roster-title"]` — which is how AS-112 review A3
+// got past the old guard even after `[class…]` was recognised (AS-125 §0).
+function lastCompound(selector) {
+  let depth = 0;
+  let cut = -1;
+  for (let i = 0; i < selector.length; i++) {
+    const ch = selector[i];
+    if (ch === '[' || ch === '(') depth++;
+    else if (ch === ']' || ch === ')') depth--;
+    else if (depth === 0 && /[\s>+~]/.test(ch)) cut = i;
+  }
+  return selector.slice(cut + 1).trim();
+}
+
+// Does a selector's SUBJECT reach an element whose class set includes `cls`?
+// The title element (app.js rosterRow) is a `div` with exactly one class and
+// a `title` attribute, so — AS-125 (AS-112 review A1–A4) — the subject targets
+// it when any of:
+//   (a) it carries the class literal (`.roster-title`, `div.roster-title:hover`);
+//   (b) it carries an attribute selector on `class` — `[class~="roster-title"]`
+//       and, conservatively, ANY `[class…]` operator, because the guard does
+//       not evaluate attribute values and `[class^="roster-"]` really matches;
+//   (c) after removing attribute selectors and pseudo-classes/elements, what
+//       remains is empty, `*`, or `div` (case-insensitive) and the compound
+//       carries no id and no other class. Pseudo-classes (`div:hover`,
+//       `:first-child`) and non-class attribute selectors (`[title]` — the
+//       element HAS one) are treated as matchable, not as ruling it out.
+// Ancestors are NOT evaluated (`#nonexistent .roster-title` targets, and so
+// does `.roster-title *` — the title holds a text node only, so a watched
+// property on that shape has no legitimate use and the cost of the false
+// positive is a loud red naming the selector). Pseudo-elements on the subject
+// (`.roster-title::after`) are treated as targeting — unchanged from AS-74: a
+// future pseudo-element rule declaring a watched property should come through
+// this test rather than past it.
 function targets(selector, cls) {
   assert.match(cls, /^[-\w]+$/, 'class name must be a plain identifier');
-  const compound = selector.trim().split(/\s*[\s>+~]\s*/).filter(Boolean).pop() || '';
-  return new RegExp(`\\.${cls}(?![-\\w])`).test(compound);
+  const compound = lastCompound(selector.trim());
+  if (new RegExp(`\\.${cls}(?![-\\w])`).test(compound)) return true;
+  if (/\[\s*class\b/i.test(compound)) return true;
+  let rest = compound.replace(/\[[^\]]*\]/g, '');
+  if (/[.#]/.test(rest)) return false;
+  rest = rest.replace(/::?[-\w]+(\([^)]*\))?/g, '');
+  return rest === '' || rest === '*' || rest.toLowerCase() === 'div';
 }
 
 // The winning declaration for `prop` on an element whose class set includes
@@ -256,8 +334,9 @@ test('css-cascade: rules inside @media compete, tagged with their condition', ()
   const won = cascade(rules, 't', 'white-space');
   assert.equal(won.value, 'normal');
   assert.equal(won.condition, '@media (max-width: 700px)');
-  // A descendant of the element is not the element.
-  assert.equal(cascade(parseRules('.t * { white-space: normal; }'), 't', 'white-space'), null);
+  // A subject the type rules out is not the element (`*` and `div` subjects
+  // are — see H9).
+  assert.equal(cascade(parseRules('.t span { white-space: normal; }'), 't', 'white-space'), null);
 });
 
 test('css-cascade: a selector it cannot score throws instead of guessing', () => {
@@ -283,6 +362,104 @@ test('css-cascade: a nested style rule throws instead of being swallowed as a de
   // The ignore path is intact: @keyframes bodies hold keyframe selectors, not
   // nested style rules, and still contribute nothing without throwing.
   assert.equal(parseRules('@keyframes p { from { x: 1; } to { x: 2; } }').length, 0);
+});
+
+// H7–H9 (AS-125): one separate case per group of routes, so the file's count
+// moves by three — the stale-image detector again.
+test('css-cascade: unbalanced braces throw instead of collapsing the block list', () => {
+  // (a) an unclosed block — a `{` inside a string is a delimiter to this
+  // parser, so the file ends one level deep and the message names the block
+  // that never closed
+  assert.throws(
+    () => parseRules('.s::after { content: "{"; }\n.t { white-space: normal; }'),
+    /unbalanced braces: depth 1/,
+  );
+  assert.throws(
+    () => parseRules('.s::after { content: "{"; }\n.t { white-space: normal; }'),
+    /opened by: \.s::after/,
+  );
+  // (b) a stray `}` at depth 0 — without the check it drives depth negative
+  // and every later block mis-nests silently
+  assert.throws(() => parseRules('.t { white-space: nowrap; } }'), /stray '}'/);
+  // (c) text after the last `}` — a statement at-rule at EOF is invisible to
+  // the glued-prelude check because no block follows it
+  assert.throws(
+    () => parseRules('.t { white-space: nowrap; }\n@import url("x.css");'),
+    /trailing content without a block/,
+  );
+  // (d) the outer block of a flattened at-rule left unclosed
+  assert.throws(
+    () => parseRules('@media (min-width: 1px) { .t { white-space: normal; }'),
+    /unbalanced braces/,
+  );
+});
+
+test('css-cascade: an unknown or statement at-rule throws instead of being swallowed', () => {
+  // Block at-rules that are neither flattened nor on the ignore list
+  assert.throws(
+    () => parseRules('@scope (#r) { .t { white-space: normal; } }'),
+    /unknown at-rule.*@scope/,
+  );
+  assert.throws(
+    () => parseRules('@layer x { .t { white-space: normal !important; } }'),
+    /unknown at-rule.*@layer x/,
+  );
+  // Statement at-rules: parseBlocks glues them onto the next block's prelude,
+  // and the `;` is the tell
+  assert.throws(
+    () => parseRules('@import url("x.css");\n.t { white-space: normal; }'),
+    /statement at-rule or stray ';'/,
+  );
+  assert.throws(
+    () => parseRules('@charset "utf-8";\n.t { white-space: nowrap; }'),
+    /statement at-rule or stray ';'/,
+  );
+  // The ignore path is intact for the explicit list, vendor prefix included
+  assert.equal(
+    parseRules('@font-face { font-family: x; src: url(x); }\n@-webkit-keyframes p { from { x: 1; } }\n@keyframes q { to { x: 2; } }').length,
+    0,
+  );
+  // The flatten path is intact, and nests
+  const nested = parseRules('@supports (display: grid) { @media (min-width: 1px) { .t { white-space: normal; } } }');
+  assert.equal(nested.length, 1);
+  assert.equal(nested[0].condition, '@supports (display: grid) and @media (min-width: 1px)');
+});
+
+test('css-cascade: the subject need not spell the class to reach the element — type, universal, attribute and escaped subjects', () => {
+  const reaches = [
+    '#r li.row div',       // A1: a type subject the element is
+    '#r *',                // A2: the universal subject
+    'div',
+    'div:hover',           // a pseudo-class does not rule the element out
+    '*::before',
+    '[title]',             // the element HAS a title attribute
+    '[class~="t"]',        // A3, quoted
+    '[class~=t]',          // A3, unquoted
+    '[class="t"]',
+    '[class^="t"]',        // any [class…] operator is conservative-true
+    '.t [title="a b"]',    // bracket-aware scan: the naive split would see `b"]`
+    '.t *',                // the recorded change: ancestors are not evaluated
+  ];
+  for (const s of reaches) assert.equal(targets(s, 't'), true, `expected ${s} to target .t`);
+  const misses = [
+    '#r span',             // a type the element is not
+    '#r div.other',        // another class on the subject rules it out
+    '#r li.row',           // the row, not the div
+    '.t > span',
+    '#r #x',
+    '.t-x',                // a class that merely starts with the name
+  ];
+  for (const s of misses) assert.equal(targets(s, 't'), false, `expected ${s} NOT to target .t`);
+  // A4: the escape is normalised at record time; anything else is loud
+  assert.equal(parseRules('.t\\-x { white-space: normal; }')[0].selector, '.t-x');
+  assert.throws(() => parseRules('.t\\2d x { white-space: normal; }'), /unsupported escape/);
+  assert.throws(() => parseRules('.md\\:flex { white-space: normal; }'), /unsupported escape/);
+  // The leg that makes A1 beat the base rule: a type subject with an id
+  // ancestor outranks the bare class
+  const won = cascade(parseRules('#r li.row div { white-space: normal; }\n.t { white-space: nowrap; }'), 't', 'white-space');
+  assert.equal(won.selector, '#r li.row div');
+  assert.deepEqual(won.spec, [1, 1, 2]);
+  assert.equal(won.value, 'normal');
 });
 
 // --- T1: the standing guard --------------------------------------------------
