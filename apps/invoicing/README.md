@@ -27,8 +27,9 @@ fourth, `demo`, prints a narrated walkthrough of the core loop for a human
 reader — see [Demo](#demo).
 
 `web` serves on **http://127.0.0.1:8348** — `/signin` (screen 1, AS-45),
-`/connect-stripe` (screen 2, AS-70), `/` (a 303 to `/connect-stripe` until
-AS-48 replaces it with the Dashboard; see § The view layer), `/healthz`,
+`/connect-stripe` (screen 2, AS-70), `/` (screen 3, the Dashboard, AS-48 —
+the landing for every signed-in freelancer, ready or not), `/invoices/{id}`
+(screen 5, AS-48; see § Issuing an invoice), `/healthz`,
 `/tokens.css`, and the Stripe Connect onboarding routes (AS-41):
 `POST /connect-stripe/start` (create-or-reuse the connected account, 303 to
 Stripe-hosted onboarding; when Stripe refuses, is unreachable, or no key is
@@ -304,17 +305,42 @@ for the session's freelancer:
 | `/invoices/{id}/finalize` | the gate, then the pipeline **through finalize** | `/invoices/{id}` |
 | `/invoices/{id}/send` | the gate, then the pipeline **through send** | `/invoices/{id}` |
 
-`/invoices/{id}` 404s until AS-48 (screens 3 and 5) lands — the same deliberate
-dangle as `/connect-stripe` above. **`/invoices/new` and `/invoices/{id}/edit`
-are screen 4 (AS-46)**, served from the same router. The screen posts to **its
-own routes** (`POST /invoices/new`, `POST /invoices/{id}/edit`), not to the four
-API routes: a human form ("1200.00", blank rows, an `intent`) is not the API's
-shape, and a validation failure re-renders the screen with every value
-preserved, which a `text/plain` 400 cannot. The screen's `send` calls the same
-`lifecycle.send` the API does; the API routes remain the programmatic path (the
-demo, the acceptance driver). `…/finalize` exists because finalize and send are
-two operations with two failure modes, and AS-49 can drive them separately to
-observe the intermediate state.
+**`/invoices/{id}` is screen 5 (AS-48)** — the terminus every send redirect
+lands on, and the freelancer's entire window on "did the client pay". It reads
+the **mirror row** and nothing else: status, the due and paid dates and the two
+Stripe URLs are whatever the webhook receiver last wrote, so the page makes no
+Stripe call and never polls. Five rendered states (`S5-DEFAULT-DRAFT`, `-OPEN`,
+`-PAID`, `S5-ERROR-NOTFOUND`, `S5-ERROR-SYSTEM`); a not-owned id renders
+**byte-identically** to a missing one because the repository raises the same
+`NotFoundError` for both — one mechanism, not a second check. Void,
+uncollectible and finalized-but-unsent rows render inside `S5-DEFAULT-OPEN`
+with their own badge from the **one status-to-badge table**
+(`STATUS_BADGES` in `lib/screens/invoice-detail-view.js`, which the Dashboard
+imports so the list and the detail cannot disagree). **The two Stripe links —
+`hosted_invoice_url` and `invoice_pdf` — are surfaced, not rebuilt, and
+rendered as escaped copyable text, not anchors:** an `href` built from a
+stored external URL is exactly what view-layer property 2 forbids, and a
+redirector that 303s to a stored URL is an open-redirect surface. The cost (copy
+rather than click) is recorded in the AS-48 plan §3.4 with its trigger and the
+validated-origin follow-up. **Send-from-detail** is `POST /invoices/send` with
+the id in the body (the page's own URL cannot be the target — `POST
+/invoices/{id}` is the API's), calling the same `lifecycle.send`; a failure
+lands back on the page with a presence-flag banner layered on the unchanged
+state, and a second click resumes the pipeline rather than duplicating it. The
+control renders only for a local draft or an unsent attached row, and only when
+the account is ready; otherwise the page says so with the one link to screen 2.
+Edit is a GET of the page's own URL with a hidden `edit=1`, so it carries no id.
+
+**`/invoices/new` and `/invoices/{id}/edit` are screen 4 (AS-46)**, served
+from the same router. The screen posts to **its own routes** (`POST
+/invoices/new`, `POST /invoices/{id}/edit`), not to the four API routes: a
+human form ("1200.00", blank rows, an `intent`) is not the API's shape, and a
+validation failure re-renders the screen with every value preserved, which a
+`text/plain` 400 cannot. The screen's `send` calls the same `lifecycle.send` the
+API does; the API routes remain the programmatic path (the demo, the acceptance
+driver). `…/finalize` exists because finalize and send are two operations with
+two failure modes, and AS-49 can drive them separately to observe the
+intermediate state.
 
 **The gate.** Finalize and send both refuse with **403 `AccountNotReadyError`**
 (`not-connected` / `not-ready`) *before any Stripe call* unless the freelancer's
@@ -644,9 +670,10 @@ stylesheet. Nothing per-user may ever be written there.
 ## The view layer
 
 Landed by AS-45 with screen 1; screen 2 (AS-70) followed it exactly, and is the
-shape to copy — `lib/screens/connect-view.js` is the smaller example. **Read
-this before planning AS-46, AS-47 or AS-48** — four things were decided once
-here and every later screen inherits them.
+shape to copy — `lib/screens/connect-view.js` is the smaller example; screens
+3 and 5 (AS-48) are the read-only examples. **Read this before planning any
+screen** — the things below were decided once here and every later screen
+inherits them.
 
 Screens are server-rendered EJS. There is **no client-side JavaScript** in this
 app and no build step; the two direct dependencies are still `express` and
@@ -752,10 +779,12 @@ That cost is paid, and what a partial would have protected against — one
 screen's head drifting — is closed better by `screens.test.js`'s assertion that
 **every registered template** links both stylesheets, carries the viewport meta
 and stamps `data-state`, which also catches a partial that stopped being
-included. Revisit at AS-48, when all seven screens exist: if the duplicated
-block exceeds twenty lines per screen, or a change to it has had to be made in
-more than three files at once, propose `include` as a counted allowlist entry
-with a line-pinned regex.
+included. **Revisit deferred to AS-127** (the last screen — five of seven
+exist at AS-48; the head block is fourteen lines and the nav adds ten more on
+the chrome-bearing screens; AS-48's Dashboard anchor was one line in three
+files): if the duplicated block exceeds twenty lines per screen, or a change to
+it has had to be made in more than three files at once, propose `include` as a
+counted allowlist entry with a line-pinned regex.
 
 **A screen is a pure view model plus a presentation-only template.**
 `lib/screens/<screen>-view.js` exports a frozen ledger — transcribed from
@@ -807,7 +836,8 @@ security boundary and should not be disturbed once per screen. Screens above the
 auth boundary live in `publicAuthRoutes` (screen 1 is the only one: it is where
 the guard *sends* people); everything else is protected by position, adding no
 second publicness mechanism. `routes/pages.js` stays the home for routes
-belonging to no capability, which is now exactly one.
+belonging to no capability, which is exactly one: the Dashboard (AS-48), which
+reads two capabilities and belongs to neither.
 
 **A screen that must re-render a submitted form owns its own POST routes**
 beside the capability's API routes, registered before any `:id` route that
@@ -822,11 +852,34 @@ client through the same repository call `POST /clients` uses, from its own
 handler, because a form posting straight to the endpoint can reach only two of
 the four §0 states) applies to screen 6 unchanged.
 
+**An id never sits in a URL attribute; a row targets a constant action with a
+hidden id** (AS-48, decision 1). A list of N rows needs N different targets,
+and property 2 forbids an interpolated `href` with no exception — so each
+Dashboard row's "View" is `<form method="get" action="/invoices/view">` (or
+`/contracts/view`) carrying `<input type="hidden" name="id" value="…">`, and a
+**redirector** route answers `303 /invoices/<id>` after checking the id
+matches `UUID_SHAPE` — one regex, defined in the module that *emits* the ids
+(`lib/screens/dashboard-view.js`) and imported by both routers, so the
+emitting side and the accepting side cannot drift; the view model throws on an
+id it could not emit. Anything else (`../x`, `id[]=a`, no id, a 2,000-character
+string) is a one-line `text/plain` 404 with **no `Location` at all**, so the
+redirect target is bounded. The redirector reads no repository: ownership is
+the detail route's job, and this must not become a second place that knows it.
+The cost is one hop per click and two ~12-line routes; the alternative — a
+line-pinned "sanctioned href interpolation" allowlist — was rejected as a second
+mechanism for the same property, one entry away from an `href` for every
+future id. A **stored external URL** (Stripe's two links on screen 5) is the
+case the rule exists for, and renders as escaped text (§ Issuing an invoice).
+
 **Money crosses the human boundary in exactly one file.** `lib/db/money.js`
-owns the two conversions (`formatMinorUnits`, `parseMajorUnits`); the screen's
-view model is the one place that calls them and is a member of the
-`'money representation'` row for that reason. Templates and stylesheets stay
-clear of the words — measured, and asserted by the same row.
+owns the conversions (`formatMinorUnits`, `parseMajorUnits` for input;
+`formatDisplayMinorUnits` — `'$1,200.00'`, integer arithmetic and a regex on
+the digit string, never `toLocaleString` — for display); the screens' view
+models are the only callers and are members of the `'money representation'`
+row for that reason. Templates and stylesheets stay clear of the words — the
+column header and the detail label arrive as locals — measured, and asserted
+by the same row. Dates are `lib/screens/dates.js`'s `formatDate`, UTC, `'Aug
+28, 2026'`, throwing on anything that is not a UTC ISO-8601 timestamp.
 
 **Every visual value in `public/*.css` is a `var(--token)` reference to a custom
 property that EXISTS in the vendored `tokens.css`.** No colour literals, no
@@ -981,9 +1034,14 @@ lib/webhooks/    the inbound half (AS-44) — the only feature that calls Stripe
 lib/health.js    the checks, as data
 lib/vendor.js    assets consumed from outside this app (registry)
 lib/views.js     the template registry + the health check's render probe
-lib/screens/     one PURE view model per screen: the ledger transcription and
-                 the locals function — signin-view.js (1), connect-view.js (2),
-                 contract-detail-view.js (7)
+lib/screens/     one PURE view model per screen (ledger transcription, state
+                 selection, locals — no I/O), the shape § The view layer fixes:
+  signin-view.js (1), connect-view.js (2), invoice-form-view.js (4),
+                 contract-detail-view.js (7), dashboard-view.js (3; also
+                 UUID_SHAPE, the one id shape a row emits and a redirector
+                 accepts), invoice-detail-view.js (5; also the one
+                 STATUS_BADGES table)
+  dates.js         formatDate(): a stored UTC timestamp -> 'Aug 28, 2026'
 lib/contracts/   contract templates and generation (AS-42) — the one feature
                  with no Stripe dimension:
   templates.js     the registry, getTemplate(), and the load-time invariants
@@ -993,9 +1051,11 @@ lib/contracts/   contract templates and generation (AS-42) — the one feature
                    vocabulary, the 12-entry month table (never Intl)
   generation.js    validate -> resolve -> render -> persist; the ONE form-key
                    check, so the route keeps no allowlist that could drift
-routes/          health.js, webhooks.js, assets.js, pages.js, connect.js,
-                 invoices.js, contracts.js — mounted in that order, which is
-                 load-bearing
+routes/          health.js, webhooks.js, assets.js, pages.js (the Dashboard),
+                 connect.js, invoices.js (the API, screens 4 and 5, the
+                 /invoices/view redirector), contracts.js (the API and the
+                 /contracts/view redirector) — mounted in that order, which
+                 is load-bearing
 views/           one template file per screen
 public/          app-owned static assets, served by express.static
 vendor/          created by the Dockerfile — see below. Not in version control
@@ -1027,33 +1087,48 @@ declaration count are committed literals. Update them in the same commit.
 
 ## Obligations this scaffold hands forward
 
-- **AS-46 (screen 4) hands forward.** **AS-48:** the `send` success terminus
-  (`/invoices/{id}`) is asserted as a `Location` only in
-  `test/invoice-screen.test.js` — add the followed-terminus assertion when the
-  detail screen exists; the Dashboard nav entry (one anchor in
-  `views/invoice-form.ejs`; `01-screens.md` names `/dashboard` while the app's
-  landing constant is `/` — AS-48 owns that constant); and "finalized, not
-  sent" after a failed send lives on the detail screen (the edit GET 303s there
-  once a Stripe invoice is attached, dropping the `?error` flag). **AS-47:** the
-  New contract nav entry (one anchor in the same template); the inline-client
+- **AS-48 (screens 3 and 5) hands forward to AS-127 (screen 6), exactly
+  two things, with the markup.** Both are absent today because `/contracts/new`
+  does not exist and a control pointing at an unserved route is the R-2 defect;
+  the link check in `test/read-screens.test.js` is red the moment either
+  appears before the route does. (1) The **"New contract" nav entry** on every
+  chrome-bearing screen — `views/dashboard.ejs`, `views/invoice-detail.ejs`,
+  `views/invoice-form.ejs` and `views/contract-detail.ejs`: one
+  line each, `<a class="site-nav__link" href="/contracts/new">New contract</a>`,
+  after "New invoice" and before the sign-out form; it is **not** gated by
+  readiness (contract creation has no Stripe dependency, `01-screens.md` §5).
+  (2) The **first-run primary CTA** on the Dashboard's `S3-EMPTY-FIRSTRUN`:
+  `<a href="/contracts/new" class="btn btn-primary">Create your first
+  contract</a>` first in the `form-actions`, with the existing invoice CTA
+  demoted to `btn btn-secondary` and relabelled "Or create an invoice directly"
+  (the wireframe's copy; the invoice CTA is primary meanwhile — AS-48 plan §11
+  Q5). Each moves `VIEW_START_TAGS`, `TEMPLATE_LINKS` and the read-screens link
+  count; recount at the rebase.
+
+- **AS-46 (screen 4) hands forward — AS-48's part is DISCHARGED.** The `send`
+  success terminus (`/invoices/{id}`) is followed to a 200 `S5-DEFAULT-OPEN` in
+  `test/read-screens.test.js` (the `Location`-only assertion in
+  `test/invoice-screen.test.js` stays as written); the Dashboard nav entry is
+  one anchor in `views/invoice-form.ejs`; `POST_SIGNIN_LANDING` stays `/` and,
+  for the first time, names a screen; "finalized, not sent" renders on the
+  detail screen with its own badge and a Send control that resumes the
+  pipeline. **AS-127:** the New contract nav entry (above); the inline-client
   ruling in AS-46's plan §3.3 applies to screen 6 unchanged. **AS-70:** nothing
   — screen 4's gated state links to `/connect-stripe`, which AS-70 landed
   first (merge order AS-70 → AS-46); the link check in
   `test/invoice-screen.test.js` went green at the rebase.
 
-- **AS-45 DISCHARGED the scaffold obligation; AS-70 discharged AS-45's.**
-  `views/scaffold.ejs`, `public/scaffold.css`, its `VIEWS` row and its
-  `routes/pages.js` handler are gone, and so is the `renderSignIn` seam AS-40
-  left. AS-70 landed screen 2 at `GET /connect-stripe` and restored `/` to the
-  303 that lands on it. **One hand-off to AS-48, stated once here:** screen 2's
-  READY state renders **no control** — the wireframe's "Continue to Dashboard"
-  points at screen 3, and a link to `/` would land the freelancer back on the
-  page they are on. AS-48 adds that anchor (a constant `href`, so P2a is
-  untouched) with a terminal-state case that follows it to a 200, replaces the
-  `/` route with the Dashboard, and owns `POST_SIGNIN_LANDING` in
-  `lib/auth/guard.js` (it stays `/` until then — AS-45 plan §3.3.4). See § The
-  view layer below — that section, not this bullet, is what AS-46/47/48 read
-  first.
+- **AS-45 DISCHARGED the scaffold obligation; AS-70 discharged AS-45's; AS-48
+  discharged AS-70's.** `views/scaffold.ejs`, `public/scaffold.css`, its
+  `VIEWS` row and its `routes/pages.js` handler are gone, and so is the
+  `renderSignIn` seam AS-40 left. AS-70 landed screen 2 at `GET /connect-stripe`
+  and restored `/` to a 303 that landed on it; AS-48 replaced that 303 with the
+  Dashboard for every signed-in freelancer, ready or not (the gated row
+  *layers* on the list state, which is only possible if an unready freelancer
+  reaches the page — AS-48 plan decision 2), and screen 2's READY state now
+  renders its one control, "Continue to Dashboard" (a constant `href` to `/`,
+  followed to a 200 in `test/screens.test.js`). See § The view layer below —
+  that section, not this bullet, is what a screen task reads first.
 - **AS-38 landed Stripe: `lib/stripe/` is the only outbound HTTP in the
   product, and the custody guard is the only way through it.** The one `fetch`
   token in product source is a pinned line of `lib/stripe/transport.js`; the one
@@ -1126,20 +1201,23 @@ declaration count are committed literals. Update them in the same commit.
   **`sentAt` and `lastPaymentFailedAt` must never be emitted by the mapper** — a
   Stripe invoice object has neither, so emitting them as null would erase a
   recorded fact on the next snapshot (each is written by its own writer, at its
-  own moment; R23 is that rule under test). **AS-46 (screen 4)** owns `/invoices/{id}/edit` and
-  **AS-48 (screens 3 and 5)** owns `/invoices/{id}`; both paths are already
-  load-bearing in shipped `Location` headers, so treat them as settled unless
-  you also change AS-43's redirects — note that AS-40 removed the `?freelancer=`
-  query string from both of them, so the shipped targets are now bare paths.
+  own moment; R23 is that rule under test). **AS-46 (screen 4)** landed
+  `/invoices/{id}/edit` and **AS-48 (screens 3 and 5)** landed `/invoices/{id}`;
+  both paths are load-bearing in shipped `Location` headers, so treat them as
+  settled unless you also change AS-43's redirects — note that AS-40 removed
+  the `?freelancer=` query string from both of them, so the shipped targets
+  are bare paths.
   **AS-40 (sessions): DISCHARGED.** These routes no longer import anything from
   `routes/connect.js`; both read the session through `actingFreelancerId`.
 - **AS-44 landed the webhook receiver; two handoffs are open.** See
-  § Receiving webhooks above for what it does. **AS-48 (screens 3 and 5):** the
-  mirror row is the only thing a screen should render — `status`, `paidAt`,
-  `sentAt`, `lastPaymentFailedAt` and both URLs are all maintained by this
-  receiver, so a screen needs no Stripe call and no polling. It also adds no
-  `GET`, so a "refresh from Stripe" button would be a new allowlist row and a
-  new task. **AS-50 (acceptance run):** everything in §5.5 of this task's plan
+  § Receiving webhooks above for what it does. **AS-48 (screens 3 and 5):
+  DISCHARGED as designed** — the mirror row is the only thing either screen
+  renders (`status`, `paidAt`, `sentAt` and both URLs, all maintained by this
+  receiver), with no Stripe call and no polling; `lastPaymentFailedAt` is
+  stored and not yet surfaced (no ledger row asks for it — a future screen
+  task's, with Jonah). The receiver still adds no `GET`, so a "refresh from
+  Stripe" button would be a new allowlist row and a new task. **AS-50
+  (acceptance run):** everything in §5.5 of this task's plan
   is yours — real delivery, real ordering, real latency, the live
   `Stripe-Signature` header shape at this API version, whether 300 s of
   tolerance is comfortable against real clock skew, whether a repeated 500
@@ -1156,14 +1234,12 @@ declaration count are committed literals. Update them in the same commit.
   rather than emitting a one-line `text/plain` body — the status taxonomy did
   not move, so nothing that asserted on a status did either. It preserves
   `email`, `displayName` and `next`, and **never** the password: the view model
-  has no key for one. **AS-48 (the landing point):**
-  a successful sign-in with no `next` lands on `POST_SIGNIN_LANDING`, one
-  constant in the same file. **AS-45 deliberately declined to move it**, because
-  changing the constant here would have moved assertions in another task's suite
-  to buy one saved redirect hop; `/` is a 303 to `/connect-stripe` (AS-70) in
-  the meantime, and the three entry points that land there are each followed to
-  a 200 on screen 2 by a test rather than asserted at the first hop.
-  AS-48 changes the constant and its assertions. **AS-50 (acceptance run):** everything this
+  has no key for one. **AS-48 (the landing point): DISCHARGED.** A successful
+  sign-in with no `next` lands on `POST_SIGNIN_LANDING`, one constant in the
+  same file; AS-45 deliberately declined to move it, and AS-48 did not need to:
+  `/` is now the Dashboard, so the constant names a screen unchanged, and the
+  three entry points that land there are each followed to a 200 on screen 3 by
+  a test rather than asserted at the first hop. **AS-50 (acceptance run):** everything this
   suite cannot see — whether a real browser sends the cookie on Stripe's return
   navigation (the cheapest confirmation is one line in the run record: did the
   return land on the connect handler as a signed-in freelancer, or bounce to
@@ -1175,10 +1251,11 @@ declaration count are committed literals. Update them in the same commit.
   (`views/contract-detail.ejs`) and screen 4 (`views/invoice-form.ejs`) in the
   same change as the route — neither carries the link until it is served —
   and takes over `test/contract-screens.test.js` (cases 1–19 of AS-47's plan
-  §7) and the `validateFormValue` export. **AS-48 (screens 3 and 5):** the Dashboard nav
-  entry on screens 4, 6 and 7, and the "Back to Dashboard" link on screen 7's
-  not-found page (a constant `href`; add a followed-terminus case) — that page
-  currently has no way out but the nav. **The next screen task touching the
+  §7) and the `validateFormValue` export. **AS-48's share is DISCHARGED:** the
+  Dashboard nav entry on screens 4 and 7 (screen 6's lands with AS-127), and
+  the "Back to Dashboard" link on screen 7's not-found page (a constant `href`
+  to `/`, followed to a 200 Dashboard in `test/contract-screens.test.js`'s
+  not-found case). **The next screen task touching the
   client picker:** the picker logic is carried twice (`invoice-form-view.js`,
   and screen 6's view model when AS-127 lands) by lane discipline; the third
   consumer extracts `lib/screens/client-picker.js`.

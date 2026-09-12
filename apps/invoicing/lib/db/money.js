@@ -14,11 +14,19 @@
 // types "1200.00" and reads "19.99" — and it lives here, in formatMinorUnits
 // and parseMajorUnits (AS-46, plan §4.3). Their only caller is screen 4's view
 // model, lib/screens/invoice-form-view.js, which is on the money-words row for
-// exactly that reason.
+// exactly that reason. AS-48 adds the DISPLAY form beside them —
+// formatDisplayMinorUnits, '$1,200.00' — whose callers are the two read-screen
+// view models (plan §4), on the same row for the same reason.
 import { ValidationError } from './errors.js';
 
 export const SUPPORTED_CURRENCIES = Object.freeze(['usd']);
 export const DEFAULT_CURRENCY = 'usd';
+
+/** The symbol a person reads in front of a displayed total, per supported
+ *  currency (AS-48, plan §4). Kept beside DEFAULT_CURRENCY so a second currency
+ *  adds its symbol in the same edit as its code; a code with no symbol here is
+ *  refused by formatDisplayMinorUnits rather than rendered bare. */
+export const CURRENCY_SYMBOLS = Object.freeze({ usd: '$' });
 
 /** How many minor-unit digits the default currency carries — a fact about the
  *  currency, kept beside it so a second currency moves the exponent with it.
@@ -67,6 +75,25 @@ export function formatMinorUnits(minor) {
   const whole = Math.trunc(minor / MINOR_PER_MAJOR);
   const cents = minor - whole * MINOR_PER_MAJOR;
   return `${whole}.${String(cents).padStart(MINOR_DIGITS, '0')}`;
+}
+
+/** Digits grouped by thousands with a comma: '1234567' -> '1,234,567'. A
+ *  regex over the digit STRING, so no locale is consulted and no float is
+ *  formed. `toLocaleString` is deliberately not used: its output depends on
+ *  the process's ICU data and locale, which makes it untestable as a constant. */
+const THOUSANDS = /\B(?=(\d{3})+(?!\d))/g;
+
+/**
+ * Minor units -> the string a person reads ON A READ SCREEN, symbol and
+ * thousands separators included: 120000 -> '$1,200.00', 5 -> '$0.05',
+ * 123456789 -> '$1,234,567.89' (AS-48, plan §4). Built on formatMinorUnits, so
+ * it refuses exactly what assertMinorUnits refuses, and on assertSupportedCurrency,
+ * so an unsupported code throws rather than rendering with no symbol.
+ */
+export function formatDisplayMinorUnits(minor, currency = DEFAULT_CURRENCY) {
+  assertSupportedCurrency(currency);
+  const [whole, cents] = formatMinorUnits(minor).split('.');
+  return `${CURRENCY_SYMBOLS[currency]}${whole.replace(THOUSANDS, ',')}.${cents}`;
 }
 
 /**

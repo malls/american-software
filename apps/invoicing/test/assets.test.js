@@ -35,10 +35,13 @@ const TOKENS_DECLARATIONS = 183;
 const TOKEN_NAMES = 127;
 /** Files in public/. */
 const PUBLIC_FILES = ['app.css'];
-/** Declarations in public/app.css, measured when the file was finished. */
-const APP_CSS_DECLARATIONS = 184;
-/** var(--…) references in public/app.css, measured at the same moment. */
-const APP_CSS_VAR_REFERENCES = 143;
+/** Declarations in public/app.css, measured when the file was finished.
+ *  RE-MEASURED by AS-48 (badges, tables, the gated nav entry, the link list,
+ *  the inline form), at the rebase onto AS-47's merge: 184 -> 227. */
+const APP_CSS_DECLARATIONS = 227;
+/** var(--…) references in public/app.css, measured at the same moment
+ *  (AS-48, same rebase: 143 -> 180). */
+const APP_CSS_VAR_REFERENCES = 180;
 
 const countDeclarations = (css) => (css.match(/^[ \t]*--[A-Za-z0-9_-]+[ \t]*:/gm) ?? []).length;
 

@@ -692,12 +692,14 @@ test('H11: a garbage cookie is refused exactly like an absent one', async () => 
     // would also pass against an app that refused every cookie ever presented.
     const freelancer = repos.freelancers.create({ email: EMAIL, displayName: NAME });
     const { cookie } = seedSession(repos, freelancer.id);
-    // Admitted = answered by the HANDLER, not the guard. Since AS-70 `/` is itself
-    // a 303, so the LOCATION discriminates, not the status: handler `/connect-stripe`, guard `/signin?next=%2F`.
+    // Admitted = answered by the HANDLER, not the guard. Since AS-48 `/` is the
+    // Dashboard, so the STATUS discriminates again: handler 200, guard 303
+    // `/signin?next=%2F` (from AS-70 until AS-48 both were 303s and the
+    // Location discriminated).
     const admitted = await fetch(`${base}/`, { redirect: 'manual', headers: { cookie } });
-    assert.equal(admitted.status, 303, 'a live session for a live freelancer IS admitted');
-    assert.equal(admitted.headers.get('location'), '/connect-stripe', 'answered by routes/pages.js, not redirected by the guard');
-    assert.notEqual(admitted.headers.get('location'), absent.headers.get('location'), 'the control really is distinguishable from the refusals above');
+    assert.equal(admitted.status, 200, 'a live session for a live freelancer IS admitted');
+    assert.equal(admitted.headers.get('location'), null, 'answered by routes/pages.js, not redirected by the guard');
+    assert.notEqual(admitted.status, absent.status, 'the control really is distinguishable from the refusals above');
   });
 });
 
@@ -815,16 +817,18 @@ test('a parse-body failure and an invalid-credentials failure are distinguishabl
 
 test('a successful sign-up with no next lands on a page that exists', async () => {
   // DEFECT D2, REPRODUCED AND CLOSED. Measured before the fix: 303 `/` -> 303
-  // `/connect-stripe` -> 404. Since AS-70 the two hops end on screen 2's
-  // no-row state (a fresh sign-up has no connected account). A Location is a step.
+  // `/connect-stripe` -> 404. From AS-70 the two hops ended on screen 2; since
+  // AS-48 the ONE hop ends on the Dashboard's first-run state with the gated
+  // note (a fresh sign-up has no connected account). A Location is a step.
   await withApp({}, async ({ base }) => {
     const res = await signUp(base);
     assert.equal(res.status, 303);
     const end = await followToTerminus(base, res, { cookie: carryCookie(res) });
-    assert.equal(end.hops, 2, `committed hop count: the chain was ${end.chain.join(' , ')}`);
+    assert.equal(end.hops, 1, `committed hop count: the chain was ${end.chain.join(' , ')}`);
     assert.equal(end.status, 200, `terminal status ${end.status} at ${end.path}`);
-    assert.equal(end.path, '/connect-stripe');
-    assert.equal(occurrences(end.body, 'data-state="S2-DEFAULT-NOTSTARTED"'), 1);
+    assert.equal(end.path, '/');
+    assert.equal(occurrences(end.body, 'data-state="S3-EMPTY-FIRSTRUN"'), 1);
+    assert.equal(occurrences(end.body, 'href="/connect-stripe"'), 1, 'the gated note carries the one link to screen 2');
   });
 });
 
@@ -834,10 +838,11 @@ test('a successful sign-in with no next lands on a page that exists', async () =
     const res = await postForm(`${base}/signin`, { email: EMAIL, password: PASSWORD });
     assert.equal(res.status, 303);
     const end = await followToTerminus(base, res, { cookie: carryCookie(res) });
-    assert.equal(end.hops, 2, `committed hop count: the chain was ${end.chain.join(' , ')}`);
+    assert.equal(end.hops, 1, `committed hop count: the chain was ${end.chain.join(' , ')}`);
     assert.equal(end.status, 200, `terminal status ${end.status} at ${end.path}`);
-    assert.equal(end.path, '/connect-stripe');
-    assert.equal(occurrences(end.body, 'data-state="S2-DEFAULT-NOTSTARTED"'), 1);
+    assert.equal(end.path, '/');
+    assert.equal(occurrences(end.body, 'data-state="S3-EMPTY-FIRSTRUN"'), 1);
+    assert.equal(occurrences(end.body, 'href="/connect-stripe"'), 1, 'the gated note carries the one link to screen 2');
   });
 });
 
@@ -1017,7 +1022,7 @@ test('G14: actingFreelancerId throws rather than act as nobody', () => {
 test('G15: the whole app is constructible and the boundary survives a rebuild', async () => {
   // A cheap guard against the enumeration above being satisfied by a stale app.
   await withApp({}, async ({ app, base }) => {
-    assert.equal(discoverRoutes(app).length, 23);
+    assert.equal(discoverRoutes(app).length, 27);
     assert.equal((await fetch(`${base}/`, { redirect: 'manual' })).status, 303);
   });
 });

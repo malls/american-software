@@ -409,36 +409,37 @@ test('a cookieless request for a guarded route lands on screen 1 carrying next i
 
 test('a signed-in GET /signin lands on a page that exists', async () => {
   // S1-DENIED-AUTHENTICATED, followed to the end. The redirect itself is
-  // asserted above; this asserts the destination: `/signin` -> `/` ->
-  // `/connect-stripe`, two hops, ending on screen 2's no-row state (seedSignedIn
-  // creates no connected account).
+  // asserted above; this asserts the destination: `/signin` -> `/`, ONE hop
+  // since AS-48, ending on the Dashboard's first-run state with the gated note
+  // (seedSignedIn creates no connected account, so New invoice is disabled).
+  // From AS-70 until AS-48 the chain was two hops ending on screen 2.
   await withServer(configFor(), async (base, app, deps) => {
     const { cookie } = seedSignedIn(deps.repos);
     const res = await fetch(`${base}/signin`, { redirect: 'manual', headers: { cookie } });
     const end = await followToTerminus(base, res, { cookie });
-    assert.equal(end.hops, 2, `committed hop count: the chain was ${end.chain.join(' , ')}`);
+    assert.equal(end.hops, 1, `committed hop count: the chain was ${end.chain.join(' , ')}`);
     assert.equal(end.status, 200, `terminal status ${end.status} at ${end.path} — never a 3xx, never a 404`);
-    assert.equal(end.path, '/connect-stripe');
-    assert.equal(occurrences(end.body, 'data-state="S2-DEFAULT-NOTSTARTED"'), 1);
+    assert.equal(end.path, '/');
+    assert.equal(occurrences(end.body, 'data-state="S3-EMPTY-FIRSTRUN"'), 1);
+    assert.equal(occurrences(end.body, 'href="/connect-stripe"'), 1, 'the gated note carries the one link to screen 2');
   });
 });
 
-test('GET / redirects a signed-in caller to the Connect screen, and renders nothing itself', async () => {
-  // THE REDIRECT AS-45's REVIEW CYCLE 1 PROMISED, restored by AS-70 now that
-  // `/connect-stripe` exists (plan §3.5). `/` is a hop, not a page: no template,
-  // no data-state, no markup — so it stays outside the view layer's escaping
-  // surface, and AS-48 replaces one line when the Dashboard lands.
+test('GET / renders the Dashboard for a signed-in caller who has not connected Stripe', async () => {
+  // THE INTERIM REDIRECT IS GONE (AS-48, plan decision 2). `/` is screen 3 for
+  // EVERY signed-in freelancer, ready or not; S3-GATED-STRIPENOTREADY layers
+  // on the list state rather than bouncing the freelancer to screen 2. The
+  // exhaustive screen-3 cases are in read-screens.test.js; this pins the
+  // terminus AS-70's redirect used to own.
   await withServer(configFor(), async (base, app, deps) => {
     const { cookie } = seedSignedIn(deps.repos);
     const res = await fetch(`${base}/`, { redirect: 'manual', headers: { cookie } });
-    assert.equal(res.status, 303);
-    assert.equal(res.headers.get('location'), '/connect-stripe');
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type'), /^text\/html\b/);
     const body = await res.text();
-    assert.equal(occurrences(body, 'data-state'), 0, 'a redirect stamps no state — it has no ledger row');
-    assert.equal(stateOf(body), null);
-    // No template was rendered: an EJS render of any view in this app produces
-    // a document, and every one of them opens with `<`.
-    assert.equal(occurrences(body, '<'), 0, 'no markup at all, so no template was rendered');
+    assert.equal(stateOf(body), 'S3-EMPTY-FIRSTRUN');
+    assert.equal(occurrences(body, 'href="/invoices/new"'), 0, 'gated: no anchor to screen 4');
+    assert.equal(occurrences(body, 'href="/connect-stripe"'), 1, 'the gated note, once');
   });
 });
 
@@ -659,11 +660,15 @@ test('S2-RETURN-READY renders for a ready row, and the screen reads ready rather
     const html = await res.text();
     assert.equal(occurrences(html, 'data-state="S2-RETURN-READY"'), 1);
     assert.equal(occurrences(html, 'banner-success'), 1);
-    // AC 9: NO CONTROL until the Dashboard exists (plan §3.4). A link to `/`
-    // would land here again; any other target 404s. AS-48 adds the anchor.
+    // AC 9 (AS-70): no POST control on READY. AS-48 landed the Dashboard, so
+    // the ONE control is the wireframe's "Continue to Dashboard" — a constant
+    // anchor to `/`, present exactly once, and followed to a 200 below.
     assert.equal(occurrences(html, '<form'), 0, 'READY renders no form');
-    assert.equal(occurrences(html, '<a '), 0, 'READY renders no anchor');
-    assert.equal(occurrences(html, 'Continue to Dashboard'), 0);
+    assert.equal(occurrences(html, '<a class="btn btn-primary" href="/">Continue to Dashboard</a>'), 1, 'the one control, once');
+    assert.equal(occurrences(html, '<a '), 1, 'and no other anchor');
+    const landing = await fetch(`${base}/`, { redirect: 'manual', headers: { cookie } });
+    assert.equal(landing.status, 200, 'the control points at a page that exists');
+    assert.equal(occurrences(await landing.text(), 'data-state="S3-EMPTY-FIRSTRUN"'), 1);
   });
 
   // THE UNIT HALF, and the reason it exists: on a real row the repository's

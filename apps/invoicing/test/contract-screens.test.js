@@ -278,12 +278,21 @@ test('S7-ERROR-NOTFOUND and S7-DENIED-NOTOWNER: an unknown id and another freela
       assert.equal(occurrences(html, 'contract-doc'), 0, `${label}: no document`);
       assert.equal(occurrences(html, 'We couldn&#39;t find that contract.'), 1, `${label}: the wireframe's sentence (apostrophe EJS-escaped)`);
       assert.equal(occurrences(html, 'Contract not found'), 2, `${label}: the title, in <title> and <h1>`);
-      assert.equal(occurrences(html, 'Dashboard'), 0, `${label}: no Back to Dashboard until AS-48`);
+      // AS-48 landed screen 3: the nav's Dashboard anchor and NOTFOUND's
+      // "Back to Dashboard" line (the wireframe's), both constant hrefs to `/`.
+      assert.equal(occurrences(html, 'Dashboard'), 2, `${label}: the nav anchor and Back to Dashboard (AS-48)`);
+      assert.equal(occurrences(html, '<a href="/">Back to Dashboard</a>'), 1, `${label}: the wireframe's line, once`);
       assert.equal(occurrences(html, 'ASC47SECRET'), 0, `${label}: nothing of the other freelancer's document`);
       assert.equal(occurrences(html, '>Retry</button>'), 0, `${label}: not-found has no retry`);
       bodies.push(html);
     }
     assert.equal(bodies[0], bodies[1], 'byte-identical bodies: a guessed id confirms nothing');
+
+    // The way out is followed to its terminus (AS-47's hand-off to AS-48): the
+    // Back to Dashboard href is `/`, and `/` is a screen now, not a redirect.
+    const home = await get('/');
+    assert.equal(home.status, 200, 'Back to Dashboard lands on a rendered page');
+    assert.match(stateOf(await home.text()), /^S3-/, 'the Dashboard, in one of its own states');
   });
 });
 
@@ -390,7 +399,9 @@ test('every href and form action in the two contract templates names a route the
   // Red on /invoices/new while AS-46 is not in this branch's history — the
   // merge-order ruling (plan §10) made mechanical.
   const links = templateLinks('contract-detail.ejs');
-  assert.equal(links.length, 4, `cardinality first: ${links.length} links examined in contract-detail.ejs (${links.map((l) => `${l.method} ${l.path}`).join(', ')}), expected 4`);
+  // 4 at AS-47's merge; 6 once AS-48 landed the nav's Dashboard anchor and
+  // NOTFOUND's Back to Dashboard — both `GET /`, both driven below.
+  assert.equal(links.length, 6, `cardinality first: ${links.length} links examined in contract-detail.ejs (${links.map((l) => `${l.method} ${l.path}`).join(', ')}), expected 6`);
   await withScreenApp(async ({ base, headers }) => {
     // EVERY link is driven and EVERY failure is named, so a second dead link
     // is never hidden behind the first: under F8 on a tip without AS-46 the

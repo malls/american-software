@@ -139,8 +139,8 @@ export function createApp(config, deps) {
   //    An anonymous POST /signout is answered by requireSession (303 to
   //    /signin, NO Set-Cookie); the handler never runs.
   app.use(sessionAuthRoutes(config, { repos, accounts }));
-  // 9. Pages.
-  app.use(pageRoutes(config));
+  // 9. Pages: the Dashboard (AS-48), `{ repos }` alone — it reads, never calls.
+  app.use(pageRoutes(config, { repos }));
   // 10. Stripe Connect onboarding (AS-41): the three routes are exact paths
   //    under /connect-stripe/ and shadow nothing. Stripe's return is a
   //    top-level GET navigation and carries the session cookie under

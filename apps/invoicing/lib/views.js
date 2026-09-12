@@ -22,6 +22,8 @@ import { signinLocals } from './screens/signin-view.js';
 import { connectLocals } from './screens/connect-view.js';
 import { invoiceFormLocals } from './screens/invoice-form-view.js';
 import { contractDetailLocals } from './screens/contract-detail-view.js';
+import { dashboardLocals } from './screens/dashboard-view.js';
+import { invoiceDetailLocals } from './screens/invoice-detail-view.js';
 
 export const VIEWS = Object.freeze([
   Object.freeze({
@@ -50,5 +52,20 @@ export const VIEWS = Object.freeze([
     name: 'contract-detail',
     file: 'contract-detail.ejs',
     sampleLocals: contractDetailLocals(),
+  }),
+  // Screen 3 (AS-48). The default input has no rows and no account row, so
+  // the probe renders S3-EMPTY-FIRSTRUN with the gated nav — chrome, lede and
+  // the disabled entry, decided by the same function the route calls.
+  Object.freeze({
+    name: 'dashboard',
+    file: 'dashboard.ejs',
+    sampleLocals: dashboardLocals(),
+  }),
+  // Screen 5 (AS-48). The default input has no row, so the probe renders
+  // S5-ERROR-NOTFOUND (the AS-47 precedent for a detail screen's probe).
+  Object.freeze({
+    name: 'invoice-detail',
+    file: 'invoice-detail.ejs',
+    sampleLocals: invoiceDetailLocals(),
   }),
 ]);

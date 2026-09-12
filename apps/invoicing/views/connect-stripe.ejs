@@ -36,11 +36,11 @@
   up to its FIRST closing tag, so a spelled-out example would both truncate the
   strip and plant a P1 hit in a file whose whole job is not to have one.
 
-  READY RENDERS NO CONTROL. The wireframe's "Continue to Dashboard" points at
-  screen 3, which AS-48 builds; until then `/` redirects back here, so a link
-  would land the freelancer on the page they are on, and any other target 404s.
-  AS-48 adds the anchor (a constant href, so P2a is untouched) and a
-  terminal-state case that follows it to a 200 (plan §3.4).
+  READY RENDERS ONE CONTROL, since AS-48: the wireframe's "Continue to
+  Dashboard", a constant href to `/` (so P2a is untouched), inside the success
+  banner's branch — the one branch only S2-RETURN-READY reaches, so no state
+  id is consulted. Until screen 3 existed the anchor was withheld, because a
+  link to `/` landed the freelancer back on this page (AS-70, plan §3.4).
 -%>
 <!doctype html>
 <html lang="en" data-state="<%= state %>">
@@ -73,6 +73,9 @@
         <% if (banner.tone === 'success') { %>
           <div class="banner banner-success">
             <p><%= banner.message %></p>
+          </div>
+          <div class="form-actions">
+            <a class="btn btn-primary" href="/">Continue to Dashboard</a>
           </div>
         <% } %>
         <% if (banner.tone === 'warning') { %>
