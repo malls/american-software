@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, tickArgv, loadPermissionRules, fireNonce, writeWatcherPid } from '../watch/advance-watcher.mjs';
+import { decide, isLockStale, DEFAULTS, loadConfig, makeLockOps, tickChildEnv, tickArgv, loadPermissionRules, fireNonce, writeWatcherPid, MAX_TIMER_MS } from '../watch/advance-watcher.mjs';
 // AS-92: the tick child's PATH.
 import { GH_CANDIDATES, resolveGhBin, tickPathPrepend } from '../watch/advance-watcher.mjs';
 // AS-75: the deploy half.
@@ -695,6 +695,40 @@ test('config: defaults match the plan; env overrides apply; junk env falls back'
     if (saved.ADVANCE_POLL_S !== undefined) process.env.ADVANCE_POLL_S = saved.ADVANCE_POLL_S;
     if (saved.ADVANCE_PERMISSION_MODE !== undefined) process.env.ADVANCE_PERMISSION_MODE = saved.ADVANCE_PERMISSION_MODE;
   }
+});
+
+// --- AS-129: minute knobs refuse the Node timer ceiling ----------------------
+//
+// setTimeout coerces a delay above 2^31-1 ms to 1 ms, so a `*_MIN` knob past
+// 35791 would not be a long box but an instant one. Refuse, never clamp: a
+// clamp hides the operator's mistake until it matters. One test per var, so a
+// var quietly moved back to the unbounded reader reddens exactly its own row.
+// loadConfig takes the env as an argument, so nothing here touches process.env.
+
+const MINUTE_KNOBS = [
+  ['ADVANCE_TICK_TIMEOUT_MIN', 'tickTimeoutMin'],
+  ['ADVANCE_LOCK_STALE_MIN', 'lockStaleMin'],
+  ['ADVANCE_DEPLOY_TIMEOUT_MIN', 'deployTimeoutMin'],
+  ['ADVANCE_DEPLOY_COOLDOWN_MIN', 'deployCooldownMin'],
+  ['ADVANCE_LOOP_REARM_MIN', 'loopRearmMin'],
+];
+
+for (const [name, key] of MINUTE_KNOBS) {
+  test(`as129-t14-ceiling ${name}: 35791 accepted, 35792 refused by name, junk falls back`, () => {
+    assert.equal(MAX_TIMER_MS, 2147483647);
+    assert.ok(35791 * 60_000 <= MAX_TIMER_MS && 35792 * 60_000 > MAX_TIMER_MS, 'the pinned pair straddles the ceiling');
+    assert.equal(loadConfig({ [name]: '35791' })[key], 35791, 'the value, not the default');
+    assert.throws(() => loadConfig({ [name]: '35792' }), (err) => err.message.includes(name) && err.message.includes('35792'));
+    assert.throws(() => loadConfig({ [name]: '1000000' }), (err) => err.message.includes(name));
+    assert.equal(loadConfig({ [name]: 'junk' })[key], DEFAULTS[key], 'junk still falls back');
+    assert.equal(loadConfig({ [name]: '-5' })[key], DEFAULTS[key], 'non-positive still falls back');
+  });
+}
+
+test('as129-t15-loop-rearm-config: DEFAULTS.loopRearmMin is 10 and ADVANCE_LOOP_REARM_MIN overrides it', () => {
+  assert.equal(DEFAULTS.loopRearmMin, 10);
+  assert.equal(loadConfig({}).loopRearmMin, 10);
+  assert.equal(loadConfig({ ADVANCE_LOOP_REARM_MIN: '3' }).loopRearmMin, 3);
 });
 
 // --- AS-27: the watcher pid file is also a heartbeat -------------------------

@@ -32,6 +32,7 @@ import {
   makeDeployOps,
   IMAGE_INPUTS,
   DEFAULTS,
+  LOOP_DEFAULTS,
 } from '../watch/advance-watcher.mjs';
 import { readStream, openItems } from '../lib/events.js';
 
@@ -145,8 +146,10 @@ function watcherHarness(t, over = {}) {
   // Test 5 needs to observe the ORDER of settle's three effects, which means
   // wrapping the real ops rather than stubbing them. Everything else lets
   // start() build the real lock/loop/events ops over the temp paths itself.
+  // AS-129: `over.loopOps` may be a function of the harness context, so a test
+  // can inject REAL makeLoopOps with tightened limits over the same files.
   const observed = { tickEndedLockPresent: null, settleSawTickEnded: null };
-  let loopOpsArg;
+  let loopOpsArg = typeof over.loopOps === 'function' ? over.loopOps({ paths, log, now, dir, config }) : over.loopOps;
   let eventsOpsArg;
   if (over.observeSettleOrder) {
     const realEvents = makeEventsOps({
@@ -638,11 +641,12 @@ test('AS-84 makeWatcher: deployPoll() survives a rejecting evaluate — no unhan
 // evaluation itself. These four drive the WIRING: the real makeDeployOps over
 // the harness's own lock file, the real loop ops over a seeded board.
 
-/** One mid-lifecycle task, so shouldContinue() says continue after a tick. */
-function seedBoard(dir) {
+/** One mid-lifecycle task, so shouldContinue() says continue after a tick.
+ *  Idempotent: calling it again with another status rewrites the same task. */
+function seedBoard(dir, status = 'in_progress') {
   const tasksDir = join(dir, '.lattice', 'tasks');
   mkdirSync(tasksDir, { recursive: true });
-  writeFileSync(join(tasksDir, 'task_1.json'), JSON.stringify({ id: 'task_1', short_id: 'AS-1', title: 'x', status: 'in_progress' }));
+  writeFileSync(join(tasksDir, 'task_1.json'), JSON.stringify({ id: 'task_1', short_id: 'AS-1', title: 'x', status }));
 }
 
 /** Real makeDeployOps with every host collaborator injected (the deployHarness
@@ -898,4 +902,110 @@ test('AS-88 makeWatcher: deploys to the production project — start() without i
   assert.equal(deploy.composeProject, PRODUCTION_COMPOSE_PROJECT);
   assert.equal(deploy.composeProject, 'asc-chat', "and the constant is the live stack's name");
   assert.equal(h.logged(/^DEPLOY-POLL every 3600s/).length, 1, 'the deploy poll was armed once');
+});
+
+// --- AS-129: a capped loop with work remaining re-arms after a cooldown ------
+//
+// End to end through poll(): the cap stops the loop, the cooldown passes, the
+// re-armed loop's tick 1 is spawned by the same lock/deploy gates every loop
+// tick goes through, and the highwater does not move (no message was fired).
+
+const TEN_MIN = 10 * 60 * 1000;
+
+/** Real makeLoopOps over the harness files, with a two-tick cap and a
+ *  ten-minute cooldown. maxNoProgress is lifted because headOf(dir) is null
+ *  in the temp repo (no .git), so no-progress would otherwise stop the loop
+ *  at tick 2 — before the cap, which is the rule under test here. */
+function realLoopOps({ paths, log, now, dir, config }, limits = {}) {
+  return makeLoopOps({
+    loadBoard: () => readBoard(join(dir, '.lattice', 'tasks')),
+    loadSentinel: () => (existsSync(paths.sentinel) ? JSON.parse(readFileSync(paths.sentinel, 'utf8')) : null),
+    loadHighwater: () => (existsSync(paths.highwater) ? JSON.parse(readFileSync(paths.highwater, 'utf8')) : null),
+    loadLock: () => (existsSync(paths.lock) ? JSON.parse(readFileSync(paths.lock, 'utf8')) : null),
+    loadState: () => (existsSync(paths.loopState) ? JSON.parse(readFileSync(paths.loopState, 'utf8')) : null),
+    saveState: (body) => writeFileSync(paths.loopState, JSON.stringify(body)),
+    log,
+    now,
+    limits: { ...LOOP_DEFAULTS, maxTicks: 2, maxNoProgress: 10, rearmMs: TEN_MIN, ...limits },
+    resumeGraceMs: config.tickTimeoutMin * 60 * 1000,
+  });
+}
+
+/** Drive a loop into its two-tick cap: message tick, then one loop tick. */
+function driveToCap(h) {
+  const first = driveFire(h, 5);
+  first.emit('exit', 0, null);
+  assert.equal(h.logged(/^LOOP-EVAL tick 1 .* -> continue$/).length, 1);
+  h.watcher.poll();
+  assert.equal(h.logged(/^LOOP-FIRE tick 2$/).length, 1);
+  assert.equal(h.calls.spawn.length, 2);
+  return h.lastChild();
+}
+
+test('AS-129 T11 makeWatcher: cap-hit with a task in review cools down, then poll() re-arms a fresh loop and fires its tick 1 — highwater untouched', (t) => {
+  const h = watcherHarness(t, { loopOps: (ctx) => realLoopOps(ctx) });
+  seedBoard(h.dir, 'review');
+  h.start();
+  const second = driveToCap(h);
+  second.emit('exit', 0, null);
+
+  assert.equal(h.logged(/^LOOP-STOP reason=cap-hit after 2 ticks/).length, 1);
+  assert.equal(h.logged(/^LOOP-COOLDOWN until /).length, 1);
+  const cooling = h.loopState();
+  assert.equal(cooling.active, false);
+  assert.equal(cooling.rearmAt, new Date(h.now() + TEN_MIN).toISOString());
+  assert.equal(cooling.armedBy, 5);
+  assert.equal(cooling.lastLoop.reason, 'cap-hit');
+
+  h.tick(5 * 60 * 1000);
+  h.watcher.poll();
+  assert.equal(h.calls.spawn.length, 2, 'halfway through the cooldown nothing fires');
+  assert.equal(h.logged(/^LOOP-REARM/).length, 0);
+
+  h.tick(5 * 60 * 1000);
+  h.watcher.poll();
+  assert.deepEqual(h.logged(/^LOOP-REARM/), ['LOOP-REARM armedBy messageId 5 after cap-hit cooldown']);
+  assert.equal(h.logged(/^LOOP-FIRE tick 1$/).length, 1, 'the re-armed loop fires ITS tick 1');
+  assert.equal(h.calls.spawn.length, 3, 'a third tick was spawned');
+  assert.equal(h.lockFile().pid, WATCHER_PID, 'through the normal lock');
+  assert.deepEqual(h.lockFile().loop, { ticks: 1 });
+  const rearmed = h.loopState();
+  assert.equal(rearmed.active, true);
+  assert.equal(rearmed.ticks, 0);
+  assert.equal(rearmed.armedBy, 5);
+  assert.equal(rearmed.rearmAt, null);
+  assert.equal(rearmed.startedAt, new Date(h.now()).toISOString());
+  assert.equal(h.highwater().messageId, 5, 'no message was consumed');
+  assert.equal(h.events().filter((e) => e.type === 'tick_started').length, 3);
+  assert.equal(h.events().filter((e) => e.type === 'tick_started').at(-1).data.loopTick, 0, 'the fresh loop\'s first tick');
+});
+
+test('AS-129 T12 makeWatcher: cap-hit with nothing left on the board stops for good — no rearmAt, no re-arm after the cooldown', (t) => {
+  const h = watcherHarness(t, { loopOps: (ctx) => realLoopOps(ctx) });
+  seedBoard(h.dir, 'review');
+  h.start();
+  const second = driveToCap(h);
+  seedBoard(h.dir, 'done'); // the work finished during tick 2
+  second.emit('exit', 0, null);
+
+  assert.equal(h.logged(/^LOOP-STOP reason=cap-hit after 2 ticks/).length, 1);
+  assert.equal(h.logged(/^LOOP-COOLDOWN/).length, 0);
+  assert.equal(h.loopState().active, false);
+  assert.equal(h.loopState().rearmAt, null);
+
+  h.tick(TEN_MIN);
+  h.watcher.poll();
+  assert.equal(h.calls.spawn.length, 2, 'nothing fires');
+  assert.equal(h.logged(/^LOOP-REARM/).length, 0);
+  assert.equal(h.loopState().active, false);
+});
+
+test('AS-129 T13 makeWatcher: start() builds the loop ops with loopLimits(config) — lock wait = tick box + staleness, cooldown from ADVANCE_LOOP_REARM_MIN', (t) => {
+  const h = watcherHarness(t, { config: { tickTimeoutMin: 60, lockStaleMin: 75, loopRearmMin: 7 } });
+  h.start();
+  const { limits } = h.watcher.ops().loop.snapshot();
+  assert.equal(limits.maxLockWaitMs, 8_100_000, '135 min: the host\'s 60 + 75');
+  assert.equal(limits.rearmMs, 420_000);
+  assert.equal(limits.maxTicks, LOOP_DEFAULTS.maxTicks);
+  assert.equal(limits.maxMs, LOOP_DEFAULTS.maxMs);
 });

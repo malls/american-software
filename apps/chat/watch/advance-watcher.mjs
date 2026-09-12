@@ -87,6 +87,10 @@ export const DEFAULTS = Object.freeze({
   deployPollS: 60,
   deployTimeoutMin: 15, // an emulated linux/amd64 rebuild, generously
   deployCooldownMin: 30, // suppress only a REPEAT of a failed attempt at the same id
+  // AS-129: how long a loop that hit the safety cap with work still on the
+  // board waits before a fresh loop fires. The cap is a runaway guard, not a
+  // stop rule; ten minutes is a breather, not a shift.
+  loopRearmMin: 10,
   chatUrl: 'http://127.0.0.1:8347',
   // AS-99 lanes poll. A tick is when lanes change, so 15s is well inside the
   // window a board member would notice, and four polls fit inside the 60s
@@ -180,20 +184,46 @@ function envNum(env, name, fallback) {
   return Number.isFinite(v) && v > 0 ? v : fallback;
 }
 
+/** Node's setTimeout ceiling: a delay above 2^31-1 ms is silently coerced to
+ *  1 ms, so a minute knob past it would not be "a long timer" but an
+ *  immediate one — a tick box of 0, a deploy box of 0. */
+export const MAX_TIMER_MS = 2147483647;
+
+/**
+ * AS-129: a `*_MIN` env knob. Junk and non-positive values fall back exactly
+ * as envNum does; a value whose millisecond product exceeds MAX_TIMER_MS
+ * THROWS rather than clamps — a clamp would hide the operator's mistake until
+ * it mattered (AS-113's argument). Applied to every minute knob, timers and
+ * comparisons alike: one rule is easier to state than two. Under launchd the
+ * throw is a crash loop with the reason in launchd.err.log (AS-88 precedent).
+ */
+function envMinutes(env, name, fallback) {
+  const raw = env[name];
+  const v = Number(raw);
+  if (!Number.isFinite(v) || v <= 0) return fallback;
+  if (v * 60_000 > MAX_TIMER_MS) {
+    throw new Error(
+      `${name}=${raw}: ${v} minutes exceeds the Node timer ceiling (${MAX_TIMER_MS} ms; at most ${Math.floor(MAX_TIMER_MS / 60_000)})`
+    );
+  }
+  return v;
+}
+
 export function loadConfig(env = process.env) {
   return {
     pollS: envNum(env, 'ADVANCE_POLL_S', DEFAULTS.pollS),
     debounceS: envNum(env, 'ADVANCE_DEBOUNCE_S', DEFAULTS.debounceS),
-    tickTimeoutMin: envNum(env, 'ADVANCE_TICK_TIMEOUT_MIN', DEFAULTS.tickTimeoutMin),
-    lockStaleMin: envNum(env, 'ADVANCE_LOCK_STALE_MIN', DEFAULTS.lockStaleMin),
+    tickTimeoutMin: envMinutes(env, 'ADVANCE_TICK_TIMEOUT_MIN', DEFAULTS.tickTimeoutMin),
+    lockStaleMin: envMinutes(env, 'ADVANCE_LOCK_STALE_MIN', DEFAULTS.lockStaleMin),
     shutdownGraceS: envNum(env, 'ADVANCE_SHUTDOWN_GRACE_S', DEFAULTS.shutdownGraceS),
     tickLogRetentionDays: DEFAULTS.tickLogRetentionDays,
     permissionMode: env.ADVANCE_PERMISSION_MODE || DEFAULTS.permissionMode,
     claudeBin: env.ADVANCE_CLAUDE_BIN || DEFAULTS.claudeBin,
     repoRoot: env.ADVANCE_REPO_ROOT || resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..'),
     deployPollS: envNum(env, 'ADVANCE_DEPLOY_POLL_S', DEFAULTS.deployPollS),
-    deployTimeoutMin: envNum(env, 'ADVANCE_DEPLOY_TIMEOUT_MIN', DEFAULTS.deployTimeoutMin),
-    deployCooldownMin: envNum(env, 'ADVANCE_DEPLOY_COOLDOWN_MIN', DEFAULTS.deployCooldownMin),
+    deployTimeoutMin: envMinutes(env, 'ADVANCE_DEPLOY_TIMEOUT_MIN', DEFAULTS.deployTimeoutMin),
+    deployCooldownMin: envMinutes(env, 'ADVANCE_DEPLOY_COOLDOWN_MIN', DEFAULTS.deployCooldownMin),
+    loopRearmMin: envMinutes(env, 'ADVANCE_LOOP_REARM_MIN', DEFAULTS.loopRearmMin), // AS-129
     chatUrl: env.ADVANCE_CHAT_URL || DEFAULTS.chatUrl,
     lanesPollS: envNum(env, 'ADVANCE_LANES_POLL_S', DEFAULTS.lanesPollS),
     eventsSweepS: envNum(env, 'ADVANCE_EVENTS_SWEEP_S', DEFAULTS.eventsSweepS),
@@ -1333,18 +1363,58 @@ export function makeDeployOps({
 // down; these are exported so the suite can drive them with fixtures.
 
 export const LOOP_DEFAULTS = Object.freeze({
+  // AS-129: maxTicks/maxMs are RUNAWAY GUARDS, not stop rules. A loop that
+  // hits one with work still on the board cools down (rearmMs) and a fresh
+  // loop fires; only dry / no-progress / tick-failed-twice / lock-unavailable
+  // / error end a loop for good.
   maxTicks: 24,
   maxMs: 8 * 60 * 60 * 1000,
   maxNoProgress: 2,
   maxFailures: 2,
   // How long a loop will wait for somebody else's lock before giving up and
-  // saying so. Longer than both the tick timeout (30 min, the longest a
-  // legitimate tick can hold the lock) and the staleness rule that lets the
-  // next fire steal it (45 min), so an honest foreign tick is always waited
-  // out; past that we are losing the race repeatedly, and a stop the board can
-  // read beats a wait nobody can see.
-  maxLockWaitMs: 60 * 60 * 1000,
+  // saying so. The sum of the tick timeout (the longest a legitimate tick can
+  // hold the lock) and the staleness rule that lets the next fire steal it, so
+  // an honest foreign tick is always waited out; past that we are losing the
+  // race repeatedly, and a stop the board can read beats a wait nobody can
+  // see. AS-129: DERIVED, never a literal — the old 60-min literal was shorter
+  // than the host's 75-min staleness rule alone once the plist moved to 60/75.
+  // This default is the DEFAULTS-derived value (75 min); main() passes
+  // loopLimits(config), which on the host's 60/75 is 135 min.
+  maxLockWaitMs: (DEFAULTS.tickTimeoutMin + DEFAULTS.lockStaleMin) * 60 * 1000,
+  // AS-129: the cooldown after a cap-hit with work remaining.
+  rearmMs: DEFAULTS.loopRearmMin * 60 * 1000,
 });
+
+/**
+ * AS-129: the loop limits for a loaded config. Pure. `maxLockWaitMs` is the
+ * tick timeout plus the lock staleness (135 min on the host's 60/75), so the
+ * wait always outlives both the longest legitimate tick and the steal rule;
+ * `rearmMs` is the cap cooldown. Everything else is `base`.
+ */
+export function loopLimits(config, base = LOOP_DEFAULTS) {
+  return {
+    ...base,
+    maxLockWaitMs: (config.tickTimeoutMin + config.lockStaleMin) * 60_000,
+    rearmMs: config.loopRearmMin * 60_000,
+  };
+}
+
+/** AS-129: has this loop used up its cap? Pure; shared by shouldContinue()
+ *  (at settle) and resume() (at startup, so a stale mirror past the cap never
+ *  buys one extra tick — AS-104). `ticks` and `startedAt` are the loop's own
+ *  counters, already folded. */
+export function capReached({ ticks, startedAt }, now, limits = LOOP_DEFAULTS) {
+  return ticks >= limits.maxTicks || now - startedAt >= limits.maxMs;
+}
+
+/** AS-129: is there anything on the board a fresh loop could advance? A task
+ *  mid-lifecycle or a ready backlog task. Deliberately NOT a new message —
+ *  the message path re-arms on its own (decide() → fire() → start()), and a
+ *  message during the cooldown wins by clearing it. */
+export function workRemains(board) {
+  const midLifecycle = (board?.tasks ?? []).some((x) => MID_LIFECYCLE.includes(x.status));
+  return midLifecycle || readyBacklog(board).length > 0;
+}
 
 /** Statuses that mean a task is somewhere inside its lifecycle — work in
  *  flight that the next tick can advance one stage (plan §2.2 rule a). */
@@ -1426,8 +1496,11 @@ export function shouldContinue({ board, sentinel, highwater, loop, tick, now, li
   if (noProgress >= limits.maxNoProgress) {
     return stop('no-progress', { noProgress, headKnown, ...work });
   }
-  if (ticks >= limits.maxTicks || elapsedMs >= limits.maxMs) {
-    return stop('cap-hit', { ticks, elapsedMs });
+  if (capReached({ ticks, startedAt: prior.startedAt }, now, limits)) {
+    // AS-129: the cap still stops THIS loop; `rearm` says whether the state
+    // machine should cool down and fire a fresh one. Work is the board, not
+    // the sentinel — a new message re-arms through the message path.
+    return stop('cap-hit', { ticks, elapsedMs, rearm: workRemains(board) });
   }
   if (newMessage) {
     // The loop does NOT fire this itself — it returns continue and the normal
@@ -1600,7 +1673,8 @@ function defaultRealpath(p) {
  * @param saveState     (body) => void         writes advance-loop.json
  * @param log           (line) => void
  * @param now           () => ms
- * @param limits        LOOP_DEFAULTS, injectable for tests
+ * @param limits        loopLimits(config) in main(); LOOP_DEFAULTS otherwise,
+ *                      injectable for tests
  * @param resumeGraceMs how young a lock has to be for a resumed loop to wait it
  *                      out — the tick timeout, so a legitimately running tick
  *                      is always waited for and a dead one never is
@@ -1624,6 +1698,10 @@ export function makeLoopOps({
   let resumeHold = false; // we resumed and have not fired our own tick yet
   let waitingSince = null; // when the current lock-wait episode began
   let waitLogged = null; // one line per wait episode, not one per poll
+  // AS-129: the cooldown after a cap-hit with work remaining. `loop` is null
+  // while this is set (the cap DID stop the loop — stop() stays the only way
+  // to clear `loop`); when `at` passes, rearmIfDue() builds a fresh loop.
+  let rearm = null; // null | { at: ms, armedBy }
 
   function mirror() {
     try {
@@ -1631,13 +1709,43 @@ export function makeLoopOps({
         active: loop !== null,
         startedAt: loop ? new Date(loop.startedAt).toISOString() : null,
         ticks: loop ? loop.ticks : 0,
-        armedBy: loop ? loop.armedBy : null,
+        // Populated while cooling too: the re-armed loop keeps the message.
+        armedBy: loop ? loop.armedBy : rearm ? rearm.armedBy : null,
+        rearmAt: rearm ? new Date(rearm.at).toISOString() : null, // AS-129
         lastTick,
         lastLoop,
       });
     } catch (err) {
       log(`WARN loop state unwritable: ${err.message}`);
     }
+  }
+
+  /** AS-129: enter the cooldown. Called only after stop('cap-hit'). */
+  function cooldown(armedBy, from) {
+    rearm = { at: from + limits.rearmMs, armedBy };
+    log(`LOOP-COOLDOWN until ${new Date(rearm.at).toISOString()} armedBy messageId ${armedBy} (cap-hit with work remaining)`);
+  }
+
+  /**
+   * AS-129: poll() asks this once per poll, before nextPollAction(). When the
+   * cooldown has elapsed it arms a FRESH loop — new startedAt, ticks 0, the
+   * same armedBy — and owes a tick, which then flows through the existing
+   * lock/deploy gates and takeFire() exactly like any loop tick.
+   */
+  function rearmIfDue() {
+    if (rearm === null) return false;
+    if (loop !== null) {
+      rearm = null; // a message armed a loop meanwhile; start() should have cleared this
+      return false;
+    }
+    if (now() < rearm.at) return false;
+    const { armedBy } = rearm;
+    rearm = null;
+    loop = { startedAt: now(), ticks: 0, noProgress: 0, failures: 0, armedBy };
+    pending = true;
+    log(`LOOP-REARM armedBy messageId ${armedBy} after cap-hit cooldown`);
+    mirror();
+    return true;
   }
 
   /** Every way a loop ends goes through here, so every end has a logged reason
@@ -1660,6 +1768,7 @@ export function makeLoopOps({
     waitingSince = null;
     waitLogged = null;
     resumeHold = false;
+    rearm = null; // AS-129: a message during the cooldown wins
     if (loop !== null) return;
     loop = { startedAt: now(), ticks: 0, noProgress: 0, failures: 0, armedBy: sentinel.messageId };
     log(`LOOP-START armedBy messageId ${sentinel.messageId}`);
@@ -1702,8 +1811,15 @@ export function makeLoopOps({
         `LOOP-EVAL tick ${loop.ticks} reason=${verdict.reason} detail=${JSON.stringify(verdict.detail)} -> ` +
           (verdict.continue ? 'continue' : 'stop')
       );
-      if (verdict.continue) pending = true;
-      else stop(verdict.reason, verdict.detail);
+      if (verdict.continue) {
+        pending = true;
+      } else {
+        const { armedBy } = loop; // stop() nulls `loop`; the cooldown keeps the message
+        stop(verdict.reason, verdict.detail);
+        // AS-129: the cap stopped the loop as always; with work remaining the
+        // stop is a breather, not an end.
+        if (verdict.reason === 'cap-hit' && verdict.detail.rearm === true) cooldown(armedBy, now());
+      }
     } catch (err) {
       // An unexpected failure stops the loop rather than spinning: a board
       // message re-arms it, and a runaway loop costs real tokens.
@@ -1782,7 +1898,16 @@ export function makeLoopOps({
     if (!prior || typeof prior !== 'object') return;
     lastLoop = prior.lastLoop ?? null;
     lastTick = prior.lastTick ?? null;
-    if (prior.active !== true) return;
+    if (prior.active !== true) {
+      // AS-129: a cooldown survives the restart too — the watcher's own
+      // self-restart after a merge is exactly when one would otherwise be lost.
+      const rearmAt = Date.parse(prior.rearmAt ?? '');
+      if (Number.isFinite(rearmAt)) {
+        rearm = { at: rearmAt, armedBy: prior.armedBy ?? null };
+        log(`LOOP-RESUME reason=cooldown until ${new Date(rearmAt).toISOString()} armedBy ${rearm.armedBy}`);
+      }
+      return;
+    }
     const startedAt = Date.parse(prior.startedAt ?? '');
     loop = {
       startedAt: Number.isFinite(startedAt) ? startedAt : now(),
@@ -1791,6 +1916,16 @@ export function makeLoopOps({
       failures: 0,
       armedBy: prior.armedBy ?? null,
     };
+    // AS-129 (AS-104): evaluate the cap BEFORE owing a tick. A stale mirror
+    // past the cap used to buy one extra tick before settle() noticed.
+    if (capReached(loop, now(), limits)) {
+      const { armedBy, ticks } = loop;
+      const remains = workRemains(loadBoard());
+      stop('cap-hit', { ticks, elapsedMs: now() - loop.startedAt, rearm: remains, resumed: true });
+      if (remains) cooldown(armedBy, now());
+      mirror();
+      return;
+    }
     pending = true;
     resumeHold = true; // F2: wait out anything the dead process left running
     log(`LOOP-RESUME reason=watcher-restart tick ${loop.ticks} armedBy ${loop.armedBy}`);
@@ -1814,6 +1949,7 @@ export function makeLoopOps({
     blockedByLock,
     settle,
     resume,
+    rearmIfDue, // AS-129
     /** Test/report view of the private counters. Never the mirror body. */
     snapshot: () => ({
       active: loop !== null,
@@ -1822,6 +1958,8 @@ export function makeLoopOps({
       resumeHold,
       lastLoop,
       lastTick,
+      rearmAt: rearm ? new Date(rearm.at).toISOString() : null, // AS-129
+      limits,
     }),
   };
 }
@@ -2698,6 +2836,9 @@ export function makeWatcher({
     // by the order of two `if`s further down a 1500-line file — which is what
     // makes "a new message is delivered exactly once" (AC-5) a property of an
     // exported pure function that a test can hold, instead of an argument.
+    // AS-129: a cooled-down cap re-arms here, as loop debt — so it flows
+    // through the same lock/deploy gates and takeFire() as any loop tick.
+    loopOps.rearmIfDue();
     const next = nextPollAction({
       decideAction: result.action,
       loopPending: loopOps.pending(),
@@ -2870,6 +3011,7 @@ export function makeWatcher({
         saveState: (body) => defaultWriteState(paths.loopState, body),
         log,
         now,
+        limits: loopLimits(config), // AS-129: lock wait = tick box + staleness; cap cooldown
         resumeGraceMs: config.tickTimeoutMin * 60 * 1000,
       });
 
