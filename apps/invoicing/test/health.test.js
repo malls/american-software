@@ -21,6 +21,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { SCHEMA } from '../lib/config.js';
 import { HEALTH_CHECKS, runHealthChecks } from '../lib/health.js';
 import { VIEWS } from '../lib/views.js';
 import { configFor, preparedConfigFor, seedSignedIn, withServer } from './helpers/server.js';
@@ -64,12 +65,48 @@ test('GET /healthz returns 200 and {ok:true} with all four checks passing', asyn
   });
 });
 
-test('the health body carries redacted config, never raw config', () => {
+test('an unconfigured secret redacts to null and the rest of the config is unchanged', () => {
+  // Until AS-58 this read "no secrets exist yet, so redacted() equals the
+  // config" — stale since AS-38 added the first secret-shaped setting
+  // (INVOICING_STRIPE_SECRET_KEY) and AS-44 the second. The equality still
+  // holds in a test environment, but for a different reason: an UNSET secret
+  // is null on both sides (null and "[redacted]" are different facts — no key
+  // versus a key you may not see), and redacted() leaves every non-secret row
+  // alone. Both halves are pinned here so the wording can never go stale the
+  // same way again; the "[redacted]" half is in config.test.js.
   const config = configFor();
-  assert.deepEqual(config.redacted(), { ...config }, 'no secrets exist yet, so redacted() equals the config');
-  // The mechanism is pinned in config.test.js against a fixture schema with a
-  // real secret; this asserts the endpoint is wired to redacted() at all.
-  assert.equal(typeof config.redacted, 'function');
+  const secretKeys = SCHEMA.filter((row) => row.secret === true).map((row) => row.key);
+  assert.ok(secretKeys.length >= 1, 'the schema HAS secret rows now; this test is about them');
+  assert.deepEqual(secretKeys, ['stripeSecretKey', 'webhookSecret']);
+  for (const key of secretKeys) {
+    assert.equal(config[key], null, `${key} is unset in tests`);
+    assert.equal(config.redacted()[key], null, `an unset ${key} redacts to null, not "[redacted]"`);
+  }
+  assert.deepEqual(config.redacted(), { ...config }, 'with every secret unset, redacted() equals the config row for row');
+  assert.deepEqual(Object.keys(config.redacted()).sort(), Object.keys({ ...config }).sort(), 'no row added, none dropped');
+});
+
+test('GET /healthz carries ok and checks and nothing else — no config, redacted or otherwise (AS-58)', async () => {
+  // Before AS-58 the body carried `config: config.redacted()`. Redaction held,
+  // but an unauthenticated endpoint that lists setting names and non-secret
+  // values (bind, port, env, WHICH secrets are configured) is more than a
+  // health check needs to say. Asserted on the 200 AND on a 503, because the
+  // failing branch is the one an operator (or a stranger) reads most closely.
+  // Key-shaped needles: `"config":` is the dropped object; the rest are its
+  // rows. (`"config"` alone would match the config CHECK's name, which stays.)
+  const forbidden = ['"config":', '"bind":', '"port":', '"env":', '"logLevel":', '"stripeSecretKey":', '"webhookSecret":', '[redacted]', '"appBaseUrl":', '"dbPath":'];
+  for (const overrides of [{}, { vendorDir: '/nonexistent/vendor' }]) {
+    await withServer(configFor(overrides), async (base) => {
+      const res = await fetch(`${base}/healthz`);
+      const text = await res.text();
+      const body = JSON.parse(text);
+      assert.deepEqual(Object.keys(body), ['ok', 'checks']);
+      for (const check of body.checks) {
+        assert.ok(Object.keys(check).every((k) => ['name', 'ok', 'detail'].includes(k)), `check ${check.name} carries only name/ok/detail`);
+      }
+      for (const needle of forbidden) assert.ok(!text.includes(needle), `${res.status} body exposes ${needle}: ${text}`);
+    });
+  }
 });
 
 // --- every check, demonstrated able to fail ---------------------------------

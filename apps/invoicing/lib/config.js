@@ -147,8 +147,10 @@ export function loadConfig(env = process.env, schema = SCHEMA) {
   Object.defineProperty(resolved, 'redacted', {
     value: () => {
       // A configured secret is masked; an UNCONFIGURED one stays null, so the
-      // startup line and /healthz say honestly which it is (AS-38, plan §2.8)
-      // without ever saying what it is.
+      // startup line says honestly which it is (AS-38, plan §2.8) without ever
+      // saying what it is. Only the startup line: /healthz stopped carrying the
+      // config at AS-58 (item 4) — an unauthenticated body is the wrong place
+      // to list which secrets a deployment has.
       const out = {};
       for (const row of schema) out[row.key] = row.secret && resolved[row.key] !== null ? '[redacted]' : resolved[row.key];
       return out;

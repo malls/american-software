@@ -120,8 +120,9 @@ export function webhookRoutes(config, { repos }) {
   //  3. It leaks nothing: a prober gets what any unknown path gives, which is
   //     what a machine not running this app gives.
   //  4. The operator still gets an unambiguous signal, on the AUTHENTICATED
-  //     side: the startup line and /healthz both already print the setting as
-  //     null through config.redacted(), with no code change here.
+  //     side: the startup line already prints the setting as null through
+  //     config.redacted(), with no code change here. (/healthz printed it too
+  //     until AS-58 item 4 dropped the config object from that body.)
   //
   // WHAT THIS DOES NOT MEAN, flagged for AS-50: it does not make webhooks
   // optional. A deployment with no secret silently receives nothing, so the run
