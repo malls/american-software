@@ -744,8 +744,11 @@ test('P8: no route mutates or deletes a contract', async () => {
     // IMMUTABILITY IS IMPLEMENTED AS ABSENCE. Nothing serves a mutating
     // request, so it 404s — there is no handler whose job is to say "no".
     const contractRoutesFound = discoverRoutes(app).filter((r) => r.split(' ')[1].startsWith('/contracts'));
-    assert.equal(contractRoutesFound.length, 1, `cardinality before quantification: ${contractRoutesFound.join(', ')}`);
-    assert.deepEqual(contractRoutesFound, ['POST /contracts']);
+    // AS-47 widens the set with the screens' GET routes; the four-method
+    // probe against a real id below is what pins immutability, and it does not
+    // move.
+    assert.equal(contractRoutesFound.length, 2, `cardinality before quantification: ${contractRoutesFound.join(', ')}`);
+    assert.deepEqual(contractRoutesFound, ['GET /contracts/:id', 'POST /contracts']);
 
     const created = await postForm(`${base}/contracts`, { clientId: client.id, ...FORM_INPUT() });
     assert.equal(created.status, 303);
@@ -811,7 +814,8 @@ test('Y2: contractRoutes is constructed from repos alone and takes no stripe dep
     const router = contractRoutes(configFor(), { repos });
     assert.equal(typeof router, 'function');
     const routes = router.stack.filter((layer) => layer.route).map((layer) => `${Object.keys(layer.route.methods)[0].toUpperCase()} ${layer.route.path}`);
-    assert.deepEqual(routes, ['POST /contracts']);
+    // Registration order (AS-47 adds the screens' GET; the API stays first).
+    assert.deepEqual(routes, ['POST /contracts', 'GET /contracts/:id']);
     assert.equal(contractRoutes.length, 2, 'the (config, deps) shape every mount line in app.js uses');
   });
   // And app.js hands it exactly that — the asymmetry with its two neighbours is

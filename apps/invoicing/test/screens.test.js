@@ -875,8 +875,17 @@ test('app.css is mobile-first: every media condition is min-width, and none is b
   // invisible to this and to the breakpoint carve-out in assets.test.js alike.
   // app.css has none today; both checks would need a real tokenizer to be
   // immune, and neither is worth one at one stylesheet.
-  const preludes = css.split('\n').filter((line) => /^\s*@media\b/.test(line));
-  assert.ok(preludes.length > 0, `no media prelude found in app.css — this check is examining nothing`);
+  const allPreludes = css.split('\n').filter((line) => /^\s*@media\b/.test(line));
+  assert.ok(allPreludes.length > 0, `no media prelude found in app.css — this check is examining nothing`);
+
+  // A media TYPE is not a width condition (AS-47, plan §3.5). The print block
+  // applies to no screen viewport, so it cannot move the 375px claim either
+  // way; it is partitioned out and COUNTED — exactly one, screen 7's — so a
+  // second print prelude is red here and a print prelude that vanished is too.
+  const printPreludes = allPreludes.filter((line) => /^\s*@media\s+print\s*\{/.test(line));
+  assert.equal(printPreludes.length, 1, `expected exactly 1 @media print prelude (AS-47), found ${printPreludes.length}`);
+  const preludes = allPreludes.filter((line) => !printPreludes.includes(line));
+  assert.ok(preludes.length > 0, 'no width prelude remains — the width assertions below would examine nothing');
 
   const maxWidth = preludes.filter((line) => /max-width/.test(line));
   assert.deepEqual(maxWidth, [], `every media condition must be min-width:\n${maxWidth.join('\n')}`);

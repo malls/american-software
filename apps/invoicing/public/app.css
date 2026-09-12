@@ -389,3 +389,119 @@ a:focus {
   font-size: var(--font-size-sm);
   margin: 0 0 var(--space-3) 0;
 }
+
+/* ---------------------------------------------------------------------------
+ * Document region (screen 7, AS-47 — v1's delivery mechanism). The seven
+ * contract-doc* class names are lib/contracts/render.js's FROZEN CONTRACT
+ * (README.md § Contracts): read from its CLASS table, renamed nowhere, and
+ * every one of them has a rule here so an issued document is styled on the
+ * page. The placeholder notice and the attribution line are INSIDE the
+ * document, so they print and download with it — no rule in this file, and
+ * none in the print block below, targets either.
+ * ------------------------------------------------------------------------ */
+
+.doc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-5) 0;
+}
+
+.doc-actions .page-meta {
+  margin: 0;
+}
+
+.doc-actions form {
+  margin: 0;
+}
+
+.doc-region {
+  border: var(--border-width-hairline) solid var(--color-border-hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  background: var(--color-bg-surface);
+  max-width: var(--content-measure);
+}
+
+.contract-doc {
+  overflow-wrap: break-word;
+}
+
+/* The legal gate, in warning tokens — the same bg-subtle + text-on-subtle
+   pairing as .banner-warning, which is a PASS row in BRANDING.md §3.4. */
+.contract-doc__notice {
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin: 0 0 var(--space-5) 0;
+  font-size: var(--font-size-sm);
+  background: var(--color-warning-bg-subtle);
+  color: var(--color-warning-text-on-subtle);
+}
+
+.contract-doc__notice p {
+  margin: 0;
+}
+
+.contract-doc__notice p + p {
+  margin-block-start: var(--space-2);
+}
+
+.contract-doc__notice-title {
+  font-weight: var(--font-weight-semibold);
+}
+
+.contract-doc__title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+  margin: 0 0 var(--space-4) 0;
+}
+
+.contract-doc__body {
+  line-height: var(--line-height-relaxed);
+}
+
+.contract-doc__body p {
+  margin: 0 0 var(--space-3) 0;
+}
+
+/* A description typed with blank lines keeps them. Known limitation, plan
+   §3.4: the downloaded file is unstyled, so this rule does not reach it. */
+.contract-doc__multiline {
+  white-space: pre-wrap;
+}
+
+.contract-doc__attribution {
+  margin-block-start: var(--space-6);
+  padding-block-start: var(--space-4);
+  border-top: var(--border-width-hairline) solid var(--color-border-hairline);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ---------------------------------------------------------------------------
+ * Print (screen 7, AS-47 — the carried AS-30 review comment). What prints is
+ * the document alone: the chrome, the page heading, the help sentence and the
+ * Download control hide; the document region drops its frame. NOTHING here
+ * targets a contract-doc class — the placeholder notice and the attribution
+ * survive because no rule touches them, and test/contract-screens.test.js
+ * asserts exactly that over this block. A media TYPE, not a width condition:
+ * the mobile-first case in test/screens.test.js counts this prelude at one.
+ * ------------------------------------------------------------------------ */
+
+@media print {
+  .site-header,
+  .site-nav,
+  .page-title,
+  .doc-actions,
+  .page-meta {
+    display: none;
+  }
+
+  .doc-region {
+    border: none;
+    padding: 0;
+    max-width: none;
+  }
+}
