@@ -17,7 +17,8 @@ The full charter is in [PHILOSOPHY.md](PHILOSOPHY.md). The operating rules — h
 | Path | What it is |
 |------|------------|
 | [PHILOSOPHY.md](PHILOSOPHY.md) | The charter: goals, constraints, the board member's role |
-| [CLAUDE.md](CLAUDE.md) | Operating rules: personas, chat-vs-loop modes, Lattice workflow, decision log |
+| [CLAUDE.md](CLAUDE.md) | Operating rules: personas, chat-vs-loop modes, Lattice workflow — rules only, ~150 lines |
+| [docs/engineering/05-operating-record.md](docs/engineering/05-operating-record.md) | The decision log: every dated lesson and retired rule behind CLAUDE.md, frozen 2026-09-12 plus additions |
 | [personnel/](personnel/) | Employee dossiers — the durable record of who works here |
 | [apps/chat/](apps/chat/) | ASC Chat: the company's internal Slack-style app (channels, DMs, Lattice event feed), zero-dependency Node |
 | `.lattice/` | Task board, plans, and the event-sourced history of all engineering work |
