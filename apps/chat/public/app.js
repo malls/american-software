@@ -4,7 +4,7 @@
 import { parseChatUrl, serializeChatUrl, resolveConversation } from './url-state.js';
 import { renderPreservingScroll, prependPreservingScroll } from './scroll.js';
 import { shouldCloseOnEscape, shouldCloseOnBackdropGesture } from './thread-modal.js';
-import { applyMessage, maxLoadedId, mergeOlderPage, ensureLoaded } from './live.js';
+import { applyMessage, maxLoadedId, mergeOlderPage, ensureLoaded, findLoaded } from './live.js';
 import { rosterOrder, dmOrder, togglePin, sanitizePins } from './dm-sort.js';
 import { BOARD_ROOT, buildOrgTree } from './org-chart.js';
 import { tokenizeInline, parseBlocks } from './markdown.js';
@@ -823,17 +823,14 @@ async function showTaskPanel(shortId) {
 // loaded, one /api/message/<id> call otherwise. Every failure — nonexistent,
 // hidden, transient — collapses to the one neutral MSG_UNAVAILABLE wording.
 
-/** The loaded message with this id (top-level or thread reply), or null. */
+/**
+ * The loaded message with this id (top-level, or a reply whose root is a
+ * loaded top-level row), or null. Same rule as ensureLoaded's stop condition
+ * (live.js findLoaded): a live reply on a root outside the loaded pages is
+ * not "loaded" — step 2 pages its root in before the thread opens.
+ */
 function findLoadedMessage(id) {
-  const data = state.lastData;
-  if (!data) return null;
-  const top = data.messages.find((m) => m.id === id);
-  if (top) return top;
-  for (const arr of Object.values(data.threads || {})) {
-    const hit = arr.find((m) => m.id === id);
-    if (hit) return hit;
-  }
-  return null;
+  return findLoaded(state.lastData, id);
 }
 
 async function goToMessage(id) {

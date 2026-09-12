@@ -3,7 +3,7 @@
 // browser-module pattern as url-state.test.js / scroll.test.js.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyMessage, maxLoadedId, mergeOlderPage, ensureLoaded, isLoaded, ENSURE_LOADED_MAX_PAGES } from '../public/live.js';
+import { applyMessage, maxLoadedId, mergeOlderPage, ensureLoaded, isLoaded, findLoaded, ENSURE_LOADED_MAX_PAGES } from '../public/live.js';
 
 const msg = (id, conversationId, threadRootId = null, extra = {}) => ({
   id,
@@ -219,4 +219,45 @@ test('AS-131 live: ensureLoaded pages back until the target is loaded, stops on 
     assert.equal(n, 20, 'capped at 20 fetches');
     assert.equal(data.messages.length, 42);
   }
+});
+
+test('AS-131 live: a reply whose root is outside the loaded pages is not loaded — findLoaded/isLoaded fall through so ensureLoaded pages the root in (criterion 12, F1)', async () => {
+  // Newest page [38, 40] open; a LIVE reply 41 lands on root 26, which is
+  // outside the page. applyMessage keeps it as an orphan threads[26] entry.
+  const data = pageOf([38, 40], { hasMore: true });
+  assert.equal(applyMessage(data, msg(41, 7, 26)), true);
+  assert.deepEqual(data.threads[26].map((m) => m.id), [41], 'orphan reply kept under its root key');
+  // Orphan reply: NOT loaded (opening it would show a thread without its root).
+  assert.equal(findLoaded(data, 41), null);
+  assert.equal(isLoaded(data, 41), false);
+  // Loaded reply on a loaded root: still loaded (the ordinary case is unchanged).
+  assert.equal(applyMessage(data, msg(42, 7, 40)), true);
+  assert.equal(findLoaded(data, 42).id, 42);
+  assert.equal(isLoaded(data, 42), true);
+  // Top-level rows are unaffected; unknown ids stay null.
+  assert.equal(findLoaded(data, 40).id, 40);
+  assert.equal(findLoaded(data, 26), null);
+  assert.equal(findLoaded(null, 41), null);
+
+  // ensureLoaded therefore walks back until root 26's page is in, then stops.
+  // The fake server's thread list for 26 is what the real one returns at
+  // click time: every committed reply, including the live one (41) — the
+  // server list is authoritative at fetch time (Approach, live.js).
+  const all = [];
+  for (let id = 2; id <= 40; id += 2) all.push(id);
+  const calls = [];
+  const fetchPage = async (before) => {
+    calls.push(before);
+    const older = all.filter((id) => id < before);
+    const roots = older.slice(-2);
+    const t = {};
+    if (roots.includes(26)) t[26] = [msg(27, 7, 26), msg(41, 7, 26)];
+    return pageOf(roots, { threads: t, hasMore: older.length > 2 });
+  };
+  assert.equal(await ensureLoaded(data, 41, fetchPage), true);
+  assert.deepEqual(calls, [38, 34, 30], 'three fetches: pages [34,36], [30,32], [26,28]');
+  assert.equal(findLoaded(data, 41).id, 41);
+  assert.equal(isLoaded(data, 41), true);
+  assert.equal(data.messages.find((m) => m.id === 26).replyCount, 2, 'root 26 carries the server replyCount');
+  assert.deepEqual(data.threads[26].map((m) => m.id), [27, 41], 'root and its complete reply list are loaded — the thread can open whole');
 });

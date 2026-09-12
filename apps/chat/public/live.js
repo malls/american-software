@@ -99,12 +99,32 @@ export function mergeOlderPage(data, page) {
   return fresh.length;
 }
 
-/** Is message `id` in the loaded payload — as a top-level row or a thread reply? */
+/**
+ * The loaded message with this id, or null. A top-level row is loaded when
+ * it is in `messages`; a reply is loaded only when its root is a loaded
+ * top-level row. A reply whose root is outside the loaded pages can still
+ * sit in `threads` (a live frame or `since=` catch-up stores it as an orphan
+ * so nothing is lost when the root pages in) — but it is NOT loaded: opening
+ * it would show a thread without its root, so callers must page the root in.
+ *
+ * @param {{ messages: object[], threads?: Record<string, object[]> }|null} data
+ * @param {number} id
+ * @returns {object|null}
+ */
+export function findLoaded(data, id) {
+  if (!data) return null;
+  const top = data.messages.find((m) => m.id === id);
+  if (top) return top;
+  for (const arr of Object.values(data.threads || {})) {
+    const hit = arr.find((m) => m.id === id);
+    if (hit) return data.messages.some((m) => m.id === hit.threadRootId) ? hit : null;
+  }
+  return null;
+}
+
+/** Is message `id` loaded — a top-level row, or a reply whose root is one? */
 export function isLoaded(data, id) {
-  if (!data) return false;
-  if (data.messages.some((m) => m.id === id)) return true;
-  for (const arr of Object.values(data.threads || {})) if (arr.some((m) => m.id === id)) return true;
-  return false;
+  return findLoaded(data, id) != null;
 }
 
 /**
