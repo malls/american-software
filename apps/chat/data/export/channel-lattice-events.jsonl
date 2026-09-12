@@ -664,3 +664,22 @@
 {"type":"message","id":1042,"thread_root_id":null,"author":"system:lattice","body":"AS-129 created by human:forrest — \"Chat watcher: a loop stopped by the safety cap with work mi…\" [backlog]","created_at":"2026-09-12T15:27:40.596Z"}
 {"type":"message","id":1043,"thread_root_id":null,"author":"system:lattice","body":"AS-105: backlog → cancelled — by human:forrest","created_at":"2026-09-12T15:27:40.600Z"}
 {"type":"message","id":1044,"thread_root_id":null,"author":"system:lattice","body":"AS-130 created by agent:cto-owen — \"D1 demo: re-capture the board demo against the seven merged…\" [backlog]","created_at":"2026-09-12T15:27:56.128Z"}
+{"type":"message","id":1049,"thread_root_id":null,"author":"system:lattice","body":"AS-71: review → done — by agent:cto-owen","created_at":"2026-09-12T15:40:40.242Z"}
+{"type":"message","id":1050,"thread_root_id":null,"author":"system:lattice","body":"AS-113: review → done — by agent:cto-owen","created_at":"2026-09-12T15:41:47.504Z"}
+{"type":"message","id":1052,"thread_root_id":null,"author":"system:lattice","body":"AS-129: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T15:45:40.267Z"}
+{"type":"message","id":1053,"thread_root_id":null,"author":"system:lattice","body":"AS-130: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T15:45:40.271Z"}
+{"type":"message","id":1054,"thread_root_id":null,"author":"system:lattice","body":"AS-121: backlog → in_planning — by agent:cto-owen","created_at":"2026-09-12T15:45:40.272Z"}
+{"type":"message","id":1055,"thread_root_id":null,"author":"system:lattice","body":"AS-121: in_planning → planned — by agent:developer-lena","created_at":"2026-09-12T15:50:40.227Z"}
+{"type":"message","id":1056,"thread_root_id":null,"author":"system:lattice","body":"AS-121: planned → in_progress — by agent:developer-lena","created_at":"2026-09-12T15:50:40.230Z"}
+{"type":"message","id":1057,"thread_root_id":null,"author":"system:lattice","body":"AS-51: needs_human → review — by dashboard:web","created_at":"2026-09-12T15:54:25.731Z"}
+{"type":"message","id":1060,"thread_root_id":null,"author":"system:lattice","body":"AS-121: in_progress → review — by agent:developer-lena","created_at":"2026-09-12T15:56:31.927Z"}
+{"type":"message","id":1061,"thread_root_id":null,"author":"system:lattice","body":"AS-129: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T16:04:40.352Z"}
+{"type":"message","id":1062,"thread_root_id":null,"author":"system:lattice","body":"AS-130: in_planning → planned — by agent:cto-owen","created_at":"2026-09-12T16:06:16.324Z"}
+{"type":"message","id":1064,"thread_root_id":null,"author":"system:lattice","body":"AS-130: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T16:09:40.327Z"}
+{"type":"message","id":1065,"thread_root_id":null,"author":"system:lattice","body":"AS-129: planned → in_progress — by agent:cto-owen","created_at":"2026-09-12T16:09:40.330Z"}
+{"type":"message","id":1066,"thread_root_id":null,"author":"system:lattice","body":"AS-130: in_progress → review — by agent:developer-lena","created_at":"2026-09-12T16:30:53.513Z"}
+{"type":"message","id":1067,"thread_root_id":null,"author":"system:lattice","body":"AS-129: in_progress → review — by agent:developer-marcus","created_at":"2026-09-12T16:34:59.321Z"}
+{"type":"message","id":1069,"thread_root_id":null,"author":"system:lattice","body":"AS-51: review → done — by agent:cto-owen","created_at":"2026-09-12T16:37:33.247Z"}
+{"type":"message","id":1070,"thread_root_id":null,"author":"system:lattice","body":"AS-131 created by agent:cto-owen — \"Chat: lazy-load messages — paginate conversation history so…\" [backlog]","created_at":"2026-09-12T16:39:05.863Z"}
+{"type":"message","id":1072,"thread_root_id":null,"author":"system:lattice","body":"AS-121: review → in_progress — by agent:cto-owen","created_at":"2026-09-12T16:43:40.322Z"}
+{"type":"message","id":1073,"thread_root_id":null,"author":"system:lattice","body":"AS-129: review → done — by agent:cto-owen","created_at":"2026-09-12T17:03:07.399Z"}
