@@ -940,3 +940,57 @@ test('as129-t9b-resume-past-the-cap-dry: no tick is owed and nothing re-arms', (
   h.advance(TEN_MIN);
   assert.equal(h.ops.rearmIfDue(), false);
 });
+
+// --- AS-132: the re-armed loop's first tick goes through the F2 lock gate ----
+//
+// Ruben's AS-129 probe P5: the watcher dies mid-tick with the loop past the
+// cap; on relaunch resume() goes straight into the cooldown (t9a) and never
+// raises resumeHold, so ten minutes later the re-armed loop's first fire skips
+// blockedByLock() and acquireLock's dead-pid steal takes the orphan's lock —
+// a second tick beside a child that may run to the tick timeout. The lock
+// below is that lock exactly: written by the dead watcher (pid dead), 2 min
+// old at T0, 12 min old at the re-arm, well under the 30-min grace.
+
+const orphanLock = () => lockBody(2 * 60 * 1000, { pid: 999_999 });
+
+test('as132-t1-rearm-after-resume-holds-the-lock-gate: a cooldown entered from resume() re-arms behind the orphan\'s lock, not over it', () => {
+  const h = capHarness({ loadState: () => cappedMirror, loadLock: orphanLock });
+  h.ops.resume();
+  assert.equal(h.ops.pending(), false, 'past the cap: cooling, nothing owed yet (t9a)');
+  h.advance(TEN_MIN);
+  assert.equal(h.ops.rearmIfDue(), true);
+  assert.equal(h.ops.pending(), true);
+  assert.equal(h.ops.blockedByLock(), true, 'a 12-min-old lock under a dead pid may still have a tick behind it');
+  assert.equal(
+    nextPollAction({ decideAction: 'idle', loopPending: h.ops.pending(), deployPending: false, lockHeld: h.ops.blockedByLock() }),
+    'wait-lock'
+  );
+  assert.equal(h.lines('LOOP-WAIT lock held by pid 999999').length, 1, 'one line per episode');
+  assert.equal(h.ops.pending(), true, 'the owed tick survives the wait');
+  h.advance(18 * 60 * 1000); // the lock is now 30 min old: the whole grace, aged out
+  assert.equal(h.ops.blockedByLock(), false);
+  assert.equal(h.ops.pending(), true);
+  assert.equal(h.ops.snapshot().resumeHold, false);
+  assert.equal(h.lines('LOOP-WAIT lock').length, 1);
+  h.ops.takeFire();
+  assert.deepEqual(h.lines('LOOP-FIRE'), ['LOOP-FIRE tick 1']);
+});
+
+test('as132-t2-ordinary-rearm-is-not-held-with-no-lock: an in-process cooldown re-arms and fires on the same poll', () => {
+  const h = capHarness();
+  driveToCap(h, 5);
+  h.advance(TEN_MIN);
+  assert.equal(h.ops.rearmIfDue(), true);
+  assert.equal(h.ops.blockedByLock(), false, 'our last tick released the lock; nothing to wait for');
+  assert.equal(h.lines('LOOP-WAIT').length, 0);
+  assert.equal(h.ops.snapshot().resumeHold, false, 'the hold cleared itself on the first look');
+  assert.equal(h.ops.pending(), true);
+});
+
+test('as132-t3-contrast-ordinary-resume-holds: the same lock under a not-past-cap resume is held as before', () => {
+  const h = capHarness({ loadState: () => resumeState, loadLock: orphanLock });
+  h.ops.resume();
+  assert.equal(h.ops.pending(), true);
+  assert.equal(h.ops.blockedByLock(), true);
+  assert.equal(h.lines('LOOP-WAIT lock held by pid 999999').length, 1);
+});

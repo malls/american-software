@@ -1731,6 +1731,15 @@ export function makeLoopOps({
    * cooldown has elapsed it arms a FRESH loop — new startedAt, ticks 0, the
    * same armedBy — and owes a tick, which then flows through the existing
    * lock/deploy gates and takeFire() exactly like any loop tick.
+   *
+   * AS-132: the first tick goes through the F2 age gate like a resumed one.
+   * A cooldown entered from resume() (an active mirror already past the cap)
+   * skipped the resume path, so the dead watcher's orphan — lock 10+ min old,
+   * pid dead, child possibly running to the tick timeout — was read as free by
+   * acquireLock's dead-pid steal and the re-armed tick fired beside it. A
+   * re-armed loop has no tick of its own in flight, so whatever holds the lock
+   * is foreign or orphaned; in the ordinary in-process cooldown our last tick
+   * released it and blockedByLock() clears the hold on the same poll.
    */
   function rearmIfDue() {
     if (rearm === null) return false;
@@ -1743,6 +1752,7 @@ export function makeLoopOps({
     rearm = null;
     loop = { startedAt: now(), ticks: 0, noProgress: 0, failures: 0, armedBy };
     pending = true;
+    resumeHold = true; // AS-132
     log(`LOOP-REARM armedBy messageId ${armedBy} after cap-hit cooldown`);
     mirror();
     return true;
