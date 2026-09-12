@@ -846,8 +846,11 @@ test('formatMinorUnits and parseMajorUnits round-trip, reject every malformed sp
 // --- the link check: the seam ruling made mechanical -------------------------------
 
 /** Constant href/action values across the registered templates, measured when
- *  the templates were finished and moved deliberately with them. */
-const TEMPLATE_LINKS = 10;
+ *  the templates were finished and moved deliberately with them. RE-MEASURED at
+ *  the rebase onto AS-70's merge: 13 — signin.ejs 5, connect-stripe.ejs 3,
+ *  invoice-form.ejs 5 — read off the run, never before it. A fourth template
+ *  moves this with its VIEWS row. */
+const TEMPLATE_LINKS = 13;
 
 test('every href and form action in every template names a route the app registers or a file public/ serves', async () => {
   const config = configFor();
@@ -874,10 +877,34 @@ test('every href and form action in every template names a route the app registe
       }
     }
     assert.equal(examined.length, TEMPLATE_LINKS, `examined ${examined.length} links, expected ${TEMPLATE_LINKS}:\n${examined.join('\n')}`);
-    // RED BY DESIGN until AS-70 lands /connect-stripe: merge order AS-70 -> AS-46
-    // (plan §11). A red here on that one href is the seam ruling working.
+    // Was RED BY DESIGN until AS-70 landed /connect-stripe (merge order AS-70 ->
+    // AS-46, plan §11); green since the rebase onto that merge. The red on that
+    // one href was the seam ruling working.
     assert.deepEqual(problems, [], problems.join('\n'));
   });
+});
+
+test('no template branches on a state id: `state` reaches EJS code exactly once per template, as the data-state attribute', () => {
+  // THE VIEW-LAYER RULE MADE MECHANICAL (AS-70 review, residual 4: the rule was
+  // prose and its mutant R5 survived). A template branches on the SHAPE the
+  // view model hands it (gated, showSelect, duplicate, banner.tone) and never on
+  // the state id, so the id cannot drift from the copy. The instrument reads
+  // EJS code tags only: connect-stripe.ejs spells `state === '…'` inside an HTML
+  // comment that states this very rule, and signin.ejs says "in any state" in
+  // an EJS comment, so a raw-source grep would be red on the prose. Falsifier
+  // (review-cycle notes): `<% if (gated) { %>` -> `<% if (state === 'S4-GATED-
+  // STRIPENOTREADY') { %>` in invoice-form.ejs renders identical markup and
+  // must turn this red (2 !== 1).
+  const templates = VIEWS.map((v) => v.file);
+  assert.equal(templates.length, 3, 'cardinality first: every registered template is examined');
+  for (const file of templates) {
+    const source = readFileSync(join(configFor().viewsDir, file), 'utf8');
+    const code = [...source.replace(/<%#[\s\S]*?%>/g, '').matchAll(/<%[=-]?([\s\S]*?)%>/g)].map((m) => m[1]).join('\n');
+    assert.ok(code.length > 0, `${file}: no EJS code found — the instrument is reading the wrong thing`);
+    const uses = code.match(/\bstate\b/g) ?? [];
+    assert.equal(uses.length, 1, `${file}: \`state\` reaches EJS code ${uses.length} time(s), expected exactly 1 (the data-state attribute) — a branch on a state id was added`);
+    assert.equal(occurrences(source, 'data-state="<%= state %>"'), 1, `${file}: the one use is the data-state attribute`);
+  }
 });
 
 test('POST /invoices/new is served by the screen, never by the API\'s :id route', async () => {
