@@ -54,6 +54,7 @@ waits for exit, and asserts on the log order, stdout receipt, stderr line, and e
 | AC-3 | An interrupted run whose lib exit is 0 exits `128 + signum`, never 0. | M2: drop the `128 + signum` override. | `{T12a}` only — T12b's lib exit is already 1 |
 | AC-4 | Existing suite unchanged: T1–T11 green; `--check` and the guard paths install no handler (T10b's read-only property holds; a signal before the run still terminates by default). | — (floor check; no new mutant) | — |
 | AC-5 | T13 (opt-in, real docker, throwaway compose without `network_mode`): SIGTERM mid-container → zero `<project>_*` networks and zero `<project>-*` images afterwards, receipt printed. | M1 under `AS106_REAL=1` | `{T13}` plus the AC-1 set |
+| AC-6 *(added at rework cycle 1 for Priya's F1)* | A signal delivered before the `run` call (during observe/preflight/guard) terminates the script by default: death by that signal, no `run` line, no `down` line, no RECEIPT, no "interrupted" line. | M4: arm the handler before `runCounted` (the cycle-0 shape). | `{T12c}` |
 
 Proof burden (low): host suite green; compose run via `bin/compose-run.mjs --project asc-impl-as121`
 with the `Image … Built` receipt; one observed red per M1/M2/M3 with the exact set recorded in
