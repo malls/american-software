@@ -691,12 +691,12 @@ test('H11: a garbage cookie is refused exactly like an absent one', async () => 
     // would also pass against an app that refused every cookie ever presented.
     const freelancer = repos.freelancers.create({ email: EMAIL, displayName: NAME });
     const { cookie } = seedSession(repos, freelancer.id);
-    // AS-45 gave `/` a real answer, so the control is "admitted, and answered
-    // by the HANDLER rather than the guard" — a 200 where every line above got
-    // the guard's redirect is what carries that.
+    // Admitted = answered by the HANDLER, not the guard. Since AS-70 `/` is itself
+    // a 303, so the LOCATION discriminates, not the status: handler `/connect-stripe`, guard `/signin?next=%2F`.
     const admitted = await fetch(`${base}/`, { redirect: 'manual', headers: { cookie } });
-    assert.equal(admitted.status, 200, 'a live session for a live freelancer IS admitted');
-    assert.equal(admitted.headers.get('location'), null, 'answered by routes/pages.js, not redirected by the guard');
+    assert.equal(admitted.status, 303, 'a live session for a live freelancer IS admitted');
+    assert.equal(admitted.headers.get('location'), '/connect-stripe', 'answered by routes/pages.js, not redirected by the guard');
+    assert.notEqual(admitted.headers.get('location'), absent.headers.get('location'), 'the control really is distinguishable from the refusals above');
   });
 });
 
@@ -754,15 +754,11 @@ const oversized = (url) => postForm(url, { displayName: 'A'.repeat(300 * 1024) }
 
 /** `occurrences`: never a boolean `includes` — "the generic message is present"
  *  is satisfied by a body that ALSO carries the credentials one.
- *  `INTERIM_LANDING_BODY`: routes/pages.js's line, transcribed independently —
- *  this file, screens.test.js and the route each hold a copy, so a copy change
- *  is made three times and is visible three times.
  *  `carryCookie`: the Set-Cookie a success issued, as a Cookie header, because
  *  the hops after it land behind the auth boundary. */
 const occurrences = (haystack, needle) => haystack.split(needle).length - 1;
 const CREDENTIALS_MESSAGE = 'Email or password is incorrect.';
 const GENERIC_MESSAGE = 'Something went wrong. Try again.';
-const INTERIM_LANDING_BODY = 'Signed in — the onboarding screen is not built yet.\n';
 const carryCookie = (res) => res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
 
 test('a body-parser refusal renders the generic system message, never the credentials one', async () => {
@@ -818,15 +814,16 @@ test('a parse-body failure and an invalid-credentials failure are distinguishabl
 
 test('a successful sign-up with no next lands on a page that exists', async () => {
   // DEFECT D2, REPRODUCED AND CLOSED. Measured before the fix: 303 `/` -> 303
-  // `/connect-stripe` -> 404, on a route AS-70 owns. A Location is a step.
+  // `/connect-stripe` -> 404. Since AS-70 the two hops end on screen 2's
+  // no-row state (a fresh sign-up has no connected account). A Location is a step.
   await withApp({}, async ({ base }) => {
     const res = await signUp(base);
     assert.equal(res.status, 303);
     const end = await followToTerminus(base, res, { cookie: carryCookie(res) });
-    assert.equal(end.hops, 1, `committed hop count: the chain was ${end.chain.join(' , ')}`);
+    assert.equal(end.hops, 2, `committed hop count: the chain was ${end.chain.join(' , ')}`);
     assert.equal(end.status, 200, `terminal status ${end.status} at ${end.path}`);
-    assert.equal(end.path, '/');
-    assert.equal(end.body, INTERIM_LANDING_BODY);
+    assert.equal(end.path, '/connect-stripe');
+    assert.equal(occurrences(end.body, 'data-state="S2-DEFAULT-NOTSTARTED"'), 1);
   });
 });
 
@@ -836,10 +833,10 @@ test('a successful sign-in with no next lands on a page that exists', async () =
     const res = await postForm(`${base}/signin`, { email: EMAIL, password: PASSWORD });
     assert.equal(res.status, 303);
     const end = await followToTerminus(base, res, { cookie: carryCookie(res) });
-    assert.equal(end.hops, 1, `committed hop count: the chain was ${end.chain.join(' , ')}`);
+    assert.equal(end.hops, 2, `committed hop count: the chain was ${end.chain.join(' , ')}`);
     assert.equal(end.status, 200, `terminal status ${end.status} at ${end.path}`);
-    assert.equal(end.path, '/');
-    assert.equal(end.body, INTERIM_LANDING_BODY);
+    assert.equal(end.path, '/connect-stripe');
+    assert.equal(occurrences(end.body, 'data-state="S2-DEFAULT-NOTSTARTED"'), 1);
   });
 });
 
@@ -900,6 +897,7 @@ function discoverRoutes(app) {
  *  nobody noticed". */
 const ALL_ROUTES = [
   'GET /',
+  'GET /connect-stripe',
   'GET /connect-stripe/refresh',
   'GET /connect-stripe/return',
   'GET /healthz',
@@ -941,7 +939,7 @@ test('G1: the route walk finds the EXACT committed list — cardinality first', 
     const found = discoverRoutes(app);
     // Never `> 0`: a walk that silently returned nothing would otherwise pass
     // every rule below it on an empty set (the AS-31 lesson).
-    assert.equal(found.length, 17, `expected exactly 17 routes, found ${found.length}: ${found.join(', ')}`);
+    assert.equal(found.length, 18, `expected exactly 18 routes, found ${found.length}: ${found.join(', ')}`);
     assert.deepEqual(found, ALL_ROUTES);
   });
 });
@@ -951,7 +949,7 @@ test('G1b: with NO webhook secret the surface is the same list minus the webhook
   // committed list above is config-dependent and says so in both directions.
   await withApp({ secret: null }, async ({ app }) => {
     const found = discoverRoutes(app);
-    assert.equal(found.length, 16, found.join(', '));
+    assert.equal(found.length, 17, found.join(', '));
     assert.deepEqual(found, ALL_ROUTES.filter((r) => r !== 'POST /webhooks/stripe'));
   });
 });
@@ -967,6 +965,7 @@ test('G2: the public/protected partition is exact in BOTH directions', async () 
     assert.equal(PUBLIC_ROUTES.length + protectedRoutes.length, found.length);
     assert.deepEqual(protectedRoutes, [
       'GET /',
+      'GET /connect-stripe',
       'GET /connect-stripe/refresh',
       'GET /connect-stripe/return',
       'POST /clients',
@@ -1010,7 +1009,7 @@ test('G3: every protected route\'s cookieless answer is ATTRIBUTABLE to the guar
     assert.equal(ref.headers.getSetCookie().length, 0, 'the guard sets NO cookie: that silence is what distinguishes it from a handler');
 
     const protectedRoutes = found.filter((r) => !PUBLIC_ROUTES.includes(r));
-    assert.equal(protectedRoutes.length, 11, 'cardinality before quantification');
+    assert.equal(protectedRoutes.length, 12, 'cardinality before quantification');
     for (const entry of protectedRoutes) {
       const [method, path] = entry.split(' ');
       const url = new URL(`${base}${path.replaceAll(':id', 'some-id')}`);
@@ -1177,7 +1176,7 @@ test('G14: actingFreelancerId throws rather than act as nobody', () => {
 test('G15: the whole app is constructible and the boundary survives a rebuild', async () => {
   // A cheap guard against the enumeration above being satisfied by a stale app.
   await withApp({}, async ({ app, base }) => {
-    assert.equal(discoverRoutes(app).length, 17);
+    assert.equal(discoverRoutes(app).length, 18);
     assert.equal((await fetch(`${base}/`, { redirect: 'manual' })).status, 303);
   });
 });

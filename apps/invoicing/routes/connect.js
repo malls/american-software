@@ -1,8 +1,8 @@
 // routes/connect.js — chain link 2, server side: start onboarding, take
 // Stripe's return redirect, take Stripe's refresh redirect (AS-41, plan
-// §3.1–§3.2). Paths align with the wireframes' provisional route table so
-// AS-45 (screen 2, GET /connect-stripe) and this task converge on the same
-// names without a rename.
+// §3.1–§3.2), and the screen those redirects land on (AS-70, GET
+// /connect-stripe). Paths align with the wireframes' provisional route table,
+// so the screen joined the three handlers without a rename.
 //
 // THIN BY TEST, not just by intent: every Stripe call lives in
 // lib/connect/onboarding.js — the dependency-policy concept row holds the
@@ -20,6 +20,7 @@ import { NotFoundError, ValidationError } from '../lib/db/database.js';
 import { StripeApiError, StripeCustodyError, StripeTransportError } from '../lib/stripe/client.js';
 import { createOnboarding } from '../lib/connect/onboarding.js';
 import { actingFreelancerId } from '../lib/auth/guard.js';
+import { connectLocals } from '../lib/screens/connect-view.js';
 
 /** Plan §3.2's error taxonomy, mapped by error class — never by message text. */
 function statusFor(err) {
@@ -67,6 +68,24 @@ export function connectRoutes(config, { repos, stripe }) {
   router.post('/connect-stripe/start', handle('start', (id) => onboarding.start(id)));
   router.get('/connect-stripe/return', handle('return', (id) => onboarding.handleReturn(id)));
   router.get('/connect-stripe/refresh', handle('refresh', (id) => onboarding.handleRefresh(id)));
+
+  // Screen 2 (AS-70). A PURE FUNCTION OF THE STORED ROW: no Stripe call, no
+  // write. Readiness is written only from a snapshot the writing request
+  // fetched itself (AS-41) — creation and return are the sync moments; a page
+  // view is not one. Not through handle(): that wrapper exists for redirect
+  // actions and maps Stripe error classes to text/plain statuses, and a render
+  // has no Stripe error to map. Protected by POSITION alone — this router is
+  // mounted below the auth boundary — adding no third publicness mechanism.
+  //
+  // `?error=start` is the documented URL for S2-ERROR-SYSTEM (AS-45 plan
+  // §3.5.3): the parameter is a PRESENCE FLAG selecting a state. It crosses
+  // into the view model as a boolean, never as its value, so nothing the
+  // freelancer typed can reach the page. A closed enum with one member today;
+  // AS-69 adds members HERE if it wires the POST's failure into the screen.
+  router.get('/connect-stripe', (req, res) => {
+    const account = repos.connectedAccounts.getByFreelancer(actingFreelancerId(req));
+    res.render('connect-stripe', connectLocals({ account, startFailed: req.query.error === 'start' }));
+  });
 
   return router;
 }

@@ -27,23 +27,22 @@ fourth, `demo`, prints a narrated walkthrough of the core loop for a human
 reader — see [Demo](#demo).
 
 `web` serves on **http://127.0.0.1:8348** — `/signin` (screen 1, AS-45),
-`/` (an interim one-line `text/plain` response until AS-70; see § The view
-layer), `/healthz`,
+`/connect-stripe` (screen 2, AS-70), `/` (a 303 to `/connect-stripe` until
+AS-48 replaces it with the Dashboard; see § The view layer), `/healthz`,
 `/tokens.css`, and the Stripe Connect onboarding routes (AS-41):
 `POST /connect-stripe/start` (create-or-reuse the connected account, 303 to
 Stripe-hosted onboarding), `GET /connect-stripe/return` (fresh readiness read —
 the return itself is never trusted — then 303 to the screen) and
 `GET /connect-stripe/refresh` (mint a fresh link, 303 straight back into the
-hosted flow). All three are behind the auth boundary (AS-40) and read the acting
+hosted flow). All four are behind the auth boundary (AS-40) and read the acting
 freelancer from the session; Stripe's return and refresh arrive with the cookie
-because they are top-level GET navigations and the cookie is `SameSite=Lax`. All
-three 303 targets include `/connect-stripe`, which **404s until AS-70 lands
-screen 2** — deliberate: the Location header is the contract. That dangle is
-also why `/` is not a redirect: a **success** path that ends on a 404 is a
-defect, not a contract, and cycle 1 shipped one. AS-45 landed the
-view layer and screen 1 and then split on its own pre-agreed line (its plan §8,
-fired at 1,749 changed lines against a 900-line stop); screen 2 is AS-70, which
-carries §3.5.2, §3.5.3, §3.6 and ACs 12-14 of the AS-45 plan verbatim. It also serves the four invoice routes (AS-43) — see
+because they are top-level GET navigations and the cookie is `SameSite=Lax`. The
+three 303 targets land on `/connect-stripe`, which renders the **stored row** —
+READY, NOTREADY, or the no-row default — and makes no Stripe call of its own
+(§ The view layer). AS-45 landed the view layer and screen 1 and then split on
+its own pre-agreed line (its plan §8, fired at 1,749 changed lines against a
+900-line stop); AS-70 landed screen 2 from §3.5.2, §3.5.3, §3.6 and ACs 12-14 of
+the AS-45 plan. It also serves the four invoice routes (AS-43) — see
 [Issuing an invoice](#issuing-an-invoice). Port 8348 is deliberate: 8347 is `asc-chat-server-1` and must not
 be disturbed. The compose project is named `asc-invoicing`, so `docker compose
 down` here cannot take the chat app with it.
@@ -589,9 +588,10 @@ stylesheet. Nothing per-user may ever be written there.
 
 ## The view layer
 
-Landed by AS-45 with screen 1. **Read this before planning AS-46, AS-47, AS-48
-or AS-70** — four things were decided once here and every later screen inherits
-them.
+Landed by AS-45 with screen 1; screen 2 (AS-70) followed it exactly, and is the
+shape to copy — `lib/screens/connect-view.js` is the smaller example. **Read
+this before planning AS-46, AS-47 or AS-48** — four things were decided once
+here and every later screen inherits them.
 
 Screens are server-rendered EJS. There is **no client-side JavaScript** in this
 app and no build step; the two direct dependencies are still `express` and
@@ -722,9 +722,11 @@ detects. Nothing in the suite reads that document and nothing in it can: the
 `test` service is mountless by design and the Dockerfile vendors exactly one file
 from outside the app, `docs/design/tokens/tokens.css`. **The join to the design
 document is a dated review act:** all eight screen-1 rows checked by hand against
-§1 on 2026-09-03 by `agent:qa-priya`. Closing it mechanically means vendoring the
-ledger into the image the way `tokens.css` already is — filed as its own task,
-triggered by AS-70's second transcription.
+§1 on 2026-09-03 by `agent:qa-priya`; all nine screen-2 rows transcribed from §2
+on 2026-09-12 by `agent:developer-marcus`, with the reviewer's own check recorded
+on AS-70. Closing it mechanically means vendoring the ledger into the image the
+way `tokens.css` already is — AS-71, which depends on AS-70's second
+transcription now existing.
 
 A row whose disposition is not `rendered` is **accounted for, never silently
 skipped**: `redirect-answered` (the response is a 303, so no markup exists),
@@ -922,14 +924,19 @@ declaration count are committed literals. Update them in the same commit.
 
 ## Obligations this scaffold hands forward
 
-- **AS-45 DISCHARGED the scaffold obligation.** `views/scaffold.ejs`,
-  `public/scaffold.css`, its `VIEWS` row and its `routes/pages.js` handler are
-  gone, and so is the `renderSignIn` seam AS-40 left. `/` is now an **interim
-  one-line `text/plain` response**, not a screen and not a redirect: **AS-70**
-  restores the redirect to `/connect-stripe` when that route exists, and
-  **AS-48** replaces the route entirely with the Dashboard. Screen 1 does end to
-  end in a browser what the scaffold page was standing in for. See § The view
-  layer below — that section, not this bullet, is what AS-46/47/48 read first.
+- **AS-45 DISCHARGED the scaffold obligation; AS-70 discharged AS-45's.**
+  `views/scaffold.ejs`, `public/scaffold.css`, its `VIEWS` row and its
+  `routes/pages.js` handler are gone, and so is the `renderSignIn` seam AS-40
+  left. AS-70 landed screen 2 at `GET /connect-stripe` and restored `/` to the
+  303 that lands on it. **One hand-off to AS-48, stated once here:** screen 2's
+  READY state renders **no control** — the wireframe's "Continue to Dashboard"
+  points at screen 3, and a link to `/` would land the freelancer back on the
+  page they are on. AS-48 adds that anchor (a constant `href`, so P2a is
+  untouched) with a terminal-state case that follows it to a 200, replaces the
+  `/` route with the Dashboard, and owns `POST_SIGNIN_LANDING` in
+  `lib/auth/guard.js` (it stays `/` until then — AS-45 plan §3.3.4). See § The
+  view layer below — that section, not this bullet, is what AS-46/47/48 read
+  first.
 - **AS-38 landed Stripe: `lib/stripe/` is the only outbound HTTP in the
   product, and the custody guard is the only way through it.** The one `fetch`
   token in product source is a pinned line of `lib/stripe/transport.js`; the one
@@ -974,13 +981,11 @@ declaration count are committed literals. Update them in the same commit.
   `?freelancer=` parameter are gone: every connect route now reads the session
   (§ Accounts below). Return and refresh keep working, as AS-41 predicted,
   because a Stripe redirect is a top-level GET navigation and the cookie is
-  `SameSite=Lax`. **AS-70 (screen 2):** `GET /connect-stripe` 404s until the
-  screen lands, and `GET /` therefore does **not** redirect to it — restoring
-  that redirect is one line in `routes/pages.js` plus the terminal-state
-  assertions moving from a 200 body to a followed 303. The Stripe redirect
-  target is one constant in
-  `lib/connect/onboarding.js` plus its test assertions if AS-70 renames the
-  route. Readiness discipline for every future writer (AS-44 included): write
+  `SameSite=Lax`. **AS-70 landed screen 2** at `GET /connect-stripe`, so every
+  redirect this module issues ends on a rendered state, and `GET /` redirects
+  there again. The Stripe redirect target is one constant in
+  `lib/connect/onboarding.js` plus its test assertions if the route is ever
+  renamed. Readiness discipline for every future writer (AS-44 included): write
   through `connectedAccounts.updateReadiness` only, with a snapshot freshly
   read from Stripe, mapped by `lib/connect/readiness.js` — never inferred from
   a redirect, never cached, last writer wins.
@@ -1029,9 +1034,9 @@ declaration count are committed literals. Update them in the same commit.
   a successful sign-in with no `next` lands on `POST_SIGNIN_LANDING`, one
   constant in the same file. **AS-45 deliberately declined to move it**, because
   changing the constant here would have moved assertions in another task's suite
-  to buy one saved redirect hop; `/` answers an interim one-line `text/plain`
-  response in the meantime, and the three entry points that land there are each
-  followed to their terminus by a test rather than asserted at the first hop.
+  to buy one saved redirect hop; `/` is a 303 to `/connect-stripe` (AS-70) in
+  the meantime, and the three entry points that land there are each followed to
+  a 200 on screen 2 by a test rather than asserted at the first hop.
   AS-48 changes the constant and its assertions. **AS-50 (acceptance run):** everything this
   suite cannot see — whether a real browser sends the cookie on Stripe's return
   navigation (the cheapest confirmation is one line in the run record: did the

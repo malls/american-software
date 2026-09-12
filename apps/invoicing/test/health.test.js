@@ -42,9 +42,11 @@ test('there are exactly four checks, by name', () => {
   assert.equal(HEALTH_CHECKS.filter((c) => /database|db/i.test(c.name)).length, 1);
 });
 
-test('there is exactly one registered view', () => {
-  assert.equal(VIEWS.length, 1);
-  assert.deepEqual(VIEWS.map((v) => v.file), ['signin.ejs']);
+test('there are exactly two registered views', () => {
+  // Declaration order: screen 1 (AS-45), then screen 2 (AS-70). A third
+  // screen appends here, in the same commit as its VIEWS row.
+  assert.equal(VIEWS.length, 2);
+  assert.deepEqual(VIEWS.map((v) => v.file), ['signin.ejs', 'connect-stripe.ejs']);
 });
 
 // --- the green case, against the real image ---------------------------------
@@ -158,13 +160,13 @@ test('GET / answers a signed-in caller rather than 404ing', async () => {
   // REPLACES 'GET / renders the scaffold page…'. The scaffold page is deleted
   // (the scaffold obligation AS-37 left, discharged), so `/` needed an answer.
   //
-  // CORRECTED 2026-09-03 (AS-45 review cycle 1, ruling R-2). This case
-  // previously asserted a 303 to `/connect-stripe` — true about the hop, and
-  // `/connect-stripe` is AS-70's, so the journey ended on a 404. `/` is an
-  // interim `200 text/plain` line until AS-70 restores the redirect and AS-48
-  // replaces it with the Dashboard. This file's claim is ROUTING — that the path
-  // is served at all; the interim response's exact shape, and the terminal
-  // states of the three entry points that land here, are asserted in
+  // CORRECTED 2026-09-03 (AS-45 review cycle 1, ruling R-2): this case had
+  // asserted a 303 to `/connect-stripe` while that route was AS-70's and
+  // 404ed, so the journey ended on a 404; `/` became an interim text/plain
+  // line. RESTORED by AS-70: `/connect-stripe` exists, so `/` is the 303 again,
+  // until AS-48 replaces it with the Dashboard. This file's claim is ROUTING —
+  // that the path is served at all and by which answer; the terminal states of
+  // the three entry points that land here are followed to a 200 in
   // test/screens.test.js and test/auth.test.js.
   //
   // Signed IN, because for a signed-out caller `/` is answered by the guard —
@@ -172,8 +174,8 @@ test('GET / answers a signed-in caller rather than 404ing', async () => {
   await withServer(configFor(), async (base, app, deps) => {
     const { cookie } = seedSignedIn(deps.repos);
     const res = await fetch(`${base}/`, { redirect: 'manual', headers: { cookie } });
-    assert.equal(res.status, 200);
-    assert.match(res.headers.get('content-type'), /^text\/plain\b/);
+    assert.equal(res.status, 303);
+    assert.equal(res.headers.get('location'), '/connect-stripe');
   });
 });
 
