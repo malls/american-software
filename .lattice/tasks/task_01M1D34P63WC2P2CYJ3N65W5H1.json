@@ -9,7 +9,7 @@
       "repo": null
     }
   ],
-  "comment_count": 1,
+  "comment_count": 2,
   "complexity": "medium",
   "created_at": "2026-08-31T23:40:44Z",
   "created_by": "agent:cto-owen",
@@ -18,7 +18,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1D34P63WC2P2CYJ3N65W5H1",
-  "last_event_id": "ev_01M2AB32QS5937WJ9Q50DNRCWR",
+  "last_event_id": "ev_01M2AD476FBTQN5XATZSY4QHQ4",
   "last_status_changed_at": "2026-09-12T08:17:38Z",
   "linked_files": [],
   "priority": "medium",
@@ -64,6 +64,6 @@
   ],
   "title": "D1 v1 UI: read views, screens 3 and 5 (dashboard, invoice detail)",
   "type": "task",
-  "updated_at": "2026-09-12T08:17:38Z",
+  "updated_at": "2026-09-12T08:53:13Z",
   "urgency": null
 }
