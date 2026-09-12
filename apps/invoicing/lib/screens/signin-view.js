@@ -22,16 +22,14 @@
  *  WHAT THIS TRANSCRIPTION IS JOINED TO, precisely (plan ruling R-4). This list
  *  and the table in test/screens.test.js are TWO INDEPENDENT HAND
  *  TRANSCRIPTIONS of 02-states-ledger.md §1, compared against EACH OTHER by
- *  exact set equality and cardinality. Nothing in the suite reads the design
- *  document and nothing in it can: the `test` service is mountless by design and
- *  the Dockerfile vendors exactly one file from outside the app,
- *  docs/design/tokens/tokens.css. So a row appearing or vanishing IN THE
- *  DOCUMENT does not turn the suite red — both copies would have to be
- *  hand-edited, and it is the SECOND edit the test detects. Fidelity to the
- *  document is a DATED REVIEW ACT, not a test: all eight rows checked by hand
- *  against §1 on 2026-09-03 by agent:qa-priya. Closing the join means vendoring
- *  the ledger into the image the way tokens.css already is; that is filed as
- *  its own task, triggered by AS-70's second transcription.
+ *  exact set equality and cardinality — that pins the DISPOSITIONS, which are
+ *  this app's answer to each row. Fidelity to the design document itself is
+ *  mechanical since AS-71: the Dockerfile vendors 02-states-ledger.md into the
+ *  image beside tokens.css, and test/states-ledger.test.js parses it and joins
+ *  this list to §1 by id, n/a row and LOADING row — so a row appearing,
+ *  vanishing or renamed IN THE DOCUMENT turns the suite red. (Before AS-71 that
+ *  join was a dated review act: all eight rows checked by hand against §1 on
+ *  2026-09-03 by agent:qa-priya.)
  *  `rendered` rows are the members of SIGNIN_STATES below; the other four are
  *  accounted for rather than silently absent (plan §3.6):
  *   - redirect-answered: the response is a 303, so no markup is produced

@@ -39,12 +39,20 @@ COPY apps/invoicing/test ./test
 # routes/ does either.
 COPY apps/invoicing/demo ./demo
 
-# The one asset consumed from outside apps/invoicing/. Single source of visual
+# The one SERVED asset consumed from outside apps/invoicing/. Single source of visual
 # truth (AS-29); this app is a consumer and never an owner, which is what the
 # vendor/ namespace records. Pinned by test/deploy-shape.test.js and
 # test/assets.test.js — update all three together. Deleting this line must turn
 # the suite RED; that is verified by mutation, not by review (plan §5.3).
 COPY docs/design/tokens/tokens.css ./vendor/tokens.css
+# The second and last asset from outside apps/invoicing/ (AS-71): the states
+# ledger the screens are built from. Consumed by the TEST SUITE ONLY —
+# test/states-ledger.test.js parses it and joins every screen's frozen ledger
+# to the design document, so a row changing there turns the suite red. Never
+# served, never health-checked (it is not in VENDOR_ASSETS; see
+# lib/vendor.js VENDOR_DOCUMENTS). Pinned by test/deploy-shape.test.js —
+# update both together. Deleting this line must turn the suite RED.
+COPY docs/design/wireframes/02-states-ledger.md ./vendor/states-ledger.md
 
 # Deployment manifests as DATA, not as anything the runtime reads (AS-26).
 # test/deploy-shape.test.js parses these to assert the deployed shape — the

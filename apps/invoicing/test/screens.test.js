@@ -6,23 +6,22 @@
 // a redirect, named as a path into another render, or recorded as unrenderable
 // with the reason.
 //
-// WHAT THAT IS JOINED TO, AND WHAT IT IS NOT (corrected 2026-09-03, review
-// cycle 1 finding F-4; the original sentence claimed "a ledger row that appeared
-// or vanished turns this red", which is stronger than what is checked). The
-// table below and lib/screens/signin-view.js's SIGNIN_LEDGER are TWO
-// INDEPENDENT HAND TRANSCRIPTIONS of the same document, compared against EACH
-// OTHER by exact set equality and cardinality. So: a change to either copy alone
-// is red, a render can never leave the closed set, and a state cannot be quietly
-// dropped from the module. NOT checked, and not checkable from inside this
-// suite: whether either copy still matches the design document. Nothing here
-// reads it and nothing here can — the `test` service is mountless by design and
-// the Dockerfile vendors exactly one file from outside the app,
-// docs/design/tokens/tokens.css. The join to the document is a DATED REVIEW ACT:
-// all eight screen-1 rows checked by hand against §1 on 2026-09-03 by
-// agent:qa-priya. A verification a person performed, recorded with a date and a
-// name, is a real control; one implied by a sentence about redness is not.
-// Closing it mechanically means vendoring the ledger into the image the way
-// tokens.css already is — filed as its own task, triggered by AS-70.
+// WHAT THAT IS JOINED TO (corrected 2026-09-03, review cycle 1 finding F-4;
+// closed 2026-09-12 by AS-71). The table below and lib/screens/signin-view.js's
+// SIGNIN_LEDGER are TWO INDEPENDENT HAND TRANSCRIPTIONS of the same document,
+// compared against EACH OTHER by exact set equality and cardinality — so a
+// change to either copy alone is red, a render can never leave the closed set,
+// and a state cannot be quietly dropped from the module. What this file does
+// NOT check is whether the module's copy still matches the design document;
+// that is states-ledger.test.js's job. Since AS-71 the Dockerfile vendors
+// docs/design/wireframes/02-states-ledger.md into the image beside tokens.css,
+// and that file parses it and joins every screen's module ledger to it — ids,
+// n/a rows and LOADING rows — so a row changing in the document is red there.
+// The transcription here stays because it pins DISPOSITIONS, which are the
+// product's answer to a row and not something the document states. Before
+// AS-71 the join to the document was a dated review act (all eight screen-1
+// rows checked by hand against §1 on 2026-09-03 by agent:qa-priya); that act
+// still stands as the record of the first transcription.
 //
 // THE SENTINEL IS `data-state` ON THE ROOT ELEMENT, never a copy fragment: a
 // wording change is a design decision, and a test that breaks on one teaches
@@ -80,8 +79,8 @@ function stateOf(html) {
  *  document's own order. Transcribed BY HAND on purpose, and INDEPENDENTLY of
  *  lib/screens/signin-view.js's copy: the two are compared against each other,
  *  so an edit to one alone is red. See the file header for what that does and
- *  does not join — it is drift detection between two transcriptions, not a read
- *  of the design document. */
+ *  does not join — it is drift detection between two transcriptions; the read
+ *  of the design document itself is states-ledger.test.js (AS-71). */
 const SCREEN_1_LEDGER = [
   ['S1-DEFAULT-SIGNIN', 'rendered'],
   ['S1-DEFAULT-SIGNUP', 'rendered'],
@@ -450,8 +449,8 @@ test('GET / renders the Dashboard for a signed-in caller who has not connected S
 /** docs/design/wireframes/02-states-ledger.md §2, all nine rows, in the
  *  document's own order. Transcribed BY HAND on purpose, and INDEPENDENTLY of
  *  lib/screens/connect-view.js's copy: the two are compared against each other,
- *  so an edit to one alone is red. Drift detection between two transcriptions,
- *  not a read of the design document (file header). S2-ABANDON's disposition
+ *  so an edit to one alone is red. Drift detection between two transcriptions;
+ *  the read of the design document is states-ledger.test.js. S2-ABANDON's disposition
  *  is `path-into-render`, not `rendered`: the ledger's prose names a render it
  *  re-enters, and which one is decided by the stored row (the view model's
  *  header says why it is NOTREADY rather than the prose's NOTSTARTED). */

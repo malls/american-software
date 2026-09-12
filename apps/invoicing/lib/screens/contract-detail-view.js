@@ -26,13 +26,13 @@
  *  WHAT THIS TRANSCRIPTION IS JOINED TO, precisely (AS-45 plan ruling R-4).
  *  This list and the table in test/contract-screens.test.js are TWO
  *  INDEPENDENT HAND TRANSCRIPTIONS of 02-states-ledger.md §7, compared against
- *  EACH OTHER by exact set equality and cardinality. Nothing in the suite reads
- *  the design document and nothing in it can: the `test` service is mountless
- *  by design. A row appearing or vanishing IN THE DOCUMENT does not turn the
- *  suite red — both copies would have to be hand-edited, and it is the SECOND
- *  edit the test detects. Fidelity to the document is a DATED REVIEW ACT, not a
- *  test: all eight rows transcribed by hand from §7 on 2026-09-12 by
- *  agent:developer-marcus; the reviewer's own check is recorded on the task.
+ *  EACH OTHER by exact set equality and cardinality — that pins the
+ *  DISPOSITIONS, which are this app's answer to each row. Fidelity to the
+ *  design document itself is mechanical since AS-71 (the same join as
+ *  SIGNIN_LEDGER and CONNECT_LEDGER): test/states-ledger.test.js reads the
+ *  vendored 02-states-ledger.md and joins this list to §7 by id, n/a row and
+ *  LOADING row. (Before AS-71 that join was a dated review act: all eight rows
+ *  transcribed by hand from §7 on 2026-09-12 by agent:developer-marcus.)
  *
  *  `rendered` rows are the members of CONTRACT_DETAIL_STATES below; the other
  *  five are accounted for rather than silently absent:
