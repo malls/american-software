@@ -4,6 +4,7 @@
 
 import { createServer } from 'node:http';
 import { readFileSync, realpathSync, statSync, openSync, readSync, closeSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openStore, StoreError } from './lib/store.js';
@@ -360,8 +361,12 @@ export function createChatServer({
   // same word whichever door it came through.
   // AS-111 F3 adds two facts that let the tail notice the file was REPLACED
   // rather than appended to: the inode it last read from, and the last few
-  // bytes it consumed. Neither is served anywhere.
+  // bytes it consumed. AS-124 N1 adds a third: a running hash of EVERY byte
+  // consumed (`[0, offset)`, partial line included), so an inode change can be
+  // confirmed against the whole consumed prefix instead of trusted. None of the
+  // three is served anywhere.
   const TAIL_WINDOW_BYTES = 64;
+  const PREFIX_READ_BYTES = 64 * 1024;
   const eventsTail = {
     offset: 0,
     partial: Buffer.alloc(0),
@@ -372,6 +377,7 @@ export function createChatServer({
     malformed: 0,
     ino: null,
     lastBytes: Buffer.alloc(0),
+    hash: createHash('sha256'),
   };
   function resetTail(reason) {
     eventsTail.offset = 0;
@@ -385,6 +391,25 @@ export function createChatServer({
     eventsTail.malformed = 0;
     eventsTail.ino = null;
     eventsTail.lastBytes = Buffer.alloc(0);
+    eventsTail.hash = createHash('sha256');
+  }
+
+  /** AS-124 N1: does the file behind `fd` hold, in `[0, offset)`, exactly the
+   *  bytes the tail consumed? Streamed in 64 KiB reads — `offset` can be the
+   *  whole file — and run only when the inode moved, so the cost is one prefix
+   *  read per inode change, never per poll. A file shorter than `offset` at
+   *  read time cannot match. */
+  function prefixMatches(fd, offset) {
+    const seen = createHash('sha256');
+    const buf = Buffer.alloc(Math.min(PREFIX_READ_BYTES, Math.max(offset, 1)));
+    let pos = 0;
+    while (pos < offset) {
+      const got = readSync(fd, buf, 0, Math.min(buf.length, offset - pos), pos);
+      if (got === 0) return false;
+      seen.update(buf.subarray(0, got));
+      pos += got;
+    }
+    return seen.digest().equals(eventsTail.hash.copy().digest());
   }
 
   /** Read whatever has been appended since the last call and fold it in.
@@ -398,7 +423,7 @@ export function createChatServer({
    *  over the path, `cp`/writeFileSync of a restored backup, an editor save)
    *  used to carry the old offset into the new content — one malformed
    *  fragment, everything before the offset never folded, and `ok` on the
-   *  caption. Two cheap checks catch it, in this order after the stat:
+   *  caption. Two checks catch it, in this order after the stat:
    *  (1) the inode changed — checked before the size rule, because a rotation
    *  to a shorter new file is a replacement, not a truncation, and on every
    *  poll, so a same-size swap is caught too; (2) the bytes just before the
@@ -409,7 +434,22 @@ export function createChatServer({
    *  `truncated` is unchanged. Residual, by design: same inode, same size, an
    *  edit before the last 64 bytes goes unnoticed until a later mismatch —
    *  nothing edits the file, and the check that would see it is a full re-read
-   *  per poll. */
+   *  per poll.
+   *
+   *  AS-124 N1: on the deployed Docker Desktop bind mount the inode is a HINT,
+   *  not an identity — after a rename the stat can report the old number and
+   *  then the new one, with no second rename between, so "inode changed"
+   *  fired twice per rotation and replayed the file twice. An inode change
+   *  therefore no longer IS a replacement; it triggers a comparison of the
+   *  whole consumed prefix `[0, offset)` against the running hash. Equal →
+   *  the new file holds exactly what the fold was built from: adopt the inode,
+   *  keep the cursor, skip the window check (a full-prefix match implies it),
+   *  read past the cursor as an ordinary poll would — no reset, no replay,
+   *  reason untouched. Different → `replaced` as before. A shorter file at a
+   *  new inode has nothing to compare and is `replaced` outright (still
+   *  before the size rule). The one structural cost: `size === offset` used to
+   *  return before opening the fd; with an inode change pending the fd must be
+   *  opened for the compare even when there is nothing new to read. */
   function tailEvents() {
     let size;
     let ino;
@@ -424,17 +464,18 @@ export function createChatServer({
       return [];
     }
     let restarted = null;
-    if (eventsTail.ino !== null && ino !== eventsTail.ino) {
-      resetTail('replaced');
-      restarted = 'replaced';
-    }
-    eventsTail.ino = ino;
+    // `confirmIno` stays true only while the compare is still owed: the new
+    // inode is adopted when it passes, or by the reset that follows a failure,
+    // never before — an unreadable file on the confirming poll must leave the
+    // question open for the next one.
+    let confirmIno = eventsTail.ino !== null && ino !== eventsTail.ino;
     if (size < eventsTail.offset) {
-      resetTail('truncated');
-      restarted = 'truncated';
-      eventsTail.ino = ino;
+      resetTail(confirmIno ? 'replaced' : 'truncated');
+      restarted = eventsTail.reason;
+      confirmIno = false;
     }
-    if (size === eventsTail.offset) {
+    if (!confirmIno) eventsTail.ino = ino;
+    if (size === eventsTail.offset && !confirmIno) {
       if (!restarted && eventsTail.reason !== 'truncated' && eventsTail.reason !== 'replaced') eventsTail.reason = 'ok';
       return [];
     }
@@ -442,27 +483,45 @@ export function createChatServer({
     try {
       const fd = openSync(EVENTS_PATH, 'r');
       try {
-        const window = eventsTail.lastBytes;
-        if (window.length > 0 && eventsTail.offset >= window.length) {
-          const seen = Buffer.alloc(window.length);
-          const got = readSync(fd, seen, 0, window.length, eventsTail.offset - window.length);
-          if (got !== window.length || !seen.equals(window)) {
+        if (confirmIno) {
+          if (!prefixMatches(fd, eventsTail.offset)) {
             resetTail('replaced');
             restarted = 'replaced';
-            eventsTail.ino = ino;
+          }
+          eventsTail.ino = ino;
+        } else {
+          const window = eventsTail.lastBytes;
+          if (window.length > 0 && eventsTail.offset >= window.length) {
+            const seen = Buffer.alloc(window.length);
+            const got = readSync(fd, seen, 0, window.length, eventsTail.offset - window.length);
+            if (got !== window.length || !seen.equals(window)) {
+              resetTail('replaced');
+              restarted = 'replaced';
+              eventsTail.ino = ino;
+            }
           }
         }
-        const buf = Buffer.alloc(size - eventsTail.offset);
-        const read = readSync(fd, buf, 0, buf.length, eventsTail.offset);
-        chunk = buf.subarray(0, read);
-        eventsTail.offset += read;
-        // After a reset the window is empty, so this is uniform across both paths.
-        eventsTail.lastBytes = Buffer.concat([eventsTail.lastBytes, chunk]).subarray(-TAIL_WINDOW_BYTES);
+        if (size === eventsTail.offset) {
+          // An adopted swap with nothing past the cursor: the only way here.
+          chunk = null;
+        } else {
+          const buf = Buffer.alloc(size - eventsTail.offset);
+          const read = readSync(fd, buf, 0, buf.length, eventsTail.offset);
+          chunk = buf.subarray(0, read);
+          eventsTail.offset += read;
+          eventsTail.hash.update(chunk);
+          // After a reset the window is empty, so this is uniform across both paths.
+          eventsTail.lastBytes = Buffer.concat([eventsTail.lastBytes, chunk]).subarray(-TAIL_WINDOW_BYTES);
+        }
       } finally {
         closeSync(fd);
       }
     } catch {
       eventsTail.reason = 'unreadable-stream';
+      return [];
+    }
+    if (chunk === null) {
+      if (!restarted && eventsTail.reason !== 'truncated' && eventsTail.reason !== 'replaced') eventsTail.reason = 'ok';
       return [];
     }
     // The partial tail is kept as BYTES, not text: a multi-byte character split

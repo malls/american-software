@@ -1185,6 +1185,135 @@ test('stream-company-replaced-same-inode: a file rewritten in place (same inode,
   assert.equal(cleared[0].data.lanes.events.reason, 'ok');
 });
 
+// --- AS-124 N1: an inode change is CONFIRMED against the consumed prefix ----
+// On the deployed Docker Desktop bind mount a rename can be reported as two
+// inode changes (AS-124 plan §0.1), so "inode changed" alone replayed the file
+// twice. Now the tail hashes every byte it consumed and an inode change is
+// adopted silently when the new file's `[0, offset)` hashes the same.
+
+/** The same bytes at a NEW inode: copy the file beside itself and rename the
+ *  copy over the path. Returns the inode before, for the precondition. */
+function swapIdentical(path) {
+  const oldBuf = readFileSync(path);
+  const inoBefore = statSync(path).ino;
+  writeFileSync(`${path}.next`, oldBuf);
+  renameSync(`${path}.next`, path);
+  assert.notEqual(statSync(path).ino, inoBefore, 'precondition: the rename landed a new inode');
+  assert.ok(readFileSync(path).equals(oldBuf), 'precondition: byte-identical content at the new inode');
+  return inoBefore;
+}
+
+test('stream-company-swap-identical-prefix-adopts: the same bytes at a new inode are adopted — no replay, no reset, cursor carried', async (t) => {
+  const dataDir = loopDataDir(t);
+  const path = eventsFile(dataDir);
+  writeFileSync(path, '');
+  plantTwoLaneSnapshot(dataDir);
+  const { base, get } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS, eventsPollMs: FAST_POLL_MS,
+  });
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  appendTwoLines(path);
+  const before = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(before.length, 2, 'two planted lines, two frames');
+
+  swapIdentical(path);
+
+  // Under the inode-is-identity rule this window held two replayed `company`
+  // frames and a `lanes` frame saying `replaced`. Now: nothing moved, so nothing
+  // is pushed, and the fold still says AS-7 is live.
+  const after = await drain(stream, FAST_POLL_MS * 8 + 300);
+  assert.equal(after.filter((f) => f.event === 'company').length, 0, 'an identical-content swap replays nothing');
+  assert.equal(after.filter((f) => f.event === 'lanes').length, 0, 'and moves no lane, so no lanes frame');
+  const lanes = (await get('/api/lanes')).data;
+  assert.equal(lanes.lanes.events.reason, 'ok', 'reason untouched — the swap is not a replacement the fold can distinguish');
+  assert.equal(lanes.lanes.events.malformed, 0);
+  assert.ok(laneOf(lanes, 'AS-7').subAgent, 'the fold was not rebuilt: AS-7 is still the live lane');
+
+  // The cursor was carried INTO the adopted file, not reset: one new line at
+  // the new inode is exactly one frame, and it lands in the fold.
+  const next = stageStarted('AS-8');
+  appendFileSync(path, next);
+  const gained = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(gained.length, 1, 'one line appended after the adoption, one frame (a reset would have given three)');
+  assert.equal(gained[0].data.id, JSON.parse(next).id);
+  assert.ok(laneOf((await get('/api/lanes')).data, 'AS-8').subAgent, 'the appended line reached the fold');
+});
+
+test('stream-company-swap-identical-prefix-with-partial: the hash covers a held partial line, so a swap mid-line is adopted and the line completes cleanly', async (t) => {
+  const dataDir = loopDataDir(t);
+  const path = eventsFile(dataDir);
+  writeFileSync(path, '');
+  plantTwoLaneSnapshot(dataDir);
+  const { base, get } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS, eventsPollMs: FAST_POLL_MS,
+  });
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  appendTwoLines(path);
+  const before = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(before.length, 2, 'two planted lines, two frames');
+
+  // A partial line: consumed as bytes (the offset counts them), held, no frame.
+  const line = stageStarted('AS-8');
+  const head = line.slice(0, 40);
+  const rest = line.slice(40);
+  appendFileSync(path, head);
+  assert.equal((await drain(stream, FAST_POLL_MS * 6 + 300)).filter((f) => f.event === 'company').length, 0, 'a partial line is held, not pushed');
+
+  // The swap happens while the partial is pending — the identical bytes
+  // include it. A hash of COMPLETE lines only would mismatch here and replay;
+  // a reset would drop the held bytes and count the remainder as a fragment.
+  swapIdentical(path);
+  const during = await drain(stream, FAST_POLL_MS * 8 + 300);
+  assert.equal(during.filter((f) => f.event === 'company').length, 0, 'adopted: no replay');
+  assert.equal((await get('/api/lanes')).data.lanes.events.reason, 'ok');
+
+  appendFileSync(path, rest);
+  const completed = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(completed.length, 1, 'the rest of the line completes it: exactly one frame');
+  assert.equal(completed[0].data.id, JSON.parse(line).id);
+  const lanes = (await get('/api/lanes')).data;
+  assert.equal(lanes.lanes.events.malformed, 0, 'the held partial was carried across the swap — no fragment counted');
+  assert.equal(lanes.lanes.events.reason, 'ok');
+});
+
+test('stream-company-replaced-shorter-new-inode: a rotation to a SHORTER file at a new inode is replaced, not truncated — the inode is checked before the size rule', async (t) => {
+  const dataDir = loopDataDir(t);
+  const path = eventsFile(dataDir);
+  writeFileSync(path, '');
+  plantTwoLaneSnapshot(dataDir);
+  const { base, get } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir, loopPollMs: FAST_POLL_MS, lanesPollMs: FAST_POLL_MS, eventsPollMs: FAST_POLL_MS,
+  });
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  appendTwoLines(path);
+  const before = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(before.length, 2, 'two planted lines, two frames');
+  const oldSize = statSync(path).size;
+
+  const only = stageStarted('AS-8', { actor: 'agent:qa-priya', stage: 'review' });
+  const newBuf = Buffer.from(only);
+  assert.ok(newBuf.length < oldSize, 'precondition: the new file is shorter than the consumed prefix');
+  const inoBefore = statSync(path).ino;
+  writeFileSync(`${path}.next`, newBuf);
+  renameSync(`${path}.next`, path);
+  assert.notEqual(statSync(path).ino, inoBefore, 'precondition: the rename landed a new inode');
+
+  const after = (await drain(stream, FAST_POLL_MS * 8 + 300)).filter((f) => f.event === 'company');
+  assert.equal(after.length, 1, 'the new file is read from the start: its one line, one frame');
+  assert.equal(after[0].data.data.task, 'AS-8');
+  const lanes = (await get('/api/lanes')).data;
+  assert.equal(lanes.lanes.events.reason, 'replaced', 'a shorter file at a new inode is a rotation, not a truncation');
+  assert.notEqual(lanes.lanes.events.reason, 'truncated');
+  assert.ok(laneOf(lanes, 'AS-8').subAgent, 'the fold was rebuilt from the new content');
+  assert.equal(laneOf(lanes, 'AS-7').subAgent, null, 'and AS-7, which the new file never opens, has no signal');
+});
+
 // --- AS-124 N2: a reset recounts `malformed` from the file it re-reads -------
 
 test('stream-company-reset-recounts-malformed: after a reset the malformed count describes the new file, not the dead one', async (t) => {
