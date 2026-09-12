@@ -263,7 +263,7 @@ const SEQUENCE = [
     n: '2',
     title: 'Session',
     label: LABEL.app,
-    why: 'The same browser asks for the landing page. With the cookie it is let in; without it, the auth boundary sends it to sign in. (The landing page is an interim one-line text response until the dashboard screen is built — AS-48.)',
+    why: 'The same browser asks for the landing page. With the cookie it is let in; without it, the auth boundary sends it to sign in. (The landing page is the dashboard, screen 3; with nothing created yet it renders its first-run empty state.)',
     async run() {
       const withCookie = await call('GET', '/');
       expect(withCookie, 200, 'with the session cookie');
@@ -299,7 +299,7 @@ const SEQUENCE = [
     n: '4',
     title: 'Connect onboarding return',
     label: LABEL.mock,
-    why: 'Stripe sends the freelancer back after hosted onboarding. The app never trusts the return itself: it re-reads the account from Stripe and stores what it finds. The validator\'s account fixture is NOT ready — requirements still due, charges disabled — which is exactly how a freelancer who has not finished Stripe\'s identity checks looks. Real Stripe would answer with the real account state. The redirect target 404s until screen 2 is built (AS-70); the Location header is the contract.',
+    why: 'Stripe sends the freelancer back after hosted onboarding. The app never trusts the return itself: it re-reads the account from Stripe and stores what it finds. The validator\'s account fixture is NOT ready — requirements still due, charges disabled — which is exactly how a freelancer who has not finished Stripe\'s identity checks looks. Real Stripe would answer with the real account state. The Location header is the contract; in a browser it lands on screen 2 (Connect Stripe), shown in the screenshots.',
     async run() {
       const res = await call('GET', '/connect-stripe/return');
       expect(res, 303);
@@ -348,7 +348,7 @@ const SEQUENCE = [
     n: '7',
     title: 'Contract',
     label: LABEL.app,
-    why: 'The freelancer generates a contract for that client from the one v1 template, filling in the two form fields (the names come from the records). The app renders the document once and stores it. The template body is placeholder text under a legal gate and says so inside the document. The redirect target 404s until the contract screen is built (AS-47).',
+    why: 'The freelancer generates a contract for that client from the one v1 template, filling in the two form fields (the names come from the records). The app renders the document once and stores it. The template body is placeholder text under a legal gate and says so inside the document. The Location header is the contract; in a browser it lands on screen 7 (contract detail), shown in the screenshots.',
     async run() {
       const res = await call('POST', '/contracts', { body: form({ clientId: state.clientId, ...CONTRACT }) });
       expect(res, 303);
@@ -358,7 +358,7 @@ const SEQUENCE = [
       return [
         request('POST', '/contracts', { clientId: state.clientId, ...CONTRACT }),
         response(res),
-        "  the contract document, read from the app's database because the screen that would show it is not built yet (AS-47):",
+        "  the contract document, read from the app's database — the same document screen 7 renders and prints:",
         '  ----- contract document -----',
         ...contract.renderedHtml.split('\n').map((line) => `  ${line}`),
         '  ----- end of contract document -----',
@@ -369,7 +369,7 @@ const SEQUENCE = [
     n: '8',
     title: 'Invoice draft',
     label: LABEL.app,
-    why: 'The freelancer drafts an invoice: one line item, priced in integer minor units (cents), due in 30 days. A draft is local — the app makes no Stripe request until the freelancer issues it. The amount is $10.00 because stripe-mock\'s invoice fixture always reports amount_due 1000 and the app refuses to finalize an invoice whose total disagrees with Stripe. The redirect target 404s until the invoice screen is built (AS-46).',
+    why: 'The freelancer drafts an invoice: one line item, priced in integer minor units (cents), due in 30 days. A draft is local — the app makes no Stripe request until the freelancer issues it. The amount is $10.00 because stripe-mock\'s invoice fixture always reports amount_due 1000 and the app refuses to finalize an invoice whose total disagrees with Stripe. The Location header is the contract; in a browser it lands on screen 4 (invoice form), shown in the screenshots.',
     async run() {
       const fields = {
         clientId: state.clientId,
@@ -458,7 +458,7 @@ const SEQUENCE = [
     n: '12',
     title: 'Read back',
     label: LABEL.app,
-    why: 'The invoice as the app now holds it, read from the app\'s database because the screen that would show it is not built yet (AS-48).',
+    why: 'The invoice as the app now holds it, read from the app\'s database — the same row screen 5 renders as its paid state.',
     async run() {
       const row = state.repos.invoices.getById(state.freelancerId, state.invoiceId);
       return [
@@ -480,18 +480,19 @@ const SEQUENCE = [
 const CAN_CANNOT = `WHAT THIS DEMO CAN SHOW
 - The whole server-side core loop working end to end on this codebase: sign up, session,
   Connect onboarding start, readiness, client, contract, invoice draft -> finalize -> send -> paid.
-- One real screen (sign in / sign up) in a real browser.
+- All seven screens in a real browser, in the states this same walk reaches, at phone and desktop
+  widths: sign in / sign up, Connect Stripe, dashboard, invoice form, invoice detail, contract form,
+  contract detail (with its print view).
 - The contract document the app generates.
 - The custody guard: the platform key never charges anyone. Every Stripe request the app made
   is listed at the end, and none of them moves money.
 WHAT THIS DEMO CANNOT SHOW
-- Screens 2-7. They are not built.
 - A real Stripe onboarding round trip, a real hosted invoice page, a real payment, or a real
-  webhook delivery. There is no Stripe test-mode account (AS-51 is on the board's desk); every
-  Stripe call here goes to Stripe's own request validator (stripe-mock), which checks shapes and
-  answers with fixtures.
+  webhook delivery. There is no Stripe account in this run, by design; a run against a Stripe
+  test-mode account is a separate, later step; every Stripe call here goes to Stripe's own
+  request validator (stripe-mock), which checks shapes and answers with fixtures.
 - Email of any kind. There is no email provider, by design.
-- The "paid" state at the end is produced by an event WE signed. It proves our receiver and our
+- The "connected" and "paid" states are produced by events WE signed. They prove our receiver and our
   state machine, not Stripe's delivery.`;
 
 const EPILOGUE_SENTENCE = 'None of these creates a charge, a payment intent, or a transfer; the platform key never touches money.';
@@ -508,7 +509,16 @@ function response(res, { cookie = false, body = false } = {}) {
     const flags = res.setCookie.split(';').slice(1).map((s) => s.trim()).filter((s) => !/^(expires|max-age)=/i.test(s));
     parts.push(`Set-Cookie: ${COOKIE_NAME}=… (${flags.join('; ')})`);
   }
-  if (body) parts.push(`body: ${JSON.stringify(res.body.trimEnd())}`);
+  if (body) {
+    // A rendered screen (since AS-48, `GET /` answers the dashboard) is
+    // summarised, not dumped: its size and the state stamped on its root.
+    if (/^text\/html\b/.test(res.contentType ?? '')) {
+      const stamped = /<html[^>]*\sdata-state="([^"]*)"/.exec(res.body);
+      parts.push(`body: text/html, ${Buffer.byteLength(res.body, 'utf8')} bytes, page state ${stamped ? stamped[1] : '(none)'}`);
+    } else {
+      parts.push(`body: ${JSON.stringify(res.body.trimEnd())}`);
+    }
+  }
   return parts.join('  ');
 }
 
