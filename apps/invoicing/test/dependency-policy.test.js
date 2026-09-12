@@ -375,7 +375,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
 
   // 3. The app source, exactly.
   const source = rel(FILES.source);
-  assert.equal(source.length, 54, `expected 54 app source files, found ${source.length}: ${source.join(', ')}`);
+  assert.equal(source.length, 56, `expected 56 app source files, found ${source.length}: ${source.join(', ')}`);
   assert.deepEqual(source, [
     'app.js',
     'lib/auth/accounts.js',
@@ -408,6 +408,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'lib/invoices/lifecycle.js',
     'lib/invoices/mapping.js',
     'lib/screens/connect-view.js',
+    'lib/screens/contract-detail-view.js',
     'lib/screens/invoice-form-view.js',
     'lib/screens/signin-view.js',
     'lib/stripe/client.js',
@@ -429,6 +430,7 @@ test('the scan examines exactly the files it is supposed to — source, manifest
     'routes/webhooks.js',
     'server.js',
     'views/connect-stripe.ejs',
+    'views/contract-detail.ejs',
     'views/invoice-form.ejs',
     'views/signin.ejs',
   ]);
@@ -626,9 +628,21 @@ function scanConcept(name, pattern, allowed, { raw = false, only = null, expectF
 // on a MEASURED baseline of zero (the single occurrence in the tree,
 // lib/health.js:80, is inside a `//` comment that stripComments removes).
 //
-// AS-47's one raw-output site becomes the first entry: reviewed on its own
-// merits, pinned to one exact line, and unable to sanction a second occurrence.
-const RAW_OUTPUT_SANCTIONED = [];
+// AS-47's one raw-output site IS the first entry: reviewed on its own merits,
+// pinned to one exact line, and unable to sanction a second occurrence. The
+// line regex anchors BOTH ends, so a second expression sharing the line
+// un-sanctions it, and `count: 1` means a verbatim duplicate on the next line
+// is reported as over-use. The dynamic half — a stored description containing
+// markup, driven through the real generate and counted in the served bytes —
+// is test/contract-screens.test.js's.
+const RAW_OUTPUT_SANCTIONED = [
+  {
+    file: 'views/contract-detail.ejs',
+    count: 1,
+    line: /^\s*<%- renderedHtml %>$/,
+    reason: 'AS-47: the stored contract document (lib/contracts/render.js) is emitted once, inside the document region. Every text node in it went through render.js\'s one escapeHtml and no data reaches an attribute position there; it is safe in element content and nowhere else, which is the only position this line puts it in. The line regex is the WHOLE line, so nothing else can share it.',
+  },
+];
 
 /** The non-escaping EJS output tag. Spelled literally: test/ is outside the
  *  walker's world (SKIPPED_DIRS), so this file cannot be its own first hit. */
@@ -768,8 +782,14 @@ const VIEW_FILES = /^views\//;
  *  the three templates — 202 for invoice-form.ejs — written down after the
  *  run, never before. Re-measured again at AS-46's review cycle 1: the client
  *  error slot in the add-new branch (a div and a span, open and close) moved
- *  invoice-form.ejs to 206; the scan reported 336 and this line followed it. */
-const VIEW_START_TAGS = 87 + 43 + 206;
+ *  invoice-form.ejs to 206; the scan reported 336 and this line followed it.
+ *  RE-MEASURED 2026-09-12 (AS-47, at the rebase onto AS-46's merge), the same
+ *  three instruments on views/contract-detail.ejs: 58 / 58 / 57 (+1 doctype)
+ *  — two fewer than its first measurement (60) after the "New contract" nav
+ *  anchor moved to AS-127 with its route: the scan counts the open AND the
+ *  close tag, so one removed anchor moves it by 2. The constant is the SUM
+ *  over views/: 87 + 43 + 206 + 58. */
+const VIEW_START_TAGS = 87 + 43 + 206 + 58;
 
 const lineAt = (text, index) => text.slice(0, index).split('\n').length;
 
@@ -845,7 +865,7 @@ function scanAttributeNamePosition() {
   return { findings, tags, files: files.length };
 }
 
-test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, AS-44, AS-45 and AS-46 put them', () => {
+test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, AS-44, AS-45, AS-46 and AS-47 put them', () => {
   // The `stripe` npm module is banned everywhere, permanently: `new Stripe(key)`
   // is the documented bypass of the custody guard (stack decision §8.1).
   scanConcept('stripe module import', /(from|require\s*\(|import\s*\()\s*['"]stripe['"]/, []);
@@ -1023,8 +1043,8 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
   // on anything.
   assert.equal(
     RAW_OUTPUT_SANCTIONED.length,
-    0,
-    `expected 0 RAW_OUTPUT_SANCTIONED entries, found ${RAW_OUTPUT_SANCTIONED.length} — adding one sanctions ONE exact line and is a deliberate, reviewable change`,
+    1,
+    `expected 1 RAW_OUTPUT_SANCTIONED entry (AS-47's document region), found ${RAW_OUTPUT_SANCTIONED.length} — a second entry sanctions a second exact line and is a second deliberate, reviewable decision`,
   );
   const rawOutput = scanRawOutput();
   assert.deepEqual(rawOutput.findings, [], `EJS raw output: ${rawOutput.findings.join('; ')}`);
@@ -1064,7 +1084,7 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
     'interpolation in a URL or style attribute',
     /(href|src|action|formaction|style)\s*=\s*"[^"]*<%/i,
     [],
-    { only: /^(views|public)\//, expectFiles: 4 },
+    { only: /^(views|public)\//, expectFiles: 5 },
   );
   // P2b — no event-handler attribute. Scoped to templates and stylesheets: the
   // pattern matches ` once =` in JavaScript, and narrowing the pattern to avoid
@@ -1076,12 +1096,12 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
   // none of the five characters EJS escapes, so the escape is a no-op against
   // it. P2c three lines below always carried `/i`; the omission here and on P2a
   // was an oversight, not a decision. Re-measured baseline after the flag: ZERO.
-  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^(views|public)\//, expectFiles: 4 });
+  scanConcept('event-handler attribute', /\son[a-z]+\s*=/i, [], { only: /^(views|public)\//, expectFiles: 5 });
   // P2c — THE NO-CLIENT-SIDE-JAVASCRIPT ASSUMPTION, MADE MECHANICAL. Two ledger
   // rows (S1-LOADING, S2-LOADING) are unimplementable under it and are recorded
   // as `unrenderable — browser-supplied` rather than silently skipped. This row
   // is what stops the assumption decaying into a comment.
-  scanConcept('script or style element', /<(script|style)\b/i, [], { only: /^(views|public)\//, expectFiles: 4 });
+  scanConcept('script or style element', /<(script|style)\b/i, [], { only: /^(views|public)\//, expectFiles: 5 });
   // P3 — an attribute value that carries data is DOUBLE-quoted, because
   // escaping `"` is only load-bearing if `"` is the delimiter. This row catches
   // the two spellings that break that: a single-quoted value, and an unquoted
@@ -1090,7 +1110,7 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
     'interpolation in an unquoted or single-quoted attribute value',
     /=\s*'[^']*<%|=\s*<%/,
     [],
-    { only: /^(views|public)\//, expectFiles: 4 },
+    { only: /^(views|public)\//, expectFiles: 5 },
   );
   // P4 — NO INTERPOLATION IN THE TAG-NAME OR ATTRIBUTE-NAME REGION (review
   // cycle 1, F-3; the tag-name half added by review cycle 2, ruling R-6).
@@ -1103,9 +1123,9 @@ test('the concepts live exactly where AS-38, AS-39, AS-40, AS-41, AS-42, AS-43, 
   // number unmoved and the findings assertion is the only thing that can catch it.
   const attrName = scanAttributeNamePosition();
   // A COMMITTED COUNT, not a `> 0` floor (AS-70, B5): three templates today,
-  // signin.ejs, connect-stripe.ejs and invoice-form.ejs (AS-46). A fourth screen
-  // moves this with its VIEWS row.
-  assert.equal(attrName.files, 3, `P4 examined ${attrName.files} template(s) under views/, expected 3`);
+  // signin.ejs, connect-stripe.ejs, invoice-form.ejs (AS-46) and
+  // contract-detail.ejs (AS-47). The next screen moves this with its VIEWS row.
+  assert.equal(attrName.files, 4, `P4 examined ${attrName.files} template(s) under views/, expected 4`);
   assert.equal(
     attrName.tags,
     VIEW_START_TAGS,

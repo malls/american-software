@@ -627,12 +627,15 @@ so this section states what is actually enforced and nothing more:
 1. **No raw output.** The non-escaping tag occurs nowhere, so every
    interpolation is escaped and there is no site an author can reach for. It is
    **not** banned outright: raw output is gated by a keyed, counted,
-   line-pinned allowlist (`RAW_OUTPUT_SANCTIONED`) that currently holds **zero**
-   entries. `lib/contracts/render.js` already commits AS-47 to emitting a
-   rendered contract with raw output exactly once inside the document region —
-   that becomes the first entry, reviewed on its own merits, pinned to one exact
-   line, and unable to absorb a second occurrence. A blanket ban would have
-   been quietly widened by whoever hit it first.
+   line-pinned allowlist (`RAW_OUTPUT_SANCTIONED`) that holds **one** entry:
+   the line in `views/contract-detail.ejs` that emits a stored contract
+   document (AS-47), pinned as the whole line, count 1. The document is
+   `lib/contracts/render.js`'s output — every text node through its one
+   escaper, no data in an attribute position — so it is safe in element
+   content, which is the only position that line puts it in; escaping it again
+   would render its tags as text. A second entry is a second reviewable
+   decision. A blanket ban would have been quietly widened by whoever hit it
+   first.
 2. **No interpolation in these five attribute values, no event-handler
    attribute, and no `script` or `style` element.** The five are `href`, `src`,
    `action`, `formaction` and `style` — the URL and style contexts, where
@@ -818,10 +821,33 @@ can hide.
 Chain link 3 (AS-42). One route, `POST /contracts`, below the auth boundary. It
 takes an existing `clientId`, an optional `templateId`, and one field per
 form-sourced template variable; on success it answers `303` to
-`/contracts/<id>`, which 404s until AS-47 lands the screens. **It is the one
+`/contracts/<id>` — **screen 7** (AS-47, below). **It is the one
 feature in this app with no Stripe dimension at all** — `contractRoutes` takes
 `{ repos }`, not `{ repos, stripe }`, and nothing under `lib/contracts/` names
 Stripe in code or in a comment (asserted, not asserted-by-comment).
+
+**Screen 7 — `GET /contracts/<id>` (AS-47).** The stored document emitted
+once, raw, inside a document region (`views/contract-detail.ejs`, the one
+sanctioned raw-output line — § The view layer, property 1), with a
+`?download=1` variant that answers the same render as an `attachment` named
+for the row's id — unstyled by construction (no `<style>` element exists in
+this app, and absolute stylesheet URLs would make a recipient's browser fetch
+from us) — and an `@media print` block in `public/app.css` that hides
+everything but the document, touching no `contract-doc` class, so the
+placeholder notice and the attribution line print and download with it. There
+is no Print control: `window.print()` needs a script and this app has none, so
+the page carries one sentence pointing at the browser's Print command. A
+missing id and another freelancer's id are one 404 page, byte for byte (the
+repository throws the same `NotFoundError` for both). **Screen 6 —
+`/contracts/new` — is AS-127's** (split out of AS-47 at its plan's pre-agreed
+line): it will own `POST /contracts/new` and dispatch on `intent`, calling the
+same `generate` this API calls, with the screen and the API validating through
+one exported `validateFormValue`. The nav's "New contract" entry — on screen
+7 and on screen 4 (`views/invoice-form.ejs`) — lands with that route, not
+ahead of it: a nav link to a route nothing serves is a shipped path ending on
+a 404, the defect the split order was chosen to avoid, and screen 7's link
+check (`test/contract-screens.test.js`) drives every link at the built app.
+There is still no `POST /contracts/:id`.
 
 **A template is code.** `lib/contracts/templates/` holds frozen declarations
 that ship in the image; there is no user-supplied template path, and no
@@ -912,6 +938,9 @@ lib/webhooks/    the inbound half (AS-44) — the only feature that calls Stripe
 lib/health.js    the checks, as data
 lib/vendor.js    assets consumed from outside this app (registry)
 lib/views.js     the template registry + the health check's render probe
+lib/screens/     one PURE view model per screen: the ledger transcription and
+                 the locals function — signin-view.js (1), connect-view.js (2),
+                 contract-detail-view.js (7)
 lib/contracts/   contract templates and generation (AS-42) — the one feature
                  with no Stripe dimension:
   templates.js     the registry, getTemplate(), and the load-time invariants
@@ -1097,7 +1126,20 @@ declaration count are committed literals. Update them in the same commit.
   return land on the connect handler as a signed-in freelancer, or bounce to
   `/signin`?), one real sign-in's wall-clock on the deploy target, and whether
   14 days is the right lifetime.
-- **Adding a route is a two-file change, deliberately.** `test/auth.test.js`
+- **AS-47 landed screen 7 (contract detail); three hand-offs are open.** See
+  § Contracts above. **AS-127 (screen 6, the contract create screen):** it
+  adds the "New contract" nav entry (`/contracts/new`) to screen 7
+  (`views/contract-detail.ejs`) and screen 4 (`views/invoice-form.ejs`) in the
+  same change as the route — neither carries the link until it is served —
+  and takes over `test/contract-screens.test.js` (cases 1–19 of AS-47's plan
+  §7) and the `validateFormValue` export. **AS-48 (screens 3 and 5):** the Dashboard nav
+  entry on screens 4, 6 and 7, and the "Back to Dashboard" link on screen 7's
+  not-found page (a constant `href`; add a followed-terminus case) — that page
+  currently has no way out but the nav. **The next screen task touching the
+  client picker:** the picker logic is carried twice (`invoice-form-view.js`,
+  and screen 6's view model when AS-127 lands) by lane discipline; the third
+  consumer extracts `lib/screens/client-picker.js`.
+- **Adding a route is a two-file change, deliberately.** `test/route-surface.test.js`
   walks the built app's router tree and compares it to a committed
   `(method, path)` list; a new route turns that red until its author adds it and
   classifies it in `PUBLIC_ROUTES` or leaves it protected. There is no path from

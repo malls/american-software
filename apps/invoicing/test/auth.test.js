@@ -865,7 +865,11 @@ test('requireSession has exactly one path carve-out', () => {
   }
 });
 
-// G1–G13: reachability, CSRF and impersonation
+// G1–G13: reachability, CSRF and impersonation. G1, G1b, G2 and G3 — the
+// committed route list and the guard's reachability partition — live in
+// test/route-surface.test.js (moved verbatim by AS-47, applying AS-46 plan
+// §3.6, when this file reached the 1,200-line ceiling); the walk they and G7,
+// G15 share is test/helpers/routes.js.
 // =============================================================================
 
 test('G5: GET /healthz answers 200 with no cookie', async () => {
@@ -1013,7 +1017,7 @@ test('G14: actingFreelancerId throws rather than act as nobody', () => {
 test('G15: the whole app is constructible and the boundary survives a rebuild', async () => {
   // A cheap guard against the enumeration above being satisfied by a stale app.
   await withApp({}, async ({ app, base }) => {
-    assert.equal(discoverRoutes(app).length, 22);
+    assert.equal(discoverRoutes(app).length, 23);
     assert.equal((await fetch(`${base}/`, { redirect: 'manual' })).status, 303);
   });
 });

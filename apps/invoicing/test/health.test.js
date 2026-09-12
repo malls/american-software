@@ -43,10 +43,11 @@ test('there are exactly four checks, by name', () => {
 });
 
 test('there are exactly three registered views', () => {
-  // Declaration order: screen 1 (AS-45), screen 2 (AS-70), then screen 4 (AS-46).
-  // A fourth screen appends here, in the same commit as its VIEWS row.
-  assert.equal(VIEWS.length, 3);
-  assert.deepEqual(VIEWS.map((v) => v.file), ['signin.ejs', 'connect-stripe.ejs', 'invoice-form.ejs']);
+  // Declaration order: screen 1 (AS-45), screen 2 (AS-70), screen 4 (AS-46),
+  // then screen 7 (AS-47). The next screen appends here, in the same commit as
+  // its VIEWS row.
+  assert.equal(VIEWS.length, 4);
+  assert.deepEqual(VIEWS.map((v) => v.file), ['signin.ejs', 'connect-stripe.ejs', 'invoice-form.ejs', 'contract-detail.ejs']);
 });
 
 // --- the green case, against the real image ---------------------------------

@@ -1,22 +1,26 @@
 // routes/contracts.js — chain link 3, server side: generate a contract from a
 // declared template and store it (AS-42, plan §3.4, §3.7).
 //
-// EXACTLY ONE ROUTE, and the absence of the others is the design. There is no
-// POST /contracts/:id, no PATCH, no DELETE, and no handler whose job is to say
-// "no": a contract is immutable, the schema enforces it (no updated_at, no
-// update method, no draft state), and a route added to state a prohibition is
-// still a route — it must be classified in the committed partition in
-// test/auth.test.js, driven by that suite's cookieless probe, and maintained.
-// Absence states it for free, and is pinned by test/auth.test.js's committed
-// route list, by the repository exposing no update method, and by a case in
-// test/contracts.test.js. A freelancer who made a mistake generates a new
-// contract with the corrected values; v1 never delivers a contract, so the
-// superseded row is one nobody outside their account has seen.
+// THE ROUTE SET, and the absence of the others is the design. The API is ONE
+// route, POST /contracts (AS-42). The screens (AS-47) add GET /contracts/:id —
+// screen 7, the stored document rendered, printed or downloaded. There is
+// still no POST /contracts/:id, no PATCH, no DELETE, and no handler whose job
+// is to say "no": a contract is immutable, the schema enforces it (no
+// updated_at, no update method, no draft state), and a route added to state a
+// prohibition is still a route — it must be classified in the committed
+// partition in test/route-surface.test.js, driven by that suite's cookieless
+// probe, and maintained. Absence states it for free, and is pinned by that
+// committed route list, by the repository exposing no update method, and by
+// test/contracts.test.js P8's four-method probe against a real id, which keeps
+// 404ing. A freelancer who made a mistake generates a new contract with the
+// corrected values; v1 never delivers a contract, so the superseded row is one
+// nobody outside their account has seen.
 //
-// NO GET ROUTES. The create and detail screens are AS-47's, per the screen
-// budget. The redirect target 404s until they land, which is this codebase's
-// established idiom rather than a gap — the Location header is the contract,
-// asserted without dereferencing it.
+// THE SCREEN HANDLERS ARE NOT THROUGH handle(). That wrapper is for
+// redirect-or-text/plain actions; a render has no error to map to a one-line
+// body. They read the session through the same actingFreelancerId — the one
+// identity source — and hand a pure view model (lib/screens/) the row and a
+// boolean. A screen renders the STATE, never the request.
 //
 // THE ERROR TAXONOMY IS SHORTER THAN routes/invoices.js's ON PURPOSE. That file
 // maps seven more classes; every one of them is unreachable from a path that
@@ -29,6 +33,7 @@ import express, { Router } from 'express';
 import { NotFoundError, ValidationError } from '../lib/db/database.js';
 import { createContractGeneration } from '../lib/contracts/generation.js';
 import { actingFreelancerId } from '../lib/auth/guard.js';
+import { contractDetailLocals } from '../lib/screens/contract-detail-view.js';
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -112,6 +117,38 @@ export function contractRoutes(config, { repos }) {
     const contract = generation.generate(freelancerId, contractInput(req.body ?? {}));
     return detailPath(contract.id);
   }));
+
+  // SCREEN 7 (AS-47, plan §3.3, §3.4). The read is owner-scoped by the
+  // repository, which throws the SAME NotFoundError for a missing id and for
+  // another freelancer's — so S7-DENIED-NOTOWNER and S7-ERROR-NOTFOUND are one
+  // render by construction, and a guessed id confirms nothing. Anything else
+  // the read throws (a row whose stored JSON will not parse, a database
+  // failure) is 'system': fetch failed for a reason other than nonexistence.
+  //
+  // THE DOWNLOAD FLAG IS A PRESENCE FLAG READ AS A BOOLEAN. Exactly `?download=1`
+  // is true; absent, 'true', a marker, an array — all false. The VALUE never
+  // enters the view model (AS-70 decision 1's shape). On true and S7-DEFAULT
+  // the same render is answered as an attachment named for THE ROW'S id — a
+  // UUID this app minted, never req.params.id — with the type set explicitly
+  // rather than through res.attachment(), which would derive one from the
+  // extension. The header is set AFTER the lookup succeeded, so a download of
+  // a missing id is the inline not-found page with no Content-Disposition.
+  router.get('/contracts/:id', (req, res) => {
+    const freelancerId = actingFreelancerId(req);
+    let contract = null;
+    let failure = null;
+    try {
+      contract = repos.contracts.getById(freelancerId, req.params.id);
+    } catch (err) {
+      failure = err instanceof NotFoundError ? 'not-found' : 'system';
+    }
+    const locals = contractDetailLocals({ contract, failure, isDownload: req.query.download === '1' });
+    if (locals.isDownload) {
+      res.set('Content-Type', 'text/html; charset=utf-8');
+      res.set('Content-Disposition', `attachment; filename="contract-${contract.id}.html"`);
+    }
+    res.status(failure === 'not-found' ? 404 : failure === 'system' ? 500 : 200).render('contract-detail', locals);
+  });
 
   // A parser refusal (too large, too many parameters) never reaches a handler,
   // so it needs its own landing: the same one-line text/plain shape as every

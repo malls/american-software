@@ -65,6 +65,7 @@ const EXPECTED_TEST_FILES = [
   'clients.test.js',
   'config.test.js',
   'connect.test.js',
+  'contract-screens.test.js',
   'contracts.test.js',
   'db.test.js',
   'dependency-policy.test.js',
@@ -84,7 +85,7 @@ const EXPECTED_TEST_FILES = [
 test('V2: the suite is exactly the files it is supposed to be', () => {
   const found = discoverTestFiles();
   // Cardinality FIRST, against a committed number — never `length > 0`.
-  assert.equal(found.length, 19, `expected exactly 19 test files, found ${found.length}: ${found.join(', ')}`);
+  assert.equal(found.length, 20, `expected exactly 20 test files, found ${found.length}: ${found.join(', ')}`);
   assert.deepEqual(found, EXPECTED_TEST_FILES);
 });
 

@@ -21,6 +21,7 @@
 import { signinLocals } from './screens/signin-view.js';
 import { connectLocals } from './screens/connect-view.js';
 import { invoiceFormLocals } from './screens/invoice-form-view.js';
+import { contractDetailLocals } from './screens/contract-detail-view.js';
 
 export const VIEWS = Object.freeze([
   Object.freeze({
@@ -41,5 +42,13 @@ export const VIEWS = Object.freeze([
     name: 'invoice-form',
     file: 'invoice-form.ejs',
     sampleLocals: invoiceFormLocals(),
+  }),
+  // Screen 7 (AS-47). The default input (no row, no failure) renders
+  // S7-ERROR-NOTFOUND — nothing to show — which exercises the template without
+  // a stored document; the raw-output line is probed by its own cases.
+  Object.freeze({
+    name: 'contract-detail',
+    file: 'contract-detail.ejs',
+    sampleLocals: contractDetailLocals(),
   }),
 ]);
