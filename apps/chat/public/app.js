@@ -3,6 +3,7 @@
 
 import { parseChatUrl, serializeChatUrl, resolveConversation } from './url-state.js';
 import { renderPreservingScroll, prependPreservingScroll } from './scroll.js';
+import { applyFrameToPanes, replyLabel } from './message-pane.js';
 import { shouldCloseOnEscape, shouldCloseOnBackdropGesture } from './thread-modal.js';
 import { applyMessage, maxLoadedId, mergeOlderPage, ensureLoaded, findLoaded } from './live.js';
 import { rosterOrder, dmOrder, togglePin, sanitizePins } from './dm-sort.js';
@@ -352,12 +353,19 @@ function messageNode(m, { inThread = false } = {}) {
     meta.appendChild(actions);
   }
   wrap.append(meta, bodyNode(m));
-  if (!inThread && m.replyCount > 0) {
-    const link = el('button', 'thread-link', `${m.replyCount} ${m.replyCount === 1 ? 'reply' : 'replies'}`);
-    link.addEventListener('click', () => openThread(m.id));
-    wrap.appendChild(link);
-  }
+  if (!inThread && m.replyCount > 0) wrap.appendChild(threadLinkNode(m.id, m.replyCount));
   return wrap;
+}
+
+/**
+ * The "N replies" control under a root (AS-135: one factory, used by
+ * messageNode on a rebuild and by the incremental reply-count patch when a
+ * root gains its first reply; the label text has one source, replyLabel).
+ */
+function threadLinkNode(rootId, count) {
+  const link = el('button', 'thread-link', replyLabel(count));
+  link.addEventListener('click', () => openThread(rootId));
+  return link;
 }
 
 // --- identity -------------------------------------------------------------
@@ -623,8 +631,9 @@ function wireViewportPin() {
 
 /**
  * AS-25: render the current conversation from state.lastData — no fetch.
- * Push frames and catch-up merges re-render through here with
- * scroll:'preserve'; navigation renders with scroll:'bottom'.
+ * AS-135: this is the NAVIGATION rebuild (selectConversation is its one
+ * caller); a live frame, a send echo or a catch-up row goes through
+ * renderFrame instead and never replaces the pane's children.
  */
 function renderConversation({ scroll = 'preserve' } = {}) {
   const data = state.lastData;
@@ -664,6 +673,30 @@ function paneChildren(data) {
   if (data.messages.length) nodes.push(...data.messages.map((m) => messageNode(m)));
   else nodes.push(el('div', 'empty-note', 'No messages yet.'));
   return nodes;
+}
+
+/**
+ * AS-135: reflect ONE message that applyMessage just merged into
+ * state.lastData — the path for SSE frames, the send echo and since= catch-up
+ * rows. Inserts the node in id order into the main pane (top-level) or the
+ * open thread pane (reply) under the sticky-bottom rule, and patches the
+ * reply's root count in place; nothing else in the pane is touched, so the
+ * m= highlight and every existing node survive. The anchor is one-shot
+ * (applyAnchor no-ops unless pending) — kept here so a permalink whose
+ * target arrives by frame still lands.
+ */
+function renderFrame(msg) {
+  if (!state.lastData || !state.currentConv) return;
+  applyFrameToPanes({
+    data: state.lastData,
+    msg,
+    currentThreadRoot: state.currentThreadRoot,
+    mainPane: $('#messages'),
+    threadPane: $('#thread-messages'),
+    nodeFor: messageNode,
+    linkFor: threadLinkNode,
+  });
+  applyAnchor();
 }
 
 /** GET one page older than `before` (0 = the newest page) for `conv` (default: the open conversation). */
@@ -1259,10 +1292,10 @@ async function sendMessage(text, threadRoot) {
   });
   // AS-25: no full-history refetch — the POST response merges through the
   // same idempotent applyMessage as live frames (our own SSE echo of this
-  // message then dedupes by id). Re-render, not navigation: never a history
-  // write, never a scroll yank (AS-17).
+  // message then dedupes by id). One node in, not navigation: never a history
+  // write, never a scroll yank (AS-17), never a pane rebuild (AS-135).
   if (applyMessage(state.lastData, message)) {
-    renderConversation({ scroll: 'preserve' });
+    renderFrame(message);
     noteRead(message.id);
   }
 }
@@ -1442,11 +1475,11 @@ function noteRead(msgId) {
 function handleFrame(msg) {
   const convId = msg.conversationId;
   if (state.currentConv && convId === state.currentConv.id) {
-    // Open conversation: merge + re-render (sticky scroll), mark read.
+    // Open conversation: merge + insert one node (sticky scroll), mark read.
     // applyMessage no-ops if a conversation-switch fetch hasn't landed yet —
     // that fetch will include this message.
     if (applyMessage(state.lastData, msg)) {
-      renderConversation({ scroll: 'preserve' });
+      renderFrame(msg);
       noteRead(msg.id);
     }
     return;
@@ -1483,14 +1516,17 @@ async function catchUp() {
   );
   let latest = 0;
   let changed = false;
+  // AS-135: a catch-up delta is N single-message frames — each merged row is
+  // inserted on its own, so a scrolled-up reader is measured per insert and
+  // never yanked, and the loaded rows keep their nodes.
   for (const m of data.messages) {
-    if (applyMessage(state.lastData, m)) changed = true;
+    if (applyMessage(state.lastData, m)) {
+      renderFrame(m);
+      changed = true;
+    }
     if (m.id > latest) latest = m.id;
   }
-  if (changed) {
-    renderConversation({ scroll: 'preserve' });
-    noteRead(latest);
-  }
+  if (changed) noteRead(latest);
 }
 
 // --- wiring ---------------------------------------------------------------

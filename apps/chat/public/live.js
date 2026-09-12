@@ -74,12 +74,16 @@ export const ENSURE_LOADED_MAX_PAGES = 20;
 /**
  * Merge one OLDER page into the loaded payload: prepend the page's top-level
  * rows that are not already present (the result stays id-ordered), install
- * the page's threads for each newly-added root (the server list is
- * authoritative at fetch time; a root already loaded keeps the list it has,
- * which may include live replies newer than this fetch), and adopt the page's
- * hasMore/nextBefore as the new cursor. maxLoadedId is unaffected by design:
- * a prepended page is older than everything loaded, so `since=` catch-up
- * still resumes from the newest id.
+ * the page's threads for each newly-added root, and adopt the page's
+ * hasMore/nextBefore as the new cursor. A root already loaded keeps the list
+ * it has (which may include live replies newer than this fetch). A fresh root
+ * whose `threads[root]` already holds orphan replies (a frame or catch-up row
+ * that arrived before the root paged in) gets the UNION of the page list and
+ * those orphans, id-ordered and deduped, and its replyCount set to that
+ * length (AS-135 R5) — a page's threads carry every reply of its roots, so
+ * the union is complete. maxLoadedId is unaffected by design: a prepended
+ * page is older than everything loaded, so `since=` catch-up still resumes
+ * from the newest id.
  *
  * @param {{ messages: object[], threads: Record<string, object[]>, hasMore?: boolean, nextBefore?: number|null }} data
  * @param {{ messages: object[], threads: Record<string, object[]>, hasMore: boolean, nextBefore: number|null }} page
@@ -92,7 +96,18 @@ export function mergeOlderPage(data, page) {
     const wasOrdered = !data.messages.length || fresh[fresh.length - 1].id < data.messages[0].id;
     data.messages.unshift(...fresh);
     if (!wasOrdered) data.messages.sort((a, b) => a.id - b.id);
-    for (const root of fresh) data.threads[root.id] = (page.threads && page.threads[root.id]) || [];
+    for (const root of fresh) {
+      const pageList = (page.threads && page.threads[root.id]) || [];
+      const orphans = data.threads[root.id] || [];
+      if (!orphans.length) {
+        data.threads[root.id] = pageList;
+        continue;
+      }
+      const seen = new Set(pageList.map((m) => m.id));
+      const merged = pageList.concat(orphans.filter((m) => !seen.has(m.id))).sort((a, b) => a.id - b.id);
+      data.threads[root.id] = merged;
+      root.replyCount = merged.length;
+    }
   }
   data.hasMore = Boolean(page.hasMore);
   data.nextBefore = page.nextBefore ?? null;

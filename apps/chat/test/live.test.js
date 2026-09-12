@@ -147,6 +147,34 @@ test('AS-131 live: mergeOlderPage prepends id-ordered, dedupes, adopts the curso
   assert.equal(data.messages.find((m) => m.id === 20).replyCount, 3);
 });
 
+test('AS-135 live (R5): a fresh root whose threads[root] already holds a live orphan reply gets the union of the page list and the orphan, id-ordered, deduped, replyCount === length', () => {
+  // Newest page: root 30. Live frames then deliver replies 25 and 27 on root 20
+  // (not loaded yet) and 26 on root 20 too — stored as orphans by applyMessage.
+  const data = pageOf([30], { hasMore: true });
+  assert.equal(applyMessage(data, msg(27, 7, 20)), true);
+  assert.equal(applyMessage(data, msg(25, 7, 20)), true);
+  assert.deepEqual(data.threads[20].map((m) => m.id), [25, 27], 'orphans held id-ordered');
+  assert.equal(isLoaded(data, 25), false, 'an orphan is not loaded');
+
+  // The older page arrives with root 20 and the server's list at fetch time:
+  // 21, 22 and 25 (25 overlaps the orphan; 27 is newer than the fetch).
+  const older = pageOf([10, 20], { threads: { 20: [msg(21, 7, 20), msg(22, 7, 20), msg(25, 7, 20)] }, hasMore: false });
+  assert.equal(older.messages.find((m) => m.id === 20).replyCount, 3, 'page replyCount precondition');
+  assert.equal(mergeOlderPage(data, older), 2);
+  assert.deepEqual(data.messages.map((m) => m.id), [10, 20, 30]);
+  assert.deepEqual(data.threads[20].map((m) => m.id), [21, 22, 25, 27], 'union, id-ordered, 25 deduped');
+  assert.equal(data.threads[20].length, 4, 'no duplicate reply');
+  const root = data.messages.find((m) => m.id === 20);
+  assert.equal(root.replyCount, 4, 'replyCount follows the merged length, not the page\'s 3');
+  assert.deepEqual(data.threads[10], [], 'a fresh root with no orphans gets the page list (empty)');
+  assert.equal(isLoaded(data, 27), true, 'the orphan is loaded once its root pages in');
+  // The live path continues on the merged list without double-counting.
+  assert.equal(applyMessage(data, msg(27, 7, 20)), false, 'replayed orphan frame is a no-op');
+  assert.equal(root.replyCount, 4);
+  assert.equal(applyMessage(data, msg(28, 7, 20)), true);
+  assert.equal(root.replyCount, 5);
+});
+
 test('AS-131 live: ensureLoaded pages back until the target is loaded, stops on hasMore:false, and caps at 20 pages', async () => {
   // Fixture: 10 pages of 2 roots (ids 2..40 by twos) — page k (from newest)
   // holds roots [40-2k-1... ] — plus a reply 27 on root 26 (page 3 from newest).
