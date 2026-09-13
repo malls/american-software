@@ -24,21 +24,21 @@
     }
   ],
   "id": "task_01M1M1BMRVY1BNPA94XS5SJS8Y",
-  "last_event_id": "ev_01M2CF3DJ3W14EKB8YZPB6YRSH",
-  "last_status_changed_at": "2026-09-13T03:49:58Z",
+  "last_event_id": "ev_01M2CF4RY2ZV00DZNJ1N1GVJTD",
+  "last_status_changed_at": "2026-09-13T04:06:57Z",
   "linked_files": [],
   "priority": "low",
   "relationships_out": [],
   "reopened_count": 1,
   "schema_version": 1,
   "short_id": "AS-76",
-  "status": "in_progress",
+  "status": "review",
   "tags": [
     "observability",
     "design"
   ],
   "title": "Observability: design note \u2014 error tracking + product analytics posture for apps/invoicing and apps/chat (Sentry/PostHog; produces the board ask)",
   "type": "spike",
-  "updated_at": "2026-09-13T04:06:12Z",
+  "updated_at": "2026-09-13T04:06:57Z",
   "urgency": "low"
 }
