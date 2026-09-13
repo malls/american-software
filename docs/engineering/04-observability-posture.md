@@ -238,9 +238,13 @@ way that does not turn on it — see §3.5.
 performance instrumentation"*. Its direct dependencies include `import-in-the-middle`
 (*"Intercept imports in Node.js"*) and, via `@opentelemetry/instrumentation`, also
 `require-in-the-middle` (*"Module to hook into the Node.js require function"*). Under
-those sits `@apm-js-collab/code-transformer`, whose own dependencies are `meriyah` (a
-JavaScript parser), `astring` (an AST-to-source generator), `esquery`, `magic-string`
-and `source-map`.
+those sits `@apm-js-collab/code-transformer@0.18.1`, whose own dependencies are
+`meriyah` (a JavaScript parser), `astring` (an AST-to-source generator), `esquery`,
+`semifies` and `source-map`. `magic-string` is in the closure too, but it is **not** a
+dependency of the transformer: it arrives via the sibling
+`@apm-js-collab/code-transformer-bundler-plugins@0.7.1`. The first draft of this
+document attributed it to the transformer; corrected at review (amendment 4), because a
+dependency argument that misnames an edge invites the reader to check nothing else.
 
 Read that closure for what it is: **a JavaScript parser and code generator, wired into
 the module loader, rewriting this application's modules as they load.** That is not
@@ -374,9 +378,22 @@ This, and not the package count, is the strongest reason for §3.3.
 - `type` — the error's **constructor name**, validated against a committed enum of the
   app's error classes (`RepositoryError`, `NotFoundError`, `UniqueViolationError`,
   `ForeignKeyViolationError`, `InvalidStateError`, `ValidationError`, `MigrationError`,
-  `AuthError`, `ConfigError`, `SignatureError`, `StripeApiError`, `StripeTransportError`,
-  `StripeCustodyError`, `AccountNotReadyError`, `AmountMismatchError`, plus the built-ins).
-  Anything not in the enum is sent as the literal `UnknownError`.
+  `AuthError`, `ConfigError`, `SignatureError`, `WebhookEventError`, `StripeApiError`,
+  `StripeTransportError`, `StripeCustodyError`, `AccountNotReadyError`,
+  `AmountMismatchError`, plus the built-ins). Anything not in the enum is sent as the
+  literal `UnknownError`.
+
+  That is **sixteen classes, and sixteen is the measured total** — every `class
+  *Error` declared under `lib/`, `routes/` and `app.js` on master `65c73bb`. The first
+  draft listed fifteen: it omitted `WebhookEventError` (`routes/webhooks.js:30`), which
+  is not a harmless gap. That class marks a body that *verifies against our signing
+  secret* but is not an event envelope — the one error on the webhook path that says
+  something is wrong with what we are being sent rather than with us. Omitted from the
+  enum it fails safe, which is the trap: it ships as the literal `UnknownError`, so the
+  single most diagnostic error in the product arrives at the vendor indistinguishable
+  from a typo in a helper. The enum is a closed list, so it must be closed against a
+  measurement, not against recall — and the measurement is one `grep`, recorded here so
+  the next person extends the list by re-running it.
 - `code` — `err.code` **only** when it is a member of the committed code enum
   (`not_found`, `unique_violation`, `foreign_key_violation`, `invalid_state`,
   `validation`, `migration`). Otherwise omitted.
@@ -406,18 +423,38 @@ fragments of SQL · **and the error message.**
 That last item is the sharpest rule in this document, so it is argued from the
 codebase rather than from principle. Measured across `apps/invoicing` app source
 (excluding `test/`, `demo/`, `vendor/`, `node_modules/`): **185 `throw new *Error(`
-sites, of which 60 interpolate a runtime value into the message — and 10 of those
-interpolate a value that is explicitly on the deny-list above.** Script and full
-output: `scratchpad/agent-cto-owen/AS-76/throw-sites.js`, `throw-sites.txt`. The count
-is line-oriented and therefore undercounts a `throw new` split across lines, which errs
-in the safe direction for a claim of the form "at least this many". The two sharpest:
+sites, of which 60 interpolate a runtime value into the message — and of those, at
+least 11 interpolate a value that is explicitly on the deny-list above.** Script and
+full output: `scratchpad/agent-cto-owen/AS-76/throw-sites.js`, `throw-sites.txt`.
+
+**Read that last number as a floor, because that is what it is.** The first two figures
+are counts: they come from matching `throw new *Error(` and then testing for `${`.
+The third does not — it comes from a hand-written regex over *deny-listed identifier
+names* (`stripeCustomerId`, `amount`, `email`, and so on), so it finds a leak only when
+the leaking value is carried by a variable whose name confesses. **10 is what that
+regex matched; 11 is what is currently known.** The uncounted site found at review:
+
+```
+lib/contracts/generation.js:110   throw new NotFoundError('template variable', `${template.id}.${name}`)
+```
+
+`name` here is a contract template variable name — deny-listed in §4.2 under contract
+template variables — reaching the message through a local called `name`, which no
+name-matching regex will ever flag. There is no honest way to turn this into a count
+without reading all 60 interpolating sites by hand, and the argument does not need one:
+a floor is sufficient for a claim of the form "at least this many", and a floor that
+knows it is a floor is worth more than a count that is quietly wrong. (Two further
+sources of undercount, both in the safe direction: the scan is line-oriented, so a
+`throw new` split across lines is missed; and it reads the throw site, not the callee,
+so a message assembled inside an error constructor is invisible to it.) The two
+sharpest sites the regex did match:
 
 ```
 lib/db/repositories/clients.js:117   `client ${id} already has Stripe customer ${current.stripeCustomerId}`
 lib/db/repositories/invoices.js:243  `invoice ${id} already has Stripe invoice ${current.stripeInvoiceId} attached`
 ```
 
-The other eight interpolate a filesystem path (`lib/db/database.js:57`), a rejected
+The other eight the regex matched interpolate a filesystem path (`lib/db/database.js:57`), a rejected
 configuration value (`lib/config.js`, six sites, via `JSON.stringify(raw)`), or a
 user-typed value (`lib/contracts/render.js:85`). Two of those eight deserve their
 caveats, because overstating them would weaken the argument rather than strengthen it:
@@ -439,8 +476,11 @@ implementation detail:
 1. **`err.cause` is denied too.** `mapSqliteError` sets `cause` to the raw driver
    error, whose message is written by SQLite and constrained by nobody.
 2. **The error's own extra properties are denied:** `err.field`, `err.entity`,
-   `err.id`, `err.constraint`, `err.problem`, `err.envVar`. They exist precisely
-   because they carry the specifics, and the specifics are the leak.
+   `err.id`, `err.constraint`, `err.problem`, `err.envVar`, and — added with the class
+   itself — `err.reason` and `err.step` on `WebhookEventError`. They exist precisely
+   because they carry the specifics, and the specifics are the leak. The rule is the
+   safe shape: the allow-list names the properties that may be read, so a class that
+   grows a new one is silent by default rather than newly chatty.
 3. **No general rule protects us, and the near-miss above proves it.** `lib/config.js`
    already distinguishes `secret: true` rows and exposes a `redacted()` view — the
    house instinct is right and the precedent exists — but that invariant covers *the
@@ -479,17 +519,121 @@ The deny-list is enforced by tests, not by review discipline — the requirement
 was filed with. Three, at different levels, because one level is not enough.
 
 **T-A — lexical: the chokepoint still holds (extends the existing guard).**
-`test/dependency-policy.test.js` gains **exactly one** `SANCTIONED` entry: file
-`lib/telemetry/transport.js`, construct `fetch`, `count: 1`, pinned to the whole line
-byte-for-byte, with its reason. The cardinality literal at the top of *every sanctioned
-construct is present exactly where it is declared* moves **3 → 4** — a deliberate,
-visible, two-line change, exactly as that test's own comment intends. The four new
-files are added to the `SCANNED` literal list. A `scanConcept` row pins that
-`lib/telemetry/transport.js` is imported by `lib/telemetry/client.js` and nowhere else,
-mirroring the existing `stripe transport import` row. Net effect: the product has
-**two** egress paths, each with its own chokepoint, each pinned to one line — and the
-count of egress paths remains something a test asserts rather than something a reviewer
-remembers.
+
+This is a handoff instruction, so it is written against `apps/invoicing/test/dependency-policy.test.js`
+as it stands on master `65c73bb`. Line numbers are anchors; the quoted literal beside
+each one is what identifies the site if the file has moved under it. The first draft of
+this subsection was written from a reading of the guard rather than from an application
+of it, and got three things wrong; each is corrected below with the mechanism that makes
+it wrong, because the mechanism is the part AS-77 has to hold in its head.
+
+**Step 0 — make room before adding anything.** The file is **1,198 lines** against the
+**1,200-line cap it enforces on itself** — its own last test, `if (lines > 1200)` (line
+1195), walks `test/` too. T-A's additions are roughly 27 lines, so the guard file breaks
+its own guard before the first telemetry line exists. The choice is made here rather
+than left to the implementer at the moment of maximum inconvenience:
+
+- **Raising the cap is refused.** The 1,200 is stack decision §10.4 item 1, trigger
+  **T7**, and that trigger's recorded remedy is the word *"Split it."* Amending a
+  stack-decision constraint as a side-effect of a telemetry task is deciding in the
+  wrong order — if the cap is wrong, that is its own ruling, with its own evidence, in
+  the document that owns it.
+- **So: split, and split the mechanism out, not the policy.** One new helper,
+  `test/helpers/source-text.js`, owns *what a scanned file's text is*: `stripComments`
+  and `stripHashComments` (lines 137–261 with their two self-tests), `strippedText`
+  (344–352), and `SOURCE_EXT` (276–278), which `strippedText` dispatches on. The two
+  self-tests move verbatim into a sibling `test/source-text.test.js`; about 140 lines
+  leave the guard file in total.
+  `dependency-policy.test.js` imports `{ SOURCE_EXT, strippedText }` back and keeps
+  everything with an opinion in it. The precedent is already in the directory:
+  `test/helpers/hash-comment.js` (AS-57) is exactly this shape, and the guard file
+  already imports `stripTrailingHashComment` from it.
+
+  **`strippedText` and `SOURCE_EXT` have to go with the strippers, and this is not
+  tidiness.** The manifest-stripper self-test ends with
+  `assert.equal(strippedText(join(APP_DIR, 'package.json')), packageRaw)` — the
+  assertion that `.json` is never stripped. Leaving `strippedText` behind would split
+  that test across two files, and the whole point of calling this a move is that no test
+  is split. `SOURCE_EXT` follows `strippedText` because that is what it dispatches on.
+
+  Constraints that keep this a move rather than a rewrite: exported signatures unchanged
+  (`stripComments(source, { ejs })`, `stripHashComments(text, { trailing })`,
+  `strippedText(path)`); the two self-tests move verbatim, names included; **nothing else
+  moves** — `MANIFEST_NAME`, `UNSCANNED`, `SKIPPED_DIRS`, `classifyTree`, `FILES`,
+  `SCANNED`, `scanForbidden`, `scanConcept` and every counted literal stay.
+  `MANIFEST_NAME` **especially** must not move: its own comment pins it to a single line
+  in this file because the AS-53 M0 falsification rewrites that exact line with a
+  one-line `perl`, and a falsification recipe that no longer finds its target is a guard
+  nobody can check. `SOURCE_EXT` carries no such pin — checked, not assumed.
+  Checkable invariant: `node --test` reports the same test names before and after,
+  redistributed across two files, and no counted literal changes value except the one
+  named next. Measured on a scratch copy with all of T-A applied: the guard file lands
+  at **1,086 lines**, about 110 under the cap, and
+  `dependency-policy.test.js` + `source-text.test.js` + `harness.test.js` run
+  **17 tests, 17 passing** — the same 17 as the untouched baseline, redistributed.
+
+  **The split has a second, non-obvious obligation: `test/harness.test.js`.** It pins
+  the suite's own shape — `assert.equal(found.length, 23, …)` at line 91 and the sorted
+  `EXPECTED_TEST_FILES` array at lines 62–86, under a comment reading *"adding a test
+  file is a deliberate two-line change: the file, and this list."* So the split is also
+  **23 → 24**, plus `'source-text.test.js'` in the array and the prose "twenty-three
+  files" in the comment at line 99. That is step 2's lesson one layer up, and it is
+  recorded because it was missed twice running: once when this section was drafted, and
+  again by the scratch run that checked the draft and ran only the file it had edited.
+  **This codebase pins its own inventory in several places, and a new file is never just
+  a new file.** The three inventories a new source or test file touches: the source-count
+  literal and array (`dependency-policy.test.js:390–391`), the test-file count and array
+  (`harness.test.js:62–91`), and — for an egress construct — `SANCTIONED` and its
+  cardinality. Find them by running the whole suite, not by reading it.
+
+**Step 1 — two `SANCTIONED` entries, not one; the literal moves 3 → 5.** The mechanism
+the first draft missed: `SANCTIONED` keys on **file + construct + the whole line**, and
+the `OUTBOUND_CLIENTS` row named `stripe transport import` is
+`/['"][^'"]*\btransport\.js['"]/` — *any* quoted path ending in `transport.js`, in any
+scanned file. `lib/telemetry/client.js`'s import of its own transport is therefore a
+second hit under a different key, and the `lib/stripe/client.js` entry cannot absorb it.
+
+| file | construct | count | line pins |
+|---|---|---|---|
+| `lib/telemetry/transport.js` | `fetch` | 1 | the whole line of the one `await fetch(…)`, byte-for-byte |
+| `lib/telemetry/client.js` | `stripe transport import` | 1 | the whole `import … from './transport.js';` line |
+
+The cardinality literal — `assert.equal(SANCTIONED.length, 3, …)` at line 584, under the
+comment *"adding a sanction is a deliberate two-line change"* — moves **3 → 5**.
+
+The `construct` string in the second entry must be the literal `'stripe transport
+import'`, because an entry's `construct` is matched against the `OUTBOUND_CLIENTS` row's
+`name`. That name is now a misnomer: it is the *transport import* row and it guards both
+transports. **Leave the name alone** — the AS-38 falsification recipes quote it — and put
+the misnomer in the new entry's `reason`, where the next reader will meet it.
+
+**Step 2 — the file-count literal, which is not a list of names.** The first draft said
+the four new files are "added to the `SCANNED` literal list". There is no such list:
+`SCANNED` is `[...FILES.source, ...FILES.manifest]` off the `classifyTree` filesystem
+walk, so the new files enter it by existing — which is the whole point of the AS-53
+closed-world walker. What *is* hand-maintained is the closed-world test's pair of
+literals at lines 390–391: `assert.equal(source.length, 63, …)` becomes **67**, and the
+four paths go into the sorted `assert.deepEqual(source, […])` array between
+`'lib/stripe/transport.js'` and `'lib/vendor.js'` — `lib/telemetry/client.js`,
+`lib/telemetry/envelope.js`, `lib/telemetry/schema.js`, `lib/telemetry/transport.js`.
+
+**Step 3 — no new `scanConcept` row.** The first draft asked for one "mirroring the
+existing `stripe transport import` row", which confused two mechanisms: that row is an
+`OUTBOUND_CLIENTS` pattern, not a concept row. Because it already matches any quoted
+`transport.js` in any scanned file, the property "`lib/telemetry/transport.js` is
+imported by `lib/telemetry/client.js` and nowhere else" is enforced for free — a second
+importer is an unsanctioned hit, which is a finding. Adding a concept row would buy
+nothing and would add a third place to keep in sync.
+
+**Two lexical hazards for whoever writes the telemetry modules,** since the scan reads
+strings but not comments: the bare word `fetch` anywhere outside the sanctioned line is a
+finding, *including inside a string literal* (`/\bfetch\b/`), and so is any quoted string
+containing `transport.js` outside `client.js`'s import. Comments are stripped before the
+scan, so prose may say either word freely.
+
+Net effect: the product has **two** egress paths, each with its own chokepoint, each
+pinned to one line — and the count of egress paths remains something a test asserts
+rather than something a reviewer remembers.
 
 **T-B — allow-list cardinality.** For each event type, build a fully populated payload,
 serialize it, recursively flatten it to JSON key paths, and `assert.deepEqual` the
@@ -516,11 +660,28 @@ inheriting task's plan, and satisfied only by an *observed* red):**
 | F3 | Add a second `fetch` in any app file outside the sanctioned line | T-A |
 | F4 | Pass `err.message` through instead of `type` | T-C (message sentinel) |
 | F5 | Point `transport.js` at a host other than the pinned literal | the host-pin assertion |
-| F6 | Delete the `SANCTIONED` entry for the telemetry transport | T-A (stale-entry arm) |
+| F6 | T-A's allow-list, three mutations, each run once per new entry: **(a)** the clean removal — delete the entry *and* decrement the cardinality literal 5 → 4; **(b)** the half-edit — delete the entry, leave the literal at 5; **(c)** keep the entry, rewrite the line it pins | Measured, not predicted (below). **(a)** exactly one: *no app source or manifest outside `test/` contains an outbound HTTP client*, naming the now-unsanctioned line. **(b)** exactly two: that test **and** *every sanctioned construct is present exactly where it is declared*. **(c)** the same two. A red set of any other shape is a finding |
 
 Per the review gate: each mutation is asserted to have applied at the intended site
 before a survivor is called a weak guard, and the exact red set is recorded. A wider
 or narrower red set than the table is itself a finding.
+
+**F6's red sets were measured rather than reasoned, because reasoning got them wrong
+twice.** The corrected T-A was applied end-to-end to a scratch copy of `apps/invoicing` — the
+split, the four `lib/telemetry` modules, both entries, 3 → 5, 63 → 67, 23 → 24 — and the
+result is green: **17 tests, 17 passing** across the three files T-A touches, against the
+same 17 in the untouched baseline. Then F6 was run against that green copy, and the first
+draft of the row above was wrong in both directions: it predicted the cardinality
+assertion for the clean removal, which passes (the literal is decremented along with the
+entry), and it predicted only the stale-entry arm for a rewritten line, which is two reds,
+not one.
+The reason is worth carrying into AS-77, because it generalises: **both tests are backed
+by the same `scanForbidden` walk**, so any mutation that leaves a real `fetch` or
+transport import unsanctioned turns the outbound-client test red *as well as* whatever
+arm it was aimed at. Scripts and transcripts: `scratchpad/agent-cto-owen/AS-76/apply-ta.js`,
+`f6-check.js`, `f6-check-b.js`. Note what this does *not* establish — the scratch modules
+are stubs with the right lexical shape, so this proves the instructions are executable
+and the guard still bites; it proves nothing about the telemetry code AS-77 will write.
 
 **Standing condition.** These tests run under `--network none` like the rest of the
 suite — trivially, because the transport is injected and no test ever reaches a vendor.
@@ -658,6 +819,13 @@ is unset. Ships **before** the first non-employee user. Complexity: **medium** �
 the first second-egress-path in the product and it edits a guard, which is not `low`
 work whatever its line count.
 
+Its plan must open with **T-A step 0**, the `dependency-policy.test.js` split, as its
+own commit with its own green suite *before* a line of telemetry is written: the guard
+file is two lines under a cap it enforces on itself, so the split is a precondition of
+the task, not a cleanup at the end of it. Mixing a ~140-line move into the same commit as
+a new egress path would make the one diff in this task that most needs to be readable
+unreadable.
+
 **AS-78 — PostHog analytics, `apps/invoicing`.** Reuses `transport.js` and the schema
 machinery; adds the core-loop event enum and per-event property key lists; §4.4's
 HMAC actor id and the install salt. **Server-side only.** Ships **after** AS-77 and
@@ -699,3 +867,4 @@ and **product analytics**, §0's definitions verbatim.
 | 1 | 2026-09-13 | Document created. Posture decided for both apps: raw HTTP ingest over vendor SDKs; cloud free tier; additive allow-list enforced by three tests and six falsifiers; `apps/chat` error tracking declined in favour of the existing company event stream, with a named reopening trigger; board ask drafted | AS-76, from board DM msg 521 (2026-09-03) | Owen Kessler, CTO |
 | 2 | 2026-09-13 | **Recorded divergence from AS-76's brief.** The brief scoped AS-79 as Sentry on `apps/chat` + watcher; §2.3 recommends against it and re-scopes the task. Reason: all three silent-failure incidents on the record were *non-events*, which error tracking does not detect by construction. The board is given a one-line override in §6 item 3 rather than having the narrowing applied silently | The design task's job is to decide, including deciding that a presumed instrument is the wrong one — but not to quietly drop something the board asked for | Owen Kessler, CTO |
 | 3 | 2026-09-13 | **Recorded method divergence.** Rule 4's literal command could not be run (no network this session); the closure was resolved offline from the local npm cache instead, and the resulting count is stated as a floor. Cross-checked by re-deriving the app's own recorded 67/69 figure by the same method and matching §13 amendment 8 exactly | §11 rule 4 says the footprint is counted, not assumed; an unrunnable command is not a licence to guess, and a substitute method has to show its own validation | Owen Kessler, CTO |
+| 4 | 2026-09-13 | **Review cycle 1 (`qa-ruben`), six corrections, all in the handoff instructions.** §4.5 T-A rewritten: two `SANCTIONED` entries and the literal 3 → 5, not one and 3 → 4 (the allow-list keys on file + construct + line, and the transport-import row matches *any* quoted `transport.js`); `SCANNED` is a filesystem walk, so the hand-maintained obligation is the source-count literal 63 → 67 and its sorted array, not a "`SCANNED` literal list"; the guard file is 1,198 lines against its own 1,200-line cap, so T-A now opens with a split as step 0 (split, not a raised cap: the 1,200 is stack decision §10.4 item 1 / trigger T7, whose recorded remedy is "Split it"), and F6 was re-stated with the red sets it actually produces. **The corrected T-A was then executed, not just written** — applied end-to-end to a scratch copy, green at 17/17, with F6 measured against it; that run found two further things the rewrite had missed: F6's predicted red sets were wrong in both directions, and the split also owes `test/harness.test.js` its 23 → 24 test-file inventory. §4.2 gained `WebhookEventError`, the sixteenth error class, plus its two extra properties in corollary 2. §4.3's "10" is restated as a floor of 10 with at least 11 known, naming the uncounted site. §3.2's `magic-string` edge was re-attributed to the sibling bundler-plugins package | Every correction is in the part of the document another task executes against verbatim, which is exactly where being nearly right is most expensive: T-A as first written would have failed the suite it was written to extend. Reviewer's method — applying T-A to a scratch copy and counting the reds — is the reason they were found before AS-77 inherited them | Owen Kessler, CTO, on findings from Ruben Ochoa, QA |
