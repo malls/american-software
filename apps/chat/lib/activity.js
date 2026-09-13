@@ -62,7 +62,11 @@ const isToolName = (tool) => typeof tool === 'string' && TOOL_NAME_RE.test(tool)
  *  is one line by definition — an embedded newline would also break the SSE
  *  framing this text is interpolated into. */
 function clean(s) {
-  return String(s).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
+  // Non-strings are EMPTY, never String()-ed: `String(null)` is the four
+  // characters "null", and a `running null` on a lane card is a defect with a
+  // straight face. Every caller below treats '' as "no object".
+  if (typeof s !== 'string') return '';
+  return s.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /** Last path segment, whatever the separator depth. Never returns a leading

@@ -700,6 +700,93 @@ measured problem. The trigger for filing a rotation/compaction task is the file
 passing **8 MiB** or `/api/events` p50 passing **50 ms** — measured, not
 guessed.
 
+## Live tool-level activity (AS-103)
+
+The companion signal to AS-100, and its opposite in every respect that matters.
+AS-100 is **stage-level and persisted** — a company record. This is
+**tool-level and live-only**: while an employee is working, each lane card
+carries a transient `now: reading server.js` line that arrives over the same
+SSE stream and decays when the frames stop. The board's ruling, verbatim: *"tool
+level activity can just be live as it happens, it does not need persistence"*.
+
+**Live-only means live-only.** A frame is fanned out to the connections open at
+that instant and is written **nowhere**: not to the sqlite store, not to
+`events/company.jsonl`, not to any file under `data/`, not to a replay buffer.
+A client that connects a millisecond late learns nothing about it, and a page
+reload starts blank. That is the contract, not a gap — the volume is roughly
+100× the stage stream, the payloads were never decided as company records, and
+a persisted tool log would be a second source of truth competing with AS-100
+under the one-stream-many-projections doctrine.
+
+**The producer** is `bin/activity-hook.mjs`, wired from the top level of
+`.claude/settings.json` by the metawork layer (employees do not edit that file):
+
+```json
+"hooks": { "PreToolUse": [ { "matcher": "*", "hooks": [ { "type": "command",
+  "command": "node /Users/forrest/Code/american-software-company/apps/chat/bin/activity-hook.mjs",
+  "timeout": 2 } ] } ] }
+```
+
+The absolute path is deliberate — a stage sub-agent's cwd is its worktree — and
+the `timeout: 2` is only a backstop, because the script self-bounds at 250 ms.
+It reads one hook payload on stdin, POSTs, and **always exits 0 with both
+streams empty**, including when nothing is listening: a non-zero hook exit can
+block the tool call it is reporting on, and an observability layer that can fail
+a tick is worse than none. `CHAT_ACTIVITY_OFF=1` turns it off; `CHAT_ACTIVITY_URL`
+moves the endpoint (default `http://127.0.0.1:8347/api/activity`). It reads only
+`cwd`, `tool_name` and `tool_input`, so Pre- vs PostToolUse is a settings-only
+flip.
+
+**Two reductions, on purpose.** `lib/activity.js` is pure and is called twice.
+The hook calls `coarseObject()` on the host, in the only process that can see
+the whole tool input, so a command line, a grep pattern or a file body never
+crosses a socket. The server calls `activityText()` again on what arrives — it
+basenames anything absolute, re-takes the first token of anything
+command-shaped, and drops the search pattern outright — so a sloppy producer, or
+a hand-rolled POST to a loopback endpoint, still cannot put an untamed string in
+a browser.
+
+| tool | sentence |
+| --- | --- |
+| `Read` / `Write` / `Edit` | `reading` / `writing` / `editing <path>` — relative to the cwd, basename only outside it, **never absolute** |
+| `Bash` | `running <first token>` — basenamed, ≤ 24 chars |
+| `Grep` / `Glob` | `searching` — the pattern is dropped, not clamped |
+| `Task` | `delegating to <type>` |
+| `WebFetch` | `fetching <host>` |
+| anything else | `using <tool>` |
+
+Text is clamped to 80 characters with control characters and newlines stripped.
+The table never has to be exhaustive: an unlisted tool reduces to its own name
+and carries no object at all.
+
+**`POST /api/activity`** takes `{cwd, tool, object}` and **always answers 200**
+with `{activity: {accepted, reason, key, delivered}}`, so the hook never has a
+reason to retry:
+
+| reason | meaning |
+| --- | --- |
+| `ok` | fanned out; `delivered` counts the connections written to (0 is fine) |
+| `throttled` | another frame reached this lane under 200 ms ago — **dropped, never queued** |
+| `no-lane` | the cwd is not inside a `.worktrees/AS-<n>` directory |
+| `bad-tool` / `bad-object` | the body is not a tool call this endpoint will speak for |
+
+`GET /api/activity` **404s**: there is nothing here to read, because the frame
+exists nowhere a later reader could find it.
+
+**Attribution is derived, never asserted.** The frame carries exactly
+`{key, text, at}` — no employee field. The lane key comes from matching
+`.worktrees/<seg>` as a path **segment** rather than an absolute prefix (the
+hook runs on the host, the server reads the value inside a container over a bind
+mount, and the two paths share no prefix), and the card already names that
+lane's assignee from `/api/lanes`. A cwd outside any worktree — the
+orchestrator, a live metawork session — has no card to land on and is dropped.
+
+**Client:** `state.activity` in `public/app.js`, keyed by lane, fed by the
+`activity` listener and by nothing else — no fetch, no localStorage, no
+on-connect replay. `describeActivity` in `public/lanes.js` decides the three
+states (`live`, `decayed` past `ACTIVITY_DECAY_MS` = 15 s, `blank`). Decay can
+lag by up to the 15 s render tick; that is accepted, and buys no new timer.
+
 ## CLI (for agents; works with the server container stopped)
 
 ```sh
