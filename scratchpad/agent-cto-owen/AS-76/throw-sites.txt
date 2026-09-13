@@ -1,0 +1,78 @@
+files scanned: 55
+throw new *Error( sites: 185
+of which interpolate a runtime value into the message: 60
+
+--- the interpolating sites ---
+lib/auth/accounts.js:48: if (typeof value !== 'string' || value.trim() === '') throw new AuthError('missing-field', `missing-field: ${field}`);
+lib/auth/password.js:106: if (fields.length !== 4) throw new TypeError(`hash: expected 4 $-separated fields, got ${fields.length}`);
+lib/auth/password.js:108: if (algorithm !== ALGORITHM) throw new TypeError(`hash: algorithm must be ${ALGORITHM}, got ${algorithm}`);
+lib/auth/password.js:110: if (match === null) throw new TypeError(`hash: parameters must match N=…,r=…,p=…,l=…, got ${paramText}`);
+lib/auth/password.js:112: if (!Number.isInteger(Math.log2(N)) || N < 1024 || N > 1048576) throw new TypeError(`hash: N must be a power of two in 2^10…2^20, got ${N}`);
+lib/auth/password.js:113: if (r < 1 || r > 32) throw new TypeError(`hash: r must be in 1…32, got ${r}`);
+lib/auth/password.js:114: if (p < 1 || p > 16) throw new TypeError(`hash: p must be in 1…16, got ${p}`);
+lib/auth/password.js:115: if (l < 16 || l > 64) throw new TypeError(`hash: l must be in 16…64, got ${l}`);
+lib/auth/password.js:116: if (128 * N * r > MAX_DERIVATION_BYTES) throw new TypeError(`hash: 128*N*r exceeds the ${MAX_DERIVATION_BYTES}-byte bound`);
+lib/auth/password.js:120: if (key.length !== l) throw new TypeError(`hash: key is ${key.length} bytes, parameters say ${l}`);
+lib/config.js:79: if (!/^-?\d+$/.test(value)) throw new ConfigError(row.envVar, `expected an integer, got ${JSON.stringify(raw)}`);
+lib/config.js:81: if (row.min !== undefined && n < row.min) throw new ConfigError(row.envVar, `must be >= ${row.min}, got ${n}`);
+lib/config.js:82: if (row.max !== undefined && n > row.max) throw new ConfigError(row.envVar, `must be <= ${row.max}, got ${n}`);
+lib/config.js:87: throw new ConfigError(row.envVar, `must be one of ${row.values.join(', ')}, got ${JSON.stringify(raw)}`);
+lib/config.js:95: if (!value.startsWith('/')) throw new ConfigError(row.envVar, `must be an absolute path, got ${JSON.stringify(raw)}`);
+lib/config.js:106: throw new ConfigError(row.envVar, `expected an absolute http(s) origin, got ${JSON.stringify(raw)}`);
+lib/config.js:108: if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new ConfigError(row.envVar, `must be http: or https:, got ${JSON.stringify(raw)}`);
+lib/config.js:112: throw new ConfigError(row.envVar, `must be a bare origin with no path and no trailing slash, got ${JSON.stringify(raw)}`);
+lib/config.js:119: throw new ConfigError(row.envVar, `unknown schema type ${JSON.stringify(row.type)}`);
+lib/connect/readiness.js:36: throw new TypeError(`readiness: account.${field} is not a boolean — not a shape this app understands`);
+lib/contracts/generation.js:49: throw new ValidationError(variable.name, `must be at most ${limit} characters, got ${raw.length}`);
+lib/contracts/generation.js:86: throw new ValidationError(key, `unknown field; known: ${[...formNames].join(', ')}`);
+lib/contracts/generation.js:110: throw new NotFoundError('template variable', `${template.id}.${name}`);
+lib/contracts/render.js:85: throw new ValidationError(field, `must be a real calendar date, not ${value}`);
+lib/contracts/templates.js:63: throw new TypeError(`contract template: ${message}`);
+lib/db/database.js:57: throw new Error(`cannot open database ${config.dbPath}: ${err.message}`, { cause: err });
+lib/db/errors.js:170: throw new ValidationError(field, `must be an email address: one @, no whitespace, at most ${EMAIL_MAX} characters`);
+lib/db/errors.js:202: throw new ValidationError(field, `must be a Stripe id starting with ${prefix}`);
+lib/db/errors.js:219: if (!allowed.includes(key)) throw new ValidationError(`${field}.${key}`, `unknown field; known: ${allowed.join(', ')}`);
+lib/db/migrate.js:25: throw new MigrationError(`MIGRATIONS[${index}] has version ${m.version}; versions must be 1..n contiguous — refusing to load`);
+lib/db/migrate.js:28: throw new MigrationError(`migration ${m.version} needs a unique non-empty name — refusing to load`);
+lib/db/migrate.js:31: throw new MigrationError(`migration ${m.version} (${m.name}) has an empty up — refusing to load`);
+lib/db/migrate.js:82: throw new MigrationError(`database is at schema version ${row.version}, this build knows ${known}`);
+lib/db/migrate.js:86: throw new MigrationError(`migration ${row.version} is recorded as '${row.name}' but this build has '${expected?.name ?? '(none)'}'`);
+lib/db/money.js:45: throw new ValidationError('currency', `unsupported currency; supported: ${SUPPORTED_CURRENCIES.join(', ')}`);
+lib/db/repositories/clients.js:117: throw new InvalidStateError(`client ${id} already has Stripe customer ${current.stripeCustomerId}`);
+lib/db/repositories/credentials.js:38: throw new ValidationError('passwordHash', `must be an encoded hash starting with ${ENCODED_PREFIX}`);
+lib/db/repositories/invoices.js:232: throw new InvalidStateError(`invoice ${row.id} is ${row.status}${attached}; only a local draft can be edited`);
+lib/db/repositories/invoices.js:243: throw new InvalidStateError(`invoice ${id} already has Stripe invoice ${current.stripeInvoiceId} attached`);
+lib/db/repositories/invoices.js:277: throw new ValidationError('snapshot.status', `unknown status; known: ${Object.keys(STATUS_RANK).join(', ')}`);
+lib/invoices/lifecycle.js:223: throw new ValidationError(`lineItems[${item.position}]`, 'quantity times unit price is not a representable integer');
+lib/invoices/lifecycle.js:347: throw new InvalidStateError(`invoice ${invoice.id} is ${invoice.status}; only a draft or open invoice can be issued`);
+lib/invoices/mapping.js:53: if (typeof value !== 'string') throw new TypeError(`invoice mapping: ${field} is not a string or null`);
+lib/invoices/mapping.js:61: if (!Number.isSafeInteger(value)) throw new TypeError(`invoice mapping: ${field} is not an integer of minor units`);
+lib/invoices/mapping.js:77: if (!Number.isSafeInteger(value)) throw new TypeError(`invoice mapping: ${field} is not an epoch-seconds integer`);
+lib/invoices/mapping.js:79: if (Number.isNaN(at.getTime())) throw new TypeError(`invoice mapping: ${field} is not a representable date`);
+lib/screens/dashboard-view.js:111: throw new TypeError(`dashboardLocals: ${what} id ${JSON.stringify(id)} does not match UUID_SHAPE, so its View control could never pass the redirector`);
+lib/screens/dates.js:37: throw new TypeError(`formatDate: expected a UTC ISO-8601 timestamp, got ${JSON.stringify(iso)}`);
+lib/screens/dates.js:41: if (Number.isNaN(date.getTime())) throw new TypeError(`formatDate: not a real date: ${iso}`);
+lib/screens/invoice-detail-view.js:108: throw new TypeError(`badgeFor: unknown invoice status ${JSON.stringify(invoice.status)}; known: ${Object.keys(STATUS_BADGES).join(', ')}`);
+lib/stripe/client.js:79: if (!Number.isFinite(value)) throw new TypeError(`stripe: cannot encode non-finite number at ${key}`);
+lib/stripe/client.js:87: throw new TypeError(`stripe: cannot encode a ${describe(value)} at ${key}`);
+lib/stripe/client.js:125: throw new TypeError(`stripe: baseUrl is not a URL: ${JSON.stringify(baseUrl)}`, { cause: err });
+lib/stripe/client.js:150: if (!CALL_FIELDS.has(field)) throw new TypeError(`stripe: unknown call field ${JSON.stringify(field)}`);
+lib/stripe/client.js:153: if (!METHODS.has(method)) throw new TypeError(`stripe: method must be GET or POST, got ${JSON.stringify(method)}`);
+lib/stripe/client.js:154: if (typeof path !== 'string' || !PATH.test(path)) throw new TypeError(`stripe: path must be a bare /v1 path, got ${JSON.stringify(path)}`);
+lib/stripe/custody.js:114: throw new Error(`CUSTODY: ALLOWED_ENDPOINTS row ${row.method} ${row.path} matches forbidden prefix ${prefix} — refusing to load`);
+routes/invoices.js:115: if (!allowed.includes(key)) throw new ValidationError(`${field}.${key}`, `unknown field; known: ${allowed.join(', ')}`);
+routes/invoices.js:134: if (!DIGITS.test(key)) throw new ValidationError(`lineItems[${key}]`, 'must be indexed by whole numbers');
+routes/invoices.js:143: throw new ValidationError('lineItems', `must be at most ${MAX_LINE_ITEMS} items, got ${entries.length}`);
+
+--- sites interpolating a DENY-LISTED value ---
+lib/config.js:79: if (!/^-?\d+$/.test(value)) throw new ConfigError(row.envVar, `expected an integer, got ${JSON.stringify(raw)}`);
+lib/config.js:87: throw new ConfigError(row.envVar, `must be one of ${row.values.join(', ')}, got ${JSON.stringify(raw)}`);
+lib/config.js:95: if (!value.startsWith('/')) throw new ConfigError(row.envVar, `must be an absolute path, got ${JSON.stringify(raw)}`);
+lib/config.js:106: throw new ConfigError(row.envVar, `expected an absolute http(s) origin, got ${JSON.stringify(raw)}`);
+lib/config.js:108: if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new ConfigError(row.envVar, `must be http: or https:, got ${JSON.stringify(raw)}`);
+lib/config.js:112: throw new ConfigError(row.envVar, `must be a bare origin with no path and no trailing slash, got ${JSON.stringify(raw)}`);
+lib/contracts/render.js:85: throw new ValidationError(field, `must be a real calendar date, not ${value}`);
+lib/db/database.js:57: throw new Error(`cannot open database ${config.dbPath}: ${err.message}`, { cause: err });
+lib/db/repositories/clients.js:117: throw new InvalidStateError(`client ${id} already has Stripe customer ${current.stripeCustomerId}`);
+lib/db/repositories/invoices.js:243: throw new InvalidStateError(`invoice ${id} already has Stripe invoice ${current.stripeInvoiceId} attached`);
+count: 10
