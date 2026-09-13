@@ -1,0 +1,77 @@
+cacache: 431 distinct name@version manifests recoverable offline
+
+=== @sentry/node@10.68.0 ===
+closure size (distinct name@version, incl. root): 32
+transitive (excl. root): 31
+packed tarball bytes (sum): 6580202 (6.28 MB packed)
+unresolved deps in cache: @types/estree (required by @apm-js-collab/code-transformer@0.18.1)
+licences:
+   16  MIT
+   12  Apache-2.0
+    2  BSD-3-Clause
+    1  BSD-2-Clause
+    1  ISC
+members:
+  @apm-js-collab/code-transformer-bundler-plugins@0.7.1
+  @apm-js-collab/code-transformer@0.18.1
+  @apm-js-collab/tracing-hooks@0.13.0
+  @jridgewell/sourcemap-codec@1.5.5
+  @opentelemetry/api-logs@0.220.0
+  @opentelemetry/api@1.9.1
+  @opentelemetry/core@2.10.0
+  @opentelemetry/instrumentation@0.220.0
+  @opentelemetry/resources@2.10.0
+  @opentelemetry/sdk-trace-base@2.10.0
+  @opentelemetry/sdk-trace@2.10.0
+  @opentelemetry/semantic-conventions@1.43.0
+  @sentry/conventions@0.16.0
+  @sentry/core@10.68.0
+  @sentry/node-core@10.68.0
+  @sentry/node@10.68.0
+  @sentry/opentelemetry@10.68.0
+  @sentry/server-utils@10.68.0
+  astring@1.9.0
+  cjs-module-lexer@2.2.0
+  debug@4.4.3
+  es-module-lexer@2.3.1
+  esquery@1.7.0
+  estraverse@5.3.0
+  import-in-the-middle@3.3.2
+  magic-string@0.30.21
+  meriyah@6.1.4
+  module-details-from-path@1.0.4
+  ms@2.1.3
+  require-in-the-middle@8.0.1
+  semifies@1.0.0
+  source-map@0.6.1
+
+=== posthog-node@5.51.1 ===
+closure size (distinct name@version, incl. root): 3
+transitive (excl. root): 2
+packed tarball bytes (sum): 572559 (0.55 MB packed)
+unresolved deps in cache: none
+licences:
+    3  MIT
+members:
+  @posthog/core@1.48.10
+  @posthog/types@1.405.2
+  posthog-node@5.51.1
+
+=== union (@sentry/node + posthog-node) ===
+distinct name@version: 35
+overlap between the two SDK trees: 0
+
+=== apps/invoicing today, re-derived from package-lock.json ===
+instances on disk: 69
+distinct name@version: 67
+distinct names: 66
+licences (instance-level): {"MIT":63,"Apache-2.0":1,"ISC":4,"BSD-3-Clause":1}
+(expected, per 01-stack-decision.md §13 amendment 8: 69 instances, 67 distinct,
+ 63 MIT / 4 ISC / 1 Apache-2.0 / 1 BSD-3-Clause instance-level)
+
+=== adopting both SDKs ===
+SDK-tree packages: 35
+name already present in the app tree: 2 | identical name@version: 2
+version clashes (a second instance on disk): none
+distinct name@version after adoption: 67 -> 100
+net new: +33 (+49%)
