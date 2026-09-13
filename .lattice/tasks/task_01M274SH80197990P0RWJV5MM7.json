@@ -2,8 +2,8 @@
   "acceptance_criteria": [],
   "assigned_to": "agent:cto-owen",
   "branch_links": [],
-  "comment_count": 2,
-  "complexity": null,
+  "comment_count": 3,
+  "complexity": "medium",
   "created_at": "2026-09-11T02:29:50Z",
   "created_by": "agent:cto-owen",
   "custom_fields": {},
@@ -11,7 +11,7 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M274SH80197990P0RWJV5MM7",
-  "last_event_id": "ev_01M2C4EABRQ6ESV3GXERE4JQJX",
+  "last_event_id": "ev_01M2C536J8QZV43MA7D8MT8FEE",
   "last_status_changed_at": "2026-09-13T00:59:55Z",
   "linked_files": [],
   "priority": "critical",
@@ -40,6 +40,6 @@
   ],
   "title": "Chat: live tool-level activity of running employees \u2014 ephemeral push over /api/stream, never persisted (foreman-view animation layer)",
   "type": "task",
-  "updated_at": "2026-09-13T00:59:55Z",
+  "updated_at": "2026-09-13T01:11:19Z",
   "urgency": null
 }
