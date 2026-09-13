@@ -213,6 +213,15 @@ async function collector(t, { status = 200, delayMs = 0 } = {}) {
   };
 }
 
+/** A generous self-bound, for the cases whose subject is the POST BODY rather
+ *  than the stopwatch. In the container the FIRST spawn of the hook pays a cold
+ *  module-load cost that lands within tens of milliseconds of the production
+ *  250 ms, and a test about which bytes cross the socket must not be decided by
+ *  that. The same shape as server.js's injected poll cadences. The two cases
+ *  whose subject IS the bound — the no-listener and the stalled-listener runs —
+ *  deliberately do NOT pass this. */
+const SLOW = { CHAT_ACTIVITY_DEADLINE_MS: '5000' };
+
 /** The child's environment, with the two variables this script reads DELETED
  *  before the test's own are applied — an ambient CHAT_ACTIVITY_OFF in the
  *  runner's shell would otherwise silently pass the "posts nothing" cases. */
@@ -220,8 +229,19 @@ function childEnv(over) {
   const env = { ...process.env };
   delete env.CHAT_ACTIVITY_URL;
   delete env.CHAT_ACTIVITY_OFF;
+  delete env.CHAT_ACTIVITY_DEADLINE_MS;
   return { ...env, ...over };
 }
+
+test('AC-12 hook: 250 ms is the pinned production self-bound', async () => {
+  // The override above is a test knob, and a test knob is only honest if the
+  // shipped default is pinned literally — the same rule api.test.js applies to
+  // LOOP_POLL_MS / LANES_POLL_MS / EVENTS_POLL_MS.
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(HOOK, 'utf8');
+  assert.match(src, /Number\(process\.env\.CHAT_ACTIVITY_DEADLINE_MS\) \|\| 250/,
+    'the production default is 250 ms and the env var is only a fallback source');
+});
 
 /** Run the hook as the harness runs it: a child process, one JSON document on
  *  stdin, nothing else. Returns the exit code, both streams, and wall clock. */
@@ -256,7 +276,7 @@ const preToolUse = (over = {}) => JSON.stringify({
 
 test('AC-12 hook: a PreToolUse payload becomes exactly one POST of {cwd,tool,object}, exit 0, both streams empty', async (t) => {
   const sink = await collector(t);
-  const run = await runHook(preToolUse(), { CHAT_ACTIVITY_URL: sink.url });
+  const run = await runHook(preToolUse(), { CHAT_ACTIVITY_URL: sink.url, ...SLOW });
   const hit = await sink.next();
 
   assert.equal(run.code, 0, 'rule 1: always exit 0');
@@ -281,7 +301,7 @@ test('AC-12 hook: the reduction happens at the SOURCE — no command line, patte
   const secret = `/usr/local/bin/docker compose -f x.yaml up --build --env TOKEN=sk_live_${'9'.repeat(40)}`;
   await runHook(
     preToolUse({ tool_name: 'Bash', tool_input: { command: secret } }),
-    { CHAT_ACTIVITY_URL: sink.url }
+    { CHAT_ACTIVITY_URL: sink.url, ...SLOW }
   );
   const bash = await sink.next();
   assert.deepEqual(JSON.parse(bash.raw), { cwd: HOST_CWD, tool: 'Bash', object: 'docker' });
@@ -290,7 +310,7 @@ test('AC-12 hook: the reduction happens at the SOURCE — no command line, patte
   const sink2 = await collector(t);
   await runHook(
     preToolUse({ tool_name: 'Grep', tool_input: { pattern: 'AWS_SECRET_ACCESS_KEY=(.*)', path: '/etc' } }),
-    { CHAT_ACTIVITY_URL: sink2.url }
+    { CHAT_ACTIVITY_URL: sink2.url, ...SLOW }
   );
   const grep = await sink2.next();
   assert.deepEqual(JSON.parse(grep.raw), { cwd: HOST_CWD, tool: 'Grep', object: null });
@@ -302,7 +322,7 @@ test('AC-14 hook: PostToolUse and PreToolUse fixtures produce a byte-identical b
   // cwd / tool_name / tool_input and nothing else, so the two events differ
   // only in fields it never touches.
   const sinkPre = await collector(t);
-  await runHook(preToolUse(), { CHAT_ACTIVITY_URL: sinkPre.url });
+  await runHook(preToolUse(), { CHAT_ACTIVITY_URL: sinkPre.url, ...SLOW });
   const pre = await sinkPre.next();
 
   const sinkPost = await collector(t);
@@ -311,7 +331,7 @@ test('AC-14 hook: PostToolUse and PreToolUse fixtures produce a byte-identical b
       hook_event_name: 'PostToolUse',
       tool_response: { type: 'text', file: { numLines: 1200, content: 'the whole file body' } },
     }),
-    { CHAT_ACTIVITY_URL: sinkPost.url }
+    { CHAT_ACTIVITY_URL: sinkPost.url, ...SLOW }
   );
   const post = await sinkPost.next();
 
@@ -348,7 +368,7 @@ test('AC-12 hook: garbage, empty and 1 MB stdin all exit 0 silently and post not
     ['1 MB', 'x'.repeat(1_000_000)],
   ];
   for (const [label, stdin] of cases) {
-    const run = await runHook(stdin, { CHAT_ACTIVITY_URL: sink.url });
+    const run = await runHook(stdin, { CHAT_ACTIVITY_URL: sink.url, ...SLOW });
     assert.equal(run.code, 0, `${label}: exit 0`);
     assert.equal(run.out, '', `${label}: silent stdout`);
     assert.equal(run.err, '', `${label}: silent stderr`);
@@ -362,7 +382,7 @@ test('AC-13 hook: CHAT_ACTIVITY_OFF=1 exits 0 and posts nothing', async (t) => {
   // M12's subject. The kill switch is read before stdin, so it also proves the
   // script cannot be kept alive by a payload it was told not to send.
   const sink = await collector(t);
-  const off = await runHook(preToolUse(), { CHAT_ACTIVITY_URL: sink.url, CHAT_ACTIVITY_OFF: '1' });
+  const off = await runHook(preToolUse(), { CHAT_ACTIVITY_URL: sink.url, CHAT_ACTIVITY_OFF: '1', ...SLOW });
   assert.equal(off.code, 0);
   assert.equal(off.out, '');
   assert.equal(off.err, '');
@@ -371,7 +391,7 @@ test('AC-13 hook: CHAT_ACTIVITY_OFF=1 exits 0 and posts nothing', async (t) => {
 
   // …and the switch is exactly '1', not "any truthy value": a stale
   // CHAT_ACTIVITY_OFF=0 in an environment must not silently disable the layer.
-  const on = await runHook(preToolUse(), { CHAT_ACTIVITY_URL: sink.url, CHAT_ACTIVITY_OFF: '0' });
+  const on = await runHook(preToolUse(), { CHAT_ACTIVITY_URL: sink.url, CHAT_ACTIVITY_OFF: '0', ...SLOW });
   assert.equal(on.code, 0);
   await sink.next();
   assert.equal(sink.seen.length, 1);
@@ -379,7 +399,7 @@ test('AC-13 hook: CHAT_ACTIVITY_OFF=1 exits 0 and posts nothing', async (t) => {
 
 test('AC-12 hook: a non-2xx answer is still exit 0 and silent (the producer never interprets the reply)', async (t) => {
   const sink = await collector(t, { status: 500 });
-  const run = await runHook(preToolUse(), { CHAT_ACTIVITY_URL: sink.url });
+  const run = await runHook(preToolUse(), { CHAT_ACTIVITY_URL: sink.url, ...SLOW });
   await sink.next();
   assert.equal(run.code, 0);
   assert.equal(run.out, '');

@@ -27,8 +27,15 @@
 
 import { coarseObject } from '../lib/activity.js';
 
-/** The wall-clock bound this script promises the harness. */
-const DEADLINE_MS = 250;
+/** The wall-clock bound this script promises the harness. 250 ms in production,
+ *  always — the override exists for the SUITE, in the same shape and for the
+ *  same reason as server.js's LOOP_POLL_MS / LANES_POLL_MS / EVENTS_POLL_MS: a
+ *  test whose subject is the POST BODY must not be decided by a stopwatch. In
+ *  the container the first spawn of this script pays a cold module-load cost
+ *  that puts it within a few tens of milliseconds of 250, so those tests raise
+ *  the bound and the test whose subject IS the bound keeps the default. The
+ *  production value is pinned in test/activity.test.js. */
+const DEADLINE_MS = Number(process.env.CHAT_ACTIVITY_DEADLINE_MS) || 250;
 
 /** Loopback only, and the same port the compose file publishes. Overridable so
  *  the test battery can point a spawned child at an ephemeral port. */
