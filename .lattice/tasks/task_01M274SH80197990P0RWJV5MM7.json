@@ -1,6 +1,6 @@
 {
   "acceptance_criteria": [],
-  "assigned_to": null,
+  "assigned_to": "agent:cto-owen",
   "branch_links": [],
   "comment_count": 2,
   "complexity": null,
@@ -11,8 +11,8 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M274SH80197990P0RWJV5MM7",
-  "last_event_id": "ev_01M27F0RD500VZ1BP7NSJ0MTCQ",
-  "last_status_changed_at": "2026-09-11T02:29:50Z",
+  "last_event_id": "ev_01M2C4EABRQ6ESV3GXERE4JQJX",
+  "last_status_changed_at": "2026-09-13T00:59:55Z",
   "linked_files": [],
   "priority": "critical",
   "relationships_out": [
@@ -34,12 +34,12 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-103",
-  "status": "backlog",
+  "status": "in_planning",
   "tags": [
     "chat"
   ],
   "title": "Chat: live tool-level activity of running employees \u2014 ephemeral push over /api/stream, never persisted (foreman-view animation layer)",
   "type": "task",
-  "updated_at": "2026-09-11T05:28:33Z",
+  "updated_at": "2026-09-13T00:59:55Z",
   "urgency": null
 }
