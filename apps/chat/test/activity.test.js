@@ -222,6 +222,18 @@ async function collector(t, { status = 200, delayMs = 0 } = {}) {
  *  deliberately do NOT pass this. */
 const SLOW = { CHAT_ACTIVITY_DEADLINE_MS: '5000' };
 
+/** The stopwatch bound for the two cases whose subject is termination. What is
+ *  being asserted is that the hook ENDS rather than hangs — not that it is fast.
+ *  The production self-bound (250 ms) is pinned literally below and driven
+ *  through CHAT_ACTIVITY_DEADLINE_MS; what is left in a spawn-to-exit
+ *  measurement is node's own cold start, which under amd64 emulation on a loaded
+ *  runner is the dominant term. A 1 s bound measured that start rather than the
+ *  hook and failed 1 run in 17 at 1086 ms. This is a hang detector: it sits
+ *  below the 5 s stall the stalled-listener case serves — so abandoning a
+ *  silent server is still what that test proves — and far below the harness's
+ *  own timeout. */
+const WALL_CLOCK_MAX_MS = 4_000;
+
 /** The child's environment, with the two variables this script reads DELETED
  *  before the test's own are applied — an ambient CHAT_ACTIVITY_OFF in the
  *  runner's shell would otherwise silently pass the "posts nothing" cases. */
@@ -339,14 +351,14 @@ test('AC-14 hook: PostToolUse and PreToolUse fixtures produce a byte-identical b
   assert.ok(!post.raw.includes('the whole file body'), 'a PostToolUse response body is never read');
 });
 
-test('AC-12 hook: nothing listening — exit 0, silent, and under a second of wall clock', async () => {
+test('AC-12 hook: nothing listening — exit 0, silent, and it terminates rather than hanging', async () => {
   // M11's subject. The port is bound to nothing: fetch rejects with
   // ECONNREFUSED, and the .catch() is the whole of "always exit 0" here.
   const run = await runHook(preToolUse(), { CHAT_ACTIVITY_URL: 'http://127.0.0.1:1/api/activity' });
   assert.equal(run.code, 0, 'a chat server that is down must never fail a tool call');
   assert.equal(run.out, '');
   assert.equal(run.err, '');
-  assert.ok(run.ms < 1000, `wall clock ${run.ms}ms < 1000ms`);
+  assert.ok(run.ms < WALL_CLOCK_MAX_MS, `wall clock ${run.ms}ms < ${WALL_CLOCK_MAX_MS}ms`);
 });
 
 test('AC-12 hook: a server that never answers is abandoned at the deadline, still exit 0 and silent', async (t) => {
@@ -355,7 +367,8 @@ test('AC-12 hook: a server that never answers is abandoned at the deadline, stil
   const run = await runHook(preToolUse(), { CHAT_ACTIVITY_URL: sink.url });
   assert.equal(run.code, 0);
   assert.equal(run.err, '');
-  assert.ok(run.ms < 1500, `wall clock ${run.ms}ms — the script self-bounds well under the harness timeout`);
+  assert.ok(run.ms < WALL_CLOCK_MAX_MS,
+    `wall clock ${run.ms}ms — the script abandoned the 5 s stall instead of waiting for it`);
 });
 
 test('AC-12 hook: garbage, empty and 1 MB stdin all exit 0 silently and post nothing', async (t) => {
