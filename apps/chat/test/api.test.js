@@ -2,7 +2,7 @@
 // repoRoot points at the fixture .lattice/ so lattice behavior is deterministic.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, cpSync, writeFileSync, mkdirSync, symlinkSync, linkSync, unlinkSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, cpSync, writeFileSync, mkdirSync, symlinkSync, linkSync, unlinkSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { createChatServer, LOOP_POLL_MS, LANES_POLL_MS, EVENTS_POLL_MS, composeBuild } from '../server.js';
 import { makeEvent, serialiseEvent, EVENT_SHAPES, ENVELOPE_KEYS } from '../lib/events.js';
 import { LANES_STALE_MS, LANE_WORKTREE_KEYS } from '../lib/lanes.js';
+import { ACTIVITY_MIN_INTERVAL_MS } from '../lib/activity.js';
 import { describeLanes, EMPTY_STATES } from '../public/lanes.js';
 import { DEFAULTS } from '../watch/advance-watcher.mjs';
 
@@ -2529,4 +2530,204 @@ test('api: AS-100 — EVENTS_POLL_MS is the pinned production cadence', async ()
   assert.equal(EVENTS_POLL_MS, 2_000);
   const server = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
   assert.match(server, /eventsPollMs = EVENTS_POLL_MS/, 'the default is the exported constant');
+});
+
+// --- AS-103: POST /api/activity, the endpoint contract ------------------------
+// The fan-out itself lives in stream.test.js (it needs open connections). What
+// is asserted here is the DECISION the endpoint returns and, above all, that
+// nothing it does reaches disk: /api/activity is the only endpoint in this
+// server whose whole job is to leave no trace.
+
+/** The body the hook posts. Named so every case below reads as a delta. */
+const activityBody = (over = {}) => ({
+  cwd: '/Users/forrest/Code/american-software-company/.worktrees/AS-103',
+  tool: 'Read',
+  object: 'apps/chat/server.js',
+  ...over,
+});
+
+test('api: AS-103 — every outcome answers 200 with a decision the producer never has to retry', async (t) => {
+  const { post } = await bootServer(t);
+
+  // AC-11: accepted with zero open connections. `delivered: 0` is a count, not
+  // a failure — there was nobody to tell, and a live-only frame has no queue to
+  // wait in.
+  const ok = await post('/api/activity', activityBody());
+  assert.equal(ok.status, 200);
+  assert.deepEqual(Object.keys(ok.data), ['activity']);
+  assert.deepEqual(ok.data.activity, { accepted: true, reason: 'ok', key: 'AS-103', delivered: 0 });
+
+  // AC-5 through the endpoint: no worktree in the cwd, no lane, no frame.
+  const main = await post('/api/activity', activityBody({ cwd: '/Users/forrest/Code/american-software-company' }));
+  assert.equal(main.status, 200);
+  assert.deepEqual(main.data.activity, { accepted: false, reason: 'no-lane', key: null, delivered: 0 });
+
+  // The container path derives the same lane as the host path — the bind-mount
+  // case, asserted here as well as in the unit battery because this is the code
+  // path that actually runs in production.
+  const container = await post('/api/activity', activityBody({ cwd: '/app/.worktrees/AS-103' }));
+  assert.equal(container.data.activity.key, 'AS-103');
+});
+
+test('api: AS-103 — malformed bodies answer 200 with a reason and deliver nothing', async (t) => {
+  // M9's subject. Each case is a body a buggy producer (or a hand-rolled POST)
+  // could actually send; none of them may 400, throw, or reach a browser.
+  const { post } = await bootServer(t);
+  const cases = [
+    ['tool absent', activityBody({ tool: undefined }), 'bad-tool'],
+    ['tool 200 chars', activityBody({ tool: 'A'.repeat(200) }), 'bad-tool'],
+    ['tool not a string', activityBody({ tool: 42 }), 'bad-tool'],
+    ['tool with punctuation', activityBody({ tool: 'Read; DROP TABLE messages' }), 'bad-tool'],
+    ['empty object body', {}, 'bad-tool'],
+    ['object numeric', activityBody({ object: 7 }), 'bad-object'],
+    ['object an object', activityBody({ object: { file_path: '/etc/passwd' } }), 'bad-object'],
+  ];
+  for (const [label, body, reason] of cases) {
+    const res = await post('/api/activity', body);
+    assert.equal(res.status, 200, `${label}: 200, never a 4xx the hook would have to interpret`);
+    assert.equal(res.data.activity.reason, reason, label);
+    assert.equal(res.data.activity.accepted, false, label);
+    assert.equal(res.data.activity.delivered, 0, label);
+    assert.equal(res.data.activity.key, null, label);
+  }
+  // A body with no cwd at all is a lane miss, not a crash.
+  const noCwd = await post('/api/activity', { tool: 'Read', object: null });
+  assert.equal(noCwd.data.activity.reason, 'no-lane');
+});
+
+test('api: AS-103 — GET /api/activity 404s; there is nothing here to read', async (t) => {
+  // M10's subject. The endpoint is write-only BY CONSTRUCTION: the frames it
+  // fans out are not stored anywhere a reader could reach, so a GET that
+  // answered anything at all would be claiming a history that does not exist.
+  const { base, get } = await bootServer(t);
+  const g = await get('/api/activity');
+  assert.equal(g.status, 404);
+  assert.match(g.data.error, /No such endpoint: GET \/api\/activity/);
+
+  for (const method of ['PUT', 'DELETE', 'PATCH']) {
+    const res = await fetch(`${base}/api/activity`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(activityBody()),
+    });
+    assert.equal(res.status, 404, `${method} /api/activity`);
+  }
+});
+
+test('api: AS-103 — the throttle is per lane: one lane drops the second frame, another lane does not', async (t) => {
+  // M8's subject, driven at the endpoint because the DECISION is the property —
+  // stream.test.js proves the same rule again at the wire.
+  const { post } = await bootServer(t);
+  const first = await post('/api/activity', activityBody());
+  const second = await post('/api/activity', activityBody({ object: 'lib/store.js' }));
+  assert.equal(first.data.activity.reason, 'ok');
+  assert.equal(second.data.activity.reason, 'throttled', 'inside the window, on the same lane');
+  assert.equal(second.data.activity.accepted, false);
+  assert.equal(second.data.activity.delivered, 0);
+  assert.equal(second.data.activity.key, 'AS-103', 'a throttled frame still names the lane it was for');
+
+  // A DIFFERENT lane in the same window is unaffected — the throttle is a
+  // per-lane Map, not one global timestamp.
+  const other = await post('/api/activity', activityBody({ cwd: '/repo/.worktrees/AS-7' }));
+  assert.equal(other.data.activity.reason, 'ok');
+  assert.equal(other.data.activity.key, 'AS-7');
+
+  // Past the window, the first lane accepts again: the window is a gap between
+  // deliveries, not a quota, and nothing was queued in the meantime.
+  await new Promise((ok) => setTimeout(ok, ACTIVITY_MIN_INTERVAL_MS + 80));
+  const third = await post('/api/activity', activityBody());
+  assert.equal(third.data.activity.reason, 'ok');
+});
+
+test('api: AS-103 — a 50-frame burst adds no sqlite row and no file, and leaves the AS-100 stream byte-identical', async (t) => {
+  // AC-2, the headline, and M2's subject. This is the criterion the board's own
+  // words are quoted for: "tool level activity can just be live as it happens,
+  // it does not need persistence".
+  const dir = mkdtempSync(join(tmpdir(), 'chat-activity-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dataDir = join(dir, 'loop-data');
+  mkdirSync(join(dataDir, 'events'), { recursive: true });
+  const streamPath = join(dataDir, 'events', 'company.jsonl');
+  // A NON-EMPTY AS-100 stream, so "unchanged" is a real comparison rather than
+  // the vacuous one an absent file would give.
+  writeFileSync(streamPath, `${serialiseEvent(makeEvent({
+    type: 'stage_started',
+    actor: 'agent:developer-marcus',
+    taskId: null,
+    data: {
+      task: 'AS-103', stage: 'implement', actor: 'agent:developer-marcus',
+      worktree: '.worktrees/AS-103', branch: 'feat/AS-103-live-activity', cycle: 1,
+    },
+  })).trimEnd()}\n`);
+
+  const { post, get, store } = await bootServer(t, FIXTURE_ROOT, { dataDir });
+
+  /** Every place a persisted frame could possibly show up: the store's own
+   *  rows, the AS-100 stream's bytes, and the name AND SIZE of every file the
+   *  server can write under its data dir. Sizes matter: an append that a file
+   *  set alone would miss is exactly the leak this criterion is looking for. */
+  const census = () => ({
+    rows: store.dumpLines().length,
+    stream: readFileSync(streamPath, 'utf8'),
+    files: readdirSync(dir, { recursive: true }).sort().map((f) => {
+      const p = join(dir, f);
+      try {
+        const st = statSync(p);
+        return `${f}:${st.isFile() ? st.size : 'dir'}`;
+      } catch {
+        return `${f}:gone`;
+      }
+    }),
+  });
+
+  const eventsBefore = await get('/api/events');
+  const lanesBefore = await get('/api/lanes');
+  const before = census();
+
+  // Fifty frames across five lanes and every row of the reduction table. They
+  // are spread over lanes rather than spaced in time so that all fifty are
+  // ACCEPTED — a burst the throttle silently swallowed would prove nothing.
+  let accepted = 0;
+  for (let i = 0; i < 50; i++) {
+    const res = await post('/api/activity', activityBody({
+      cwd: `/repo/.worktrees/AS-${100 + (i % 5)}`,
+      tool: ['Read', 'Write', 'Edit', 'Bash', 'Grep'][i % 5],
+      object: ['a.js', 'b.js', 'c.js', 'docker', null][i % 5],
+    }));
+    assert.equal(res.status, 200);
+    if (res.data.activity.accepted) accepted += 1;
+    // Five lanes round-robin, so each lane's next turn is four requests away —
+    // comfortably outside the window on any machine, but wait if it is not.
+    if (i % 5 === 4) await new Promise((ok) => setTimeout(ok, ACTIVITY_MIN_INTERVAL_MS + 20));
+  }
+  assert.equal(accepted, 50, 'all fifty frames were accepted — the burst is real');
+
+  const after = census();
+  assert.equal(after.rows, before.rows, 'sqlite row count unchanged across the burst');
+  assert.equal(after.stream, before.stream, 'the AS-100 stream is byte-identical across the burst');
+  assert.deepEqual(after.files, before.files, 'the file set AND every file size under the data dir are unchanged');
+
+  // AC-4: and the two read endpoints answer exactly what they answered before.
+  const eventsAfter = await get('/api/events');
+  const lanesAfter = await get('/api/lanes');
+  assert.deepEqual(eventsAfter.data, eventsBefore.data, '/api/events unchanged across the burst');
+  assert.deepEqual(
+    { ...lanesAfter.data.lanes, checkedAt: null },
+    { ...lanesBefore.data.lanes, checkedAt: null },
+    '/api/lanes unchanged across the burst (checkedAt is the clock, not the projection)'
+  );
+});
+
+test('api: AS-103 — the endpoint block calls nothing that writes: no store, no append, no tail, no timer', async () => {
+  // A source assertion, and deliberately so. The census test above proves
+  // nothing was written on ONE run; this proves the code has no way to write on
+  // any run, which is the property the board was promised. M2/M4 both land here
+  // as well as on the census.
+  const src = readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+  const start = src.indexOf('function pushActivity(');
+  assert.ok(start > 0, 'pushActivity is where this test thinks it is');
+  const body = src.slice(start, src.indexOf('\n  }\n', src.indexOf('return { accepted: true', start)));
+  for (const forbidden of ['store.', 'appendEvent', 'writeFileSync', 'appendFileSync', 'tailEvents', 'setInterval', 'setTimeout']) {
+    assert.ok(!body.includes(forbidden), `pushActivity must not contain ${forbidden}`);
+  }
 });
