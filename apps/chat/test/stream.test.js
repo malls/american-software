@@ -1596,6 +1596,34 @@ test('stream-activity-nolane: an orchestrator cwd outside any worktree delivers 
   assert.equal(frame.event, 'activity');
 });
 
+test('stream-activity-getframe: a GET to /api/activity 404s AND puts nothing on an open stream', async (t) => {
+  // The second half of AC-10, which api.test.js's 404 alone does not cover:
+  // "404s AND produces no frame". Asserted with a listener attached, because a
+  // method guard that 404'd after fanning out would pass the status check.
+  const { base } = await bootServer(t, FIXTURE_ROOT, {
+    dataDir: loopDataDir(t), loopPollMs: 60_000, lanesPollMs: 60_000, eventsPollMs: 60_000,
+  });
+  const stream = await openStream(base, 'human:forrest');
+  t.after(() => stream.close());
+
+  for (const method of ['GET', 'PUT', 'DELETE']) {
+    const res = await fetch(`${base}/api/activity`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      // A body that WOULD deliver if the method guard let it through.
+      body: method === 'GET' ? undefined : JSON.stringify({ cwd: ACTIVITY_CWD, tool: 'Read', object: 'x.js' }),
+    });
+    assert.equal(res.status, 404, `${method} /api/activity`);
+    await res.json().catch(() => null);
+  }
+  assert.deepEqual(await drain(stream, 400), [], 'no frame reached the open connection');
+
+  // Control: the same body over POST does deliver, so the silence above is the
+  // method guard and not a broken stream.
+  await postActivity(base);
+  assert.equal((await stream.nextFrame()).event, 'activity');
+});
+
 test('stream-activity-throttle: two frames 50ms apart on one lane deliver once; on two lanes, twice', async (t) => {
   // M8 at the wire — the counterpart to api.test.js's decision-level proof.
   const { base } = await bootServer(t, FIXTURE_ROOT, {
