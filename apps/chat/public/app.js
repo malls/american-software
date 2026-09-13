@@ -13,7 +13,7 @@ import { tokenizeLeaf } from './leaf-refs.js';
 import { describeLoopStatus } from './loop-status.js';
 // AS-99: every word the lanes badge and pane show is decided in this module,
 // where it is unit-tested; this file does DOM only.
-import { describeLanes, describeLane, describeTickLine } from './lanes.js';
+import { describeLanes, describeLane, describeTickLine, describeActivity } from './lanes.js';
 import { dashboardTaskHref } from './dashboard-link.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -45,6 +45,12 @@ const state = {
   loopStatus: null, // AS-27: last /api/loop-status payload (null = unavailable)
   dashboardUrl: null, // AS-93: LATTICE_DASHBOARD_URL from /api/config (null = infer)
   lanes: null, // AS-99: last /api/lanes projection (null = we cannot see, badge shows a dash)
+  // AS-103: lane key -> the last live activity frame for that lane, {text, at}.
+  // Push-only and in-memory: it is seeded by NOTHING (no fetch, no
+  // localStorage, no on-connect replay) because the frames are never stored
+  // anywhere a seed could read them. Blank after a reload is the contract, not
+  // a gap — see the `activity` listener and public/lanes.js describeActivity.
+  activity: {},
 };
 
 // --- pins (AS-18) -----------------------------------------------------------
@@ -1120,10 +1126,13 @@ function laneCard(lane, nowMs, eventsReason = 'ok') {
   card.appendChild(laneField('Stage timer', c.stageTimer, liveClass));
   card.appendChild(laneField('Sub-agent', c.subAgent, liveClass));
 
-  // AS-103's transient line: the element and its three states ship here with
-  // NO PRODUCER. Blank until a frame arrives, and blank again after a reload —
-  // the stream is strictly ephemeral and has nothing to replay.
-  card.appendChild(el('div', 'lane-now lane-now--blank', ''));
+  // AS-103's transient line, now with its producer. `state.activity` is fed by
+  // the `activity` SSE listener alone; the three states (live / decayed /
+  // blank) are decided in the label module, so this stays a two-liner. Blank
+  // after a reload is correct and deliberate: the stream is strictly ephemeral
+  // and there is nothing to replay.
+  const now = describeActivity(lane && state.activity ? state.activity[lane.key] : null, nowMs);
+  card.appendChild(el('div', `lane-now lane-now--${now.state}`, now.text));
   return card;
 }
 
@@ -1450,6 +1459,23 @@ function connectStream() {
     }
     state.lanes = payload && 'lanes' in payload ? payload.lanes : null;
     renderLanesBadge();
+    renderLanes();
+  });
+  // AS-103: live tool-level activity. Its own event name, like `loop`, `lanes`
+  // and `company` — but unlike all three it is a projection of nothing on disk.
+  // There is no fetch beside it and no catch-up path: a frame missed (pane
+  // closed, tab reloaded, connection dropped) is a frame gone, which is what
+  // "live as it happens, it does not need persistence" means. The badge is
+  // untouched — a count of lanes is not a count of tool calls.
+  eventSource.addEventListener('activity', (e) => {
+    let frame;
+    try {
+      frame = JSON.parse(e.data);
+    } catch {
+      return; // a torn frame is the reconnect path's problem, not a crash
+    }
+    if (!frame || typeof frame.key !== 'string' || !frame.key) return;
+    state.activity[frame.key] = { text: frame.text, at: frame.at };
     renderLanes();
   });
   eventSource.addEventListener('open', () => {

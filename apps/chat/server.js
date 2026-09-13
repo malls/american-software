@@ -32,6 +32,15 @@ import {
   readStream,
   reduceLiveness,
 } from './lib/events.js';
+// AS-103: the live tool-level activity reduction. Pure, like lib/lanes.js —
+// and unlike every other import in this block it feeds NO store and NO file.
+// The only state on this side is the per-lane throttle Map below, which is
+// in-memory, per-process, and dies with the process. That is the whole point.
+import {
+  ACTIVITY_MIN_INTERVAL_MS,
+  activityText,
+  laneKeyFromCwd,
+} from './lib/activity.js';
 import { readRoster, readPersonnel } from './lib/personnel.js';
 import { reconcileIdentities } from './lib/identities.js';
 // AS-33: the org rule set + tree builder. The server importing UP into
@@ -850,6 +859,87 @@ export function createChatServer({
   }, eventsPollMs);
   eventsPoll.unref();
 
+  // --- AS-103: live tool-level activity ------------------------------------
+  // The fifth event name on this stream, and the ONLY one that is not a
+  // projection of something on disk. A frame is composed from the POST body,
+  // written to whatever connections are open at that instant, and forgotten.
+  //
+  // WHAT IS DELIBERATELY ABSENT HERE, and must stay absent (the board's own
+  // constraint on this task, tightened by the CTO into the plan's headline
+  // criterion): no `store.*` call, no `appendEvent`, no write under `loopDir`,
+  // no `tailEvents()`, no `setInterval`, and no replay buffer. A client that
+  // connects one millisecond late learns nothing about the frame. If a later
+  // change makes any of those five appear in this block, it is a redesign that
+  // needs the board, not a refactor.
+  //
+  // The one piece of state is this Map: lane key -> the ms at which that lane
+  // last had a frame DELIVERED. Bounded below, never persisted.
+  const activityLast = new Map();
+
+  /** An entry older than the throttle window can never throttle anything again
+   *  (`now - last >= ACTIVITY_MIN_INTERVAL_MS` holds for every future `now`),
+   *  so dropping it is provably behaviour-preserving. Run only when the Map
+   *  has grown past a plausible lane count, which keeps a caller that invents
+   *  lane keys from growing it without bound. */
+  const ACTIVITY_LANES_SOFT_MAX = 64;
+  function sweepActivity(nowMs) {
+    if (activityLast.size < ACTIVITY_LANES_SOFT_MAX) return;
+    for (const [key, at] of activityLast) {
+      if (nowMs - at >= ACTIVITY_MIN_INTERVAL_MS) activityLast.delete(key);
+    }
+  }
+
+  /**
+   * Decide and fan out one activity frame. ALWAYS returns a decision rather
+   * than throwing: every outcome answers 200, so the hook has nothing to retry
+   * and the suite can assert the decision without opening a stream.
+   */
+  function pushActivity(body) {
+    const drop = (reason, key = null) => ({ accepted: false, reason, key, delivered: 0 });
+    const src = body && typeof body === 'object' && !Array.isArray(body) ? body : {};
+
+    // `object` is the only field whose TYPE the reduction cannot speak for: a
+    // number would stringify into the sentence rather than being rejected.
+    const object = src.object;
+    if (object !== null && object !== undefined && typeof object !== 'string') return drop('bad-object');
+
+    // Second reduction (the first ran in the hook, on the host). A tool name
+    // that is not plausibly a tool name gets no sentence at all.
+    const text = activityText(src.tool, object ?? null);
+    if (text === null) return drop('bad-tool');
+
+    // Attribution is DERIVED from the cwd and nothing else — the body carries
+    // no employee field and would not be believed if it did. No worktree, no
+    // lane, no card: dropped.
+    const key = laneKeyFromCwd(src.cwd);
+    if (!key) return drop('no-lane');
+
+    // Drop, never queue. A frame inside the window is stale the moment the
+    // next one is composed, and holding it would need the timer this endpoint
+    // does not have.
+    const now = Date.now();
+    const last = activityLast.get(key);
+    if (last !== undefined && now - last < ACTIVITY_MIN_INTERVAL_MS) return drop('throttled', key);
+    sweepActivity(now);
+    activityLast.set(key, now);
+
+    // Exactly the ACTIVITY_FRAME_KEYS keys, written as a literal so that adding
+    // one here is a test failure rather than a silently wider contract.
+    const frame = `event: activity\ndata: ${JSON.stringify({ key, text, at: new Date(now).toISOString() })}\n\n`;
+    let delivered = 0;
+    for (const conn of streams) {
+      // No visibleTo gate: a lane is identical for every viewer, the same
+      // contract the loop, lanes and company frames carry.
+      try {
+        conn.res.write(frame);
+        delivered += 1;
+      } catch {
+        streams.delete(conn);
+      }
+    }
+    return { accepted: true, reason: 'ok', key, delivered };
+  }
+
   // Sentinel key for handleApi results that are raw text (currently only
   // /api/dump's JSONL), sent as text/plain instead of a JSON envelope.
   const RAW_TEXT = Symbol('rawText');
@@ -892,6 +982,13 @@ export function createChatServer({
       // grew a field on the host cannot reach a browser without a decision
       // here (AC-12). `since` is exclusive by id; unknown ids return nothing.
       return readEvents({ since: q('since'), task: q('task'), limit: q('limit') ?? 200 });
+    }
+    if (req.method === 'POST' && pathname === '/api/activity') {
+      // AS-103: one tool call became one sentence on one lane. POST only —
+      // a GET falls through to the not_found at the bottom of this function
+      // (404), because there is nothing here to read: the frame does not exist
+      // anywhere a later reader could find it.
+      return { activity: pushActivity(body) };
     }
     if (req.method === 'GET' && pathname === '/api/build') {
       // AS-75: what code is actually serving, first-hand. The watcher reads
