@@ -1,5 +1,6 @@
 {
-  "assigned_to": null,
+  "acceptance_criteria": [],
+  "assigned_to": "agent:cto-owen",
   "branch_links": [],
   "comment_count": 0,
   "complexity": "medium",
@@ -10,20 +11,21 @@
   "done_at": null,
   "evidence_refs": [],
   "id": "task_01M1M1BMRVY1BNPA94XS5SJS8Y",
-  "last_event_id": "ev_01M1M1BMRWNMKD5J9CJ78BZS1S",
-  "last_status_changed_at": "2026-09-03T16:24:15Z",
+  "last_event_id": "ev_01M2CCHAM93S77B171Q9ZJR2TP",
+  "last_status_changed_at": "2026-09-13T03:21:22Z",
+  "linked_files": [],
   "priority": "low",
   "relationships_out": [],
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AS-76",
-  "status": "backlog",
+  "status": "in_progress",
   "tags": [
     "observability",
     "design"
   ],
   "title": "Observability: design note \u2014 error tracking + product analytics posture for apps/invoicing and apps/chat (Sentry/PostHog; produces the board ask)",
   "type": "spike",
-  "updated_at": "2026-09-03T16:24:15Z",
+  "updated_at": "2026-09-13T03:21:22Z",
   "urgency": "low"
 }
